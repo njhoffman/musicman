@@ -1,25 +1,15 @@
 const express = require('express');
-const router = require('express-promise-router')();
-const { promisify } = require('util');
-const fs = require('fs');
 
-const { exceptionHandler, rejectionHandler } = require('./utils/errors');
 const config = require('../config');
+const initRouter = require('./router');
+const { exceptionHandler, rejectionHandler } = require('./utils/errors');
+
 
 const startServer = async app => {
   if (config.env !== 'test') {
     await app.listen(config.server.port);
     console.log(`API is running on port: ${config.server.port}`);
   }
-  return app;
-};
-
-const initRouter = (app) => {
-  router.get('/version', (req, res) => {
-    res.send({ version: config.version });
-  });
-
-  app.use(router);
   return app;
 };
 
