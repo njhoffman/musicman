@@ -3,6 +3,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev": "nodemon --config ./nodemon.json lib/index.js | bunyan",
+    "lint": "./node_modules/.bin/esw lib test --color",
+    "lint:fix": "npm run lint -- --fix",
+    "lint:watch": "npm run lint -- --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -22,5 +26,11 @@
     "nodemon": "1.19.4",
     "nyc": "14.1.1",
     "prettier": "1.19.0"
+  },
+  "dependencies": {
+    "bunyan": "1.8.12",
+    "express": "4.17.1",
+    "lodash": "4.17.15",
+    "pretty-error": "2.1.1"
   }
 }
