@@ -1,0 +1,59 @@
+{
+  "parser": "babel-eslint",
+  "parserOptions": {
+    "ecmaVersion": 6,
+    "sourceType": "module",
+    "ecmaFeatures": {
+      "jsx": true,
+      "experimentalObjectRestSpread": true,
+			"modules": true
+    }
+  },
+  "extends": [
+    "airbnb"
+  ],
+  "settings": {
+    "import/resolver": {
+      "webpack": {
+        "config": "config/webpack/base.js"
+      }
+    }
+  },
+  "plugins": [ ],
+  "env": {
+    "browser" : true,
+    "node"    : true,
+    "es6"     : true,
+    "mocha"   : true
+  },
+  "globals": {
+    "__BASENAME__" : false,
+    "__DEV__"      : false,
+    "__TEST__"     : false,
+    "__PROD__"     : false,
+    "__COVERAGE__" : false,
+    "__API_URL__"  : false,
+    "__API_PATH__" : false
+  },
+  "rules": {
+    "react/jsx-no-bind":                  ["warn", { "allowArrowFunctions": true, "allowBind": false, "allowFunctions": false, "ignoreRefs": false }],
+    "implicit-arrow-linebreak":           0,
+    "newline-per-chained-call":           [2, { "ignoreChainWithDepth" : 2 }],
+    "object-curly-newline":               [2, { "consistent": true }],
+    "no-else-return":                     [2, { "allowElseIf" : true }],
+    "arrow-parens":                       0,
+    "react/jsx-closing-bracket-location": [1, { "nonEmpty" : "after-props", "selfClosing": "tag-aligned" }],
+    "no-underscore-dangle":               0,
+    "comma-dangle":                       0,
+    "max-len":                            [1, 120, 2, { "ignoreComments": true} ],
+    "key-spacing":                        [0, { "align": "value" }],
+    "jsx-quotes":                         [2, "prefer-single"],
+    "no-multi-spaces":                    ["error", { "exceptions": { "VariableDeclarator": true, "ImportDeclaration" : true } }],
+    "space-before-function-paren":        ["error", {"anonymous": "never", "named": "never", "asyncArrow" : "always"}],
+    "semi":                               [2, "always" ],
+    "react/no-typos":                     "error",
+    "no-console":                         "warn",
+    "no-unused-vars":                     ["error", { "args" : "none" }],
+    "react/jsx-filename-extension":       0
+  }
+}
