@@ -1,5 +1,7 @@
 const express = require('express');
 const router = require('express-promise-router')();
+const { promisify } = require('util');
+const fs = require('fs');
 
 const { exceptionHandler, rejectionHandler } = require('./utils/errors');
 const config = require('../config');
@@ -17,10 +19,6 @@ const initRouter = (app) => {
     res.send({ version: config.version });
   });
 
-  router.get('/scan', (req, res) => {
-    res.send('OK');
-  });
-
   app.use(router);
   return app;
 };
@@ -29,6 +27,7 @@ const initServer = async () => {
   const app = express();
   await initRouter(app);
   await startServer(app);
+
   return app;
 };
 
