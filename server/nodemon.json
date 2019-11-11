@@ -6,7 +6,7 @@
     "src"
   ],
   "execMap" : {
-    "js": "node --inspect=0.0.0.0:9229"
+    "js": "node"
   },
   "watch" : [
     "lib/**/*.js"

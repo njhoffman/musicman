@@ -44,7 +44,7 @@ const routeError = (err, req, res, next) => {
 
   if (!res.headersSent) {
     const status = err.status || 500;
-    info(`Sending headers from error handler with status ${status}`);
+    console.log(`Sending headers from error handler with status ${status}`);
     res.status(status).json({
       error: `${err.name}: ${err.message}`,
       status: err.status

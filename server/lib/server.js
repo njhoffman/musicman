@@ -1,9 +1,8 @@
 const express = require('express');
 
-const config = require('../config');
+const config = require('@config');
 const initRouter = require('./router');
 const { exceptionHandler, rejectionHandler } = require('./utils/errors');
-
 
 const startServer = async app => {
   if (config.env !== 'test') {
