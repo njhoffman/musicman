@@ -9,13 +9,15 @@ const padRight = (str, len) => (len > str.length ? str + new Array(len - str.len
 /* eslint-disable no-console */
 const levelMap = { trace: 6, debug: 5, info: 4, warn: 3, error: 2, fatal: 1 };
 
-const outputMessage = msg => {
+const outputMessage = (msg, i) => {
   if (_.isObject(msg)) {
-    console.log(inspect(msg, { colors: true, breakLength: 120 }));
+    process.stdout.write(i > 0 ? '  ' : '');
+    process.stdout.write(inspect(msg, { colors: true, breakLength: 120 }));
   } else if (msg.indexOf('\n') !== -1) {
-    console.log(msg);
+    process.stdout.write(i > 0 ? '\n  ' : '');
+    process.stdout.write(msg.split('\n').join('\n  '));
   } else {
-    console.log(msg);
+    process.stdout.write(msg);
   }
 };
 /* eslint-enable no-console */
@@ -31,6 +33,7 @@ const log = (level, messages) => {
   if (loggerLevel >= level) {
     process.stdout.write(`${label}  `);
     messages.filter(Boolean).forEach(outputMessage);
+    process.stdout.write('\n');
   }
 };
 

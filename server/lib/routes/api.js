@@ -4,8 +4,9 @@ const config = require('@config');
 
 const router = new Router();
 
-router.get('/version', (req, res) => {
-  res.send({ version: config.version });
-});
-
-module.exports = router;
+module.exports = modules => {
+  router.get('/version', (req, res) => {
+    res.send({ version: config.version });
+  });
+  return router;
+};

@@ -3,10 +3,10 @@ const metadataRoutes = require('./routes/metadata');
 const mpdRoutes = require('./routes/mpd');
 const { routeError } = require('./utils/errors');
 
-module.exports = app => {
-  app.use(apiRoutes);
-  app.use(metadataRoutes);
-  app.use(mpdRoutes);
+module.exports = ({ app, ...modules }) => {
+  app.use(apiRoutes(modules));
+  app.use(metadataRoutes(modules));
+  app.use(mpdRoutes(modules));
   app.use(routeError);
   return app;
 };

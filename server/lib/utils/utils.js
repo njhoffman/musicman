@@ -3,4 +3,13 @@ const fs = require('fs');
 
 const crawlDirectory = async directoryPath => promisify(fs.readdir)(directoryPath);
 
-module.exports = { crawlDirectory };
+const isJson = str => {
+  try {
+    JSON.parse(str);
+  } catch (e) {
+    return false;
+  }
+  return true;
+};
+
+module.exports = { crawlDirectory, isJson };

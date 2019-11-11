@@ -1,77 +1,97 @@
 const _ = require('lodash');
 const Router = require('express-promise-router');
 
-const mpd = require('@lib/mpd');
+const { MPD_STATUS, MPD_STATS, MPD_CURRENT_SONG } = require('@lib/constants');
 const logger = require('@lib/utils/logger');
 const config = require('@config');
 
-const client = mpd.connect({ port: config.mpd.port, host: config.mpd.host });
-
 let status = {};
-const getStatus = cb => {
-  client.sendCommand(mpd.cmd('status', []), (err, msg) => {
-    if (err) {
-      throw err;
-    }
-    const parsed = _.fromPairs(
-      msg
-        .split('\n')
-        .filter(Boolean)
-        .map(line => line.split(':').map(val => val.trim()))
-    );
+let song = {};
+let stats = {};
 
-    const differences = _.fromPairs(
-      _.keys(parsed)
-        .filter(key => !_.isEqual(parsed[key], status[key]))
-        .map(key => [key, { before: status[key], after: parsed[key] }])
-    );
-    logger.debug(differences);
+const getDifferences = (before, after, ignored = []) =>
+  _.fromPairs(
+    _.keys(after)
+      .filter(key => _.indexOf(ignored, key) === -1 && !_.isEqual(after[key], before[key]))
+      .map(key => [key, [before[key], after[key]]])
+  );
+
+module.exports = modules => {
+  const { broadcast, mpdClient } = modules;
+
+  const getStatus = async () => {
+    const parsed = await mpdClient.sendCommandAsync('status');
+    const ignored = ['elapsed'];
+
+    const differences = getDifferences(parsed, status, ignored);
     status = parsed;
-    if (_.isFunction(cb)) {
-      cb(parsed);
+
+    if (_.keys(differences).length > 0) {
+      broadcast(MPD_STATUS, differences);
     }
-  });
-};
-
-setInterval(() => {
-  getStatus();
-}, 3000);
-
-client.on('error', err => {
-  logger.info('MPD ERROR', err);
-  throw new Error(err);
-});
-
-client.on('ready', () => {
-  logger.info(`MPD connected at ${config.mpd.host}:${config.mpd.port}`);
-  getStatus();
-});
-
-client.on('system', (name, ...args) => {
-  const systemMap = {
-    database: () => {},
-    update: () => {},
-    stored_playlist: () => {},
-    playlist: () => {},
-    player: getStatus,
-    mixer: () => {},
-    output: () => {},
-    options: () => {},
-    sticker: () => {},
-    subscription: () => {},
-    message: () => {}
   };
-  logger.info(`update ${name}`);
-  if (args.length > 0) {
-    logger.info(args);
-  }
 
-  systemMap[name](args);
-});
+  const getStats = async () => {
+    const parsed = await mpdClient.sendCommandAsync('stats');
+    const differences = getDifferences(parsed, stats);
+    stats = parsed;
+    if (_.keys(differences).length > 0) {
+      broadcast(MPD_STATS, differences);
+    }
+  };
 
-const router = new Router();
-router.get('/version', (req, res) => {
-  res.send({ version: config.version });
-});
+  const getCurrentSong = async () => {
+    const parsed = await mpdClient.sendCommandAsync('currentsong');
+    const differences = getDifferences(parsed, song);
+    song = parsed;
+    if (_.keys(differences).length > 0) {
+      broadcast(MPD_CURRENT_SONG, differences);
+    }
+  };
 
-module.exports = router;
+  mpdClient.on('error', err => {
+    logger.info('MPD ERROR', err);
+    throw new Error(err);
+  });
+
+  mpdClient.on('ready', () => {
+    logger.info(`MPD connected at ${config.mpd.host}:${config.mpd.port}`);
+    getStatus();
+    getStats();
+  });
+
+  mpdClient.on('system', (name, ...args) => {
+    const systemMap = {
+      database: () => {},
+      update: () => {},
+      stored_playlist: () => {},
+      playlist: () => {},
+      player: getStatus,
+      mixer: () => {},
+      output: () => {},
+      options: () => {},
+      sticker: () => {},
+      subscription: () => {},
+      message: () => {}
+    };
+    logger.info(`update: ${name}`);
+    if (args.length > 0) {
+      logger.info(args);
+    }
+
+    systemMap[name](args);
+  });
+
+  setInterval(() => {
+    getStatus();
+    getStats();
+    getCurrentSong();
+  }, 3000);
+
+  const router = new Router();
+
+  router.get('/mpd', (req, res) => {
+    res.send({ version: config.version });
+  });
+  return router;
+};

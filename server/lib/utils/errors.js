@@ -8,7 +8,6 @@ pe.skipPackage('express', 'chai');
 
 const exceptionHandler = err => {
   if (NODE_ENV !== 'TEST') {
-    logger.error({ err });
     logger.error('\n\n   ** Unhandled Exception **\n', pe.render(err), '\n');
     throw new Error(err);
   }
@@ -16,9 +15,8 @@ const exceptionHandler = err => {
 
 const rejectionHandler = reason => {
   if (NODE_ENV !== 'TEST') {
-    logger.error({ err: reason });
     logger.error('\n\n   ** Unhandled Rejection **\n', pe.render(reason), '\n');
-    throw new Error(reason);
+    throw reason;
   }
 };
 
