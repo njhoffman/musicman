@@ -11,18 +11,13 @@ module.exports = {
   },
   library: {
     tagId: 'ID3v2.4',
-    tags: _.map([
-      'popularity',
-      'volume',
-      'artist',
-      'title',
-      'year',
-      'genre',
-      'mood',
-      'copyright',
-      'album'
-    ], name => _.find(tags, { name })),
+    tags: _.map(['popularity', 'volume', 'artist', 'title', 'year', 'genre', 'mood', 'copyright', 'album'], name =>
+      _.find(tags, { name })
+    ),
     basePath: '/home/nicholas/Music'
+  },
+  websocket: {
+    port: 8999
   },
   server: {
     port: 3000
@@ -33,9 +28,9 @@ module.exports = {
       error: { fg: [255, 255, 255], bg: [180, 20, 20] },
       warn: { fg: [255, 255, 255], bg: [180, 60, 20] },
       log: { fg: [255, 255, 255], bg: [60, 110, 180] },
-      info: { fg: [255, 255, 255], bg: [20, 70, 180] },
+      info: { fg: [255, 255, 255], bg: [20, 50, 130] },
       debug: { fg: [255, 255, 255], bg: [80, 100, 200] },
-      trace: { fg: [255, 255, 255], bg: [80, 120, 220] }
+      trace: { fg: [255, 255, 255], bg: [100, 150, 220] }
     },
     file: {
       name: 'musicman.log',
@@ -44,5 +39,5 @@ module.exports = {
     stdout: {
       level: 5
     }
-  },
+  }
 };

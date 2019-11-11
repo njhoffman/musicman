@@ -16,7 +16,7 @@
   "license": "ISC",
   "devDependencies": {
     "babel-eslint": "10.0.3",
-    "chai": "^4.2.0",
+    "chai": "4.2.0",
     "eslint": "6.6.0",
     "eslint-config-airbnb-base": "14.0.0",
     "eslint-config-prettier": "6.5.0",
@@ -30,19 +30,20 @@
     "nodemon": "1.19.4",
     "nyc": "14.1.1",
     "prettier": "1.18.2",
-    "sinon": "^7.5.0",
-    "sinon-chai": "^3.3.0",
+    "sinon": "7.5.0",
+    "sinon-chai": "3.3.0",
     "supertest": "4.0.2"
   },
   "dependencies": {
     "bunyan": "1.8.12",
-    "chalk": "^3.0.0",
+    "chalk": "3.0.0",
     "express": "4.17.1",
     "express-promise-router": "3.0.3",
     "lodash": "4.17.15",
-    "module-alias": "^2.2.2",
+    "module-alias": "2.2.2",
     "music-metadata": "4.8.4",
-    "pretty-error": "2.1.1"
+    "pretty-error": "2.1.1",
+    "ws": "7.2.0"
   },
   "_moduleAliases": {
     "@root": ".",

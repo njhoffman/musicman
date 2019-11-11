@@ -196,4 +196,3 @@ MpdClient.parseKeyValueMessage = parseKeyValueMessage;
 MpdClient.parseArrayMessage = parseArrayMessage;
 
 module.exports = MpdClient;
-

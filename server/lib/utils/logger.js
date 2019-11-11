@@ -18,6 +18,7 @@ const outputMessage = msg => {
     console.log(msg);
   }
 };
+/* eslint-enable no-console */
 
 const log = (level, messages) => {
   const { level: loggerLevel } = config.logger.stdout;
@@ -34,6 +35,5 @@ const log = (level, messages) => {
 };
 
 const logger = _.mapValues(levelMap, level => (...messages) => log(level, messages));
-/* eslint-enable no-console */
 
 module.exports = logger;

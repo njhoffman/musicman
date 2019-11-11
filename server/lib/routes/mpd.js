@@ -25,7 +25,7 @@ const getStatus = cb => {
         .filter(key => !_.isEqual(parsed[key], status[key]))
         .map(key => [key, { before: status[key], after: parsed[key] }])
     );
-    logger.info(differences);
+    logger.debug(differences);
     status = parsed;
     if (_.isFunction(cb)) {
       cb(parsed);
