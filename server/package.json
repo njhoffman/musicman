@@ -3,7 +3,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon --config ./nodemon.json lib/index.js | bunyan",
+    "dev": "nodemon --config ./nodemon.json lib/index.js",
+    "start": "node lib/index.js",
     "lint": "./node_modules/.bin/esw lib test --color",
     "lint:fix": "npm run lint -- --fix",
     "lint:watch": "npm run lint -- --watch",
@@ -28,13 +29,14 @@
     "mocha": "6.2.2",
     "nodemon": "1.19.4",
     "nyc": "14.1.1",
-    "prettier": "1.19.0",
+    "prettier": "1.18.2",
     "sinon": "^7.5.0",
     "sinon-chai": "^3.3.0",
     "supertest": "4.0.2"
   },
   "dependencies": {
     "bunyan": "1.8.12",
+    "chalk": "^3.0.0",
     "express": "4.17.1",
     "express-promise-router": "3.0.3",
     "lodash": "4.17.15",
@@ -43,8 +45,8 @@
     "pretty-error": "2.1.1"
   },
   "_moduleAliases": {
-    "@root" : ".",
-    "@lib" : "lib",
+    "@root": ".",
+    "@lib": "lib",
     "@config": "config",
     "@test": "test"
   }

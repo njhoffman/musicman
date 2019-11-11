@@ -1,7 +1,7 @@
-const initServer = require('../lib/server');
 const request = require('supertest');
+const initServer = require('../lib/server');
 
-const setupApp = async() => {
+const setupApp = async () => {
   const app = await initServer();
   return app;
 };
@@ -32,6 +32,5 @@ const getRequest = (app, url) =>
         }
       });
   });
-
 
 module.exports = { setupApp, postRequest, getRequest };

@@ -20,5 +20,7 @@ describe('e2e Route Tests', async () => {
     expect(res.statusCode).to.equal(200);
   });
 
-  after(() => console.log(`\n    Finished testing in ${new Date().getTime() - startTime}ms (${new Date().toLocaleTimeString()})`));
+  after(() =>
+    console.log(`\n    Finished testing in ${new Date().getTime() - startTime}ms (${new Date().toLocaleTimeString()})`)
+  );
 });
