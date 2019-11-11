@@ -1,23 +1,20 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 import Container from '@material-ui/core/Container';
 import Typography from '@material-ui/core/Typography';
 import Box from '@material-ui/core/Box';
 import Link from '@material-ui/core/Link';
 
+import initializeWebSocket from './websocket';
+
 import logo from './logo.svg';
 import './App.css';
 
-function Copyright() {
+const Copyright = () => {
   return (
     <Typography variant="body2" color="textSecondary" align="center">
       <img src={logo} className="App-logo" alt="logo" />
-      <p>
-        Edit <code>src/App.js</code> and save to reload.
-      </p>
-      <a className="App-link" href="https://reactjs.org" target="_blank" rel="noopener noreferrer">
-        Learn React
-      </a>
+      Edit <code>src/App.js</code> and save to reload.
       {'Copyright © '}
       <Link color="inherit" href="https://material-ui.com/">
         Your Website
@@ -26,11 +23,15 @@ function Copyright() {
       {'.'}
     </Typography>
   );
-}
+};
 
 export default function App() {
+  useEffect(() => {
+    initializeWebSocket();
+  });
+
   return (
-    <Container maxWidth="sm">
+    <Container maxWidth="sm" className="App">
       <Box my={4}>
         <Typography variant="h4" component="h1" gutterBottom>
           Create React App v4-beta example
