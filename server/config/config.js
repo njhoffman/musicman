@@ -5,6 +5,25 @@ const tags = require('./tags');
 module.exports = {
   version,
   env: process.env.NODE_ENV,
+  db: {
+    user: 'nicholas',
+    host: 'localhost',
+    database: 'musicman',
+    password: 'nicholas_password',
+    port: 5432
+  },
+  test: {
+    db: {
+      user: 'nicholas',
+      host: 'localhost',
+      database: 'musicman_test',
+      template: 'musicman_test_template',
+      password: 'nicholas_password',
+      port: 5432
+    },
+    // schemaLocation: './test/data/schema.sql',
+    suppressLogs: true
+  },
   mpd: {
     port: 6600,
     host: 'localhost'

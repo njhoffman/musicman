@@ -42,6 +42,7 @@
     "lodash": "4.17.15",
     "module-alias": "2.2.2",
     "music-metadata": "4.8.4",
+    "pg": "7.12.1",
     "pretty-error": "2.1.1",
     "ws": "7.2.0"
   },

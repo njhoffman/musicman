@@ -1,5 +1,5 @@
-const logger = require('./utils/logger');
-const { exceptionHandler, rejectionHandler } = require('./utils/errors');
+const logger = require('./logger');
+const { exceptionHandler, rejectionHandler } = require('./errors');
 
 process.on('uncaughtException', exceptionHandler);
 process.on('unhandledRejection', rejectionHandler);

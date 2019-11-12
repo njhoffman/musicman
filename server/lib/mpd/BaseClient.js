@@ -53,7 +53,7 @@ class BaseClient extends EventEmitter {
 
   handleIdleResults(msg) {
     const self = this;
-    msg.split('\n').forEach(function(system) {
+    msg.split('\n').forEach(system => {
       if (system.length > 0) {
         const name = system.substring(9);
         self.emit(`system-${name}`);
@@ -65,7 +65,8 @@ class BaseClient extends EventEmitter {
   receive(data) {
     let m;
     this.buffer += data;
-    while ((m = this.buffer.match(MPD_SENTINEL))) {
+    while (this.buffer.match(MPD_SENTINEL)) {
+      m = this.buffer.match(MPD_SENTINEL);
       const msg = this.buffer.substring(0, m.index);
       const line = m[0];
       const code = m[1];
@@ -90,7 +91,7 @@ class BaseClient extends EventEmitter {
 
   setupIdling() {
     const self = this;
-    self.sendWithCallback('idle', function(err, msg) {
+    self.sendWithCallback('idle', (err, msg) => {
       self.handleIdleResultsLoop(err, msg);
     });
     self.idling = true;
