@@ -9,7 +9,7 @@ const handler = (...args) => {
 };
 
 const builder = () => {
-  yargs
+  return yargs
     .options({
       exclude: {
         description: 'Exclude certain fields from output',

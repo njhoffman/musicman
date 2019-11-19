@@ -10,7 +10,7 @@ const handler = (...args) => {
 };
 
 const builder = () => {
-  yargs
+  return yargs
     .options({
       title: {
         description: 'Assign title to all files',

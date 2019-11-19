@@ -1,7 +1,7 @@
 const yargs = require('yargs');
 const { viewCommand, editCommand } = require('./commands');
 
-yargs
+const { argv } = yargs
   .usage('Usage: $0 <command> [options] [target]')
   .example('$0 edit --title target.mp3')
   .command(viewCommand)
@@ -22,4 +22,5 @@ yargs
   .epilog('The view command is default.')
   .epilog('Providing no options shows tags in current directory.');
 
-// const target = argv._[0] || argv.target;
+// exits right away if argv not assigned from yargs chain
+console.log(argv);
