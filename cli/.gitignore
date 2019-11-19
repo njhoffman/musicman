@@ -3,6 +3,9 @@
 
 ### folders ###
 
+# mp3 testing files
+.mp3/
+
 # project dependencies
 node_modules
 

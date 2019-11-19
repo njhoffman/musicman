@@ -2,10 +2,10 @@
   "name": "musicman-cli",
   "version": "1.0.1",
   "description": "",
-  "main": "index.js",
+  "main": "lib/index.js",
   "scripts": {
-    "dev": "nodemon --config ./nodemon.json index.js",
-    "start": "node index.js",
+    "dev": "nodemon --config ./nodemon.json lib/index.js",
+    "start": "node lib/index.js",
     "lint": "./node_modules/.bin/esw index.js --color",
     "lint:fix": "npm run lint -- --fix",
     "lint:watch": "npm run lint -- --watch"
@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "chalk": "3.0.0",
+    "glob": "^7.1.6",
     "lodash": "4.17.15",
     "module-alias": "2.2.2",
     "music-metadata": "5.0.0",
