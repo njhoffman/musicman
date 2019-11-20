@@ -6,7 +6,7 @@ const handler = async ({ target }) => {
   const files = await getFiles(`${target}/.mp3`, { ext: 'mp3', recursive: true });
   const metaFiles = await getMetadata(files);
   // output according to format setting
-  console.log('metaFiles', metaFiles);
+  metaFiles.map(mf => console.log(mf));
   return true;
 };
 

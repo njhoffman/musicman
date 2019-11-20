@@ -14,7 +14,12 @@ const getFiles = async (dir, options = { ext: '*', recursive: false }) => {
 
 const getMetadata = async files => {
   const results = await Promise.all(files.map(async file => Promise.all([file, mm.parseFile(file)])));
-  const parsed = results.map(([fileName, metadata]) => ({ fileName, ...metadata.common }));
+  const parsed = results.map(([fileName, metadata]) => ({
+    fileName,
+    ...metadata.common,
+    // TODO : make this a custom function
+    stars: metadata.common.rating ? mm.ratingToStars(metadata.common.rating[0].rating) : ''
+  }));
   return parsed;
 };
 
