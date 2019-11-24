@@ -29,4 +29,4 @@ const { argv } = yargs
   .epilog('Providing no options shows tags in current directory.');
 
 // exits right away if argv not assigned from yargs chain
-console.log(`Finished with ${argv.target}`);
+// console.log(`Finished with ${argv.target}`);

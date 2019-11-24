@@ -1,10 +1,10 @@
 const yargs = require('yargs');
+const { checkDirectory, getFiles, getMetadata } = require('../utils');
 
-const handler = (...args) => {
-  console.log('EDIT HANDLER', args);
-  // check if directory exists
-  // if it doesn't, exit
-  // if it does, itemize files (recursive if necessary)
+const handler = async ({ target }) => {
+  console.log('EDIT HANDLER');
+  await checkDirectory(`${target}/.mp3`);
+  const files = await getFiles(`${target}/.mp3`, { ext: 'mp3', recursive: true });
   // apply all changes
   // output file changes for each file
 };

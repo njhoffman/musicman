@@ -33,10 +33,12 @@
   },
   "dependencies": {
     "chalk": "3.0.0",
+    "columnify": "^1.5.4",
     "glob": "^7.1.6",
     "lodash": "4.17.15",
     "module-alias": "2.2.2",
     "music-metadata": "5.0.0",
+    "node-id3": "tiusnonos/node-id3#master",
     "pretty-error": "2.1.1",
     "yargs": "^15.0.1"
   }

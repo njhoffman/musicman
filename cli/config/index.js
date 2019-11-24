@@ -3,5 +3,5 @@
 module.exports = {
   scenarioTag: 'grouping',
   moodTag: 'copyright',
-  viewTags: ['artist', 'title', 'album', 'genre', 'rating', 'year', 'grouping', 'copyright', 'picture']
+  viewTags: ['artist', 'title', 'album', 'genre', 'year', 'grouping', 'copyright', 'rating', 'picture']
 };
