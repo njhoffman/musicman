@@ -1,38 +1,39 @@
-var request = require('request'),
-  xml2js = require('xml2js'),
-  trickle = require('timetrickle'),
-  querystring = require('querystring'),
-  os = require('os'),
-  timers = require('timers'),
-  limit = trickle(1, 1000);
+const request = require('request');
+const xml2js = require('xml2js');
+const trickle = require('timetrickle');
+const querystring = require('querystring');
+const os = require('os');
+const timers = require('timers');
 
-var VERSION = '0.2.4';
-var mbBaseURI = 'http://musicbrainz.org/ws/2/';
+let limit = trickle(1, 1000);
 
-var mb = exports;
+const VERSION = '0.2.4';
+let mbBaseURI = 'http://musicbrainz.org/ws/2/';
+
+const mb = exports;
 
 exports.configure = function(options) {
   if (options.baseURI) {
     mbBaseURI = options.baseURI;
   }
   if (options.rateLimit) {
-    var requests = options.rateLimit.requests || 1;
-    var interval = options.rateLimit.interval || 1000;
+    const requests = options.rateLimit.requests || 1;
+    const interval = options.rateLimit.interval || 1000;
 
     limit = trickle(requests, interval);
   }
 };
 
-var AliasesLinkedEntities = function() {
-  var self = this;
+const AliasesLinkedEntities = function() {
+  const self = this;
   this.setDataFields(['aliases']);
   this.aliases = [];
   this._linkedEntities.push('aliases');
 
   this.loadAliases = function(data) {
     if (typeof data['alias-list'] !== 'undefined') {
-      var aliasList = data['alias-list'].alias;
-      for (var j = 0; j < aliasList.length; j++) {
+      const aliasList = data['alias-list'].alias;
+      for (let j = 0; j < aliasList.length; j++) {
         self.aliases.push(aliasList[j]['#']);
       }
     }
@@ -43,19 +44,19 @@ var AliasesLinkedEntities = function() {
   return this;
 };
 
-var ReleaseLinkedEntities = function() {
-  var self = this;
+const ReleaseLinkedEntities = function() {
+  const self = this;
   this.setDataFields(['releases']);
   this.releases = [];
   this._linkedEntities.push('releases');
 
   this.loadReleaseList = function(data) {
     if (typeof data['release-list'] !== 'undefined') {
-      var releases = data['release-list'].release || [];
+      let releases = data['release-list'].release || [];
       if (data['release-list']['@'].count === 1) releases = [releases];
 
-      for (var i = 0; i < releases.length; i++) {
-        var release = new Release(releases[i]['@'].id);
+      for (let i = 0; i < releases.length; i++) {
+        const release = new Release(releases[i]['@'].id);
         release.setProperty('title', releases[i].title);
         release.setProperty('status', releases[i].status);
         release.setProperty('quality', releases[i].quality);
@@ -69,22 +70,22 @@ var ReleaseLinkedEntities = function() {
         release.setProperty('asin', releases[i].asin);
 
         if (typeof releases[i]['medium-list'] !== 'undefined') {
-          var mediums = releases[i]['medium-list'].medium;
+          let mediums = releases[i]['medium-list'].medium;
           if (releases[i]['medium-list']['@'].count <= 1) mediums = [mediums];
 
-          for (var ii = 0; ii < mediums.length; ii++) {
-            var medium = new Medium();
+          for (let ii = 0; ii < mediums.length; ii++) {
+            const medium = new Medium();
             medium.setProperty('title', mediums[ii].title);
             medium.setProperty('position', mediums[ii].position);
             medium.setProperty('format', mediums[ii].format);
 
             if (typeof mediums[ii]['disc-list'] !== 'undefined') {
               if (typeof mediums[ii]['disc-list'].disc !== 'undefined') {
-                var discs = mediums[ii]['disc-list'].disc;
+                let discs = mediums[ii]['disc-list'].disc;
                 if (mediums[ii]['disc-list']['@'].count <= 1) discs = [discs];
 
-                for (var iii = 0; iii < discs.length; iii++) {
-                  var d = new Disc(discs[iii]['@'].id);
+                for (let iii = 0; iii < discs.length; iii++) {
+                  const d = new Disc(discs[iii]['@'].id);
                   d.setProperty('sectors', discs[iii].sectors);
 
                   medium.discs.push(d);
@@ -103,19 +104,19 @@ var ReleaseLinkedEntities = function() {
     self._loadedLinkedEntities.push('releases');
   };
 
-  this._readDataFunctions['releases'] = this.loadReleaseList;
+  this._readDataFunctions.releases = this.loadReleaseList;
 
   return this;
 };
 
-var ReleaseGroupLinkedEntities = function() {
-  var self = this;
+const ReleaseGroupLinkedEntities = function() {
+  const self = this;
   this.setDataFields(['releaseGroups']);
   this.releaseGroups = [];
   this._linkedEntities.push('release-groups');
 
   this.loadReleaseGroupList = function(data) {
-    var releaseGroups = [];
+    let releaseGroups = [];
     if (typeof data['release-group'] !== 'undefined') {
       releaseGroups = data['release-group'];
       if (!Array.isArray(releaseGroups)) releaseGroups = [releaseGroups];
@@ -127,8 +128,8 @@ var ReleaseGroupLinkedEntities = function() {
       if (data['release-group-list']['@'].count <= 1) releaseGroups = [releaseGroups];
     }
 
-    for (var i = 0; i < releaseGroups.length; i++) {
-      var releaseGroup = new ReleaseGroup(releaseGroups[i]['@'].id);
+    for (let i = 0; i < releaseGroups.length; i++) {
+      const releaseGroup = new ReleaseGroup(releaseGroups[i]['@'].id);
       releaseGroup.setProperty('type', releaseGroups[i]['@'].type);
       releaseGroup.setProperty('title', releaseGroups[i].title);
       releaseGroup.setProperty('firstReleaseDate', releaseGroups[i]['first-release-date']);
@@ -136,7 +137,7 @@ var ReleaseGroupLinkedEntities = function() {
 
       if (typeof releaseGroups[i]['secondary-type-list'] !== 'undefined') {
         if (typeof releaseGroups[i]['secondary-type-list']['secondary-type'] !== 'undefined') {
-          var secondaryTypes = releaseGroups[i]['secondary-type-list']['secondary-type'];
+          let secondaryTypes = releaseGroups[i]['secondary-type-list']['secondary-type'];
           if (!Array.isArray(secondaryTypes)) secondaryTypes = [secondaryTypes];
 
           releaseGroup.setProperty('secondaryTypes', secondaryTypes);
@@ -154,8 +155,8 @@ var ReleaseGroupLinkedEntities = function() {
   return this;
 };
 
-var LabelLinkedEntities = function() {
-  var self = this;
+const LabelLinkedEntities = function() {
+  const self = this;
   this.setDataFields(['labelInfo']);
   this.labelInfo = [];
   this._linkedEntities.push('labels');
@@ -163,15 +164,15 @@ var LabelLinkedEntities = function() {
   this.loadLabelInfoList = function(data) {
     if (typeof data['label-info-list'] !== 'undefined') {
       if (typeof data['label-info-list']['label-info'] !== 'undefined') {
-        var labelInfos = data['label-info-list']['label-info'];
+        let labelInfos = data['label-info-list']['label-info'];
         if (data['label-info-list']['@'].count <= 1) labelInfos = [labelInfos];
 
-        for (var i = 0; i < labelInfos.length; i++) {
-          var labelInfo = new LabelInfo();
+        for (let i = 0; i < labelInfos.length; i++) {
+          const labelInfo = new LabelInfo();
           labelInfo.setProperty('catalogNumber', labelInfos[i]['catalog-number']);
 
           if (typeof labelInfos[i].label !== 'undefined') {
-            var label = new Label(labelInfos[i].label['@'].id);
+            const label = new Label(labelInfos[i].label['@'].id);
             label.setProperty('name', labelInfos[i].label.name);
             label.setProperty('sortName', labelInfos[i].label['sort-name']);
             label.setProperty('labelCode', labelInfos[i].label['label-code']);
@@ -187,13 +188,13 @@ var LabelLinkedEntities = function() {
     self._loadedLinkedEntities.push('labels');
   };
 
-  this._readDataFunctions['labels'] = this.loadLabelInfoList;
+  this._readDataFunctions.labels = this.loadLabelInfoList;
 
   return this;
 };
 
-var RecordingLinkedEntities = function() {
-  var self = this;
+const RecordingLinkedEntities = function() {
+  const self = this;
   this.setDataFields(['mediums', 'recordings']);
   this.mediums = [];
   this.recordings = [];
@@ -203,10 +204,10 @@ var RecordingLinkedEntities = function() {
   this.getMediumByDiscId = function(discId) {
     if (!discId) return null;
 
-    for (var i = 0; i < this.mediums.length; i++) {
-      var medium = this.mediums[i];
-      for (var ii = 0; ii < medium.discs.length; ii++) {
-        var disc = medium.discs[ii];
+    for (let i = 0; i < this.mediums.length; i++) {
+      const medium = this.mediums[i];
+      for (let ii = 0; ii < medium.discs.length; ii++) {
+        const disc = medium.discs[ii];
         if (disc.id === discId) return medium;
       }
     }
@@ -216,22 +217,22 @@ var RecordingLinkedEntities = function() {
 
   this.loadMediumList = function(data, linkedEntities) {
     if (typeof data['medium-list'] !== 'undefined') {
-      var mediums = data['medium-list'].medium;
+      let mediums = data['medium-list'].medium;
       if (data['medium-list']['@'].count <= 1) mediums = [mediums];
 
-      for (var i = 0; i < mediums.length; i++) {
-        var medium = new Medium();
+      for (let i = 0; i < mediums.length; i++) {
+        const medium = new Medium();
         medium.setProperty('title', mediums[i].title);
         medium.setProperty('position', mediums[i].position);
         medium.setProperty('format', mediums[i].format);
 
         if (typeof mediums[i]['disc-list'] !== 'undefined') {
           if (typeof mediums[i]['disc-list'].disc !== 'undefined') {
-            var discs = mediums[i]['disc-list'].disc;
+            let discs = mediums[i]['disc-list'].disc;
             if (mediums[i]['disc-list']['@'].count <= 1) discs = [discs];
 
-            for (var ii = 0; ii < discs.length; ii++) {
-              var d = new Disc(discs[ii]['@'].id);
+            for (let ii = 0; ii < discs.length; ii++) {
+              const d = new Disc(discs[ii]['@'].id);
               d.setProperty('sectors', discs[ii].sectors);
 
               medium.discs.push(d);
@@ -240,11 +241,11 @@ var RecordingLinkedEntities = function() {
         }
 
         if (typeof mediums[i]['track-list'] !== 'undefined') {
-          var tracks = mediums[i]['track-list'].track;
+          let tracks = mediums[i]['track-list'].track;
           if (mediums[i]['track-list']['@'].count <= 1) tracks = [tracks];
 
-          for (var j = 0; j < tracks.length; j++) {
-            var track = new Track();
+          for (let j = 0; j < tracks.length; j++) {
+            const track = new Track();
             track.setProperty('position', tracks[j].position);
             track.setProperty('length', tracks[j].length);
 
@@ -267,10 +268,10 @@ var RecordingLinkedEntities = function() {
     }
 
     if (typeof data['recording-list'] !== 'undefined') {
-      var recordings = data['recording-list'].recording;
+      let recordings = data['recording-list'].recording;
       if (data['recording-list']['@'].count <= 1) recordings = [recordings];
 
-      for (var k = 0; k < recordings.length; k++) {
+      for (let k = 0; k < recordings.length; k++) {
         var recording = new Recording(recordings[k]['@'].id);
         recording.setProperty('title', recordings[k].title);
         recording.setProperty('length', recordings[k].length);
@@ -283,13 +284,13 @@ var RecordingLinkedEntities = function() {
     self._loadedLinkedEntities.push('discids');
   };
 
-  this._readDataFunctions['recordings'] = this.loadMediumList;
+  this._readDataFunctions.recordings = this.loadMediumList;
 
   return this;
 };
 
-var ArtistLinkedEntities = function() {
-  var self = this;
+const ArtistLinkedEntities = function() {
+  const self = this;
   this.setDataFields(['artist']);
   this.artistCredits = [];
   this._linkedEntities.push('artists');
@@ -297,21 +298,21 @@ var ArtistLinkedEntities = function() {
   this.loadArtistCredits = function(data) {
     if (typeof data['artist-credit'] !== 'undefined') {
       if (typeof data['artist-credit']['name-credit'] !== 'undefined') {
-        var nameCredits = data['artist-credit']['name-credit'];
+        let nameCredits = data['artist-credit']['name-credit'];
         if (!Array.isArray(nameCredits)) nameCredits = [nameCredits];
 
-        for (var i = 0; i < nameCredits.length; i++) {
-          var artistData = nameCredits[i].artist;
-          var artist = new Artist(artistData['@'].id);
+        for (let i = 0; i < nameCredits.length; i++) {
+          const artistData = nameCredits[i].artist;
+          const artist = new Artist(artistData['@'].id);
           artist.setProperty('name', artistData.name);
           artist.setProperty('sortName', artistData['sort-name']);
 
-          var nameCredit = {
+          const nameCredit = {
             joinphrase:
               typeof nameCredits[i]['@'] !== 'undefined' && typeof nameCredits[i]['@'].joinphrase !== 'undefined'
                 ? nameCredits[i]['@'].joinphrase
                 : '',
-            artist: artist
+            artist
           };
 
           self.artistCredits.push(nameCredit);
@@ -323,8 +324,8 @@ var ArtistLinkedEntities = function() {
   };
 
   this.artistCreditsString = function() {
-    var str = '';
-    for (var i = 0; i < self.artistCredits.length; i++) {
+    let str = '';
+    for (let i = 0; i < self.artistCredits.length; i++) {
       str += self.artistCredits[i].artist.name + self.artistCredits[i].joinphrase;
     }
 
@@ -332,53 +333,53 @@ var ArtistLinkedEntities = function() {
   };
 
   this.artistCreditsSortString = function() {
-    var str = '';
-    for (var i = 0; i < self.artistCredits.length; i++) {
+    let str = '';
+    for (let i = 0; i < self.artistCredits.length; i++) {
       str += self.artistCredits[i].artist.sortName + self.artistCredits[i].joinphrase;
     }
 
     return str;
   };
 
-  this._readDataFunctions['artists'] = this.loadArtistCredits;
+  this._readDataFunctions.artists = this.loadArtistCredits;
   this._readDataFunctions['artist-credits'] = this.loadArtistCredits;
 
   return this;
 };
 
-var ArtistRels = function() {
-  var self = this;
+const ArtistRels = function() {
+  const self = this;
   this.setDataFields(['artistRels']);
   this.artistRels = [];
   this._linkedEntities.push('artist-rels');
 
   this.loadArtistRels = function(data) {
     if (typeof data['relation-list'] !== 'undefined') {
-      var relationLists = data['relation-list'];
+      let relationLists = data['relation-list'];
       if (!Array.isArray(relationLists)) relationLists = [relationLists];
 
-      for (var i = 0; i < relationLists.length; i++) {
+      for (let i = 0; i < relationLists.length; i++) {
         if (relationLists[i]['@']['target-type'] != 'artist') continue;
 
-        var relations = relationLists[i].relation;
+        let relations = relationLists[i].relation;
         if (!Array.isArray(relations)) relations = [relations];
 
-        for (var ii = 0; ii < relations.length; ii++) {
-          var relation = new ArtistRel();
+        for (let ii = 0; ii < relations.length; ii++) {
+          const relation = new ArtistRel();
           relation.setProperty('type', relations[ii]['@'].type);
 
           if (typeof relations[ii]['attribute-list'] !== 'undefined') {
-            var attributes = relations[ii]['attribute-list'].attribute;
+            let attributes = relations[ii]['attribute-list'].attribute;
             if (!Array.isArray(attributes)) attributes = [attributes];
 
-            var attrs = [];
-            for (var iii = 0; iii < attributes.length; iii++) {
+            const attrs = [];
+            for (let iii = 0; iii < attributes.length; iii++) {
               attrs.push(attributes[iii]);
             }
             relation.setProperty('attributes', attrs);
           }
 
-          var artist = new Artist(relations[ii].artist['@'].id);
+          const artist = new Artist(relations[ii].artist['@'].id);
           artist.setProperty('name', relations[ii].artist.name);
           artist.setProperty('sortName', relations[ii].artist['sort-name']);
           artist.setProperty('ipi', relations[ii].artist.ipi);
@@ -398,10 +399,10 @@ var ArtistRels = function() {
   this.getArtistRelsByType = function(type) {
     if (!type) return null;
 
-    var rels = [];
+    const rels = [];
 
-    for (var i = 0; i < this.artistRels.length; i++) {
-      var rel = this.artistRels[i];
+    for (let i = 0; i < this.artistRels.length; i++) {
+      const rel = this.artistRels[i];
       if (rel.type == type) rels.push(rel);
     }
 
@@ -409,37 +410,37 @@ var ArtistRels = function() {
   };
 };
 
-var WorkRels = function() {
-  var self = this;
+const WorkRels = function() {
+  const self = this;
   this.setDataFields(['workRels']);
   this.workRels = [];
   this._linkedEntities.push('work-rels');
 
   this.loadWorkRels = function(data) {
     if (typeof data['relation-list'] !== 'undefined') {
-      var relationLists = data['relation-list'];
+      let relationLists = data['relation-list'];
       if (!Array.isArray(relationLists)) relationLists = [relationLists];
 
-      for (var i = 0; i < relationLists.length; i++) {
+      for (let i = 0; i < relationLists.length; i++) {
         if (relationLists[i]['@']['target-type'] != 'work') continue;
 
-        var relations = relationLists[i].relation;
+        let relations = relationLists[i].relation;
         if (!Array.isArray(relations)) relations = [relations];
 
-        for (var ii = 0; ii < relations.length; ii++) {
-          var relation = new WorkRel();
+        for (let ii = 0; ii < relations.length; ii++) {
+          const relation = new WorkRel();
           relation.type = relations[ii]['@'].type;
 
           if (typeof relations[ii]['attribute-list'] !== 'undefined') {
-            var attributes = relations[ii]['attribute-list'].attribute;
+            let attributes = relations[ii]['attribute-list'].attribute;
             if (!Array.isArray(attributes)) attributes = [attributes];
 
-            for (var iii = 0; iii < attributes.length; iii++) {
+            for (let iii = 0; iii < attributes.length; iii++) {
               relation.attributes.push(attributes[iii]);
             }
           }
 
-          var work = new Work(relations[ii].work['@'].id);
+          const work = new Work(relations[ii].work['@'].id);
           work.title = relations[ii].work.title;
           relation.work = work;
 
@@ -456,8 +457,8 @@ var WorkRels = function() {
   this.getWorkRelByType = function(type) {
     if (!type) return null;
 
-    for (var i = 0; i < this.workRels.length; i++) {
-      var rel = this.workRels[i];
+    for (let i = 0; i < this.workRels.length; i++) {
+      const rel = this.workRels[i];
       if (rel.type == type) return rel;
     }
 
@@ -465,19 +466,19 @@ var WorkRels = function() {
   };
 };
 
-var WorkLinkedEntities = function() {
-  var self = this;
+const WorkLinkedEntities = function() {
+  const self = this;
   this.setDataFields(['works']);
   this.works = [];
   this._linkedEntities.push('works');
 
   this.loadWorkList = function(data) {
     if (typeof data['work-list'] !== 'undefined') {
-      var works = data['work-list'].work;
+      let works = data['work-list'].work;
       if (data['work-list']['@'].count <= 1) works = [works];
 
-      for (var i = 0; i < works.length; i++) {
-        var work = new Work(works[i]['@'].id);
+      for (let i = 0; i < works.length; i++) {
+        const work = new Work(works[i]['@'].id);
         work.setProperty('title', works[i].title);
 
         self.works.push(work);
@@ -487,12 +488,12 @@ var WorkLinkedEntities = function() {
     self._loadedLinkedEntities.push('works');
   };
 
-  this._readDataFunctions['works'] = this.loadWorkList;
+  this._readDataFunctions.works = this.loadWorkList;
 
   return this;
 };
 
-var Entity = function() {
+const Entity = function() {
   this.setProperty = function(attr, value) {
     if (typeof value === 'undefined') return false;
     this[attr] = value;
@@ -502,25 +503,23 @@ var Entity = function() {
   this._dataProperties = [];
 
   this.data = function() {
-    var data = {};
-    for (var i = 0; i < this._dataProperties.length; i++) {
-      var prop = this._dataProperties[i];
+    const data = {};
+    for (let i = 0; i < this._dataProperties.length; i++) {
+      const prop = this._dataProperties[i];
       if (this.hasOwnProperty(prop)) {
         if (Array.isArray(this[prop])) {
           data[prop] = [];
-          for (var ii = 0; ii < this[prop].length; ii++) {
-            if (this[prop][ii] && typeof this[prop][ii].data == 'function') {
+          for (let ii = 0; ii < this[prop].length; ii++) {
+            if (this[prop][ii] && typeof this[prop][ii].data === 'function') {
               data[prop][ii] = this[prop][ii].data();
             } else {
               data[prop][ii] = this[prop][ii];
             }
           }
+        } else if (this[prop] && typeof this[prop] === 'function') {
+          data[prop] = this[prop].data();
         } else {
-          if (this[prop] && typeof this[prop] == 'function') {
-            data[prop] = this[prop].data();
-          } else {
-            data[prop] = this[prop];
-          }
+          data[prop] = this[prop];
         }
       }
     }
@@ -529,14 +528,14 @@ var Entity = function() {
   };
 
   this.setDataFields = function(fields) {
-    for (var i = 0; i < fields.length; i++) {
+    for (let i = 0; i < fields.length; i++) {
       this._dataProperties.push(fields[i]);
     }
   };
 
   this.isComplete = function() {
-    for (var i = 0; i < this._dataProperties.length; i++) {
-      var prop = this._dataProperties[i];
+    for (let i = 0; i < this._dataProperties.length; i++) {
+      const prop = this._dataProperties[i];
       if (this.hasOwnProperty(prop) && !this[prop]) return false;
     }
 
@@ -544,7 +543,7 @@ var Entity = function() {
   };
 };
 
-var Resource = function(mbid) {
+const Resource = function(mbid) {
   Entity.call(this);
   this.setDataFields(['id']);
   this._loaded = false;
@@ -562,13 +561,13 @@ var Resource = function(mbid) {
     if (!linkedEntities) linkedEntities = [];
 
     if (!force && this.loaded(linkedEntities)) {
-      if (typeof callback == 'function') callback();
+      if (typeof callback === 'function') callback();
       return;
     }
 
     if (typeof this._lookup !== 'function') return;
 
-    var self = this;
+    const self = this;
     this._lookup(this.id, linkedEntities, force, function(err, resource) {
       if (!err) {
         for (i in self) {
@@ -576,13 +575,13 @@ var Resource = function(mbid) {
         }
       }
 
-      if (typeof callback == 'function') callback(err);
+      if (typeof callback === 'function') callback(err);
     });
   };
 
   this.update = function(callback) {
     this.load(this._loadedLinkedEntities, true, function() {
-      if (typeof callback == 'function') callback();
+      if (typeof callback === 'function') callback();
     });
   };
 
@@ -590,7 +589,7 @@ var Resource = function(mbid) {
     if (!this._loaded) return false;
     if (typeof linkedEntities === 'undefined') linkedEntities = this._linkedEntities;
 
-    for (var i = 0; i < linkedEntities.length; i++) {
+    for (let i = 0; i < linkedEntities.length; i++) {
       if (this._loadedLinkedEntities.indexOf(linkedEntities[i]) < 0) return false;
     }
 
@@ -598,7 +597,7 @@ var Resource = function(mbid) {
   };
 
   this.readData = function(linkedEntities, data) {
-    for (var i in linkedEntities) {
+    for (const i in linkedEntities) {
       if (typeof this._readDataFunctions[linkedEntities[i]] === 'function') {
         this._readDataFunctions[linkedEntities[i]](data, linkedEntities);
       }
@@ -663,8 +662,8 @@ var Medium = function() {
   this.getTrackByPosition = function(pos) {
     if (!pos) return null;
 
-    for (var i = 0; i < this.tracks.length; i++) {
-      var track = this.tracks[i];
+    for (let i = 0; i < this.tracks.length; i++) {
+      const track = this.tracks[i];
       if (track.position === pos) return track;
     }
 
@@ -801,7 +800,7 @@ mb.searchCache = function(uri, force, callback, search) {
 };
 
 mb.userAgent = function() {
-  return 'node-musicbrainz/' + VERSION + ' (node/' + process.version + '; ' + os.type() + '/' + os.release() + ')';
+  return `node-musicbrainz/${VERSION} (node/${process.version}; ${os.type()}/${os.release()})`;
 };
 
 mb.lookup = function(resource, mbid, inc, force, callback) {
@@ -810,17 +809,17 @@ mb.lookup = function(resource, mbid, inc, force, callback) {
     force = false;
   }
 
-  var uri = mbBaseURI + resource + '/' + mbid;
-  if (inc && inc instanceof Array) uri += '?inc=' + inc.join('+');
+  let uri = `${mbBaseURI + resource}/${mbid}`;
+  if (inc && inc instanceof Array) uri += `?inc=${inc.join('+')}`;
 
-  var count = 0;
+  let count = 0;
   var lookup = function(callback) {
     limit(1, function(err) {
       count++;
       request(
         {
           method: 'GET',
-          uri: uri,
+          uri,
           headers: {
             'User-Agent': mb.userAgent()
           }
@@ -836,19 +835,19 @@ mb.lookup = function(resource, mbid, inc, force, callback) {
             return;
           }
 
-          var parser = new xml2js.Parser();
+          const parser = new xml2js.Parser();
 
           if (!err && response.statusCode == 200) {
             parser.addListener('end', function(result) {
-              if (typeof callback == 'function') {
+              if (typeof callback === 'function') {
                 return callback(null, result);
               }
             });
             parser.parseString(body);
           } else {
             parser.addListener('end', function(result) {
-              if (typeof callback == 'function') {
-                var err = new Error(result.text);
+              if (typeof callback === 'function') {
+                const err = new Error(result.text);
                 err.statusCode = response.statusCode;
                 return callback(err, null);
               }
@@ -869,19 +868,19 @@ mb.search = function(resource, query, filter, force, callback) {
     force = false;
   }
 
-  var filterArr = [],
-    filterStr = '',
-    uri = mbBaseURI + resource + '?',
-    uriToAdd = '';
+  const filterArr = [];
+  let filterStr = '';
+  let uri = `${mbBaseURI + resource}?`;
+  let uriToAdd = '';
 
   // Go through the rest of the filters
   if (filter instanceof Object) {
-    for (var key in filter) {
+    for (const key in filter) {
       if (key === 'limit' || key === 'offset') {
         uriToAdd += !uriToAdd.length ? '' : '&';
-        uriToAdd += key + '=' + filter[key];
+        uriToAdd += `${key}=${filter[key]}`;
       } else {
-        filterArr.push(key + ':' + encodeURIComponent(filter[key]));
+        filterArr.push(`${key}:${encodeURIComponent(filter[key])}`);
       }
     }
     filterStr = filterArr.join(encodeURIComponent(' AND '));
@@ -905,14 +904,14 @@ mb.search = function(resource, query, filter, force, callback) {
   // Finally add to the uri
   uri += uriToAdd || '';
 
-  var count = 0;
-  var search = function(callback) {
+  let count = 0;
+  const search = function(callback) {
     limit(1, function(err) {
       count++;
       request(
         {
           method: 'GET',
-          uri: uri,
+          uri,
           headers: {
             'User-Agent': mb.userAgent()
           }
@@ -929,17 +928,17 @@ mb.search = function(resource, query, filter, force, callback) {
             return;
           }
 
-          var parser = new xml2js.Parser();
+          const parser = new xml2js.Parser();
 
           if (!err && response.statusCode == 200) {
             parser.addListener('end', function(result) {
-              if (typeof callback == 'function') callback(false, result);
+              if (typeof callback === 'function') callback(false, result);
             });
             parser.parseString(body);
           } else {
             parser.addListener('end', function(result) {
-              if (typeof callback == 'function') {
-                var err = new Error(result.text);
+              if (typeof callback === 'function') {
+                const err = new Error(result.text);
                 err.statusCode = response.statusCode;
                 callback(err, null);
               }
@@ -968,12 +967,12 @@ mb.lookupDiscId = function(discId, linkedEntities, force, callback) {
 
     data = data.disc;
 
-    var disc = new Disc(data['@'].id);
+    const disc = new Disc(data['@'].id);
     disc.setProperty('sectors', data.sectors);
 
     disc.readData(['releases'], data);
 
-    if (typeof callback == 'function') callback(false, disc);
+    if (typeof callback === 'function') callback(false, disc);
   });
 };
 
@@ -992,7 +991,7 @@ mb.lookupRelease = function(mbid, linkedEntities, force, callback) {
 
     data = data.release;
 
-    var release = new Release(data['@'].id);
+    const release = new Release(data['@'].id);
     release.setProperty('title', data.title);
     release.setProperty('status', data.status);
     release.setProperty('packaging', data.packaging);
@@ -1010,7 +1009,7 @@ mb.lookupRelease = function(mbid, linkedEntities, force, callback) {
 
     release._loaded = true;
 
-    if (typeof callback == 'function') callback(false, release);
+    if (typeof callback === 'function') callback(false, release);
   });
 };
 
@@ -1030,7 +1029,7 @@ mb.lookupReleaseGroup = function(mbid, linkedEntities, force, callback) {
 
     data = data['release-group'];
 
-    var releaseGroup = new ReleaseGroup(data['@'].id);
+    const releaseGroup = new ReleaseGroup(data['@'].id);
     releaseGroup.setProperty('type', data['@'].type);
     releaseGroup.setProperty('title', data.title);
     releaseGroup.setProperty('firstReleaseDate', data['first-release-date']);
@@ -1038,7 +1037,7 @@ mb.lookupReleaseGroup = function(mbid, linkedEntities, force, callback) {
 
     if (typeof data['secondary-type-list'] !== 'undefined') {
       if (typeof data['secondary-type-list']['secondary-type'] !== 'undefined') {
-        var secondaryTypes = data['secondary-type-list']['secondary-type'];
+        let secondaryTypes = data['secondary-type-list']['secondary-type'];
         if (!Array.isArray(secondaryTypes)) secondaryTypes = [secondaryTypes];
 
         releaseGroup.setProperty('secondaryTypes', secondaryTypes);
@@ -1049,7 +1048,7 @@ mb.lookupReleaseGroup = function(mbid, linkedEntities, force, callback) {
 
     releaseGroup._loaded = true;
 
-    if (typeof callback == 'function') callback(false, releaseGroup);
+    if (typeof callback === 'function') callback(false, releaseGroup);
   });
 };
 
@@ -1069,22 +1068,22 @@ mb.lookupRecording = function(mbid, linkedEntities, force, callback) {
 
     data = data.recording;
 
-    var recording = new Recording(data['@'].id);
+    const recording = new Recording(data['@'].id);
     recording.setProperty('title', data.title);
     recording.setProperty('length', data.length);
 
     if (typeof data['relation-list'] !== 'undefined') {
-      var relationList = data['relation-list'];
+      let relationList = data['relation-list'];
       if (typeof relationList.length === 'undefined') relationList = [relationList];
 
-      for (var i = 0; i < relationList.length; i++) {
+      for (let i = 0; i < relationList.length; i++) {
         switch (relationList[i]['@']['target-type']) {
           case 'artist': {
-            var relations = relationList[i].relation;
+            let relations = relationList[i].relation;
             if (typeof relations.length === 'undefined') relations = [relations];
 
-            for (var ii = 0; ii < relations.length; ii++) {
-              var artist = new Artist(relations[ii].artist['@'].id);
+            for (let ii = 0; ii < relations.length; ii++) {
+              const artist = new Artist(relations[ii].artist['@'].id);
               artist.setProperty('name', relations[ii].artist.name);
               artist.setProperty('sortName', relations[ii].artist['sort-name']);
 
@@ -1100,7 +1099,7 @@ mb.lookupRecording = function(mbid, linkedEntities, force, callback) {
 
     recording._loaded = true;
 
-    if (typeof callback == 'function') callback(false, recording);
+    if (typeof callback === 'function') callback(false, recording);
   });
 };
 
@@ -1120,7 +1119,7 @@ mb.lookupArtist = function(mbid, linkedEntities, force, callback) {
 
     data = data.artist;
 
-    var artist = new Artist(data['@'].id);
+    const artist = new Artist(data['@'].id);
     artist.setProperty('type', data['@'].type);
     artist.setProperty('name', data.name);
     artist.setProperty('sortName', data['sort-name']);
@@ -1137,7 +1136,7 @@ mb.lookupArtist = function(mbid, linkedEntities, force, callback) {
 
     artist._loaded = true;
 
-    if (typeof callback == 'function') callback(false, artist);
+    if (typeof callback === 'function') callback(false, artist);
   });
 };
 
@@ -1157,7 +1156,7 @@ mb.lookupLabel = function(mbid, linkedEntities, force, callback) {
 
     data = data.label;
 
-    var label = new Label(data['@'].id);
+    const label = new Label(data['@'].id);
     label.setProperty('type', data['@'].type);
     label.setProperty('name', data.name);
     label.setProperty('sortName', data['sort-name']);
@@ -1174,7 +1173,7 @@ mb.lookupLabel = function(mbid, linkedEntities, force, callback) {
 
     label._loaded = true;
 
-    if (typeof callback == 'function') callback(false, label);
+    if (typeof callback === 'function') callback(false, label);
   });
 };
 
@@ -1192,7 +1191,7 @@ mb.lookupWork = function(mbid, linkedEntities, force, callback) {
       return;
     }
 
-    var work = new Work(data.work['@'].id);
+    const work = new Work(data.work['@'].id);
     work.setProperty('type', data.work['@'].type);
     work.setProperty('title', data.work.title);
 
@@ -1200,7 +1199,7 @@ mb.lookupWork = function(mbid, linkedEntities, force, callback) {
 
     work._loaded = true;
 
-    if (typeof callback == 'function') callback(false, work);
+    if (typeof callback === 'function') callback(false, work);
   });
 };
 
@@ -1216,17 +1215,17 @@ mb.searchReleases = function(query, filter, force, callback) {
       return;
     }
 
-    var releases = [];
+    const releases = [];
 
     if ('release-list' in data && 'release' in data['release-list'] && !Array.isArray(data['release-list'].release)) {
       data['release-list'].release = [data['release-list'].release];
     }
 
-    if ('release-list' in data && 'release' in data['release-list'] && data['release-list']['release'].length > 0) {
-      data = data['release-list']['release'];
+    if ('release-list' in data && 'release' in data['release-list'] && data['release-list'].release.length > 0) {
+      data = data['release-list'].release;
 
-      for (var i = 0; i < data.length; i++) {
-        var release = new Release(data[i]['@'].id);
+      for (let i = 0; i < data.length; i++) {
+        const release = new Release(data[i]['@'].id);
         release.setProperty('title', data[i].title);
         release.setProperty('status', data[i].status);
         release.setProperty('packaging', data[i].packaging);
@@ -1240,7 +1239,7 @@ mb.searchReleases = function(query, filter, force, callback) {
         release.setProperty('barcode', data[i].barcode);
         release.setProperty('asin', data[i].asin);
 
-        //release.readData(linkedEntities, data);
+        // release.readData(linkedEntities, data);
 
         release._loaded = true;
 
@@ -1248,7 +1247,7 @@ mb.searchReleases = function(query, filter, force, callback) {
       }
     }
 
-    if (typeof callback == 'function') callback(false, releases);
+    if (typeof callback === 'function') callback(false, releases);
   });
 };
 
@@ -1264,7 +1263,7 @@ mb.searchReleaseGroups = function(query, filter, force, callback) {
       return;
     }
 
-    var releaseGroups = [];
+    const releaseGroups = [];
 
     if (
       'release-group-list' in data &&
@@ -1281,8 +1280,8 @@ mb.searchReleaseGroups = function(query, filter, force, callback) {
     ) {
       data = data['release-group-list']['release-group'];
 
-      for (var i = 0; i < data.length; i++) {
-        var releaseGroup = new ReleaseGroup(data[i]['@'].id);
+      for (let i = 0; i < data.length; i++) {
+        const releaseGroup = new ReleaseGroup(data[i]['@'].id);
         releaseGroup.setProperty('type', data[i]['@'].type);
         releaseGroup.setProperty('title', data[i].title);
         releaseGroup.setProperty('firstReleaseDate', data[i]['first-release-date']);
@@ -1290,7 +1289,7 @@ mb.searchReleaseGroups = function(query, filter, force, callback) {
 
         if (typeof data[i]['secondary-type-list'] !== 'undefined') {
           if (typeof data[i]['secondary-type-list']['secondary-type'] !== 'undefined') {
-            var secondaryTypes = data[i]['secondary-type-list']['secondary-type'];
+            let secondaryTypes = data[i]['secondary-type-list']['secondary-type'];
             if (!Array.isArray(secondaryTypes)) secondaryTypes = [secondaryTypes];
 
             releaseGroup.setProperty('secondaryTypes', secondaryTypes);
@@ -1305,7 +1304,7 @@ mb.searchReleaseGroups = function(query, filter, force, callback) {
       }
     }
 
-    if (typeof callback == 'function') callback(false, releaseGroups);
+    if (typeof callback === 'function') callback(false, releaseGroups);
   });
 };
 
@@ -1321,7 +1320,7 @@ mb.searchRecordings = function(query, filter, force, callback) {
       return;
     }
 
-    var recordings = [];
+    const recordings = [];
 
     if (
       'recording-list' in data &&
@@ -1334,27 +1333,27 @@ mb.searchRecordings = function(query, filter, force, callback) {
     if (
       'recording-list' in data &&
       'recording' in data['recording-list'] &&
-      data['recording-list']['recording'].length > 0
+      data['recording-list'].recording.length > 0
     ) {
-      data = data['recording-list']['recording'];
+      data = data['recording-list'].recording;
 
-      for (var i = 0; i < data.length; i++) {
-        var recording = new Recording(data[i]['@'].id);
+      for (let i = 0; i < data.length; i++) {
+        const recording = new Recording(data[i]['@'].id);
         recording.setProperty('title', data[i].title);
         recording.setProperty('length', data[i].length);
 
         if (typeof data[i]['relation-list'] !== 'undefined') {
-          var relationList = data[i]['relation-list'];
+          let relationList = data[i]['relation-list'];
           if (typeof relationList.length === 'undefined') relationList = [relationList];
 
-          for (var ii = 0; ii < relationList.length; ii++) {
+          for (let ii = 0; ii < relationList.length; ii++) {
             switch (relationList[ii]['@']['target-type']) {
               case 'artist': {
-                var relations = relationList[ii].relation;
+                let relations = relationList[ii].relation;
                 if (typeof relations.length === 'undefined') relations = [relations];
 
-                for (var iii = 0; iii < relations.length; iii++) {
-                  var artist = new Artist(relations[iii].artist['@'].id);
+                for (let iii = 0; iii < relations.length; iii++) {
+                  const artist = new Artist(relations[iii].artist['@'].id);
                   artist.setProperty('name', relations[iii].artist.name);
                   artist.setProperty('sortName', relations[iii].artist['sort-name']);
 
@@ -1366,13 +1365,13 @@ mb.searchRecordings = function(query, filter, force, callback) {
           }
         }
 
-        //recording.readData(linkedEntities, data);
+        // recording.readData(linkedEntities, data);
         recording._loaded = true;
         recordings.push(recording);
       }
     }
 
-    if (typeof callback == 'function') callback(false, recordings);
+    if (typeof callback === 'function') callback(false, recordings);
   });
 };
 
@@ -1388,17 +1387,17 @@ mb.searchArtists = function(query, filter, force, callback) {
       return;
     }
 
-    var artists = [];
+    const artists = [];
 
     if ('artist-list' in data && 'artist' in data['artist-list'] && !Array.isArray(data['artist-list'].artist)) {
       data['artist-list'].artist = [data['artist-list'].artist];
     }
 
-    if ('artist-list' in data && 'artist' in data['artist-list'] && data['artist-list']['artist'].length > 0) {
-      var artistList = data['artist-list']['artist'];
+    if ('artist-list' in data && 'artist' in data['artist-list'] && data['artist-list'].artist.length > 0) {
+      const artistList = data['artist-list'].artist;
 
-      for (var i = 0; i < artistList.length; i++) {
-        var artist = new Artist(artistList[i]['@'].id);
+      for (let i = 0; i < artistList.length; i++) {
+        const artist = new Artist(artistList[i]['@'].id);
         artist.setProperty('type', artistList[i]['@'].type);
         artist.setProperty('name', artistList[i].name);
         artist.setProperty('sortName', artistList[i]['sort-name']);
@@ -1411,21 +1410,21 @@ mb.searchArtists = function(query, filter, force, callback) {
         }
 
         if (typeof artistList[i]['alias-list'] !== 'undefined') {
-          var aliasList = artistList[i]['alias-list'].alias;
-          var aliases = [];
-          for (var j = 0; j < aliasList.length; j++) {
+          const aliasList = artistList[i]['alias-list'].alias;
+          const aliases = [];
+          for (let j = 0; j < aliasList.length; j++) {
             aliases.push(aliasList[j]['#']);
           }
           artist.setProperty('aliases', aliases);
         }
 
-        //artist.readData(linkedEntities, data);
+        // artist.readData(linkedEntities, data);
         artist._loaded = true;
         artists.push(artist);
       }
     }
 
-    if (typeof callback == 'function') callback(false, artists);
+    if (typeof callback === 'function') callback(false, artists);
   });
 };
 

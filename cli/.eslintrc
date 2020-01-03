@@ -13,7 +13,7 @@
     "node" : true
   },
   "rules": {
-    "prettier/prettier": "warn",
+    "prettier/prettier":                  "warn",
     "import/no-unresolved":               0,
     "newline-per-chained-call":           [2, { "ignoreChainWithDepth" : 2 }],
     "implicit-arrow-linebreak":           0,
