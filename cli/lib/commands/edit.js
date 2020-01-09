@@ -1,5 +1,5 @@
 const yargs = require('yargs');
-const { checkDirectory, getFiles, getMetadata } = require('../utils');
+const { checkDirectory, getFiles } = require('../utils');
 
 const handler = async ({ target }) => {
   console.log('EDIT HANDLER');
@@ -7,6 +7,7 @@ const handler = async ({ target }) => {
   const files = await getFiles(`${target}/.mp3`, { ext: 'mp3', recursive: true });
   // apply all changes
   // output file changes for each file
+  return files;
 };
 
 const builder = () => {

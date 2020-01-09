@@ -1,16 +1,29 @@
 const yargs = require('yargs');
-const { viewCommand, editCommand } = require('./commands');
+const { viewCommand } = require('./commands');
 
 process.on('unhandledRejection', err => {
   console.log('Unhandled Rejection');
   console.error(err);
 });
 
+// mr ./album
+// mr --rating 4.5 ./album/file.mp3
+// mr -x artist,title,year
+// mr -i title,rating,context --format=table
+//
+// if mpd playing:
+//   mr (view tags of current song)
+//   mr --rating 4.5 --context +Pool --mood +Mellow +Relaxing
+//   mr --rating=4.5 --mood=Mellow,Relaxing
+//   mr 4.5
+// if mpd not playing:
+//   mr (view tags in current directory)
+//   mr --rating 4.5 (throws usage)
+
 const { argv } = yargs
-  .usage('Usage: $0 <command> [options] [target]')
-  .example('$0 edit --title target.mp3')
+  .usage('Usage: $0 [options] [target]')
+  .example('$0 --rating 4.5 --mood +Relaxing ./target.mp3')
   .command(viewCommand)
-  .command(editCommand)
   .options({
     format: {
       description: 'Output format',
