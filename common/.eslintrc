@@ -28,6 +28,6 @@
     "space-before-function-paren":        ["error", {"anonymous": "never", "named": "never", "asyncArrow" : "always"}],
     "semi":                               [2, "always" ],
     "no-console":                         "warn",
-    "no-unused-vars":                     ["warn", { "args" : "none" }]
+    "no-unused-vars":                     ["error", { "args" : "none" }]
   }
 }

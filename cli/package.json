@@ -32,13 +32,15 @@
     "sinon-chai": "3.3.0"
   },
   "dependencies": {
-    "chalk": "3.0.0",
+    "chalk": "^3.0.0",
     "columnify": "^1.5.4",
+    "diff": "^4.0.1",
+    "flat": "^5.0.0",
     "glob": "^7.1.6",
     "lodash": "4.17.15",
     "module-alias": "2.2.2",
     "music-metadata": "5.0.0",
-    "node-id3": "tiusnonos/node-id3#master",
+    "node-id3": "kbuffington/node-id3#master",
     "pretty-error": "2.1.1",
     "yargs": "^15.0.1"
   }

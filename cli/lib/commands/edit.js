@@ -1,13 +1,60 @@
+const _ = require('lodash');
+const chalk = require('chalk');
 const yargs = require('yargs');
-const { checkDirectory, getFiles } = require('../utils');
+const diff = require('diff');
 
-const handler = async ({ target }) => {
-  console.log('EDIT HANDLER');
-  await checkDirectory(`${target}/.mp3`);
-  const files = await getFiles(`${target}/.mp3`, { ext: 'mp3', recursive: true });
+const NodeId3 = require('../../../common/node-id3v2');
+const config = require('../../config');
+const { checkExists, getFiles, getMetadata } = require('../utils');
+
+const processEditTags = args => {
+  const editTags = _.mapKeys(
+    _.pick(args, _.map(config.tags, 'name')),
+    (value, name) => _.find(config.tags, { name }).id
+  );
+
+  if (args.rating) {
+    editTags[config.rating.tag] = {
+      email: config.rating.email,
+      rating: Math.round((args.rating * 255) / config.rating.max)
+    };
+  }
+  return editTags;
+};
+
+const handler = async ({ target, ...args }) => {
+  if (!target) {
+    throw new Error('No target for editing specified');
+  }
+
+  const exists = await checkExists(target);
+  const files = exists.isDirectory() ? await getFiles(target, { ext: 'mp3', recursive: true }) : target;
+
+  const origMetaFiles = await getMetadata(files, true);
+  const origMetadata = _.map(origMetaFiles, ([file, meta]) => meta);
+  const editTags = processEditTags(args);
+
   // apply all changes
   // output file changes for each file
-  return files;
+  NodeId3.update(editTags, target);
+  // console.log('EDIT TAGS', editTags);
+  const metaFiles = await getMetadata(files, true);
+  const metadata = _.map(metaFiles, ([file, meta]) => meta);
+
+  const differences = diff.diffJson(origMetadata, metadata);
+  differences.forEach(part => {
+    // green for additions, red for deletions
+    // grey for common parts
+    let color = 'grey';
+    if (part.added) {
+      color = 'green';
+    } else if (part.removed) {
+      color = 'red';
+    }
+    process.stderr.write(chalk[color](part.value));
+  });
+  console.log();
+  process.exit(0);
 };
 
 const builder = () => {
@@ -35,13 +82,12 @@ const builder = () => {
     })
     .positional('target', {
       description: 'Target directory',
-      type: 'string',
-      default: process.cwd()
+      type: 'string'
     });
 };
 
 module.exports = {
-  command: 'edit [target]',
+  command: ['edit [target]'],
   describe: 'Update tags for all files in [target]',
   builder,
   handler

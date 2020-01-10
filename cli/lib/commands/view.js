@@ -2,18 +2,23 @@ const _ = require('lodash');
 const yargs = require('yargs');
 const columnify = require('columnify');
 
-const config = require('../../config');
-const { checkDirectory, getFiles, getMetadata } = require('../utils');
+const { checkExists, getFiles, getMetadata } = require('../utils');
 
-const handler = async ({ target }) => {
-  await checkDirectory(`${target}/.mp3`);
-  const files = await getFiles(`${target}/.mp3`, { ext: 'mp3', recursive: true });
+const handler = async ({ target = process.cwd(), format }) => {
+  const exists = await checkExists(target);
+  const files = exists.isDirectory() ? await getFiles(target, { ext: 'mp3', recursive: true }) : target;
+
   const metaFiles = await getMetadata(files);
   const metadata = _.map(metaFiles, ([file, meta]) => meta);
 
-  // TODO: output according to format setting
-  console.log(columnify(metadata, { maxLineWidth: 'auto' }));
-  return true;
+  if (metadata.length === 0) {
+    console.log(`\nNo mp3 files found in ${target}`);
+  } else if (format === 'vertical' || metadata.length === 1) {
+    console.log(metadata[0]);
+  } else {
+    console.log(columnify(metadata, { maxLineWidth: 'auto' }));
+  }
+  process.exit(0);
 };
 
 const builder = () => {
@@ -28,14 +33,13 @@ const builder = () => {
     })
     .positional('target', {
       description: 'Target directory',
-      type: 'string',
-      default: process.cwd()
+      type: 'string'
     });
 };
 
 module.exports = {
   command: ['view [target]', '$0 [target]'],
-  describe: 'View the tags of [target]',
+  describe: 'View the tags of <target>',
   builder,
   handler
 };

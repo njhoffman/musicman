@@ -4,13 +4,19 @@
 // reserved tagNames: rating
 module.exports = {
   delimiter: ',',
+  mpd: {
+    port: 6600,
+    host: 'localhost',
+    baseDirectory: '/home/nicholas/Music/Sorted'
+  },
   rating: {
+    tag: 'POPM',
     email: 'Default',
-    maxRating: 5
+    max: 5
   },
   tags: [
     {
-      id: 'TCOM',
+      id: 'TPE1',
       name: 'artist'
     },
     {
@@ -26,11 +32,11 @@ module.exports = {
       name: 'album'
     },
     {
-      id: 'TXXX=Context',
+      id: 'TXXX.Context',
       name: 'context'
     },
     {
-      id: 'TXXX=Mood',
+      id: 'TXXX.Mood',
       name: 'mood'
     },
     {
@@ -46,11 +52,11 @@ module.exports = {
       name: 'track'
     },
     {
-      id: 'TXXX=PrimaryGenre',
+      id: 'TXXX.PrimaryGenre',
       name: 'primary'
     },
     {
-      id: 'TXXX=SecondaryGenre',
+      id: 'TXXX.SecondaryGenre',
       name: 'secondary'
     },
     {
@@ -58,15 +64,15 @@ module.exports = {
       name: 'grouping'
     },
     {
-      id: 'TXXX=Rated',
+      id: 'TXXX.Rated',
       name: 'rated'
     },
     {
-      id: 'TXXX=CompositionType',
+      id: 'TXXX.CompositionType',
       name: 'compositionType'
     },
     {
-      id: 'TXXX=Picks',
+      id: 'TXXX.Picks',
       name: 'picks'
     }
     // "albumArtist": "TXXX=AlbumArtist",

@@ -1,0 +1,16 @@
+{
+  "name": "musicmanager-common",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "iconv-lite": "^0.5.0",
+    "int64-buffer": "^0.99.1007",
+    "lodash": "^4.17.15"
+  }
+}
