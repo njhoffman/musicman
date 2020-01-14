@@ -3,7 +3,7 @@ const flatten = require('flat');
 const { promisify } = require('util');
 const { stat } = require('fs');
 const glob = require('glob');
-const NodeId3 = require('../../common/node-id3v2');
+const NodeId3 = require('node-id3');
 
 const config = require('../config');
 
@@ -44,17 +44,18 @@ const parseMetadata = (rawTags, keysById) => {
     return keysById ? tag.id : tag.name;
   });
 
-  if (rawTags.POPM) {
-    parsedTags.rating = ((rawTags.POPM.rating / 255) * config.rating.max).toFixed(1);
+  const ratingTag = config.rating.tag;
+  if (rawTags[ratingTag]) {
+    parsedTags[keysById ? ratingTag : 'rating'] = ((rawTags.POPM.rating / 255) * config.rating.max).toFixed(1);
   }
 
   return parsedTags;
 };
 
-const getMetadata = async (files, keysById = false) => {
-  const filesMetadata = await Promise.all([].concat(files).map(async file => Promise.all([file, readMetadata(file)])));
-  const parsedMetadata = _.map(filesMetadata, ([file, metadata]) => [file, parseMetadata(metadata, keysById)]);
-  return parsedMetadata;
-};
+const parseFileMetadata = (filesMetadata, keysById) =>
+  _.map(filesMetadata, ([file, metadata]) => [file, parseMetadata(metadata, keysById)]);
 
-module.exports = { getFiles, checkExists, getMetadata };
+const getMetadata = async files =>
+  Promise.all([].concat(files).map(async file => Promise.all([file, readMetadata(file)])));
+
+module.exports = { getFiles, checkExists, getMetadata, parseFileMetadata };

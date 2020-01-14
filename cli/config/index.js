@@ -17,27 +17,33 @@ module.exports = {
   tags: [
     {
       id: 'TPE1',
-      name: 'artist'
+      name: 'artist',
+      viewIndex: 1
     },
     {
       id: 'TIT2',
-      name: 'title'
+      name: 'title',
+      viewIndex: 2
     },
     {
       id: 'TALB',
-      name: 'album'
-    },
-    {
-      id: 'TALB',
-      name: 'album'
+      name: 'album',
+      viewIndex: 3
     },
     {
       id: 'TXXX.Context',
-      name: 'context'
+      name: 'context',
+      viewIndex: 4
     },
     {
       id: 'TXXX.Mood',
-      name: 'mood'
+      name: 'mood',
+      viewIndex: 5
+    },
+    {
+      id: 'TXXX.Picks',
+      name: 'picks',
+      viewIndex: 6
     },
     {
       id: 'TCON',
@@ -64,16 +70,12 @@ module.exports = {
       name: 'grouping'
     },
     {
-      id: 'TXXX.Rated',
-      name: 'rated'
+      id: 'TCOP',
+      name: 'copyright'
     },
     {
       id: 'TXXX.CompositionType',
       name: 'compositionType'
-    },
-    {
-      id: 'TXXX.Picks',
-      name: 'picks'
     }
     // "albumArtist": "TXXX=AlbumArtist",
     // "releaseType": "TXXX=ReleaseType", (integer)

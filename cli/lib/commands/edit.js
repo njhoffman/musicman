@@ -2,16 +2,15 @@ const _ = require('lodash');
 const chalk = require('chalk');
 const yargs = require('yargs');
 const diff = require('diff');
+const { unflatten } = require('flat');
 
-const NodeId3 = require('../../../common/node-id3v2');
+const NodeId3 = require('node-id3');
 const config = require('../../config');
-const { checkExists, getFiles, getMetadata } = require('../utils');
+const { checkExists, getFiles, getMetadata, parseFileMetadata } = require('../utils');
 
 const processEditTags = args => {
-  const editTags = _.mapKeys(
-    _.pick(args, _.map(config.tags, 'name')),
-    (value, name) => _.find(config.tags, { name }).id
-  );
+  const filteredTags = _.pick(args, _.map(config.tags, 'name'));
+  const editTags = _.mapKeys(filteredTags, (value, name) => _.find(config.tags, { name }).id);
 
   if (args.rating) {
     editTags[config.rating.tag] = {
@@ -19,7 +18,31 @@ const processEditTags = args => {
       rating: Math.round((args.rating * 255) / config.rating.max)
     };
   }
-  return editTags;
+
+  const finalTags = unflatten(editTags);
+  finalTags.TXXX = _.map(_.keys(finalTags.TXXX), txKey => ({
+    description: txKey,
+    value: finalTags.TXXX[txKey]
+  }));
+  return finalTags;
+};
+
+const outputDifferences = (orig, curr) => {
+  const differences =
+    orig.length === 1 && curr.length === 1 ? diff.diffJson(orig[0], curr[0]) : diff.diffJson(orig, curr);
+
+  let diffOut = '';
+  differences.forEach(part => {
+    let color = 'grey';
+    if (part.added) {
+      color = 'green';
+    } else if (part.removed) {
+      color = 'red';
+    }
+    // process.stderr.write(`  ${chalk[color](part.value).trim()}`);
+    diffOut += `${chalk[color](part.value)}`;
+  });
+  console.log(diffOut);
 };
 
 const handler = async ({ target, ...args }) => {
@@ -29,31 +52,17 @@ const handler = async ({ target, ...args }) => {
 
   const exists = await checkExists(target);
   const files = exists.isDirectory() ? await getFiles(target, { ext: 'mp3', recursive: true }) : target;
+  const origMetadata = parseFileMetadata(await getMetadata(files));
 
-  const origMetaFiles = await getMetadata(files, true);
-  const origMetadata = _.map(origMetaFiles, ([file, meta]) => meta);
   const editTags = processEditTags(args);
+  // const editTags = { TXXX: [{ description: 'Context', value: 'poop' }] };
 
   // apply all changes
-  // output file changes for each file
-  NodeId3.update(editTags, target);
-  // console.log('EDIT TAGS', editTags);
-  const metaFiles = await getMetadata(files, true);
-  const metadata = _.map(metaFiles, ([file, meta]) => meta);
+  const result = NodeId3.update(editTags, target);
 
-  const differences = diff.diffJson(origMetadata, metadata);
-  differences.forEach(part => {
-    // green for additions, red for deletions
-    // grey for common parts
-    let color = 'grey';
-    if (part.added) {
-      color = 'green';
-    } else if (part.removed) {
-      color = 'red';
-    }
-    process.stderr.write(chalk[color](part.value));
-  });
-  console.log();
+  const metadata = parseFileMetadata(await getMetadata(files));
+  outputDifferences(origMetadata, metadata);
+
   process.exit(0);
 };
 

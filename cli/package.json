@@ -40,8 +40,9 @@
     "lodash": "4.17.15",
     "module-alias": "2.2.2",
     "music-metadata": "5.0.0",
-    "node-id3": "kbuffington/node-id3#master",
+    "node-id3": "0.1.13",
     "pretty-error": "2.1.1",
+    "term-size": "^2.1.1",
     "yargs": "^15.0.1"
   }
 }

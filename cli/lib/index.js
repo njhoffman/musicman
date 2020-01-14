@@ -1,7 +1,9 @@
+const _ = require('lodash');
 const yargs = require('yargs');
 const path = require('path');
 const chalk = require('chalk');
-const _ = require('lodash');
+const termsize = require('term-size');
+
 const config = require('../config');
 const { MpdClient } = require('../../common/mpd/MpdClient');
 const { viewCommand, editCommand } = require('./commands');
@@ -25,6 +27,8 @@ process.on('unhandledRejection', err => {
 //   mr (view tags in current directory)
 //   mr --rating 4.5 (throws usage)
 
+const { columns } = termsize();
+
 const connectMpd = argv =>
   new Promise((resolve, reject) => {
     const mpdClient = MpdClient.connect({ port: config.mpd.port, host: config.mpd.host });
@@ -35,13 +39,19 @@ const connectMpd = argv =>
     });
 
     mpdClient.on('ready', async () => {
-      console.log(`\nMPD connected at ${chalk.bold(config.mpd.host)}:${chalk.cyan(config.mpd.port)}\n`);
+      console.log(`\nMPD connected at ${chalk.bold(config.mpd.host)}:${chalk.cyan(config.mpd.port)}`);
       const currentSong = await mpdClient.sendCommandAsync('currentsong');
       let target = argv.target || currentSong.file;
 
       if (currentSong.file && !argv.target) {
         target = path.join(config.mpd.baseDirectory, currentSong.file);
-        console.log(`No target specified, assigning to current song:\n  ${chalk.green(target)}\n`);
+        const msgOut = `Using current song:  ${chalk.blue(
+          target
+            .split('/')
+            .pop()
+            .slice(0, columns - 21)
+        )}`;
+        console.log(msgOut);
       }
       resolve({ ...argv, target });
     });
