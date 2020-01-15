@@ -36,17 +36,20 @@ module.exports = {
     {
       id: 'TXXX.Context',
       name: 'context',
-      viewIndex: 4
+      viewIndex: 4,
+      multi: true
     },
     {
       id: 'TXXX.Mood',
       name: 'mood',
-      viewIndex: 5
+      viewIndex: 5,
+      multi: true
     },
     {
       id: 'TXXX.Picks',
       name: 'picks',
-      viewIndex: 6
+      viewIndex: 6,
+      multi: true
     },
     {
       id: 'TCON',

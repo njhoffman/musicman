@@ -1,5 +1,5 @@
 const path = require('path');
-const viewFunc = require('../../lib/commands/view').func;
+const viewFunc = require('../../lib/commands/playlist').func;
 
 module.exports = () => {
   describe('View Command', () => {

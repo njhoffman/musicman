@@ -5,8 +5,6 @@ const termSize = require('term-size');
 
 const logger = require('./utils/logger');
 const commands = require('./commands');
-const { checkExists } = require('./utils');
-
 const { columns } = termSize();
 
 const getCommand = args => {
@@ -20,8 +18,13 @@ const getCommand = args => {
   return _.find(commands, { name: command }) || { name: 'view' };
 };
 
-const getTarget = (args, currentSong, baseDirectory) => {
-  const argTarget = checkExists(_.last(args));
+const getTarget = ({ args, currentSong, baseDirectory, utils }) => {
+  const {
+    file: { checkExists }
+  } = utils;
+
+  const argTarget = checkExists(_.last(args)) ? _.last(args) : false;
+
   // potential target as last argument
   if (!argTarget) {
     if (currentSong) {
@@ -44,8 +47,9 @@ const usage = args => {
   console.log(args);
 };
 
-const parser = ({ args, currentSong, config }) => {
-  const target = getTarget(args, currentSong, config.mpd.baseDirectory);
+const parser = ({ args, currentSong, config, utils }) => {
+  const { baseDirectory } = config.mpd;
+  const target = getTarget({ args, currentSong, baseDirectory, utils });
   const command = getCommand(args);
   const options = args.filter(arg => arg !== target && arg !== command);
   return { target, command, options };

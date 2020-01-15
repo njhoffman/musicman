@@ -1,6 +1,5 @@
 const _ = require('lodash');
 const columnify = require('columnify');
-const { checkExists, getFiles, getMetadata, parseFileMetadata } = require('../utils');
 const logger = require('../utils/logger');
 
 const outputMetadata = ({ metadata, target, config, format }) => {
@@ -23,13 +22,46 @@ const outputMetadata = ({ metadata, target, config, format }) => {
   return logger.info(output);
 };
 
-const viewCommand = async ({ target, options, config }) => {
+const viewCommand = async ({ target, options = '', config, utils }) => {
+  const {
+    file: { checkExists, getFiles },
+    metadata: { getMetadata, parseFileMetadata }
+  } = utils;
+
   const exists = checkExists(target);
-  const files = exists.isDirectory() ? getFiles(target, { ext: 'mp3', recursive: true }) : target;
+  if (!exists) {
+    throw new Error(`Target does not exist: ${target}`);
+  }
+
+  const optionList = options.split(' ');
+  const optionFields = {
+    recursive: config.recursive,
+    included: [],
+    excluded: []
+  };
+
+  optionList.forEach((option, i) => {
+    if (option == '-r') {
+      optionFields.recursive = true;
+    } else if (option === '-nr') {
+      optionFields.recursive = false;
+    } else if (option === '-x') {
+      optionFields.excluded = optionList[i + 1];
+    } else if (option === '-i') {
+      optionFields.included = optionList[i + 1];
+    }
+  });
+
+  const { recursive, included, excluded } = optionFields;
+  const files = exists.isDirectory() ? getFiles(target, { ext: 'mp3', recursive }) : target;
 
   const metadataFiles = await getMetadata(files);
   const parsedMetadata = parseFileMetadata(metadataFiles);
-  const metadata = _.map(parsedMetadata, ([file, meta]) => meta);
+
+  // omit or exclusively include keys from -x and -i command line switches
+  const metadata = _.map(parsedMetadata, ([file, meta]) => {
+    return included.length > 0 ? _.pick(meta, included) : _.omit(meta, excluded);
+  });
 
   const format = metadata.length === 1 ? 'vertical' : 'table';
   return outputMetadata({ target, metadata, config, format });

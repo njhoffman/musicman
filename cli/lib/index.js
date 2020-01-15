@@ -13,17 +13,16 @@ const usage = args => {
 };
 
 const run = async args => {
-  const utils = initUtils(config);
   const currentSong = await mpdConnect(config.mpd);
   const utils = initUtils(config);
 
-  const { command, target, options } = commandParser({ args, currentSong, config });
+  const { command, target, options } = commandParser({ args, currentSong, config, utils });
 
   if (!target) {
     console.log('No target specified');
     return usage(args);
   }
-  return command.func(target, options, config, utils);
+  return command.func({ target, options, config, utils });
 };
 
 run(process.argv.slice(2));
