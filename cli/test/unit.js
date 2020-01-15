@@ -19,8 +19,8 @@ describe('Music Rater Tests', () => {
     copyDir.sync(sourceDir, destinationDir);
   });
 
-  parserTests();
-  viewTests();
+  // parserTests();
+  // viewTests();
   editTests();
   // playlistTests();
 

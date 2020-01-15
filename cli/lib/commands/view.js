@@ -41,7 +41,7 @@ const viewCommand = async ({ target, options = '', config, utils }) => {
   };
 
   optionList.forEach((option, i) => {
-    if (option == '-r') {
+    if (option === '-r') {
       optionFields.recursive = true;
     } else if (option === '-nr') {
       optionFields.recursive = false;
