@@ -1,8 +1,5 @@
 const path = require('path');
-const {
-  func: editFunc,
-  _test: { parseOptions }
-} = require('../../lib/commands/edit');
+const editFunc = require('../../lib/commands/edit').func;
 
 module.exports = () => {
   describe('Edit Command', () => {
@@ -15,14 +12,17 @@ module.exports = () => {
     //   ]
     // };
 
-    describe('Options parsing', () => {
-      it('Should show usage information and exit if no options are given', () => {
-        expect(true).to.equal(true);
-      });
+    const dirTarget = path.join(process.cwd(), 'test/data/sandbox/dir1');
+    const config = {};
 
-      // it('Should assign unlabeled first argument as rating if numeric', () => {
+    describe('Options parsing', () => {
+      // it('Should show usage information and exit if no options are given', () => {
       //   expect(true).to.equal(true);
       // });
+
+      it('Should assign unlabeled first argument as rating if numeric', () => {
+        editFunc({ target: dirTarget, options: ['4.5'], config });
+      });
       //
       // it('Should parse direct field options correctly', () => {
       //   expect(true).to.equal(true);
