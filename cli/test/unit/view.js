@@ -8,7 +8,7 @@ module.exports = () => {
     const fileTarget = path.join(process.cwd(), 'test/data/sandbox/testFile.mp3');
     const dirTarget = path.join(process.cwd(), 'test/data/sandbox/dir1');
     const config = {
-      rating: { tag: 'POPM', max: 5 },
+      rating: { tag: 'POPM', max: 5, email: 'fake@email.com' },
       tags: [
         {
           name: 'artist',

@@ -12,7 +12,7 @@ const processFields = config => options => ([file, oldFields]) => {
   }
 
   options.forEach(option => {
-    const [key, rest] = option.split(':');
+    const [key, rest] = option.split(/(\w+:"[^"]+")|\s/);
     const tagConfig = _.find(config.tags, { name: key });
     const tagValue = `${rest}`.split(' ')[0].replace(/"/g, '');
 
