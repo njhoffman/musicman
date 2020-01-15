@@ -15,9 +15,9 @@ describe('Music Rater Tests', () => {
     resetSandbox();
   });
 
-  // parserTests();
-  // viewTests();
-  // editTests();
+  parserTests();
+  viewTests();
+  editTests();
   playlistTests();
 
   after(() => console.log(`\n    Finished in ${new Date().getTime() - startTime}ms.`));

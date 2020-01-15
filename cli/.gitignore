@@ -5,6 +5,7 @@
 
 # mp3 testing files
 .mp3/
+test/data/sandbox/
 
 # project dependencies
 node_modules
