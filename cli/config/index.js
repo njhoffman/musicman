@@ -4,6 +4,9 @@
 // reserved tagNames: rating
 module.exports = {
   delimiter: ',',
+  playlist: {
+    outputDirectory: '/home/nicholas/.mpd/playlists/'
+  },
   mpd: {
     port: 6600,
     host: 'localhost',

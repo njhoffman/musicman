@@ -8,7 +8,9 @@
     "start": "node lib/index.js",
     "lint": "esw lib --color",
     "lint:fix": "npm run lint -- --fix",
-    "lint:watch": "npm run lint -- --watch"
+    "lint:watch": "npm run lint -- --watch",
+    "test": "NODE_ENV=test mocha",
+    "test:watch": "npm run test -- --watch --reporter spec"
   },
   "author": "",
   "license": "ISC",
@@ -25,6 +27,7 @@
     "eslint-plugin-promise": "4.2.1",
     "eslint-watch": "6.0.1",
     "mocha": "6.2.2",
+    "ncp": "^2.0.0",
     "nodemon": "1.19.4",
     "nyc": "14.1.1",
     "prettier": "1.19.1",

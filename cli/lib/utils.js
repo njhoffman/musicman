@@ -1,18 +1,24 @@
 const _ = require('lodash');
 const flatten = require('flat');
-const { promisify } = require('util');
-const { stat } = require('fs');
+const { statSync } = require('fs');
 const glob = require('glob');
 const NodeId3 = require('node-id3');
 
 const config = require('../config');
 
-const checkExists = async target => promisify(stat)(target);
+const checkExists = target => {
+  try {
+    const stat = statSync(target);
+    return stat;
+  } catch {
+    return false;
+  }
+};
 
-const getFiles = async (dir, options = { ext: '*', recursive: false }) => {
+const getFiles = (dir, options = { ext: '*', recursive: false }) => {
   const { recursive, ext } = options;
   const globPath = recursive ? `${dir}/**/*.${ext}` : `${dir}/*.${ext}`;
-  const files = await promisify(glob)(globPath);
+  const files = glob.sync(globPath);
   return files;
 };
 

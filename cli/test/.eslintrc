@@ -1,0 +1,20 @@
+{
+  "extends" : "../.eslintrc",
+  "env" : {
+    "mocha" : true
+  },
+  "globals" : {
+    "proxyquire":   false,
+    "expect":       false,
+    "request":      false,
+    "should":       false,
+    "sinon":        false,
+    "jest":         false
+  },
+  "rules" : {
+    "no-console"            : "off",
+    "func-names"            : "off",
+    "prefer-arrow-callback" : "off",
+    "no-unused-expressions" : "off"
+  }
+}
