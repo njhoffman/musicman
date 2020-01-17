@@ -4,18 +4,20 @@ const NodeId3 = require('node-id3');
 const logger = require('../utils/logger');
 
 const parseOptions = (options, config) => {
+  const optionList = options.split(/(\w+:"[^"]+")|\s/).filter(Boolean);
+
   const optionFields = {
     recursive: config.recursive
   };
 
-  options.forEach((option, i) => {
+  optionList.forEach((option, i) => {
     if (option === '-r') {
       optionFields.recursive = true;
     } else if (option === '-nr') {
       optionFields.recursive = false;
     }
   });
-  return optionFields;
+  return { ...optionFields, otherOptions: _.without(optionList, '-r', '-nr') };
 };
 
 const editCommand = async ({ target, options = '', config, utils }) => {
@@ -30,12 +32,12 @@ const editCommand = async ({ target, options = '', config, utils }) => {
     throw new Error(`Target does not exist: ${target}`);
   }
 
-  const optionList = options.split(' ');
-  const { recursive } = parseOptions(optionList, config);
+  const { recursive, otherOptions } = parseOptions(options, config);
 
   const files = exists.isDirectory() ? await getFiles(target, { ext: 'mp3', recursive }) : target;
   const filesMetadata = parseFileMetadata(await getMetadata(files));
-  const newFilesMetadata = _.map(filesMetadata, processFields(optionList));
+
+  const newFilesMetadata = _.map(filesMetadata, processFields(otherOptions));
   const newFilesId3Tags = _.map(newFilesMetadata, newFile => prepareId3Tags(newFile));
 
   newFilesId3Tags.forEach(([file, id3tags]) => NodeId3.update(id3tags, file));

@@ -5,6 +5,7 @@ const termSize = require('term-size');
 
 const logger = require('./utils/logger');
 const commands = require('./commands');
+
 const { columns } = termSize();
 
 const getCommand = args => {

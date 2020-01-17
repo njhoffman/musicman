@@ -2,6 +2,8 @@ const _ = require('lodash');
 const flatten = require('flat');
 const NodeId3 = require('node-id3');
 
+const defaultConfig = require('../../config');
+
 const getRating = (rating, ratingMax) => ((rating / 255) * ratingMax).toFixed(1);
 
 const toRating = (newRating, ratingMax) => Math.round((newRating * 255) / ratingMax);
@@ -27,7 +29,7 @@ const readMetadata = file =>
 const getMetadata = async files =>
   Promise.all([].concat(files).map(async file => Promise.all([file, readMetadata(file)])));
 
-const parseMetadata = (rawTags, keysById, config) => {
+const parseMetadata = (rawTags = {}, keysById, config) => {
   const selectedTags = flatten(_.pick(rawTags, _.map(config.tags, 'id')));
 
   // flatten and include relevant TXXX custom tags
@@ -52,7 +54,7 @@ const parseMetadata = (rawTags, keysById, config) => {
 const parseFileMetadata = config => (filesMetadata, keysById) =>
   _.map(filesMetadata, ([file, metadata]) => [file, parseMetadata(metadata, keysById, config)]);
 
-module.exports = config => ({
+module.exports = (config = defaultConfig) => ({
   toRating,
   getRating,
   getMetadata,

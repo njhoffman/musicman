@@ -3,6 +3,8 @@ const logger = require('../utils/logger');
 
 const parseOptions = (options, config) => {
   const optionFields = {
+    included: [],
+    excluded: [],
     recursive: config.recursive
   };
 
@@ -10,9 +12,9 @@ const parseOptions = (options, config) => {
     if (option === '-r') {
       optionFields.recursive = true;
     } else if (option === '-nr') {
-      option.recursive = false;
+      optionFields.recursive = false;
     } else if (option === '-x') {
-      option.excluded = options[i + 1];
+      optionFields.excluded = options[i + 1];
     } else if (option === '-i') {
       optionFields.included = options[i + 1];
     }
@@ -28,6 +30,7 @@ const viewCommand = async ({ target, options = '', config, utils }) => {
 
   const exists = checkExists(target);
   if (!exists) {
+    console.log('EXISTS', exists);
     throw new Error(`Target does not exist: ${target}`);
   }
 

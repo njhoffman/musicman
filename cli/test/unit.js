@@ -1,24 +1,20 @@
 const path = require('path');
 
-const parserTests = require('./unit/parser');
-const viewTests = require('./unit/view');
-const editTests = require('./unit/edit');
-const playlistTests = require('./unit/playlist');
+const { resetSandbox, assignTestTags } = require('./utils');
 
-const { resetSandbox } = require('./utils');
-
-describe('Music Rater Tests', () => {
+describe('Music Rater Tests', async () => {
   let startTime;
-  before(function() {
+  before(async function() {
     this.timeout(10000);
     startTime = new Date().getTime();
+    await assignTestTags();
     resetSandbox();
   });
 
-  // parserTests();
-  // viewTests();
-  // editTests();
-  playlistTests();
+  require('./unit/parser');
+  require('./unit/view');
+  require('./unit/edit');
+  require('./unit/playlist');
 
   after(() => console.log(`\n    Finished in ${new Date().getTime() - startTime}ms.`));
 });

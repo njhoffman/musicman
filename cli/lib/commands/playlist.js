@@ -1,4 +1,7 @@
 const _ = require('lodash');
+const path = require('path');
+const fs = require('fs');
+
 const logger = require('../utils/logger');
 
 const parseOptions = (options, config) => {
@@ -16,8 +19,17 @@ const parseOptions = (options, config) => {
   return optionFields;
 };
 
+const parseRating = rating => ({
+  min: rating.split('-')[0],
+  max: rating.split('-')[1]
+});
+
 const parseFilters = (options, config) => {
-  const filters = { include: {}, exclude: {}, rating: { min: null, max: null } };
+  const filters = {
+    include: {},
+    exclude: {},
+    rating: { min: null, max: null }
+  };
 
   options.forEach(option => {
     const [key, val] = option.split(':');
@@ -28,9 +40,9 @@ const parseFilters = (options, config) => {
 
     // if argument is numeric, assume it's a rating
     if (/^\d+(?:.\d+)?$/.test(options)) {
-      filters.rating.min = option;
+      filters.rating = parseRating(options);
     } else if (key === 'rating') {
-      filters.rating.min = tagValue;
+      filters.rating = parseRating(tagValue);
     } else if (tagConfig) {
       if (tagConfig.multi) {
         filters[type][filterKey] = tagValue.split(',');
@@ -44,28 +56,35 @@ const parseFilters = (options, config) => {
 };
 
 const filterFiles = filters => ([file, metadata]) => {
-  const include = _.keys(filters.include).every(filterKey => {
+  const { rating, include, exclude } = filters;
+
+  let ratingMatch = rating.min ? metadata.rating >= rating.min : true;
+  if (rating.max) {
+    ratingMatch = ratingMatch && metadata.rating <= rating.max;
+  }
+
+  const includeMatch = _.keys(filters.include).every(filterKey => {
     if (_.isArray(filters.include[filterKey])) {
       const metaVals = `${metadata[filterKey]}`.split(',');
       return filters.include[filterKey].every(multiVal => metaVals.indexOf(multiVal) !== -1);
-    } else {
-      const filterVal = filters.include[filterKey].toLowerCase();
-      return metadata[filterKey].toLowerCase().indexOf(filterVal) !== -1;
     }
+    const filterVal = filters.include[filterKey].toLowerCase();
+    return metadata[filterKey].toLowerCase().indexOf(filterVal) !== -1;
   });
 
-  const exclude = _.keys(filters.exclude).every(filterKey => {
+  const excludeMatch = _.keys(filters.exclude).every(filterKey => {
     if (_.isArray(filters.exclude[filterKey])) {
       const metaVals = `${metadata[filterKey]}`.split(',');
       return filters.exclude[filterKey].every(multiVal => metaVals.indexOf(multiVal) === -1);
-    } else {
-      const filterVal = filters.exclude[filterKey].toLowerCase();
-      return metadata[filterKey].toLowerCase().indexOf(filterVal) === -1;
     }
+    const filterVal = filters.exclude[filterKey].toLowerCase();
+    return metadata[filterKey].toLowerCase().indexOf(filterVal) === -1;
   });
 
-  return include && exclude;
+  return includeMatch && excludeMatch && ratingMatch;
 };
+
+const writePlaylist = (files, outPath) => fs.writeFileSync(outPath, files.join('\n'));
 
 const playlistCommand = async ({ target, options = '', config, utils }) => {
   const {
@@ -92,8 +111,14 @@ const playlistCommand = async ({ target, options = '', config, utils }) => {
 
   const filtered = _.chain(parsedMetadata)
     .filter(filterFiles(filters))
-    .map(([file, meta]) => meta)
+    .map(([file, meta]) => file.replace(config.mpd.baseDirectory, ''))
     .value();
+
+  const { outputDirectory, outputPath } = config.playlist;
+  const outPath = path.join(outputDirectory, outputPath);
+  writePlaylist(filtered, outPath);
+
+  logger.info(`${filtered.length} files saved to playlist ${outPath}`);
 
   return logger.outputMetadata({ target, metadata: filtered, config });
 };

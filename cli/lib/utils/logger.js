@@ -5,6 +5,15 @@ const { inspect } = require('util');
 const columnify = require('columnify');
 
 /* eslint-disable no-console */
+const consoleLog = msg => {
+  const { NODE_ENV, NODE_TEST_LOG } = process.env;
+  if (NODE_ENV !== 'test' && !NODE_TEST_LOG) {
+    console.log(msg);
+  }
+  return msg;
+};
+/* eslint-enable no-console */
+
 const log = (errorLevel, message) => {
   let parsed = message;
   if (_.isObject(message)) {
@@ -14,10 +23,7 @@ const log = (errorLevel, message) => {
       .join('\n');
   }
 
-  if (process.env.NODE_ENV !== 'test') {
-    console.log(parsed);
-  }
-  return parsed;
+  return consoleLog(parsed);
 };
 
 const logger = {
@@ -30,10 +36,11 @@ const logger = {
 
 const outputMetadata = ({ metadata, target, config, format }) => {
   let output = '';
+  const configTags = _.map(config.tags, 'name').concat('rating');
   if (metadata.length === 0) {
     output = `\nNo mp3 files found in ${target}`;
   } else if (format === 'vertical') {
-    output = metadata.map(mItem => _.pick(mItem, _.map(config.tags, 'name')));
+    output = metadata.map(mItem => _.pick(mItem, configTags));
     output = metadata.length === 1 ? output[0] : output;
   } else {
     const columns = ['rating'].concat(
@@ -63,9 +70,8 @@ const outputDifferences = (orig, curr) => {
     // process.stderr.write(`  ${chalk[color](part.value).trim()}`);
     diffOut += `${chalk[color](part.value)}`;
   });
-  console.log(diffOut);
+  consoleLog(diffOut);
 };
-/* eslint-enable no-console */
 
 module.exports = {
   outputDifferences,
