@@ -61,30 +61,30 @@ describe('Edit Command', () => {
     });
   });
 
-  describe('File modification', () => {
-    beforeEach(function() {
-      resetSandbox();
-    });
-
-    it('Should write field metadata that exists in config.tags', async () => {
-      const options = 'mood:+Energetic,-Gloomy rating:4.0';
-      const { newFiles } = await editFunc({ target: fileTarget, options, config, utils });
-      expect(newFiles[0][1].mood).to.equal('Upbeat,Intense,Energetic');
-      expect(newFiles[0][1].rating).to.equal('4.0');
-    });
-
-    it('Should not write metadata fields that do not exist in config.tags', async () => {
-      const newConfig = { ...config, tags: _.initial(config.tags) };
-      const options = 'rating:3.0 album:"Shouldnot Save"';
-      const { newFiles } = await editFunc({ target: fileTarget, options, config: newConfig, utils });
-      expect(newFiles[0][1].album).to.not.equal('Shouldnot Save');
-      expect(newFiles[0][1].rating).to.equal('3.0');
-    });
-    //
-    //   it('Should assign field metadta of all files given in target directory', () => {
-    //   });
-    //
-    //   it('Should save rating with calculated number based on config.rating max', () => {
-    //   });
-  });
+  // describe('File modification', () => {
+  //   beforeEach(function() {
+  //     resetSandbox();
+  //   });
+  //
+  //   it('Should write field metadata that exists in config.tags', async () => {
+  //     const options = 'mood:+Energetic,-Gloomy rating:4.0';
+  //     const { newFiles } = await editFunc({ target: fileTarget, options, config, utils });
+  //     expect(newFiles[0][1].mood).to.equal('Upbeat,Intense,Energetic');
+  //     expect(newFiles[0][1].rating).to.equal('4.0');
+  //   });
+  //
+  //   it('Should not write metadata fields that do not exist in config.tags', async () => {
+  //     const newConfig = { ...config, tags: _.initial(config.tags) };
+  //     const options = 'rating:3.0 album:"Shouldnot Save"';
+  //     const { newFiles } = await editFunc({ target: fileTarget, options, config: newConfig, utils });
+  //     expect(newFiles[0][1].album).to.not.equal('Shouldnot Save');
+  //     expect(newFiles[0][1].rating).to.equal('3.0');
+  //   });
+  //   //
+  //   //   it('Should assign field metadta of all files given in target directory', () => {
+  //   //   });
+  //   //
+  //   //   it('Should save rating with calculated number based on config.rating max', () => {
+  //   //   });
+  // });
 });

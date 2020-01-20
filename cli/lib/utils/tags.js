@@ -1,9 +1,9 @@
 const _ = require('lodash');
 const { unflatten } = require('flat');
 
-/* tag parsing utilities */
+let config = require('../../config');
 
-const processFields = config => options => ([file, oldFields]) => {
+const processFields = options => ([file, oldFields]) => {
   const newFields = { ...oldFields };
 
   // if first argument is numeric, assume it's a rating
@@ -44,10 +44,12 @@ const processFields = config => options => ([file, oldFields]) => {
   return [file, newFields];
 };
 
-const prepareId3Tags = config => ([file, fields]) => {
+const prepareId3Tags = ([file, fields]) => {
+  // transform new metadata to id3 keys for saving
   const filteredTags = _.pick(fields, _.map(config.tags, 'name'));
   const editTags = _.mapKeys(filteredTags, (value, name) => _.find(config.tags, { name }).id);
 
+  // special rating handler
   if (fields.rating) {
     editTags[config.rating.tag] = {
       email: config.rating.email,
@@ -56,6 +58,7 @@ const prepareId3Tags = config => ([file, fields]) => {
   }
 
   const finalTags = unflatten(editTags);
+  // special TXXX keys handler
   finalTags.TXXX = _.map(_.keys(finalTags.TXXX), txKey => ({
     description: txKey,
     value: finalTags.TXXX[txKey]
@@ -63,4 +66,11 @@ const prepareId3Tags = config => ([file, fields]) => {
   return [file, finalTags];
 };
 
-module.exports = config => ({ prepareId3Tags: prepareId3Tags(config), processFields: processFields(config) });
+module.exports = customConfig => {
+  config = customConfig || config;
+
+  return {
+    prepareId3Tags,
+    processFields
+  };
+};

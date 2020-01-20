@@ -1,6 +1,7 @@
 const path = require('path');
 const playlistFunc = require('../../lib/commands/playlist').func;
 const initUtils = require('../../lib/utils/');
+const { resetSandbox } = require('../utils');
 
 describe('Playlist Command', () => {
   const fileTarget = path.join(process.cwd(), 'test/data/sandbox/dir1/testFile02.mp3');
@@ -41,6 +42,10 @@ describe('Playlist Command', () => {
   };
 
   const utils = initUtils(config);
+
+  beforeEach(function() {
+    resetSandbox();
+  });
 
   describe('Command Options and Config', () => {
     it('Should list all files recursively if -r switch provided', async () => {
@@ -119,7 +124,7 @@ describe('Playlist Command', () => {
       const results = await playlistFunc({ target: dirTarget, options, config, utils });
       expect(results.split('\n'))
         .be.an('array')
-        .of.length(8);
+        .of.length(9);
 
       const options2 = '-r rating:4.5';
       const results2 = await playlistFunc({ target: dirTarget, options: options2, config, utils });
@@ -133,7 +138,7 @@ describe('Playlist Command', () => {
       const results = await playlistFunc({ target: dirTarget, options, config, utils });
       expect(results.split('\n'))
         .be.an('array')
-        .of.length(2);
+        .of.length(3);
     });
   });
 

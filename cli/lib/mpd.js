@@ -17,10 +17,10 @@ const connectMpd = ({ port, host }) =>
     });
 
     mpdClient.on('ready', async () => {
-      console.log(`\nMPD connected at ${chalk.bold(host)}:${chalk.cyan(port)}`);
+      // console.log(`\nMPD connected at ${chalk.bold(host)}:${chalk.cyan(port)}`);
       const currentSong = await mpdClient.sendCommandAsync('currentsong');
-
-      resolve(currentSong);
+      const status = await mpdClient.sendCommandAsync('status');
+      resolve(status.state === 'play' ? currentSong : false);
     });
   });
 

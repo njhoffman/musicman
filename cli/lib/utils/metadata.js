@@ -2,15 +2,15 @@ const _ = require('lodash');
 const flatten = require('flat');
 const NodeId3 = require('node-id3');
 
-const defaultConfig = require('../../config');
+let config = require('../../config');
 
 const getRating = (rating, ratingMax) => ((rating / 255) * ratingMax).toFixed(1);
 
 const toRating = (newRating, ratingMax) => Math.round((newRating * 255) / ratingMax);
 
-const metakeysTransform = (metadata, keysById, configTags) =>
+const metakeysTransform = (metadata, keysById) =>
   _.mapKeys(metadata, (tagVal, tagKey) => {
-    const tag = _.find(configTags, { id: tagKey });
+    const tag = _.find(config.tags, { id: tagKey });
     return keysById ? tag.id : tag.name;
   });
 
@@ -29,7 +29,7 @@ const readMetadata = file =>
 const getMetadata = async files =>
   Promise.all([].concat(files).map(async file => Promise.all([file, readMetadata(file)])));
 
-const parseMetadata = (rawTags = {}, keysById, config) => {
+const parseMetadata = (rawTags = {}, keysById) => {
   const selectedTags = flatten(_.pick(rawTags, _.map(config.tags, 'id')));
 
   // flatten and include relevant TXXX custom tags
@@ -40,7 +40,7 @@ const parseMetadata = (rawTags = {}, keysById, config) => {
     }
   });
 
-  const parsedTags = metakeysTransform(selectedTags, keysById, config.tags);
+  const parsedTags = metakeysTransform(selectedTags, keysById);
 
   const ratingTag = config.rating.tag;
   if (rawTags[ratingTag]) {
@@ -51,12 +51,16 @@ const parseMetadata = (rawTags = {}, keysById, config) => {
   return parsedTags;
 };
 
-const parseFileMetadata = config => (filesMetadata, keysById) =>
-  _.map(filesMetadata, ([file, metadata]) => [file, parseMetadata(metadata, keysById, config)]);
+const parseFileMetadata = (filesMetadata, keysById) =>
+  _.map(filesMetadata, ([file, metadata]) => [file, parseMetadata(metadata, keysById)]);
 
-module.exports = (config = defaultConfig) => ({
-  toRating,
-  getRating,
-  getMetadata,
-  parseFileMetadata: parseFileMetadata(config)
-});
+module.exports = customConfig => {
+  config = customConfig || config;
+
+  return {
+    toRating,
+    getRating,
+    getMetadata,
+    parseFileMetadata
+  };
+};

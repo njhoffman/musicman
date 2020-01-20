@@ -5,7 +5,8 @@
 module.exports = {
   delimiter: ',',
   playlist: {
-    outputPath: `${new Date().toISOString()}.m3u`,
+    // outputPath: `${new Date().toISOString()}.m3u`,
+    outputPath: `current.m3u`,
     outputDirectory: '/home/nicholas/.mpd/playlists/'
   },
   mpd: {

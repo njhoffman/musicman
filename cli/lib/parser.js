@@ -3,6 +3,7 @@ const path = require('path');
 const chalk = require('chalk');
 const termSize = require('term-size');
 
+const { getOptions } = require('./parser/options');
 const logger = require('./utils/logger');
 const commands = require('./commands');
 
@@ -10,13 +11,14 @@ const { columns } = termSize();
 
 const getCommand = args => {
   const command = (args[0] || '').trim();
+  const viewCommand = _.find(commands, { name: 'view' });
   if (!command) {
-    return _.find(commands, { name: 'view' });
+    return viewCommand;
   }
   if (/^\d+(?:\.\d+)?$/.test(command)) {
     return _.find(commands, { name: 'edit' });
   }
-  return _.find(commands, { name: command }) || { name: 'view' };
+  return _.find(commands, { name: command }) || viewCommand;
 };
 
 const getTarget = ({ args, currentSong, baseDirectory, utils }) => {
@@ -24,9 +26,10 @@ const getTarget = ({ args, currentSong, baseDirectory, utils }) => {
     file: { checkExists }
   } = utils;
 
-  const argTarget = checkExists(_.last(args)) ? _.last(args) : false;
+  const argTarget = _.find(args, arg => {
+    return checkExists(arg) ? arg : false;
+  });
 
-  // potential target as last argument
   if (!argTarget) {
     if (currentSong) {
       const target = path.join(baseDirectory, currentSong.file);
@@ -52,7 +55,9 @@ const parser = ({ args, currentSong, config, utils }) => {
   const { baseDirectory } = config.mpd;
   const target = getTarget({ args, currentSong, baseDirectory, utils });
   const command = getCommand(args);
-  const options = args.filter(arg => arg !== target && arg !== command);
+
+  const remainingArgs = args.filter(arg => arg !== target && arg !== command).join(' ');
+  const options = getOptions(remainingArgs, config);
   return { target, command, options };
 };
 

@@ -4,7 +4,12 @@ const config = require('../config');
 const initUtils = require('./utils');
 
 process.on('unhandledRejection', err => {
-  console.log('Unhandled Rejection');
+  console.log('Unhandled Rejection', err);
+  console.error(err);
+});
+
+process.on('uncaughtException', err => {
+  console.log('Unhandled Exception', err);
   console.error(err);
 });
 
@@ -22,7 +27,8 @@ const run = async args => {
     console.log('No target specified');
     return usage(args);
   }
-  return command.func({ target, options, config, utils });
+  await command.func({ target, options, config, utils });
+  return process.exit(0);
 };
 
 run(process.argv.slice(2));
