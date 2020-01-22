@@ -8,9 +8,7 @@ const viewCommand = async ({ target, options, config, utils }) => {
   } = utils;
 
   const exists = checkExists(target);
-
   if (!exists) {
-    console.log('EXISTS', exists);
     throw new Error(`Target does not exist: ${target}`);
   }
 
@@ -27,7 +25,7 @@ const viewCommand = async ({ target, options, config, utils }) => {
 
   const format = metadata.length === 1 ? 'vertical' : 'table';
 
-  return logger.outputMetadata({ target, metadata, config, format });
+  return logger.outputMetadata({ target, metadata, config, format, options });
 };
 
 module.exports = { name: 'view', func: viewCommand };

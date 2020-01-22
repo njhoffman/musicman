@@ -1,6 +1,6 @@
 module.exports = [
   [
-    '1-minute-of-silence.mp3',
+    '1 minute of silence.mp3',
     {
       TPE1: 'Artist A',
       TIT2: '1 minute of silence',
@@ -95,7 +95,7 @@ module.exports = [
     }
   ],
   [
-    '2-seconds-of-silence.mp3',
+    '2 seconds of silence.mp3',
     {
       TPE1: 'Artist I',
       TIT2: '2 seconds of silence',

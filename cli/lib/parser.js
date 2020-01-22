@@ -16,6 +16,10 @@ const getCommand = args => {
     return viewCommand;
   }
   if (/^\d+(?:\.\d+)?$/.test(command)) {
+    // if first argument is numeric, it is a rating (edit command)
+    return _.find(commands, { name: 'edit' });
+  } else if (/^\w+=.*/.test(command)) {
+    // if first argument includes assignment operator (=), it is an edit
     return _.find(commands, { name: 'edit' });
   }
   return _.find(commands, { name: command }) || viewCommand;
@@ -56,7 +60,7 @@ const parser = ({ args, currentSong, config, utils }) => {
   const target = getTarget({ args, currentSong, baseDirectory, utils });
   const command = getCommand(args);
 
-  const remainingArgs = args.filter(arg => arg !== target && arg !== command).join(' ');
+  const remainingArgs = args.filter(arg => arg !== target && arg !== command);
   const options = getOptions(remainingArgs, config);
   return { target, command, options };
 };

@@ -12,8 +12,8 @@ describe('Music Rater Tests', async () => {
   });
 
   /* eslint-disable global-require */
-  // require('./unit/parser');
-  // require('./unit/view');
+  require('./unit/parser');
+  require('./unit/view');
   require('./unit/edit');
   // require('./unit/playlist');
   /* eslint-enable global-require */

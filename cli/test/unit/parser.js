@@ -33,6 +33,10 @@ describe('Command Parser', async () => {
         name: 'CustomField2',
         id: 'TXXX.Custom2',
         multi: true
+      },
+      {
+        name: 'CustomField3',
+        id: 'TXXX.Custom3'
       }
     ]
   };
@@ -85,15 +89,15 @@ describe('Command Parser', async () => {
       });
 
       it('Should parse inclusion output fields switch correctly', () => {
-        const test1 = parser({ args: ['-i artist'], config, utils });
-        const test2 = parser({ args: ['-i artist,title'], config, utils });
+        const test1 = parser({ args: ['-i', 'artist'], config, utils });
+        const test2 = parser({ args: ['-i', 'artist,title'], config, utils });
         expect(test1.options.switches).to.deep.include({ include: ['artist'] });
         expect(test2.options.switches).to.deep.include({ include: ['artist', 'title'] });
       });
 
       it('Should parse exclusion output fields switch correctly', () => {
-        const test1 = parser({ args: ['-x artist'], config, utils });
-        const test2 = parser({ args: ['-x artist,title'], config, utils });
+        const test1 = parser({ args: ['-x', 'artist'], config, utils });
+        const test2 = parser({ args: ['-x', 'artist,title'], config, utils });
         expect(test1.options.switches).to.deep.include({ exclude: ['artist'] });
         expect(test2.options.switches).to.deep.include({ exclude: ['artist', 'title'] });
       });
@@ -107,30 +111,49 @@ describe('Command Parser', async () => {
       });
 
       it('Should parse multiple field negation filters correctly', () => {
-        const test1 = parser({ args: ['~album:TestAlbum ~artist:"Test Artist"'], config, utils });
+        const test1 = parser({ args: ['~album:TestAlbum', '~artist:"Test Artist"'], config, utils });
         const filters = { exclude: { album: 'TestAlbum', artist: 'Test Artist' } };
         expect(test1.options.filters).to.deep.include(filters);
       });
 
       it('Should parse multiple field array filters correctly', () => {
-        const args = ['CustomField1:Cf1,Cf2', 'CustomField2:"Custom Field 3, Custom Field 4"'];
+        const args = ['CustomField1:Cf1,Cf2', 'CustomField2:"CF Value 1, CF Value 2"'];
         const test1 = parser({ args, config, utils });
         const filters = {
-          include: { CustomField1: ['Cf1', 'Cf2'], CustomField2: ['Custom Field 3', 'Custom Field 4'] }
+          include: { CustomField1: ['Cf1', 'Cf2'], CustomField2: ['CF Value 1', 'CF Value 2'] }
         };
         expect(test1.options.filters).to.deep.include(filters);
       });
 
       it('Should parse multiple field array negation filters correctly', () => {
-        const args = ['~CustomField1:Cf1,Cf2', '~CustomField2:"Custom Field 3, Custom Field 4"'];
+        const args = ['~CustomField1:Cf1,Cf2', '~CustomField2:"CF Value 1, CF Value 2"'];
         const test1 = parser({ args, config, utils });
         const filters = {
-          exclude: { CustomField1: ['Cf1', 'Cf2'], CustomField2: ['Custom Field 3', 'Custom Field 4'] }
+          exclude: { CustomField1: ['Cf1', 'Cf2'], CustomField2: ['CF Value 1', 'CF Value 2'] }
         };
         expect(test1.options.filters).to.deep.include(filters);
       });
     });
 
-    describe('Field assignments', () => {});
+    describe('Field assignments', () => {
+      it('Should parse multiple field assignments correctly', () => {
+        const test1 = parser({ args: ['album="Test Album"', 'artist=TestArtist'], config, utils });
+        const assignments = { album: 'Test Album', artist: 'TestArtist' };
+        expect(test1.options.assignments).to.deep.include(assignments);
+      });
+
+      it('Should parse custom TXXX field assignments correctly', () => {
+        const test1 = parser({ args: ['CustomField3="Test Custom Value"', 'artist=TestArtist'], config, utils });
+        const assignments = { CustomField3: 'Test Custom Value', artist: 'TestArtist' };
+        expect(test1.options.assignments).to.deep.include(assignments);
+      });
+
+      it('Should parse multiple field array assignments correctly', () => {
+        const args = ['CustomField1=Cf1,Cf2', 'CustomField2="CF Value 1, CF Value 2"'];
+        const test1 = parser({ args, config, utils });
+        const assignments = { CustomField1: ['Cf1', 'Cf2'], CustomField2: ['CF Value 1', 'CF Value 2'] };
+        expect(test1.options.assignments).to.deep.include(assignments);
+      });
+    });
   });
 });

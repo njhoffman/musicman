@@ -66,15 +66,38 @@ const parseFilters = optionList => {
   return filters;
 };
 
-const getOptions = (options, customConfig) => {
+const parseAssignments = optionList => {
+  const assignments = {};
+
+  optionList.forEach(option => {
+    const [key, val] = option.split('=');
+    const tagConfig = _.find(config.tags, { name: key });
+    const tagValue = `${val}`.replace(/"/g, '');
+
+    if (key === 'rating') {
+      assignments.rating = tagValue;
+    } else if (tagConfig) {
+      if (tagConfig.multi) {
+        assignments[key] = tagValue.split(',').map(tv => tv.trim());
+      } else {
+        // just assign whole string if not a multi field
+        assignments[key] = tagValue;
+      }
+    }
+  });
+  return assignments;
+};
+
+const getOptions = (optionList, customConfig) => {
   config = customConfig || config;
 
-  const optionList = options.split(/([\w~]+:"[^"]+")|\s/).filter(Boolean);
+  // const optionList = options.split(/([\w~]+[:=]"[^"]+")|\s/).filter(Boolean);
 
   const { switches, remaining } = parseSwitches(optionList);
   const filters = parseFilters(remaining, config);
+  const assignments = parseAssignments(remaining, config);
 
-  return { switches, filters };
+  return { switches, filters, assignments };
 };
 
 module.exports = {

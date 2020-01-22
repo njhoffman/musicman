@@ -34,11 +34,18 @@ const logger = {
   trace: log.bind(null, 4)
 };
 
-const outputMetadata = ({ metadata, target, config, format }) => {
+const outputMetadata = ({ metadata, target, options, config, format }) => {
+  const { filters } = options;
   let output = '';
   const configTags = _.map(config.tags, 'name').concat('rating');
   if (metadata.length === 0) {
     output = `\nNo mp3 files found in ${target}`;
+    if (_.keys(filters).length > 0) {
+      let filterStr = !_.isEmpty(filters.include) ? `include: ${JSON.stringify(filters.include)}, ` : '';
+      filterStr += !_.isEmpty(filters.exclude) ? `exclude: ${JSON.stringify(filters.exclude)}, ` : '';
+      filterStr += filters.rating.max || filters.rating.min ? `rating: ${JSON.stringify(filters.rating)}, ` : '';
+      output += ` that match filters: \n\t${filterStr}`;
+    }
   } else if (format === 'vertical') {
     output = metadata.map(mItem => _.pick(mItem, configTags));
     output = metadata.length === 1 ? output[0] : output;
@@ -70,7 +77,8 @@ const outputDifferences = (orig, curr) => {
     // process.stderr.write(`  ${chalk[color](part.value).trim()}`);
     diffOut += `${chalk[color](part.value)}`;
   });
-  consoleLog(diffOut);
+  return logger.info(diffOut);
+  // consoleLog(diffOut);
 };
 
 module.exports = {

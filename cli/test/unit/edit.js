@@ -21,44 +21,62 @@ describe('Edit Command', () => {
         viewIndex: 2
       },
       {
+        id: 'TXXX.CustomField',
+        name: 'customfield',
+        viewIndex: 3
+      },
+      {
         id: 'TXXX.Mood',
         name: 'mood',
-        viewIndex: 3,
+        viewIndex: 4,
         multi: true
       }
     ]
   };
 
+  const options = { switches: {}, filters: {}, assignments: {} };
   const utils = initUtils(config);
 
-  describe('Options parsing', () => {
+  describe('Field assignment', () => {
     beforeEach(function() {
       resetSandbox();
     });
 
-    it('Should assign unlabeled first argument as rating if numeric', async () => {
-      const options = '4.5';
-      const { newFiles } = await editFunc({ target: dirTarget, options, config, utils });
-      expect(newFiles[0][1].rating).to.equal('4.5');
+    it('Should assign rating field correctly', async () => {
+      const newOptions = { ...options, assignments: { rating: '4.5' } };
+      const { newFiles } = await editFunc({ target: dirTarget, options: newOptions, config, utils });
+      newFiles.forEach(nf => {
+        expect(nf[1].rating).to.equal('4.5');
+      });
     });
 
-    it('Should parse direct field options correctly', async () => {
-      const options = 'mood:"Fun,Energetic" poopy:MyPoopyHead title:"Test 1 2 3"';
-      const { newFiles } = await editFunc({ target: fileTarget, options, config, utils });
-      expect(newFiles[0][1].mood).to.equal('Fun,Energetic');
+    it('Should assign TXXX fields correctly', async () => {
+      const newOptions = { ...options, assignments: { customfield: 'testing assignment' } };
+      const { newFiles } = await editFunc({ target: dirTarget, options: newOptions, config, utils });
+      newFiles.forEach(nf => {
+        expect(nf[1].customfield).to.equal('testing assignment');
+      });
     });
 
-    it('Should add aggregate fields correctly', async () => {
-      const options = 'mood:+Relax,+Chill';
-      const { newFiles } = await editFunc({ target: fileTarget, options, config, utils });
-      expect(newFiles[0][1].mood).to.equal('Gloomy,Upbeat,Intense,Relax,Chill');
+    it('Should assign TXXX multi fields correctly', async () => {
+      const newOptions = { ...options, assignments: { mood: ['Fun', 'Energetic'], title: 'Test 1 2 3' } };
+      const { newFiles } = await editFunc({ target: dirTarget, options: newOptions, config, utils });
+      newFiles.forEach(nf => {
+        expect(nf[1].mood).to.deep.equal(['Fun', 'Energetic']);
+      });
     });
 
-    it('Should subtract aggregate fields correctly', async () => {
-      const options = 'mood:-Upbeat,-Gloomy';
-      const { newFiles } = await editFunc({ target: fileTarget, options, config, utils });
-      expect(newFiles[0][1].mood).to.equal('Intense');
-    });
+    // it('Should assign added values to  TXXX multi fields correctly', async () => {
+    //   const options = 'mood:+Relax,+Chill';
+    //   const { newFiles } = await editFunc({ target: fileTarget, options, config, utils });
+    //   expect(newFiles[0][1].mood).to.equal('Gloomy,Upbeat,Intense,Relax,Chill');
+    // });
+
+    // it('Should subtract aggregate fields correctly', async () => {
+    //   const options = 'mood:-Upbeat,-Gloomy';
+    //   const { newFiles } = await editFunc({ target: fileTarget, options, config, utils });
+    //   expect(newFiles[0][1].mood).to.equal('Intense');
+    // });
   });
 
   // describe('File modification', () => {
