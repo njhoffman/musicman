@@ -8,24 +8,25 @@ const parseSwitches = optionList => {
     exclude: [],
     recursive: config.recursive
   };
-  const remaining = [...optionList];
+  const used = [];
 
   optionList.forEach((option, i) => {
     if (option === '-r') {
       switches.recursive = true;
-      remaining.splice(i);
+      used.push('-r');
     } else if (option === '-nr') {
       switches.recursive = false;
-      remaining.splice(i);
+      used.push('-nr');
     } else if (option === '-x') {
       switches.exclude = optionList[i + 1].split(',');
-      remaining.splice(i, 2);
+      used.push('-x', optionList[i + 1]);
     } else if (option === '-i') {
       switches.include = optionList[i + 1].split(',');
-      remaining.splice(i, 2);
-      delete remaining[i];
+      used.push('-i', optionList[i + 1]);
     }
   });
+
+  const remaining = _.without(optionList, ...used);
   return { remaining, switches };
 };
 
@@ -91,8 +92,6 @@ const parseAssignments = optionList => {
 const getOptions = (optionList, customConfig) => {
   config = customConfig || config;
 
-  // const optionList = options.split(/([\w~]+[:=]"[^"]+")|\s/).filter(Boolean);
-
   const { switches, remaining } = parseSwitches(optionList);
   const filters = parseFilters(remaining, config);
   const assignments = parseAssignments(remaining, config);
@@ -100,6 +99,4 @@ const getOptions = (optionList, customConfig) => {
   return { switches, filters, assignments };
 };
 
-module.exports = {
-  getOptions
-};
+module.exports = getOptions;

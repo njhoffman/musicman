@@ -3,10 +3,6 @@ const parser = require('../../lib/parser');
 const initUtils = require('../../lib/utils/');
 
 describe('Command Parser', async () => {
-  it('Should pass the first test', () => {
-    expect(true).to.equal(true);
-  });
-
   const testFile = path.join(process.cwd(), 'test/data/sandbox/dir1/testFile01.mp3');
 
   const config = {
@@ -61,6 +57,8 @@ describe('Command Parser', async () => {
       const test1 = parser({ args: ['some', 'args', 'notvalidtarget'], config, utils });
       expect(test1).to.include({ target: process.cwd() });
     });
+
+    // it('Should resolve relative directories to absolute paths', () => {});
   });
 
   describe('Command assignment', () => {

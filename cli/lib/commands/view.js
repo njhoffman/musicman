@@ -18,6 +18,7 @@ const viewCommand = async ({ target, options, config, utils }) => {
 
   const metadataFiles = await getMetadata(files);
   const parsedMetadata = parseFileMetadata(metadataFiles);
+
   const cleanedMetadata = _.map(parsedMetadata, ([file, meta]) =>
     include.length > 0 ? [file, _.pick(meta, include)] : [file, _.omit(meta, exclude)]
   );

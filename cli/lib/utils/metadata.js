@@ -26,9 +26,11 @@ const readMetadata = file =>
     });
   });
 
+// read metadata tags for files array and return [file, metadata]
 const getMetadata = async files =>
   Promise.all([].concat(files).map(async file => Promise.all([file, readMetadata(file)])));
 
+// convert id3 tag names to associated tag names in config
 const parseMetadata = (rawTags = {}, keysById) => {
   const selectedTags = flatten(_.pick(rawTags, _.map(config.tags, 'id')));
 

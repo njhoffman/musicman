@@ -5,9 +5,7 @@ const initUtils = require('../../lib/utils/');
 const { resetSandbox } = require('../utils');
 
 describe('View Command', () => {
-  beforeEach(function() {
-    resetSandbox();
-  });
+  let utils;
 
   const fileTarget = path.join(process.cwd(), 'test/data/sandbox/dir1/testFile01.mp3');
   const dirTarget = path.join(process.cwd(), 'test/data/sandbox');
@@ -34,7 +32,10 @@ describe('View Command', () => {
 
   const options = { switches: {}, filters: {}, assignments: {} };
 
-  const utils = initUtils(config);
+  beforeEach(function() {
+    utils = initUtils(config);
+    resetSandbox();
+  });
 
   it('Should return vertical output if only one file being viewed', async () => {
     const results = await viewFunc({ target: fileTarget, options, config, utils });
@@ -80,7 +81,12 @@ describe('View Command', () => {
     // });
   });
 
-  describe('Switch behavior', () => {
+  describe('Switches', () => {
+    beforeEach(function() {
+      utils = initUtils(config);
+      resetSandbox();
+    });
+
     it('Should recursively index target directory if recursive switch provided', async () => {
       const newOptions = { ...options, switches: { recursive: true } };
       const results = await viewFunc({ target: dirTarget, options: newOptions, config, utils });
@@ -120,7 +126,7 @@ describe('View Command', () => {
     // });
   });
 
-  describe('Rating filters behavior', () => {
+  describe('Rating Filters', () => {
     it('Should only include files with higher rating if single number provided', async () => {
       const newConfig = { ...config, recursive: true };
       const newOptions = { ...options, filters: { rating: { min: 3.5 } } };

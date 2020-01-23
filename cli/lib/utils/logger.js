@@ -39,12 +39,15 @@ const outputMetadata = ({ metadata, target, options, config, format }) => {
   let output = '';
   const configTags = _.map(config.tags, 'name').concat('rating');
   if (metadata.length === 0) {
-    output = `\nNo mp3 files found in ${target}`;
+    output = `\nNo mp3 files found in ${target} `;
     if (_.keys(filters).length > 0) {
       let filterStr = !_.isEmpty(filters.include) ? `include: ${JSON.stringify(filters.include)}, ` : '';
       filterStr += !_.isEmpty(filters.exclude) ? `exclude: ${JSON.stringify(filters.exclude)}, ` : '';
-      filterStr += filters.rating.max || filters.rating.min ? `rating: ${JSON.stringify(filters.rating)}, ` : '';
-      output += ` that match filters: \n\t${filterStr}`;
+      filterStr +=
+        filters.rating && (filters.rating.max || filters.rating.min)
+          ? `rating: ${JSON.stringify(filters.rating)}, `
+          : '';
+      output += filterStr ? `that match filters: \n\t${filterStr}` : '(no filters)';
     }
   } else if (format === 'vertical') {
     output = metadata.map(mItem => _.pick(mItem, configTags));

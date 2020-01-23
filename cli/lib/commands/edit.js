@@ -6,8 +6,8 @@ const logger = require('../utils/logger');
 const editCommand = async ({ target, options = '', config, utils }) => {
   const {
     file: { checkExists, getFiles },
-    tags: { prepareId3Tags, processFields },
-    metadata: { getMetadata, parseFileMetadata, writeMetadata }
+    tags: { prepareId3Tags },
+    metadata: { getMetadata, parseFileMetadata }
   } = utils;
 
   const exists = checkExists(target);

@@ -6,7 +6,7 @@ const logger = require('../utils/logger');
 
 const writePlaylist = (files, outPath) => fs.writeFileSync(outPath, files.join('\n'));
 
-const playlistCommand = async ({ target, options = '', config, utils }) => {
+const playlistCommand = async ({ target, options, config, utils }) => {
   const {
     file: { checkExists, getFiles, filterFiles },
     metadata: { getMetadata, parseFileMetadata }
@@ -19,7 +19,7 @@ const playlistCommand = async ({ target, options = '', config, utils }) => {
     throw new Error(`Target is not a directory: ${target}`);
   }
 
-  const { recursive } = options.switches;
+  const { recursive = config.recursive } = options.switches;
 
   const files = getFiles(target, { ext: 'mp3', recursive });
 
@@ -28,7 +28,7 @@ const playlistCommand = async ({ target, options = '', config, utils }) => {
 
   const filtered = _.chain(parsedMetadata)
     .filter(filterFiles(options.filters))
-    .map(([file, meta]) => [file.replace(config.mpd.baseDirectory, ''), meta])
+    .map(([file, meta]) => [file.replace(config.mpd.baseDirectory, '').replace(/^\//, ''), meta])
     .value();
 
   const filteredPaths = _.map(filtered, ([file, meta]) => file);
@@ -41,7 +41,7 @@ const playlistCommand = async ({ target, options = '', config, utils }) => {
 
   const filteredMeta = _.map(filtered, ([file, meta]) => meta);
 
-  return logger.outputMetadata({ target, metadata: filteredMeta, config });
+  return logger.outputMetadata({ target, metadata: filteredMeta, config, options });
 };
 
 module.exports = { name: 'playlist', func: playlistCommand };

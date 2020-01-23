@@ -35,6 +35,7 @@ describe('Edit Command', () => {
   };
 
   const options = { switches: {}, filters: {}, assignments: {} };
+
   const utils = initUtils(config);
 
   describe('Field assignment', () => {
@@ -66,13 +67,13 @@ describe('Edit Command', () => {
       });
     });
 
-    // it('Should assign added values to  TXXX multi fields correctly', async () => {
+    // it('Should assign added values to TXXX multi fields correctly', async () => {
     //   const options = 'mood:+Relax,+Chill';
     //   const { newFiles } = await editFunc({ target: fileTarget, options, config, utils });
     //   expect(newFiles[0][1].mood).to.equal('Gloomy,Upbeat,Intense,Relax,Chill');
     // });
 
-    // it('Should subtract aggregate fields correctly', async () => {
+    // it('Should assign subtracted values to TXXX multi fields correctly', async () => {
     //   const options = 'mood:-Upbeat,-Gloomy';
     //   const { newFiles } = await editFunc({ target: fileTarget, options, config, utils });
     //   expect(newFiles[0][1].mood).to.equal('Intense');
