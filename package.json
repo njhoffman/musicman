@@ -10,6 +10,8 @@
   "author": "Nick Hoffman",
   "license": "ISC",
   "devDependencies": {
+    "@commitlint/cli": "8.3.5",
+    "@commitlint/config-conventional": "8.3.4",
     "husky": "^4.2.1",
     "standard-version": "^7.1.0"
   }
