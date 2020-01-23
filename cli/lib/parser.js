@@ -1,5 +1,3 @@
-const _ = require('lodash');
-
 const getCommand = require('./parser/commands');
 const getTarget = require('./parser/target');
 const getOptions = require('./parser/options');

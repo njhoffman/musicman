@@ -4,9 +4,13 @@
   "description": "Music Manager",
   "main": "index.js",
   "scripts": {
-    "postversion": "git push && git push --tags",
+    "release": "standard-version",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Nick Hoffman",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "husky": "^4.2.1",
+    "standard-version": "^7.1.0"
+  }
 }
