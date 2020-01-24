@@ -10,6 +10,7 @@ const parseSwitches = optionList => {
   };
   const used = [];
 
+  // TODO: add double-dash alternatives
   optionList.forEach((option, i) => {
     if (option === '-r') {
       switches.recursive = true;

@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "release": "standard-version",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "todos": "leasot -x 'cli/lib/**/*.js' 'cli/test/**/*.js' 'server/lib/**/*.js' 'server/test/**/*.js'",
+    "test": "npm run test --prefix cli"
   },
   "author": "Nick Hoffman",
   "license": "ISC",
@@ -13,6 +14,7 @@
     "@commitlint/cli": "8.3.5",
     "@commitlint/config-conventional": "8.3.4",
     "husky": "4.2.1",
+    "leasot": "10.0.0",
     "standard-version": "7.1.0"
   }
 }
