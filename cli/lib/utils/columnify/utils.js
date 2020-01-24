@@ -1,4 +1,4 @@
-var wcwidth = require('./width');
+const wcwidth = require('./width');
 
 /**
  * repeat string `str` up to total length of `len`
@@ -26,7 +26,7 @@ function repeatString(str, len) {
 function padRight(str, max, chr) {
   str = str != null ? str : '';
   str = String(str);
-  var length = max - wcwidth(str);
+  const length = max - wcwidth(str);
   if (length <= 0) return str;
   return str + repeatString(chr || ' ', length);
 }
@@ -44,10 +44,10 @@ function padRight(str, max, chr) {
 function padCenter(str, max, chr) {
   str = str != null ? str : '';
   str = String(str);
-  var length = max - wcwidth(str);
+  const length = max - wcwidth(str);
   if (length <= 0) return str;
-  var lengthLeft = Math.floor(length / 2);
-  var lengthRight = length - lengthLeft;
+  const lengthLeft = Math.floor(length / 2);
+  const lengthRight = length - lengthLeft;
   return repeatString(chr || ' ', lengthLeft) + str + repeatString(chr || ' ', lengthRight);
 }
 
@@ -64,7 +64,7 @@ function padCenter(str, max, chr) {
 function padLeft(str, max, chr) {
   str = str != null ? str : '';
   str = String(str);
-  var length = max - wcwidth(str);
+  const length = max - wcwidth(str);
   if (length <= 0) return str;
   return repeatString(chr || ' ', length) + str;
 }
@@ -84,7 +84,7 @@ function splitIntoLines(str, max) {
       .trim()
       .split(' ')
       .reduce(function(lines, word) {
-        var line = lines[lines.length - 1];
+        const line = lines[lines.length - 1];
         if (line && wcwidth(line.join(' ')) + wcwidth(word) < max) {
           lines[lines.length - 1].push(word); // add to line
         } else lines.push([word]); // new line
@@ -116,11 +116,11 @@ function splitIntoLines(str, max) {
 
 function splitLongWords(str, max, truncationChar) {
   str = str.trim();
-  var result = [];
-  var words = str.split(' ');
-  var remainder = '';
+  const result = [];
+  const words = str.split(' ');
+  let remainder = '';
 
-  var truncationWidth = wcwidth(truncationChar);
+  const truncationWidth = wcwidth(truncationChar);
 
   while (remainder || words.length) {
     if (remainder) {
@@ -132,11 +132,11 @@ function splitLongWords(str, max, truncationChar) {
 
     if (wcwidth(word) > max) {
       // slice is based on length no wcwidth
-      var i = 0;
-      var wwidth = 0;
-      var limit = max - truncationWidth;
+      let i = 0;
+      let wwidth = 0;
+      const limit = max - truncationWidth;
       while (i < word.length) {
-        var w = wcwidth(word.charAt(i));
+        const w = wcwidth(word.charAt(i));
         if (w + wwidth > limit) {
           break;
         }
@@ -171,10 +171,10 @@ function truncateString(str, max) {
 
   if (max == Infinity) return str;
 
-  var i = 0;
-  var wwidth = 0;
+  let i = 0;
+  let wwidth = 0;
   while (i < str.length) {
-    var w = wcwidth(str.charAt(i));
+    const w = wcwidth(str.charAt(i));
     if (w + wwidth > max) break;
     wwidth += w;
     ++i;

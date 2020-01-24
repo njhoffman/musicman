@@ -19,7 +19,7 @@ const DEFAULTS = Object.freeze({
 });
 
 module.exports = function(items, options = {}) {
-  let columnConfigs = options.config || {};
+  const columnConfigs = options.config || {};
   delete options.config; // remove config so doesn't appear on every column.
 
   let maxLineWidth = options.maxLineWidth || Infinity;
@@ -36,29 +36,29 @@ module.exports = function(items, options = {}) {
   options.preserveNewLines = !!options.preserveNewLines;
   options.showHeaders = !!options.showHeaders;
   options.columns = options.columns || options.include; // alias include/columns, prefer columns if supplied
-  let columnNames = options.columns || []; // optional user-supplied columns to include
+  const columnNames = options.columns || []; // optional user-supplied columns to include
 
   items = toArray(items, columnNames);
 
   // if not suppled column names, automatically determine columns from data keys
   if (!columnNames.length) {
     items.forEach(function(item) {
-      for (let columnName in item) {
+      for (const columnName in item) {
         if (columnNames.indexOf(columnName) === -1) columnNames.push(columnName);
       }
     });
   }
 
   // initialize column defaults (each column inherits from options.config)
-  let columns = columnNames.reduce((columns, columnName) => {
-    let column = Object.create(options);
+  const columns = columnNames.reduce((columns, columnName) => {
+    const column = Object.create(options);
     columns[columnName] = mixin(column, columnConfigs[columnName]);
     return columns;
   }, Object.create(null));
 
   // sanitize column settings
   columnNames.forEach(columnName => {
-    let column = columns[columnName];
+    const column = columns[columnName];
     column.name = columnName;
     column.maxWidth = Math.ceil(column.maxWidth);
     column.minWidth = Math.ceil(column.minWidth);
@@ -68,12 +68,12 @@ module.exports = function(items, options = {}) {
 
   // sanitize data
   items = items.map(item => {
-    let result = Object.create(null);
+    const result = Object.create(null);
     columnNames.forEach(columnName => {
       // null/undefined -> ''
       result[columnName] = item[columnName] != null ? item[columnName] : '';
       // toString everything
-      result[columnName] = '' + result[columnName];
+      result[columnName] = `${result[columnName]}`;
       if (columns[columnName].preserveNewLines) {
         // merge non-newline whitespace chars
         result[columnName] = result[columnName].replace(/[^\S\n]/gim, ' ');
@@ -87,12 +87,12 @@ module.exports = function(items, options = {}) {
 
   // transform data cells
   columnNames.forEach(columnName => {
-    let column = columns[columnName];
+    const column = columns[columnName];
     items = items.map((item, index) => {
-      let col = Object.create(column);
+      const col = Object.create(column);
       item[columnName] = column.dataTransform(item[columnName], col, index);
 
-      let changedKeys = Object.keys(col);
+      const changedKeys = Object.keys(col);
       // disable default heading transform if we wrote to column.name
       if (changedKeys.indexOf('name') !== -1) {
         if (column.headingTransform !== DEFAULT_HEADING_TRANSFORM) return;
@@ -104,10 +104,10 @@ module.exports = function(items, options = {}) {
   });
 
   // add headers
-  let headers = {};
+  const headers = {};
   if (options.showHeaders) {
     columnNames.forEach(columnName => {
-      let column = columns[columnName];
+      const column = columns[columnName];
 
       if (!column.showHeaders) {
         headers[columnName] = '';
@@ -121,7 +121,7 @@ module.exports = function(items, options = {}) {
   // get actual max-width between min & max
   // based on length of data in columns
   columnNames.forEach(columnName => {
-    let column = columns[columnName];
+    const column = columns[columnName];
     column.width = items
       .map(item => item[columnName])
       .reduce((min, cur) => {
@@ -133,7 +133,7 @@ module.exports = function(items, options = {}) {
 
   // split long words so they can break onto multiple lines
   columnNames.forEach(columnName => {
-    let column = columns[columnName];
+    const column = columns[columnName];
     items = items.map(item => {
       item[columnName] = splitLongWords(item[columnName], column.width, column.truncateMarker);
       return item;
@@ -142,15 +142,15 @@ module.exports = function(items, options = {}) {
 
   // wrap long lines. each item is now an array of lines.
   columnNames.forEach(columnName => {
-    let column = columns[columnName];
+    const column = columns[columnName];
     items = items.map((item, index) => {
-      let cell = item[columnName];
+      const cell = item[columnName];
       item[columnName] = splitIntoLines(cell, column.width);
 
       // if truncating required, only include first line + add truncation char
       if (column.truncate && item[columnName].length > 1) {
         item[columnName] = splitIntoLines(cell, column.width - wcwidth(column.truncateMarker));
-        let firstLine = item[columnName][0];
+        const firstLine = item[columnName][0];
         if (!endsWith(firstLine, column.truncateMarker)) item[columnName][0] += column.truncateMarker;
         item[columnName] = item[columnName].slice(0, 1);
       }
@@ -160,7 +160,7 @@ module.exports = function(items, options = {}) {
 
   // recalculate column widths from truncated output/lines
   columnNames.forEach(columnName => {
-    let column = columns[columnName];
+    const column = columns[columnName];
     column.width = items
       .map(item => {
         return item[columnName].reduce((min, cur) => {
@@ -174,7 +174,7 @@ module.exports = function(items, options = {}) {
       }, 0);
   });
 
-  let rows = createRows(items, columns, columnNames, options.paddingChr); // merge lines into rows
+  const rows = createRows(items, columns, columnNames, options.paddingChr); // merge lines into rows
   // conceive output
   return rows
     .reduce((output, row) => {
@@ -199,7 +199,7 @@ module.exports = function(items, options = {}) {
 
 function createRows(items, columns, columnNames, paddingChr) {
   return items.map(item => {
-    let row = [];
+    const row = [];
     let numLines = 0;
     columnNames.forEach(columnName => {
       numLines = Math.max(numLines, item[columnName].length);
@@ -208,8 +208,8 @@ function createRows(items, columns, columnNames, paddingChr) {
     for (let i = 0; i < numLines; i++) {
       row[i] = row[i] || [];
       columnNames.forEach(columnName => {
-        let column = columns[columnName];
-        let val = item[columnName][i] || ''; // || '' ensures empty columns get padded
+        const column = columns[columnName];
+        const val = item[columnName][i] || ''; // || '' ensures empty columns get padded
         if (column.align === 'right') row[i].push(padLeft(val, column.width, paddingChr));
         else if (column.align === 'center' || column.align === 'centre')
           row[i].push(padCenter(val, column.width, paddingChr));
@@ -232,23 +232,22 @@ function mixin(...args) {
 }
 
 function ObjectAssign(target, firstSource) {
-  'use strict';
   if (target === undefined || target === null) throw new TypeError('Cannot convert first argument to object');
 
-  var to = Object(target);
+  const to = Object(target);
 
-  var hasPendingException = false;
-  var pendingException;
+  let hasPendingException = false;
+  let pendingException;
 
-  for (var i = 1; i < arguments.length; i++) {
-    var nextSource = arguments[i];
+  for (let i = 1; i < arguments.length; i++) {
+    const nextSource = arguments[i];
     if (nextSource === undefined || nextSource === null) continue;
 
-    var keysArray = Object.keys(Object(nextSource));
-    for (var nextIndex = 0, len = keysArray.length; nextIndex < len; nextIndex++) {
-      var nextKey = keysArray[nextIndex];
+    const keysArray = Object.keys(Object(nextSource));
+    for (let nextIndex = 0, len = keysArray.length; nextIndex < len; nextIndex++) {
+      const nextKey = keysArray[nextIndex];
       try {
-        var desc = Object.getOwnPropertyDescriptor(nextSource, nextKey);
+        const desc = Object.getOwnPropertyDescriptor(nextSource, nextKey);
         if (desc !== undefined && desc.enumerable) to[nextKey] = nextSource[nextKey];
       } catch (e) {
         if (!hasPendingException) {
@@ -269,16 +268,16 @@ function ObjectAssign(target, firstSource) {
 
 function endsWith(target, searchString, position) {
   position = position || target.length;
-  position = position - searchString.length;
-  let lastIndex = target.lastIndexOf(searchString);
+  position -= searchString.length;
+  const lastIndex = target.lastIndexOf(searchString);
   return lastIndex !== -1 && lastIndex === position;
 }
 
 function toArray(items, columnNames) {
   if (Array.isArray(items)) return items;
-  let rows = [];
-  for (let key in items) {
-    let item = {};
+  const rows = [];
+  for (const key in items) {
+    const item = {};
     item[columnNames[0] || 'key'] = key;
     item[columnNames[1] || 'value'] = items[key];
     rows.push(item);
