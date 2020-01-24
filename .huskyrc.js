@@ -5,7 +5,11 @@ const hooks = {
   // 'pre-push': './.bin/prePushVersion.sh',
   'commit-msg': 'commitlint -E HUSKY_GIT_PARAMS',
   'pre-push': tasks(['npm run test']),
-  'post-push': tasks(['npm run todos', 'npm outdated --prefix cli']),
+  'post-push': tasks([
+    'git push --tags --no-verify',
+    'npm run todos',
+    'npm outdated --prefix cli',
+  ]),
 };
 
 module.exports = {hooks};

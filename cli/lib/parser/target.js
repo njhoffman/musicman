@@ -3,15 +3,12 @@ const chalk = require('chalk');
 const path = require('path');
 const termSize = require('term-size');
 
+const { checkExists } = require('../utils/files');
 const logger = require('../utils/logger');
 
 const { columns } = termSize();
 
-const getTarget = ({ args, currentSong, baseDirectory, utils }) => {
-  const {
-    file: { checkExists }
-  } = utils;
-
+const getTarget = ({ args, currentSong, baseDirectory }) => {
   const argTarget = _.find(args, arg => {
     return checkExists(arg) ? arg : false;
   });

@@ -2,17 +2,8 @@ const _ = require('lodash');
 const flatten = require('flat');
 const NodeId3 = require('node-id3');
 
-let config = require('../../config');
-
-const getRating = (rating, ratingMax) => ((rating / 255) * ratingMax).toFixed(1);
-
-const toRating = (newRating, ratingMax) => Math.round((newRating * 255) / ratingMax);
-
-const metakeysTransform = (metadata, keysById) =>
-  _.mapKeys(metadata, (tagVal, tagKey) => {
-    const tag = _.find(config.tags, { id: tagKey });
-    return keysById ? tag.id : tag.name;
-  });
+const { unflatten } = flatten;
+// let config = require('../../config');
 
 const readMetadata = file =>
   new Promise((resolve, reject) => {
@@ -30,8 +21,17 @@ const readMetadata = file =>
 const getMetadata = async files =>
   Promise.all([].concat(files).map(async file => Promise.all([file, readMetadata(file)])));
 
+const metakeysTransform = (metadata, config) =>
+  _.mapKeys(metadata, (tagVal, tagKey) => {
+    const tag = _.find(config.tags, { id: tagKey });
+    return tag.name;
+  });
+
+const getRating = (rating, ratingMax) => ((rating / 255) * ratingMax).toFixed(1);
+const toRating = (newRating, ratingMax) => Math.round((newRating * 255) / ratingMax);
+
 // convert id3 tag names to associated tag names in config
-const parseMetadata = (rawTags = {}, keysById) => {
+const parseMetadata = (rawTags = {}, config) => {
   const selectedTags = flatten(_.pick(rawTags, _.map(config.tags, 'id')));
 
   // flatten and include relevant TXXX custom tags
@@ -42,27 +42,50 @@ const parseMetadata = (rawTags = {}, keysById) => {
     }
   });
 
-  const parsedTags = metakeysTransform(selectedTags, keysById);
+  const parsedTags = metakeysTransform(selectedTags, config);
 
   const ratingTag = config.rating.tag;
   if (rawTags[ratingTag]) {
-    const rating = getRating(rawTags.POPM.rating, config.rating.max);
-    parsedTags[keysById ? ratingTag : 'rating'] = rating;
+    parsedTags.rating = getRating(rawTags.POPM.rating, config.rating.max);
+    // const rating = getRating(rawTags.POPM.rating, config.rating.max);
+    // parsedTags[keysById ? ratingTag : 'rating'] = rating;
   }
 
   return parsedTags;
 };
 
-const parseFileMetadata = (filesMetadata, keysById) =>
-  _.map(filesMetadata, ([file, metadata]) => [file, parseMetadata(metadata, keysById)]);
+const parseFileMetadata = (filesMetadata, config) =>
+  _.map(filesMetadata, ([file, metadata]) => [file, parseMetadata(metadata, config)]);
 
-module.exports = customConfig => {
-  config = customConfig || config;
+// transform new metadata to id3 keys for saving
+const prepareId3Tags = config => ([file, fields]) => {
+  const filteredTags = _.pick(fields, _.map(config.tags, 'name'));
+  const editTags = _.mapKeys(filteredTags, (value, name) => _.find(config.tags, { name }).id);
 
-  return {
-    toRating,
-    getRating,
-    getMetadata,
-    parseFileMetadata
-  };
+  // special rating handler
+  if (fields.rating) {
+    editTags[config.rating.tag] = {
+      email: config.rating.email,
+      rating: Math.round((fields.rating * 255) / config.rating.max)
+    };
+  }
+
+  const finalTags = unflatten(editTags);
+  // special TXXX keys handler
+  finalTags.TXXX = _.map(_.keys(finalTags.TXXX), txKey => ({
+    description: txKey,
+    value: finalTags.TXXX[txKey]
+  }));
+  return [file, finalTags];
+};
+
+const saveMetadata = (filesMetadata, config) =>
+  _.chain(filesMetadata)
+    .map(prepareId3Tags(config))
+    .each(([file, id3Tags]) => NodeId3.update(id3Tags, file));
+
+module.exports = {
+  getMetadata,
+  parseFileMetadata,
+  saveMetadata
 };

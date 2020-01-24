@@ -1,15 +1,11 @@
 const _ = require('lodash');
 const NodeId3 = require('node-id3');
+const { checkExists, getFiles, filterFiles } = require('../utils/files');
+const { getMetadata, parseFileMetadata, saveMetadata } = require('../utils/metadata');
 
 const logger = require('../utils/logger');
 
-const editCommand = async ({ target, options = '', config, utils }) => {
-  const {
-    file: { checkExists, getFiles },
-    tags: { prepareId3Tags },
-    metadata: { getMetadata, parseFileMetadata }
-  } = utils;
-
+const editCommand = async ({ target, options, config }) => {
   const exists = checkExists(target);
   if (!exists) {
     throw new Error(`Target does not exist: ${target}`);
@@ -20,18 +16,17 @@ const editCommand = async ({ target, options = '', config, utils }) => {
   const files = exists.isDirectory() ? getFiles(target, { ext: 'mp3', recursive }) : target;
 
   const metadataFiles = await getMetadata(files);
-  const parsedMetadata = parseFileMetadata(metadataFiles);
+  const parsedMetadata = parseFileMetadata(metadataFiles, config).filter(filterFiles(options.filters));
 
   // assign new metadata fields, map to Id3 tag names and save
   const newFilesMetadata = _.map(parsedMetadata, ([file, meta]) => {
     return [file, { ...meta, ...options.assignments }];
   });
 
-  const newFilesId3Tags = _.map(newFilesMetadata, newFile => prepareId3Tags(newFile));
-  newFilesId3Tags.forEach(([file, id3tags]) => NodeId3.update(id3tags, file));
+  saveMetadata(newFilesMetadata);
 
   // load new metadata for comparison
-  const savedMetadata = parseFileMetadata(await getMetadata(files));
+  const savedMetadata = parseFileMetadata(await getMetadata(files), config);
   logger.outputDifferences(parsedMetadata, savedMetadata);
 
   return { oldFiles: metadataFiles, newFiles: newFilesMetadata };

@@ -1,7 +1,6 @@
 const _ = require('lodash');
 const path = require('path');
 const editFunc = require('../../../lib/commands/edit').func;
-const initUtils = require('../../../lib/utils/');
 const { resetSandbox } = require('../../utils');
 
 describe('Edit Command', () => {
@@ -36,8 +35,6 @@ describe('Edit Command', () => {
 
   const options = { switches: {}, filters: {}, assignments: {} };
 
-  const utils = initUtils(config);
-
   describe('Field assignment', () => {
     beforeEach(function() {
       resetSandbox();
@@ -45,7 +42,7 @@ describe('Edit Command', () => {
 
     it('Should assign rating field correctly', async () => {
       const newOptions = { ...options, assignments: { rating: '4.5' } };
-      const { newFiles } = await editFunc({ target: dirTarget, options: newOptions, config, utils });
+      const { newFiles } = await editFunc({ target: dirTarget, options: newOptions, config });
       newFiles.forEach(nf => {
         expect(nf[1].rating).to.equal('4.5');
       });
@@ -53,7 +50,7 @@ describe('Edit Command', () => {
 
     it('Should assign TXXX fields correctly', async () => {
       const newOptions = { ...options, assignments: { customfield: 'testing assignment' } };
-      const { newFiles } = await editFunc({ target: dirTarget, options: newOptions, config, utils });
+      const { newFiles } = await editFunc({ target: dirTarget, options: newOptions, config });
       newFiles.forEach(nf => {
         expect(nf[1].customfield).to.equal('testing assignment');
       });
@@ -61,7 +58,7 @@ describe('Edit Command', () => {
 
     it('Should assign TXXX multi fields correctly', async () => {
       const newOptions = { ...options, assignments: { mood: ['Fun', 'Energetic'], title: 'Test 1 2 3' } };
-      const { newFiles } = await editFunc({ target: dirTarget, options: newOptions, config, utils });
+      const { newFiles } = await editFunc({ target: dirTarget, options: newOptions, config });
       newFiles.forEach(nf => {
         expect(nf[1].mood).to.deep.equal(['Fun', 'Energetic']);
       });
@@ -69,13 +66,13 @@ describe('Edit Command', () => {
 
     // it('Should assign added values to TXXX multi fields correctly', async () => {
     //   const options = 'mood:+Relax,+Chill';
-    //   const { newFiles } = await editFunc({ target: fileTarget, options, config, utils });
+    //   const { newFiles } = await editFunc({ target: fileTarget, options, config });
     //   expect(newFiles[0][1].mood).to.equal('Gloomy,Upbeat,Intense,Relax,Chill');
     // });
 
     // it('Should assign subtracted values to TXXX multi fields correctly', async () => {
     //   const options = 'mood:-Upbeat,-Gloomy';
-    //   const { newFiles } = await editFunc({ target: fileTarget, options, config, utils });
+    //   const { newFiles } = await editFunc({ target: fileTarget, options, config });
     //   expect(newFiles[0][1].mood).to.equal('Intense');
     // });
   });
@@ -87,7 +84,7 @@ describe('Edit Command', () => {
   //
   //   it('Should write field metadata that exists in config.tags', async () => {
   //     const options = 'mood:+Energetic,-Gloomy rating:4.0';
-  //     const { newFiles } = await editFunc({ target: fileTarget, options, config, utils });
+  //     const { newFiles } = await editFunc({ target: fileTarget, options, config });
   //     expect(newFiles[0][1].mood).to.equal('Upbeat,Intense,Energetic');
   //     expect(newFiles[0][1].rating).to.equal('4.0');
   //   });
@@ -95,7 +92,7 @@ describe('Edit Command', () => {
   //   it('Should not write metadata fields that do not exist in config.tags', async () => {
   //     const newConfig = { ...config, tags: _.initial(config.tags) };
   //     const options = 'rating:3.0 album:"Shouldnot Save"';
-  //     const { newFiles } = await editFunc({ target: fileTarget, options, config: newConfig, utils });
+  //     const { newFiles } = await editFunc({ target: fileTarget, options, config: newConfig });
   //     expect(newFiles[0][1].album).to.not.equal('Shouldnot Save');
   //     expect(newFiles[0][1].rating).to.equal('3.0');
   //   });

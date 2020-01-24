@@ -48,8 +48,8 @@ const filterFiles = filters => ([file, metadata]) => {
   return includeMatch && excludeMatch && ratingMatch;
 };
 
-module.exports = config => ({
-  filterFiles,
+module.exports = {
   checkExists,
-  getFiles
-});
+  getFiles,
+  filterFiles
+};

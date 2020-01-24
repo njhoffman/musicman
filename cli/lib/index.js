@@ -1,7 +1,6 @@
 const commandParser = require('./parser');
 const mpdConnect = require('./mpd');
 const config = require('../config');
-const initUtils = require('./utils');
 const logger = require('./utils/logger');
 
 const usage = args => {
@@ -10,15 +9,14 @@ const usage = args => {
 
 const run = async args => {
   const currentSong = await mpdConnect(config.mpd);
-  const utils = initUtils(config);
 
-  const { command, target, options } = commandParser({ args, currentSong, config, utils });
+  const { command, target, options } = commandParser({ args, currentSong, config });
 
   if (!target) {
     logger.warn('No target specified');
     return usage(args);
   }
-  await command.func({ target, options, config, utils });
+  await command.func({ target, options, config });
   return process.exit(0);
 };
 
