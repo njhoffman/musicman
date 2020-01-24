@@ -3,12 +3,13 @@ const rimraf = require('rimraf');
 const copyDir = require('copy-dir');
 const NodeId3 = require('node-id3');
 
-// const initUtils = require('../lib/utils/metadata');
-// const { parseFileMetadata } = initUtils();
+const initUtils = require('../lib/utils/metadata');
 const testTags = require('./data/testTags');
 
 const sourceDir = path.join(process.cwd(), 'test/data/source');
 const destinationDir = path.join(process.cwd(), 'test/data/sandbox');
+
+const { parseFileMetadata } = initUtils();
 
 const resetSandbox = () => {
   rimraf.sync(`${destinationDir}/**/*`);
@@ -23,7 +24,9 @@ const assignTestTags = async () => {
     return [filePath, testTag];
   });
 
-  // console.log(await parseFileMetadata(filesMetadata));
+  // console.log(
+  await parseFileMetadata(filesMetadata);
+  // );
 };
 
 module.exports = { resetSandbox, assignTestTags };

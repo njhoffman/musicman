@@ -1,5 +1,3 @@
-const path = require('path');
-
 const { resetSandbox, assignTestTags } = require('./utils');
 
 describe('Music Rater Tests', async () => {

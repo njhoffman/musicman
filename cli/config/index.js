@@ -17,40 +17,63 @@ module.exports = {
   rating: {
     tag: 'POPM',
     email: 'Default',
-    max: 5
+    max: 5,
+    color: 'cyan'
+  },
+  output: {
+    table: {
+      color: 'gray',
+      headers: {
+        visible: true,
+        capitalize: false
+        // color: '#00FF88'
+      },
+      seperators: {
+        vertical: false
+        // horizontal: false,
+        // color: 'gray'
+      }
+    }
+    // vertical: {
+    //   color: 'gray',
+    //   headers: {
+    //     visible: true,
+    //     color: 'white'
+    //   },
+    // }
   },
   tags: [
     {
       id: 'TPE1',
       name: 'artist',
-      viewIndex: 1
+      tableOrder: 1
     },
     {
       id: 'TIT2',
       name: 'title',
-      viewIndex: 2
+      tableOrder: 2
     },
     {
       id: 'TALB',
       name: 'album',
-      viewIndex: 3
+      tableOrder: 3
     },
     {
       id: 'TXXX.Context',
       name: 'context',
-      viewIndex: 4,
+      tableOrder: 4,
       multi: true
     },
     {
       id: 'TXXX.Mood',
       name: 'mood',
-      viewIndex: 5,
+      tableOrder: 5,
       multi: true
     },
     {
       id: 'TXXX.Picks',
       name: 'picks',
-      viewIndex: 6,
+      tableOrder: 6,
       multi: true
     },
     {
@@ -75,7 +98,7 @@ module.exports = {
     },
     {
       id: 'TIT1',
-      name: 'grouping'
+      name: 'grouping' // artist, compilation, single
     },
     {
       id: 'TCOP',

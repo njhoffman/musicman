@@ -14,7 +14,7 @@ const consoleLog = msg => {
 };
 /* eslint-enable no-console */
 
-const log = (errorLevel, message) => {
+const log = (logLevel, message) => {
   let parsed = message;
   if (_.isObject(message)) {
     parsed = inspect(message, { colors: true, compact: false })
@@ -34,33 +34,61 @@ const logger = {
   trace: log.bind(null, 4)
 };
 
+const outputNotFound = (filters, target) => {
+  let output = `\nNo mp3 files found in ${target} `;
+  if (_.keys(filters).length > 0) {
+    let filterStr = !_.isEmpty(filters.include) ? `include: ${JSON.stringify(filters.include)}, ` : '';
+    filterStr += !_.isEmpty(filters.exclude) ? `exclude: ${JSON.stringify(filters.exclude)}, ` : '';
+    filterStr +=
+      filters.rating && (filters.rating.max || filters.rating.min) ? `rating: ${JSON.stringify(filters.rating)}, ` : '';
+    output += filterStr ? `that match filters: \n\t${filterStr}` : '(no filters)';
+  }
+  return output;
+};
+
+const outputTable = (metadata, config) => {
+  const columns = ['rating'].concat(
+    _.chain(config.tags)
+      .filter('tableOrder')
+      .sortBy('tableOrder')
+      .map('name')
+      .value()
+  );
+  const { output: { table = {} } = {} } = config;
+  const { seperators = {}, headers = {} } = table;
+
+  // TODO: fork columnify and support colors
+  // TODO: have better default config loading
+  const columnOptions = {
+    maxLineWidth: 'auto',
+    showHeaders: headers.visible === false || true,
+    columnSplitter: seperators.vertical || ' ',
+    dataTransform: data => {
+      // return chalk.hex('#ffffff')(`${data}`);
+      return data;
+    },
+    headingTransform: heading => {
+      const headerItem = headers.capitalize ? _.toUpper(heading) : _.upperFirst(heading);
+      return headerItem;
+      // return headers.color ? chalk.hex(headers.color)(headerItem) : headerItem;
+    }
+  };
+
+  return columnify(metadata, { columns, ...columnOptions });
+};
+
 const outputMetadata = ({ metadata, target, options, config, format }) => {
   const { filters } = options;
-  let output = '';
-  const configTags = _.map(config.tags, 'name').concat('rating');
+
+  let output;
   if (metadata.length === 0) {
-    output = `\nNo mp3 files found in ${target} `;
-    if (_.keys(filters).length > 0) {
-      let filterStr = !_.isEmpty(filters.include) ? `include: ${JSON.stringify(filters.include)}, ` : '';
-      filterStr += !_.isEmpty(filters.exclude) ? `exclude: ${JSON.stringify(filters.exclude)}, ` : '';
-      filterStr +=
-        filters.rating && (filters.rating.max || filters.rating.min)
-          ? `rating: ${JSON.stringify(filters.rating)}, `
-          : '';
-      output += filterStr ? `that match filters: \n\t${filterStr}` : '(no filters)';
-    }
+    output = outputNotFound(filters, target);
   } else if (format === 'vertical') {
-    output = metadata.map(mItem => _.pick(mItem, configTags));
+    const configTagNames = _.map(config.tags, 'name').concat('rating');
+    output = metadata.map(mItem => _.pick(mItem, configTagNames));
     output = metadata.length === 1 ? output[0] : output;
   } else {
-    const columns = ['rating'].concat(
-      _.chain(config.tags)
-        .filter('viewIndex')
-        .sortBy('viewIndex')
-        .map('name')
-        .value()
-    );
-    output = columnify(metadata, { columns, maxLineWidth: 'auto' });
+    output = outputTable(metadata, config);
   }
   return logger.info(output);
 };
@@ -81,7 +109,6 @@ const outputDifferences = (orig, curr) => {
     diffOut += `${chalk[color](part.value)}`;
   });
   return logger.info(diffOut);
-  // consoleLog(diffOut);
 };
 
 module.exports = {

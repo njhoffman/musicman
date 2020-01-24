@@ -2,10 +2,6 @@ const getCommand = require('./parser/command');
 const getTarget = require('./parser/target');
 const getOptions = require('./parser/options');
 
-const usage = args => {
-  console.log(args);
-};
-
 const parser = ({ args, currentSong, config, utils }) => {
   const { baseDirectory } = config.mpd;
   const target = getTarget({ args, currentSong, baseDirectory, utils });

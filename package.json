@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "release": "standard-version",
-    "todos": "leasot -x 'cli/lib/**/*.js' 'cli/test/**/*.js' 'server/lib/**/*.js' 'server/test/**/*.js'",
+    "todos": "leasot -x 'cli/lib/**/*.js' 'cli/test/**/*.js' 'cli/config/**/*.js' 'server/lib/**/*.js' 'server/test/**/*.js'",
     "test": "npm run test --prefix cli"
   },
   "author": "Nick Hoffman",

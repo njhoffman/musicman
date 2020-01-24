@@ -4,7 +4,6 @@ const initUtils = require('../../../lib/utils/');
 const { resetSandbox } = require('../../utils');
 
 describe('Playlist Command', () => {
-  const fileTarget = path.join(process.cwd(), 'test/data/sandbox/dir1/testFile02.mp3');
   const dirTarget = path.join(process.cwd(), 'test/data/sandbox');
 
   let utils;

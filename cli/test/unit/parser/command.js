@@ -1,10 +1,7 @@
-const path = require('path');
 const parser = require('../../../lib/parser');
 const initUtils = require('../../../lib/utils/');
 
 describe('Command assignment', () => {
-  const testFile = path.join(process.cwd(), 'test/data/sandbox/dir1/testFile01.mp3');
-
   const config = {
     mpd: { baseDirectory: 'testBaseDir' },
     tags: [
@@ -36,7 +33,6 @@ describe('Command assignment', () => {
       }
     ]
   };
-  const currentSong = { file: 'testDir/testSong.mp3' };
 
   const utils = initUtils(config);
 

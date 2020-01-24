@@ -1,18 +1,12 @@
-const chalk = require('chalk');
-const _ = require('lodash');
-const path = require('path');
-const termsize = require('term-size');
-
+const logger = require('../utils/logger');
 const { MpdClient } = require('../../common/mpd/MpdClient');
-
-const { columns } = termsize();
 
 const connectMpd = ({ port, host }) =>
   new Promise((resolve, reject) => {
     const mpdClient = MpdClient.connect({ port, host });
 
     mpdClient.on('error', err => {
-      console.error('MPD ERROR', err);
+      logger.error('MPD ERROR', err);
       reject(err);
     });
 

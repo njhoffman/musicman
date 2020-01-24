@@ -2,19 +2,10 @@ const commandParser = require('./parser');
 const mpdConnect = require('./mpd');
 const config = require('../config');
 const initUtils = require('./utils');
-
-process.on('unhandledRejection', err => {
-  console.log('Unhandled Rejection', err);
-  console.error(err);
-});
-
-process.on('uncaughtException', err => {
-  console.log('Unhandled Exception', err);
-  console.error(err);
-});
+const logger = require('../utils/logger');
 
 const usage = args => {
-  console.log('USAGE', args);
+  logger.info('USAGE', args);
 };
 
 const run = async args => {
@@ -24,7 +15,7 @@ const run = async args => {
   const { command, target, options } = commandParser({ args, currentSong, config, utils });
 
   if (!target) {
-    console.log('No target specified');
+    logger.warn('No target specified');
     return usage(args);
   }
   await command.func({ target, options, config, utils });
@@ -32,3 +23,15 @@ const run = async args => {
 };
 
 run(process.argv.slice(2));
+
+/* eslint-disable no-console */
+process.on('unhandledRejection', err => {
+  logger.error('Unhandled Rejection', err);
+  console.error(err);
+});
+
+process.on('uncaughtException', err => {
+  logger.error('Unhandled Exception', err);
+  console.error(err);
+});
+/* eslint-enable no-console */
