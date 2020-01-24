@@ -3,10 +3,10 @@ const rimraf = require('rimraf');
 const copyDir = require('copy-dir');
 const NodeId3 = require('node-id3');
 
-const testTags = require('./data/tags.js');
-const initUtils = require('../lib/utils/metadata');
+// const initUtils = require('../lib/utils/metadata');
+// const { parseFileMetadata } = initUtils();
+const testTags = require('./data/testTags');
 
-const { parseFileMetadata } = initUtils();
 const sourceDir = path.join(process.cwd(), 'test/data/source');
 const destinationDir = path.join(process.cwd(), 'test/data/sandbox');
 

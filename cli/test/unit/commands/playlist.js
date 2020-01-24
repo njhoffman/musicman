@@ -1,7 +1,7 @@
 const path = require('path');
-const playlistFunc = require('../../lib/commands/playlist').func;
-const initUtils = require('../../lib/utils/');
-const { resetSandbox } = require('../utils');
+const playlistFunc = require('../../../lib/commands/playlist').func;
+const initUtils = require('../../../lib/utils/');
+const { resetSandbox } = require('../../utils');
 
 describe('Playlist Command', () => {
   const fileTarget = path.join(process.cwd(), 'test/data/sandbox/dir1/testFile02.mp3');

@@ -1,8 +1,8 @@
 const _ = require('lodash');
 const path = require('path');
-const editFunc = require('../../lib/commands/edit').func;
-const initUtils = require('../../lib/utils/');
-const { resetSandbox } = require('../utils');
+const editFunc = require('../../../lib/commands/edit').func;
+const initUtils = require('../../../lib/utils/');
+const { resetSandbox } = require('../../utils');
 
 describe('Edit Command', () => {
   const fileTarget = path.join(process.cwd(), 'test/data/sandbox/dir1/testFile02.mp3');

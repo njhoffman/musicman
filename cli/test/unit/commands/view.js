@@ -1,8 +1,8 @@
 const _ = require('lodash');
 const path = require('path');
-const viewFunc = require('../../lib/commands/view').func;
-const initUtils = require('../../lib/utils/');
-const { resetSandbox } = require('../utils');
+const viewFunc = require('../../../lib/commands/view').func;
+const initUtils = require('../../../lib/utils/');
+const { resetSandbox } = require('../../utils');
 
 describe('View Command', () => {
   let utils;

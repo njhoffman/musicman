@@ -13,9 +13,9 @@ describe('Music Rater Tests', async () => {
 
   /* eslint-disable global-require */
   require('./unit/parser');
-  require('./unit/view');
-  require('./unit/edit');
-  require('./unit/playlist');
+  require('./unit/commands/view');
+  require('./unit/commands/edit');
+  require('./unit/commands/playlist');
   /* eslint-enable global-require */
 
   after(() => console.log(`\n    Finished in ${new Date().getTime() - startTime}ms.`));

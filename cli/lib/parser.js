@@ -1,4 +1,4 @@
-const getCommand = require('./parser/commands');
+const getCommand = require('./parser/command');
 const getTarget = require('./parser/target');
 const getOptions = require('./parser/options');
 
