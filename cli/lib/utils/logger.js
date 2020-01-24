@@ -2,7 +2,7 @@ const _ = require('lodash');
 const chalk = require('chalk');
 const diff = require('diff');
 const { inspect } = require('util');
-const columnify = require('columnify');
+const columnify = require('./columnify');
 
 /* eslint-disable no-console */
 const consoleLog = msg => {

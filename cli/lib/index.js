@@ -2,7 +2,7 @@ const commandParser = require('./parser');
 const mpdConnect = require('./mpd');
 const config = require('../config');
 const initUtils = require('./utils');
-const logger = require('../utils/logger');
+const logger = require('./utils/logger');
 
 const usage = args => {
   logger.info('USAGE', args);
