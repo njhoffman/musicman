@@ -57,19 +57,25 @@ describe('Options assignment', () => {
   });
 
   describe('Field filters', () => {
-    it('Should parse multiple field filters correctly', () => {
+    it('Should parse field filters correctly', () => {
       const test1 = parser({ args: ['album:"Test Album"', 'artist:TestArtist'], config });
       const filters = { include: { album: 'Test Album', artist: 'TestArtist' } };
       expect(test1.options.filters).to.deep.include(filters);
     });
 
-    it('Should parse multiple field negation filters correctly', () => {
+    it('Should parse field filters with empty values correctly', () => {
+      const test1 = parser({ args: ['album:""', 'artist:'], config });
+      const filters = { include: { album: '', artist: '' } };
+      expect(test1.options.filters).to.deep.include(filters);
+    });
+
+    it('Should parse field negation filters correctly', () => {
       const test1 = parser({ args: ['~album:TestAlbum', '~artist:"Test Artist"'], config });
       const filters = { exclude: { album: 'TestAlbum', artist: 'Test Artist' } };
       expect(test1.options.filters).to.deep.include(filters);
     });
 
-    it('Should parse multiple field array filters correctly', () => {
+    it('Should parse field array filters correctly', () => {
       const args = ['CustomField1:Cf1,Cf2', 'CustomField2:"CF Value 1, CF Value 2"'];
       const test1 = parser({ args, config });
       const filters = {
@@ -78,7 +84,7 @@ describe('Options assignment', () => {
       expect(test1.options.filters).to.deep.include(filters);
     });
 
-    it('Should parse multiple field array negation filters correctly', () => {
+    it('Should parse field array negation filters correctly', () => {
       const args = ['~CustomField1:Cf1,Cf2', '~CustomField2:"CF Value 1, CF Value 2"'];
       const test1 = parser({ args, config });
       const filters = {
@@ -89,19 +95,25 @@ describe('Options assignment', () => {
   });
 
   describe('Field assignments', () => {
-    it('Should parse multiple field assignments correctly', () => {
+    it('Should parse field assignments correctly', () => {
       const test1 = parser({ args: ['album="Test Album"', 'artist=TestArtist'], config });
       const assignments = { album: 'Test Album', artist: 'TestArtist' };
       expect(test1.options.assignments).to.deep.include(assignments);
     });
 
-    it('Should parse custom TXXX field assignments correctly', () => {
+    it('Should parse field assignments wht empty values correctly', () => {
+      const test1 = parser({ args: ['album=""', 'artist='], config });
+      const assignments = { album: '', artist: '' };
+      expect(test1.options.assignments).to.deep.include(assignments);
+    });
+
+    it('Should parse TXXX field assignments correctly', () => {
       const test1 = parser({ args: ['CustomField3="Test Custom Value"', 'artist=TestArtist'], config });
       const assignments = { CustomField3: 'Test Custom Value', artist: 'TestArtist' };
       expect(test1.options.assignments).to.deep.include(assignments);
     });
 
-    it('Should parse multiple field array assignments correctly', () => {
+    it('Should parse TXXX field array assignments correctly', () => {
       const args = ['CustomField1=Cf1,Cf2', 'CustomField2="CF Value 1, CF Value 2"'];
       const test1 = parser({ args, config });
       const assignments = { CustomField1: ['Cf1', 'Cf2'], CustomField2: ['CF Value 1', 'CF Value 2'] };

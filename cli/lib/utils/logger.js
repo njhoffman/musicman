@@ -74,7 +74,7 @@ const outputTable = (metadata, config) => {
   _.each(columns, tag => {
     const cellColor = tag.color || table.color;
     const dataTransform = data => {
-      const emptyCell = (_.isArray(data) && data.length === 0) || data.trim().length === 0;
+      const emptyCell = (_.isArray(data) && data.filter(Boolean).length === 0) || data.trim().length === 0;
       if (cellColor && !emptyCell) {
         return chalk.hex(cellColor)(data);
       }

@@ -78,10 +78,8 @@ const prepareId3Tags = config => ([file, fields]) => {
   return [file, finalTags];
 };
 
-const saveMetadata = (filesMetadata, config) =>
-  _.chain(filesMetadata)
-    .map(prepareId3Tags(config))
-    .each(([file, id3Tags]) => NodeId3.update(id3Tags, file));
+const saveMetadata = (files, config) =>
+  files.map(prepareId3Tags(config)).map(([file, id3Tags]) => NodeId3.update(id3Tags, file));
 
 module.exports = {
   getMetadata,

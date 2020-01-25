@@ -5,7 +5,7 @@ const getOptions = require('./parser/options');
 const parser = ({ args, currentSong, config }) => {
   const { baseDirectory } = config.mpd;
   const target = getTarget({ args, currentSong, baseDirectory });
-  const command = getCommand(args);
+  const command = getCommand(args, currentSong);
 
   const remainingArgs = args.filter(arg => arg !== target && arg !== command);
   const options = getOptions(remainingArgs, config);

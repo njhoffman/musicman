@@ -40,7 +40,7 @@
   },
   "dependencies": {
     "chalk": "3.0.0",
-    "columnify": "git+https://github.com/njhoffman/columnify.git",
+    "columnify": "git+https://github.com/njhoffman/columnify.git#nick",
     "diff": "4.0.1",
     "flat": "5.0.0",
     "glob": "7.1.6",

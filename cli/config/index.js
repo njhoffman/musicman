@@ -57,7 +57,8 @@ module.exports = {
     {
       id: 'TALB',
       name: 'album',
-      tableOrder: 3
+      tableOrder: 3,
+      maxWidth: 20
     },
     {
       id: 'TXXX.Context',

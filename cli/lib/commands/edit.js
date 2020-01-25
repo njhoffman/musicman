@@ -10,7 +10,8 @@ const editCommand = async ({ target, options, config }) => {
     throw new Error(`Target does not exist: ${target}`);
   }
 
-  const { recursive = config.recursive } = options.switches;
+  const { switches, assignments } = options;
+  const { recursive = config.recursive } = switches;
 
   const files = exists.isDirectory() ? getFiles(target, { ext: 'mp3', recursive }) : target;
 
@@ -18,11 +19,9 @@ const editCommand = async ({ target, options, config }) => {
   const parsedMetadata = parseFileMetadata(metadataFiles, config).filter(filterFiles(options.filters));
 
   // assign new metadata fields, map to Id3 tag names and save
-  const newFilesMetadata = _.map(parsedMetadata, ([file, meta]) => {
-    return [file, { ...meta, ...options.assignments }];
-  });
+  const newFilesMetadata = _.map(parsedMetadata, ([file, meta]) => [file, { ...meta, ...assignments }]);
 
-  saveMetadata(newFilesMetadata);
+  saveMetadata(newFilesMetadata, config);
 
   // load new metadata for comparison
   const savedMetadata = parseFileMetadata(await getMetadata(files), config);
