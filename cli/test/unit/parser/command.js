@@ -2,35 +2,7 @@ const parser = require('../../../lib/parser');
 
 describe('Command assignment', () => {
   const config = {
-    mpd: { baseDirectory: 'testBaseDir' },
-    tags: [
-      {
-        name: 'artist',
-        id: 'TPE1'
-      },
-      {
-        name: 'title',
-        id: 'TIT2'
-      },
-      {
-        name: 'album',
-        id: 'TALB'
-      },
-      {
-        name: 'CustomField1',
-        id: 'TXXX.Custom1',
-        multi: true
-      },
-      {
-        name: 'CustomField2',
-        id: 'TXXX.Custom2',
-        multi: true
-      },
-      {
-        name: 'CustomField3',
-        id: 'TXXX.Custom3'
-      }
-    ]
+    mpd: { baseDirectory: 'testBaseDir' }
   };
   const currentSong = { file: 'testDir/testSong.mp3' };
 
@@ -55,6 +27,13 @@ describe('Command assignment', () => {
     expect(test2.command).to.include({ name: 'view' });
   });
 
-  // it('Should return edit command if any args contain assignment (=) operator', () => {});
-  // it('Should return view command if any args contain filter (:) and none with (=) operators', () => {});
+  it('Should return edit command if any args contain assignment (=) operator', () => {
+    const test1 = parser({ args: ['any', 'other', 'field=value', 'filter:value', 'args'], config });
+    expect(test1.command).to.include({ name: 'edit' });
+  });
+
+  it('Should return view command if any args contain filter (:) and none with (=) operators', () => {
+    const test1 = parser({ args: ['any', 'other', 'field:value', 'args'], config });
+    expect(test1.command).to.include({ name: 'view' });
+  });
 });

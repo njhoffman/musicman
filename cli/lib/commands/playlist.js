@@ -5,6 +5,7 @@ const fs = require('fs');
 const { getFilteredFiles } = require('./common');
 const { checkExists } = require('../utils/files');
 const logger = require('../utils/logger');
+const { outputMetadata } = require('../utils/output');
 
 const writePlaylist = (files, outPath) => fs.writeFileSync(outPath, files.join('\n'));
 
@@ -27,7 +28,7 @@ const playlistCommand = async ({ target, options, config }) => {
 
   logger.info(`${filtered.length} files saved to playlist ${outPath}`);
 
-  return logger.outputMetadata({ target, metadata: _.unzip(filtered)[1], config, options });
+  return outputMetadata({ target, metadata: _.unzip(filtered)[1], config, options });
 };
 
 module.exports = { name: 'playlist', func: playlistCommand };

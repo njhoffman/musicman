@@ -1,5 +1,5 @@
 const _ = require('lodash');
-const logger = require('../utils/logger');
+const { outputMetadata } = require('../utils/output');
 
 const { getFilteredFiles } = require('./common');
 const { checkExists } = require('../utils/files');
@@ -21,7 +21,7 @@ const viewCommand = async ({ target, options, config }) => {
 
   const format = metadata.length === 1 ? 'vertical' : 'table';
 
-  return logger.outputMetadata({ target, metadata, config, format, options });
+  return outputMetadata({ target, metadata, config, format, options });
 };
 
 module.exports = { name: 'view', func: viewCommand };

@@ -10,13 +10,21 @@ const getCommand = (args, currentSong) => {
   if (/^\d+(?:\.\d+)?$/.test(firstArg)) {
     // if first argument is numeric, it is a rating, editing if current song playing
     return currentSong ? editCommand : viewCommand;
-  } else if (/^\w+=.*/.test(firstArg)) {
-    // if first argument includes assignment operator (=), it is an edit
-    return editCommand;
+  }
+
+  let matchedCommand = _.find(commands, { name: firstArg });
+  if (!matchedCommand) {
+    _.some(args, arg => {
+      if (/^\w+=.*/.test(arg)) {
+        // if any argument has assignment operator (=), it is an editing command
+        matchedCommand = editCommand;
+      }
+      return matchedCommand;
+    });
   }
 
   // try to match command, otherwise assume view command
-  return _.find(commands, { name: firstArg }) || viewCommand;
+  return matchedCommand || viewCommand;
 };
 
 module.exports = getCommand;

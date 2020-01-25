@@ -3,6 +3,7 @@ const _ = require('lodash');
 const { getFilteredFiles, parseFileMetadata } = require('./common');
 const { saveMetadata } = require('../utils/metadata');
 const { checkExists } = require('../utils/files');
+const { outputDifferences } = require('../utils/output');
 const logger = require('../utils/logger');
 
 const editCommand = async ({ target, options, config }) => {
@@ -20,9 +21,11 @@ const editCommand = async ({ target, options, config }) => {
 
   saveMetadata(newFilesMetadata, config);
 
+  logger.info(`${filtered.length} files updated`);
+
   // load new metadata for comparison
   const savedMetadata = await parseFileMetadata(_.unzip(filtered)[0], config);
-  logger.outputDifferences(filtered, savedMetadata);
+  outputDifferences(_.unzip(filtered)[0], savedMetadata);
 
   return { oldFiles: filtered, newFiles: newFilesMetadata };
 };
