@@ -49,7 +49,8 @@ describe('Edit Command', () => {
     });
 
     it('Should assign TXXX fields correctly', async () => {
-      const newOptions = { ...options, assignments: { customfield: 'testing assignment' } };
+      const assignments = { customfield: 'testing assignment' };
+      const newOptions = { ...options, assignments };
       const { newFiles } = await editFunc({ target: dirTarget, options: newOptions, config });
       newFiles.forEach(nf => {
         expect(nf[1].customfield).to.equal('testing assignment');
@@ -57,24 +58,34 @@ describe('Edit Command', () => {
     });
 
     it('Should assign TXXX multi fields correctly', async () => {
-      const newOptions = { ...options, assignments: { mood: ['Fun', 'Energetic'], title: 'Test 1 2 3' } };
+      const assignments = { mood: ['Fun', 'Energetic'] };
+      const newOptions = { ...options, assignments };
       const { newFiles } = await editFunc({ target: dirTarget, options: newOptions, config });
       newFiles.forEach(nf => {
         expect(nf[1].mood).to.deep.equal(['Fun', 'Energetic']);
       });
     });
 
-    // it('Should assign added values to TXXX multi fields correctly', async () => {
-    //   const options = 'mood:+Relax,+Chill';
-    //   const { newFiles } = await editFunc({ target: fileTarget, options, config });
-    //   expect(newFiles[0][1].mood).to.equal('Gloomy,Upbeat,Intense,Relax,Chill');
-    // });
+    it('Should assign added values to multi fields correctly', async () => {
+      const assignments = { mood: ['+Relax', '+Chill'] };
+      const newOptions = { ...options, assignments };
+      const { newFiles } = await editFunc({ target: fileTarget, options: newOptions, config });
+      expect(newFiles[0][1].mood).to.deep.equal(['Relax', 'Chill', 'Gloomy', 'Upbeat', 'Intense']);
+    });
 
-    // it('Should assign subtracted values to TXXX multi fields correctly', async () => {
-    //   const options = 'mood:-Upbeat,-Gloomy';
-    //   const { newFiles } = await editFunc({ target: fileTarget, options, config });
-    //   expect(newFiles[0][1].mood).to.equal('Intense');
-    // });
+    it('Should assign subtracted values to multi fields correctly', async () => {
+      const assignments = { mood: ['-Upbeat', '-Gloomy'] };
+      const newOptions = { ...options, assignments };
+      const { newFiles } = await editFunc({ target: fileTarget, options: newOptions, config });
+      expect(newFiles[0][1].mood).to.deep.equal(['Intense']);
+    });
+
+    it('Should assign combinations of aggregate multi fields correctly', async () => {
+      const assignments = { mood: ['+Test 1', '-Upbeat', '+Test 2', '-Gloomy'] };
+      const newOptions = { ...options, assignments };
+      const { newFiles } = await editFunc({ target: fileTarget, options: newOptions, config });
+      expect(newFiles[0][1].mood).to.deep.equal(['Test 1', 'Test 2', 'Intense']);
+    });
   });
 
   // describe('File modification', () => {
