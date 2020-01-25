@@ -1,27 +1,18 @@
 const _ = require('lodash');
+const switchMap = require('./switchMap');
 
 const parseSwitches = (optionList, config) => {
-  const switches = {
-    include: [],
-    exclude: [],
-    recursive: config.recursive
-  };
+  const switches = {};
   const used = [];
 
-  // TODO: add double-dash alternatives
+  const switchNames = _.keys(switchMap);
+  const switchAliases = _.map(_.keys(switchMap), key => switchMap[key].alias);
+
   optionList.forEach((option, i) => {
-    if (option === '-r') {
-      switches.recursive = true;
-      used.push('-r');
-    } else if (option === '-nr') {
-      switches.recursive = false;
-      used.push('-nr');
-    } else if (option === '-x') {
-      switches.exclude = optionList[i + 1].split(',');
-      used.push('-x', optionList[i + 1]);
-    } else if (option === '-i') {
-      switches.include = optionList[i + 1].split(',');
-      used.push('-i', optionList[i + 1]);
+    const foundSwitch = _.get(switchMap, option) || _.find(switchMap, { alias: option });
+    if (foundSwitch) {
+      used.push(foundSwitch.alias, _.keys(foundSwitch)[0]);
+      _.merge(switches, foundSwitch.func(used, optionList, i));
     }
   });
 

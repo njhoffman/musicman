@@ -1,8 +1,8 @@
 const _ = require('lodash');
 
-const { getFilteredFiles, parseFileMetadata, saveMetadata } = require('./common');
-const { checkExists } = require('../utils/files');
+const { getFilteredFiles, saveMetadata } = require('./common');
 const { outputDifferences } = require('../output');
+const { checkExists } = require('../utils/files');
 const logger = require('../utils/logger');
 
 const editCommand = async ({ target, options, config }) => {
