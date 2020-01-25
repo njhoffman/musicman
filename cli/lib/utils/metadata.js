@@ -28,7 +28,6 @@ const metakeysTransform = (metadata, config) =>
   });
 
 const getRating = (rating, ratingMax) => ((rating / 255) * ratingMax).toFixed(1);
-const toRating = (newRating, ratingMax) => Math.round((newRating * 255) / ratingMax);
 
 // convert id3 tag names to associated tag names in config
 const parseMetadata = (rawTags = {}, config) => {

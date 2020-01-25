@@ -2,7 +2,7 @@ const _ = require('lodash');
 const chalk = require('chalk');
 const diff = require('diff');
 const { inspect } = require('util');
-const columnify = require('./columnify');
+const columnify = require('columnify');
 
 /* eslint-disable no-console */
 const consoleLog = msg => {
@@ -47,34 +47,43 @@ const outputNotFound = (filters, target) => {
 };
 
 const outputTable = (metadata, config) => {
-  const columns = ['rating'].concat(
-    _.chain(config.tags)
-      .filter('tableOrder')
-      .sortBy('tableOrder')
-      .map('name')
-      .value()
-  );
+  // TODO: yuck, wait patiently for optional chaining
   const { output: { table = {} } = {} } = config;
   const { seperators = {}, headers = {} } = table;
 
-  // TODO: fork columnify and support colors
   // TODO: have better default config loading
-  const columnOptions = {
+  const columnifyOptions = {
     maxLineWidth: 'auto',
     showHeaders: headers.visible === false || true,
     columnSplitter: seperators.vertical || ' ',
-    dataTransform: data => {
-      // return chalk.hex('#ffffff')(`${data}`);
-      return data;
-    },
     headingTransform: heading => {
       const headerItem = headers.capitalize ? _.toUpper(heading) : _.upperFirst(heading);
-      return headerItem;
-      // return headers.color ? chalk.hex(headers.color)(headerItem) : headerItem;
+      // return headerItem;
+      return chalk.hex('#33CCAA')(headerItem);
     }
   };
 
-  return columnify(metadata, { columns, ...columnOptions });
+  // always include rating column, place it first if not otherwise defined
+  const ratingColumn = { ...config.rating, name: 'rating', tableOrder: -1 };
+  // sorty and only include columns that have tableOrder property
+  const columns = _.sortBy([ratingColumn].concat(_.filter(config.tags, 'tableOrder')), 'tableOrder');
+
+  // prepare columns configuration for columnify
+  const columnsConfig = {};
+  _.each(columns, tag => {
+    const cellColor = tag.color || table.color;
+    const dataTransform = data => {
+      const emptyCell = (_.isArray(data) && data.length === 0) || data.trim().length === 0;
+      if (cellColor && !emptyCell) {
+        return chalk.hex(cellColor)(data);
+      }
+      return data;
+    };
+    columnsConfig[tag.name] = { dataTransform };
+  });
+
+  const columnifyConfig = { columns: _.map(columns, 'name'), config: columnsConfig, ...columnifyOptions };
+  return columnify(metadata, columnifyConfig);
 };
 
 const outputMetadata = ({ metadata, target, options, config, format }) => {

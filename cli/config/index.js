@@ -18,20 +18,20 @@ module.exports = {
     tag: 'POPM',
     email: 'Default',
     max: 5,
-    color: 'cyan'
+    color: '#BBDDFF'
   },
   output: {
     table: {
-      color: 'gray',
+      color: '#BBBBBB',
       headers: {
         visible: true,
-        capitalize: false
-        // color: '#00FF88'
+        capitalize: false,
+        color: '#00FF88'
       },
       seperators: {
-        vertical: false
-        // horizontal: false,
-        // color: 'gray'
+        vertical: false,
+        horizontal: false
+        // color: '#88AABB'
       }
     }
     // vertical: {

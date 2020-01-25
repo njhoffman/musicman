@@ -1,5 +1,4 @@
 const _ = require('lodash');
-const NodeId3 = require('node-id3');
 const { checkExists, getFiles, filterFiles } = require('../utils/files');
 const { getMetadata, parseFileMetadata, saveMetadata } = require('../utils/metadata');
 

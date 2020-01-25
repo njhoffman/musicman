@@ -40,6 +40,7 @@
   },
   "dependencies": {
     "chalk": "3.0.0",
+    "columnify": "git+https://github.com/njhoffman/columnify.git",
     "diff": "4.0.1",
     "flat": "5.0.0",
     "glob": "7.1.6",
@@ -48,9 +49,7 @@
     "music-metadata": "5.0.0",
     "node-id3": "0.1.13",
     "pretty-error": "2.1.1",
-    "strip-ansi": "6.0.0",
     "term-size": "2.1.1",
-    "wcwidth": "1.0.1",
     "yargs": "15.0.1"
   }
 }
