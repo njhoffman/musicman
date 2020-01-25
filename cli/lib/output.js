@@ -1,7 +1,6 @@
 const _ = require('lodash');
 const chalk = require('chalk');
 const diff = require('diff');
-const columnify = require('columnify');
 const { inspect } = require('util');
 
 const { consoleLog } = require('./utils/logger');

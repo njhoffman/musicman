@@ -15,7 +15,7 @@ const resetSandbox = () => {
 
 const assignTestTags = async () => {
   // console.log(`Tagging ${testTags.length} test files`);
-  const filesMetadata = testTags.map(([file, testTag]) => {
+  testTags.map(([file, testTag]) => {
     const filePath = path.join(process.cwd(), 'test/data/source/', file);
     NodeId3.write(testTag, filePath);
     return [filePath, testTag];

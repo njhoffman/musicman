@@ -1,4 +1,3 @@
-const _ = require('lodash');
 const path = require('path');
 const editFunc = require('../../../lib/commands/edit').func;
 const { resetSandbox } = require('../../utils');
