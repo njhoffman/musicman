@@ -51,7 +51,8 @@ module.exports = {
     {
       id: 'TIT2',
       name: 'title',
-      tableOrder: 2
+      tableOrder: 2,
+      maxWidth: 30
     },
     {
       id: 'TALB',

@@ -54,6 +54,7 @@ const outputTable = (metadata, config) => {
   // TODO: have better default config loading
   const columnifyOptions = {
     maxLineWidth: 'auto',
+    truncate: true,
     showHeaders: headers.visible === false || true,
     columnSplitter: seperators.vertical || ' ',
     headingTransform: heading => {
@@ -79,7 +80,10 @@ const outputTable = (metadata, config) => {
       }
       return data;
     };
-    columnsConfig[tag.name] = { dataTransform };
+    columnsConfig[tag.name] = {
+      dataTransform,
+      ..._.pick(tag, ['showHeaders', 'maxWidth', 'minWidth'])
+    };
   });
 
   const columnifyConfig = { columns: _.map(columns, 'name'), config: columnsConfig, ...columnifyOptions };
