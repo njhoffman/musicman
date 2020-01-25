@@ -20,10 +20,6 @@ const assignTestTags = async () => {
     NodeId3.write(testTag, filePath);
     return [filePath, testTag];
   });
-
-  // console.log(
-  // await parseFileMetadata(filesMetadata);
-  // );
 };
 
 module.exports = { resetSandbox, assignTestTags };

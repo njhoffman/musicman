@@ -1,9 +1,6 @@
 const _ = require('lodash');
-const flatten = require('flat');
 const NodeId3 = require('node-id3');
-
-const { unflatten } = flatten;
-// let config = require('../../config');
+const flatten = require('flat');
 
 const readMetadata = file =>
   new Promise((resolve, reject) => {
@@ -28,7 +25,6 @@ const metakeysTransform = (metadata, config) =>
   });
 
 const getRating = (rating, ratingMax) => ((rating / 255) * ratingMax).toFixed(1);
-const toRating = (newRating, ratingMax) => Math.round((newRating * 255) / ratingMax);
 
 // convert id3 tag names to associated tag names in config
 const parseMetadata = (rawTags = {}, config) => {
@@ -54,36 +50,4 @@ const parseMetadata = (rawTags = {}, config) => {
   return parsedTags;
 };
 
-// transform new metadata to id3 keys for saving
-const prepareId3Tags = config => ([file, fields]) => {
-  const filteredTags = _.pick(fields, _.map(config.tags, 'name'));
-  const editTags = _.mapKeys(filteredTags, (value, name) => _.find(config.tags, { name }).id);
-
-  // special rating handler
-  if (fields.rating === '') {
-    editTags[config.rating.tag] = {};
-  } else if (_.isString(fields.rating)) {
-    editTags[config.rating.tag] = {
-      email: config.rating.email,
-      rating: toRating(fields.rating, config.rating.max)
-    };
-  }
-
-  const finalTags = unflatten(editTags);
-  // special TXXX keys handler
-  finalTags.TXXX = _.map(_.keys(finalTags.TXXX), txKey => ({
-    description: txKey,
-    value: finalTags.TXXX[txKey]
-  }));
-  return [file, finalTags];
-};
-
-// TODO: put into common, have separate individual file save with logging
-const saveMetadata = (files, config) =>
-  files.map(prepareId3Tags(config)).map(([file, id3Tags]) => NodeId3.update(id3Tags, file));
-
-module.exports = {
-  getMetadata,
-  parseMetadata,
-  saveMetadata
-};
+module.exports = { getMetadata, parseMetadata };

@@ -55,18 +55,6 @@ module.exports = {
     {
       id: 'TCON',
       name: 'genre'
-    },
-    {
-      id: 'TXXX.Context',
-      name: 'context',
-      tableOrder: 4,
-      multi: true
-    },
-    {
-      id: 'TXXX.Mood',
-      name: 'mood',
-      tableOrder: 5,
-      multi: true
     }
     // "albumArtist": "TXXX=AlbumArtist",
     // "releaseType": "TXXX=ReleaseType", (integer)

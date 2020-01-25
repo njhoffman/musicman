@@ -5,7 +5,7 @@ const fs = require('fs');
 const { getFilteredFiles } = require('./common');
 const { checkExists } = require('../utils/files');
 const logger = require('../utils/logger');
-const { outputMetadata } = require('../utils/output');
+const { outputMetadata } = require('../output');
 
 const writePlaylist = (files, outPath) => fs.writeFileSync(outPath, files.join('\n'));
 

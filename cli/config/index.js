@@ -4,4 +4,5 @@ const appName = require('../package.json').name;
 
 const defaultConfig = require('./defaultConfig');
 
-module.exports = rcConf(appName, defaultConfig);
+const conf = rcConf(appName, defaultConfig);
+module.exports = conf;

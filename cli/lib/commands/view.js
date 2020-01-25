@@ -1,5 +1,5 @@
 const _ = require('lodash');
-const { outputMetadata } = require('../utils/output');
+const { outputMetadata } = require('../output');
 
 const { getFilteredFiles } = require('./common');
 const { checkExists } = require('../utils/files');

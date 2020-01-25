@@ -1,7 +1,9 @@
 const _ = require('lodash');
 
-const { getFiles, filterFiles } = require('../utils/files');
-const { getMetadata, parseMetadata } = require('../utils/metadata');
+const { getFiles } = require('../utils/files');
+const { getMetadata, parseMetadata, writeFiles, filterFiles } = require('../metadata');
+
+const saveMetadata = (files, config) => _.map(writeFiles(config));
 
 const parseFileMetadata = (filesMetadata, config) =>
   _.map(filesMetadata, ([file, metadata]) => [file, parseMetadata(metadata, config)]);
@@ -16,4 +18,4 @@ const getFilteredFiles = async ({ target, options = {}, config = {} }, fileList)
   return filters ? _.filter(parsedFiles, filterFiles(filters)) : parsedFiles;
 };
 
-module.exports = { getFilteredFiles, parseFileMetadata };
+module.exports = { getFilteredFiles, parseFileMetadata, saveMetadata };

@@ -4,7 +4,7 @@ const diff = require('diff');
 const columnify = require('columnify');
 const { inspect } = require('util');
 
-const { consoleLog } = require('./logger');
+const { consoleLog } = require('./utils/logger');
 
 const inspectOptions = { compact: true, colors: true };
 const outputNotFound = (filters, target) => {
@@ -39,7 +39,7 @@ const outputTable = (metadata, config) => {
   };
 
   // always include rating column, place it first if not otherwise defined
-  const ratingColumn = { ...config.rating, name: 'rating', tableOrder: -1 };
+  const ratingColumn = { ...config.rating, name: 'rating', tableOrder: -1, align: 'center' };
   // sorty and only include columns that have tableOrder property
   const columns = _.sortBy([ratingColumn].concat(_.filter(config.tags, 'tableOrder')), 'tableOrder');
 
@@ -56,11 +56,16 @@ const outputTable = (metadata, config) => {
     };
     columnsConfig[tag.name] = {
       dataTransform,
-      ..._.pick(tag, ['showHeaders', 'maxWidth', 'minWidth'])
+      ..._.pick(tag, ['showHeaders', 'maxWidth', 'minWidth', 'align'])
     };
   });
 
-  const columnifyConfig = { columns: _.map(columns, 'name'), config: columnsConfig, ...columnifyOptions };
+  // dont show columns that have all empty cells
+  const filteredColumns = _.map(columns, 'name').filter(columnName =>
+    _.some(metadata, meta => !_.isEmpty(meta[columnName]))
+  );
+
+  const columnifyConfig = { columns: filteredColumns, config: columnsConfig, ...columnifyOptions };
   return columnify(metadata, columnifyConfig);
 };
 
