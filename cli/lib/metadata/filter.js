@@ -1,24 +1,25 @@
 const _ = require('lodash');
 
-const filterFiles = filters => ([file, metadata]) => {
-  const { rating = {}, include = {}, exclude = {} } = filters;
-
+const filterRating = (rating, { min, max, exclude }) => {
   let ratingMatch = false;
-  if (_.isString(rating.min) || _.isString(rating.max)) {
-    if (!_.isNaN(parseFloat(rating.min))) {
-      ratingMatch = metadata.rating >= rating.min;
+  if (_.isString(min) || _.isString(max)) {
+    if (!_.isNaN(parseFloat(min))) {
+      ratingMatch = rating >= min;
     }
-    if (!_.isNaN(parseFloat(rating.max))) {
-      ratingMatch = metadata.rating <= rating.max && ratingMatch;
+    if (!_.isNaN(parseFloat(max))) {
+      ratingMatch = rating <= max && ratingMatch;
     }
     // if rating set to blank/empty string, match if metadata has no rating
-    ratingMatch = (rating.min === '' && !metadata.rating) || ratingMatch;
-    ratingMatch = rating.exclude ? !ratingMatch : ratingMatch;
+    ratingMatch = (min === '' && !rating) || ratingMatch;
+    ratingMatch = exclude ? !ratingMatch : ratingMatch;
   } else {
     ratingMatch = true;
   }
+  return ratingMatch;
+};
 
-  const includeMatch = _.keys(include).every(filterKey => {
+const filterInclude = (include, metadata) =>
+  _.keys(include).every(filterKey => {
     if (include[filterKey] === '') {
       return _.isEmpty(metadata[filterKey]);
     } else if (_.isArray(include[filterKey])) {
@@ -30,17 +31,25 @@ const filterFiles = filters => ([file, metadata]) => {
     return _.toLower(metadata[filterKey]).indexOf(filterVal) !== -1;
   });
 
-  const excludeMatch = _.keys(filters.exclude).every(filterKey => {
+const filterExclude = (exclude, metadata) =>
+  _.keys(exclude).every(filterKey => {
     if (exclude[filterKey] === '') {
       return !_.isEmpty(metadata[filterKey]);
     } else if (_.isArray(exclude[filterKey])) {
       const metaVals = `${metadata[filterKey]}`.split(',').map(_.toLower);
-      return filters.exclude[filterKey].every(multiVal => metaVals.indexOf(_.toLower(multiVal)) === -1);
+      return exclude[filterKey].every(multiVal => metaVals.indexOf(_.toLower(multiVal)) === -1);
     }
 
-    const filterVal = _.toLower(filters.exclude[filterKey]);
+    const filterVal = _.toLower(exclude[filterKey]);
     return _.toLower(metadata[filterKey]).indexOf(filterVal) === -1;
   });
+
+const filterFiles = filters => ([file, metadata]) => {
+  const { include = {}, exclude = {} } = filters;
+
+  const ratingMatch = filterRating(metadata.rating, filters.rating || {});
+  const includeMatch = filterInclude(include, metadata);
+  const excludeMatch = filterExclude(exclude, metadata);
 
   return includeMatch && excludeMatch && ratingMatch;
 };

@@ -6,27 +6,29 @@ const logger = require('../utils/logger');
 
 const toRating = (newRating, ratingMax) => Math.round((newRating * 255) / ratingMax);
 
+const prepareRating = (rating, { min, max, email }) => (rating === '' ? {} : { email, rating: toRating(rating, max) });
+
+const prepareCustomFields = txxxFields =>
+  _.map(_.keys(txxxFields), txKey => ({
+    description: txKey,
+    value: txxxFields[txKey]
+  }));
+
 // transform new metadata to id3 keys for saving
 const prepareId3Tags = config => ([file, fields]) => {
   const filteredTags = _.pick(fields, _.map(config.tags, 'name'));
   const editTags = _.mapKeys(filteredTags, (value, name) => _.find(config.tags, { name }).id);
 
   // special rating handler
-  if (fields.rating === '') {
-    editTags[config.rating.tag] = {};
-  } else if (_.isString(fields.rating)) {
-    editTags[config.rating.tag] = {
-      email: config.rating.email,
-      rating: toRating(fields.rating, config.rating.max)
-    };
+  if (_.isString(fields.rating)) {
+    editTags[config.rating.tag] = prepareRating(fields.rating, config.rating);
   }
 
   const finalTags = unflatten(editTags);
+
   // special TXXX keys handler
-  finalTags.TXXX = _.map(_.keys(finalTags.TXXX), txKey => ({
-    description: txKey,
-    value: finalTags.TXXX[txKey]
-  }));
+  finalTags.TXXX = prepareCustomFields(finalTags.TXXX);
+
   return [file, finalTags];
 };
 

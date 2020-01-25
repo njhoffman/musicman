@@ -43,8 +43,6 @@ const parseMetadata = (rawTags = {}, config) => {
   const ratingTag = _.get(config, 'rating.tag');
   if (rawTags[ratingTag]) {
     parsedTags.rating = getRating(rawTags[ratingTag].rating, config.rating.max);
-    // const rating = getRating(rawTags.POPM.rating, config.rating.max);
-    // parsedTags[keysById ? ratingTag : 'rating'] = rating;
   }
 
   return parsedTags;

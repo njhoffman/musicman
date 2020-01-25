@@ -15,8 +15,7 @@ const outputTable = (metadata, config) => {
     columnSplitter: seperators.vertical || ' ',
     headingTransform: heading => {
       const headerItem = headers.capitalize ? _.toUpper(heading) : _.upperFirst(heading);
-      // return headerItem;
-      return chalk.hex('#33CCAA')(headerItem);
+      return headers.color ? chalk.hex(headers.color)(headerItem) : headerItem;
     }
   };
 
