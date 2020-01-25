@@ -23,16 +23,13 @@ module.exports = {
       seperators: {
         vertical: false,
         horizontal: false
-        // color: '#88AABB'
+      }
+    },
+    vertical: {
+      headers: {
+        visible: true
       }
     }
-    // vertical: {
-    //   color: 'gray',
-    //   headers: {
-    //     visible: true,
-    //     color: 'white'
-    //   },
-    // }
   },
   tags: [
     {

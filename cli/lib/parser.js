@@ -12,7 +12,7 @@ const parser = ({ args, currentSong, config }) => {
   const command = getCommand(args, currentSong);
 
   const remainingArgs = args.filter(arg => arg !== target && arg !== command);
-  const options = getOptions(remainingArgs, config);
+  const options = getOptions(remainingArgs, config, command.name);
   return { target, command, options };
 };
 

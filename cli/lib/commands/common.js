@@ -3,7 +3,7 @@ const _ = require('lodash');
 const { getFiles } = require('../utils/files');
 const { getMetadata, parseMetadata, writeFiles, filterFiles } = require('../metadata');
 
-const saveMetadata = (files, config) => _.map(writeFiles(config));
+const saveMetadata = (files, config) => _.map([files], writeFiles(config));
 
 const parseFileMetadata = (filesMetadata, config) =>
   _.map(filesMetadata, ([file, metadata]) => [file, parseMetadata(metadata, config)]);

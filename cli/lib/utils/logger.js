@@ -1,12 +1,15 @@
 const _ = require('lodash');
 const { inspect } = require('util');
+const termSize = require('term-size');
+
+const inspectOptions = { colors: true, compact: false, breakLength: termSize().columns };
 
 /* eslint-disable no-console */
 const consoleLog = message => {
   const { NODE_ENV, NODE_TEST_LOG } = process.env;
   let parsed = message;
   if (_.isObject(message)) {
-    parsed = inspect(message, { colors: true, compact: false })
+    parsed = inspect(message, inspectOptions)
       .split('\n')
       .map(line => `  ${line}`)
       .join('\n');

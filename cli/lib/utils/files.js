@@ -14,9 +14,9 @@ const checkExists = target => {
 const getFiles = (dir, options = { ext: 'mp3', recursive: false }) => {
   const { recursive, ext } = options;
   const exists = checkExists(dir);
-  if (exists.isFile()) {
+  if (exists && exists.isFile()) {
     return [dir];
-  } else if (exists.isDirectory()) {
+  } else if (exists && exists.isDirectory()) {
     const globPath = recursive ? `${dir}/**/*.${ext}` : `${dir}/*.${ext}`;
     const files = glob.sync(globPath);
     return files;

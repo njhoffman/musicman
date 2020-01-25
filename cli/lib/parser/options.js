@@ -1,8 +1,6 @@
 const _ = require('lodash');
 
-let config = require('../../config');
-
-const parseSwitches = optionList => {
+const parseSwitches = (optionList, config) => {
   const switches = {
     include: [],
     exclude: [],
@@ -37,7 +35,7 @@ const parseRating = (rating, type) => ({
   exclude: type === 'exclude'
 });
 
-const parseFilters = optionList => {
+const parseFilters = (optionList, config, commandName) => {
   const filters = {
     include: {},
     exclude: {},
@@ -51,8 +49,8 @@ const parseFilters = optionList => {
     const tagValue = `${val}`.replace(/"/g, '');
     const type = /^~/.test(key) ? 'exclude' : 'include';
 
-    if (/^\d+(?:.\d+)?$/.test(option)) {
-      // if argument is numeric, assume it's a rating
+    if (/^\d+(?:.\d+)?$/.test(option) && commandName !== 'edit') {
+      // if argument is numeric and not editing command, assume it's a rating
       filters.rating = parseRating(option, type);
     } else if (filterKey === 'rating') {
       filters.rating = parseRating(tagValue, type);
@@ -68,7 +66,7 @@ const parseFilters = optionList => {
   return filters;
 };
 
-const parseAssignments = optionList => {
+const parseAssignments = (optionList, config, commandName) => {
   const assignments = {};
 
   optionList.forEach(option => {
@@ -76,7 +74,9 @@ const parseAssignments = optionList => {
     const tagConfig = _.find(config.tags, { name: key });
     const tagValue = `${val}`.replace(/"/g, '');
 
-    if (key === 'rating') {
+    if (/^\d+(?:.\d+)?$/.test(option) && commandName === 'edit') {
+      assignments.rating = option;
+    } else if (key === 'rating') {
       assignments.rating = tagValue;
     } else if (tagConfig) {
       if (tagConfig.multi) {
@@ -90,12 +90,10 @@ const parseAssignments = optionList => {
   return assignments;
 };
 
-const getOptions = (optionList, customConfig) => {
-  config = customConfig || config;
-
-  const { switches, remaining } = parseSwitches(optionList);
-  const filters = parseFilters(remaining, config);
-  const assignments = parseAssignments(remaining, config);
+const getOptions = (optionList, config, commandName) => {
+  const { switches, remaining } = parseSwitches(optionList, config);
+  const filters = parseFilters(remaining, config, commandName);
+  const assignments = parseAssignments(remaining, config, commandName);
 
   return { switches, filters, assignments };
 };

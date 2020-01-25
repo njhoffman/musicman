@@ -2,6 +2,8 @@ const _ = require('lodash');
 const NodeId3 = require('node-id3');
 const { unflatten } = require('flat');
 
+const logger = require('../utils/logger');
+
 const toRating = (newRating, ratingMax) => Math.round((newRating * 255) / ratingMax);
 
 // transform new metadata to id3 keys for saving
@@ -28,12 +30,16 @@ const prepareId3Tags = config => ([file, fields]) => {
   return [file, finalTags];
 };
 
-const writeFile = ([file, id3Tags]) => NodeId3.update(id3Tags, file);
+const writeFile = ([file, id3Tags]) => {
+  logger.debug(`Writing file: ${file}`, id3Tags);
+  return NodeId3.update(id3Tags, file);
+};
 
-const writeFiles = config => files =>
-  _.chain(files)
+const writeFiles = config => files => {
+  return _.chain(files)
     .map(prepareId3Tags(config))
     .map(writeFile)
     .value();
+};
 
 module.exports = { writeFiles };

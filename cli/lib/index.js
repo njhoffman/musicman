@@ -16,7 +16,11 @@ const run = async args => {
     logger.warn('No target specified');
     return usage(args);
   }
-  await command.func({ target, options, config });
+  await command.func({
+    target,
+    options: { ...options, commandName: command.name },
+    config
+  });
   return process.exit(0);
 };
 
