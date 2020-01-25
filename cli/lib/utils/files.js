@@ -46,8 +46,8 @@ const filterFiles = filters => ([file, metadata]) => {
     if (include[filterKey] === '') {
       return _.isEmpty(metadata[filterKey]);
     } else if (_.isArray(include[filterKey])) {
-      const metaVals = `${metadata[filterKey]}`.split(',');
-      return include[filterKey].every(multiVal => metaVals.indexOf(multiVal) !== -1);
+      const metaVals = `${metadata[filterKey]}`.split(',').map(_.toLower);
+      return include[filterKey].every(multiVal => metaVals.indexOf(_.toLower(multiVal)) !== -1);
     }
 
     const filterVal = _.toLower(include[filterKey]);
@@ -58,8 +58,8 @@ const filterFiles = filters => ([file, metadata]) => {
     if (exclude[filterKey] === '') {
       return !_.isEmpty(metadata[filterKey]);
     } else if (_.isArray(exclude[filterKey])) {
-      const metaVals = `${metadata[filterKey]}`.split(',');
-      return filters.exclude[filterKey].every(multiVal => metaVals.indexOf(multiVal) === -1);
+      const metaVals = `${metadata[filterKey]}`.split(',').map(_.toLower);
+      return filters.exclude[filterKey].every(multiVal => metaVals.indexOf(_.toLower(multiVal)) === -1);
     }
 
     const filterVal = _.toLower(filters.exclude[filterKey]);

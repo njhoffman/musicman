@@ -6,13 +6,14 @@ const { getMetadata, parseMetadata } = require('../utils/metadata');
 const parseFileMetadata = (filesMetadata, config) =>
   _.map(filesMetadata, ([file, metadata]) => [file, parseMetadata(metadata, config)]);
 
-const getFilteredFiles = async ({ target, options, config }) => {
-  const { recursive = config.recursive } = options.switches;
+const getFilteredFiles = async ({ target, options = {}, config = {} }, fileList) => {
+  const { switches: { recursive = config.recursive } = {}, filters } = options;
 
-  const files = getFiles(target, { ext: 'mp3', recursive });
+  const files = fileList || getFiles(target, { ext: 'mp3', recursive });
 
   const metadataFiles = await getMetadata(files);
-  return parseFileMetadata(metadataFiles, config).filter(filterFiles(options.filters));
+  const parsedFiles = parseFileMetadata(metadataFiles, config);
+  return filters ? _.filter(parsedFiles, filterFiles(filters)) : parsedFiles;
 };
 
 module.exports = { getFilteredFiles, parseFileMetadata };

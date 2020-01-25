@@ -30,4 +30,7 @@ const logger = {
   trace: log.bind(null, 4)
 };
 
-module.exports = { consoleLog, ...logger };
+module.exports = {
+  consoleLog,
+  ...logger
+};

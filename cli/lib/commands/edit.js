@@ -24,8 +24,8 @@ const editCommand = async ({ target, options, config }) => {
   logger.info(`${filtered.length} files updated`);
 
   // load new metadata for comparison
-  const savedMetadata = await parseFileMetadata(_.unzip(filtered)[0], config);
-  outputDifferences(_.unzip(filtered)[0], savedMetadata);
+  const savedMetadata = await getFilteredFiles({ options: {}, config }, _.unzip(filtered)[0]);
+  outputDifferences(_.unzip(filtered)[1], _.unzip(savedMetadata)[1]);
 
   return { oldFiles: filtered, newFiles: newFilesMetadata };
 };

@@ -28,6 +28,7 @@ const metakeysTransform = (metadata, config) =>
   });
 
 const getRating = (rating, ratingMax) => ((rating / 255) * ratingMax).toFixed(1);
+const toRating = (newRating, ratingMax) => Math.round((newRating * 255) / ratingMax);
 
 // convert id3 tag names to associated tag names in config
 const parseMetadata = (rawTags = {}, config) => {
@@ -43,9 +44,9 @@ const parseMetadata = (rawTags = {}, config) => {
 
   const parsedTags = metakeysTransform(selectedTags, config);
 
-  const ratingTag = config.rating.tag;
+  const ratingTag = _.get(config, 'rating.tag');
   if (rawTags[ratingTag]) {
-    parsedTags.rating = getRating(rawTags.POPM.rating, config.rating.max);
+    parsedTags.rating = getRating(rawTags[ratingTag].rating, config.rating.max);
     // const rating = getRating(rawTags.POPM.rating, config.rating.max);
     // parsedTags[keysById ? ratingTag : 'rating'] = rating;
   }
@@ -59,10 +60,12 @@ const prepareId3Tags = config => ([file, fields]) => {
   const editTags = _.mapKeys(filteredTags, (value, name) => _.find(config.tags, { name }).id);
 
   // special rating handler
-  if (fields.rating) {
+  if (fields.rating === '') {
+    editTags[config.rating.tag] = {};
+  } else if (_.isString(fields.rating)) {
     editTags[config.rating.tag] = {
       email: config.rating.email,
-      rating: Math.round((fields.rating * 255) / config.rating.max)
+      rating: toRating(fields.rating, config.rating.max)
     };
   }
 

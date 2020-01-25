@@ -2,17 +2,20 @@ const _ = require('lodash');
 const chalk = require('chalk');
 const diff = require('diff');
 const columnify = require('columnify');
+const { inspect } = require('util');
 
 const { consoleLog } = require('./logger');
 
+const inspectOptions = { compact: true, colors: true };
 const outputNotFound = (filters, target) => {
-  let output = `\nNo mp3 files found in ${target} `;
+  let output = `\nNo mp3 files found in \n\t${chalk.hex('#888899')(target)} `;
+  const { include, exclude } = filters;
   if (_.keys(filters).length > 0) {
-    let filterStr = !_.isEmpty(filters.include) ? `include: ${JSON.stringify(filters.include)}, ` : '';
-    filterStr += !_.isEmpty(filters.exclude) ? `exclude: ${JSON.stringify(filters.exclude)}, ` : '';
-    filterStr +=
-      filters.rating && (filters.rating.max || filters.rating.min) ? `rating: ${JSON.stringify(filters.rating)}, ` : '';
-    output += filterStr ? `that match filters: \n\t${filterStr}` : '(no filters)';
+    let filterStr = !_.isEmpty(include) ? `\n\t${inspect({ include }, inspectOptions)}` : '';
+    filterStr += !_.isEmpty(exclude) ? `\n\t${inspect(exclude)}` : '';
+    const { min, max } = _.get(filters, 'rating');
+    filterStr += !_.isNull(min) || !_.isNull(max) ? `\n\t${inspect({ rating: filters.rating }, inspectOptions)}` : '';
+    output += filterStr ? `\n  that match filters: ${filterStr}` : '(no filters)';
   }
   return output;
 };
