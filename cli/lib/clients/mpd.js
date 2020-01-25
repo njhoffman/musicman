@@ -1,5 +1,7 @@
-const logger = require('./utils/logger');
-const { MpdClient } = require('../../common/mpd/MpdClient');
+const logger = require('../utils/logger');
+
+// TODO: fork this into it's own repo
+const { MpdClient } = require('../../../common/mpd/MpdClient');
 
 const connectMpd = ({ port, host }) =>
   new Promise((resolve, reject) => {

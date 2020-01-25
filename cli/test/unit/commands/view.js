@@ -117,47 +117,17 @@ describe('View Command', () => {
     // });
   });
 
-  describe('Rating Filters', () => {
-    it('Should only include files with higher rating if single number provided', async () => {
-      const newConfig = { ...config, recursive: true };
-      const newOptions = { ...options, filters: { rating: { min: 3.5 } } };
-      const results = await viewFunc({ target: dirTarget, options: newOptions, config: newConfig });
-      expect(results.split('\n'))
-        .be.an('array')
-        .of.length(9);
-
-      newOptions.filters.rating.min = 4.5;
-      const results2 = await viewFunc({ target: dirTarget, options: newOptions, config: newConfig });
-      expect(results2.split('\n'))
-        .be.an('array')
-        .of.length(5);
-    });
-
-    it('Should only include files that do not match negation rating single number', async () => {
-      const newConfig = { ...config, recursive: true };
-      const newOptions = { ...options, filters: { rating: { min: 3.0, exclude: true } } };
-      const results = await viewFunc({ target: dirTarget, options: newOptions, config: newConfig });
-      expect(results.split('\n'))
-        .be.an('array')
-        .of.length(7);
-    });
-
-    it('Should only include files that do not match negation rating range number', async () => {
-      const newConfig = { ...config, recursive: true };
-      const newOptions = { ...options, filters: { rating: { min: 3.0, max: 4.5, exclude: true } } };
-      const results = await viewFunc({ target: dirTarget, options: newOptions, config: newConfig });
-      expect(results.split('\n'))
-        .be.an('array')
-        .of.length(9);
-    });
-
-    it('Should only include files that do not match rating range number', async () => {
-      const newConfig = { ...config, recursive: true };
-      const newOptions = { ...options, filters: { rating: { min: 4.0, max: 5.0 } } };
-      const results = await viewFunc({ target: dirTarget, options: newOptions, config: newConfig });
-      expect(results.split('\n'))
-        .be.an('array')
-        .of.length(7);
-    });
-  });
+  // describe('Filters', () => {
+  //   it('Should filter on normal fields corectly', () => {});
+  //   it('Should filter on array fields corectly', () => {});
+  //   it('Should filter on rating fields corectly', () => {});
+  //   it('Should only include files that do not match negation rating range number', async () => {
+  //     const newConfig = { ...config, recursive: true };
+  //     const newOptions = { ...options, filters: { rating: { min: 3.0, max: 4.5, exclude: true } } };
+  //     const results = await viewFunc({ target: dirTarget, options: newOptions, config: newConfig });
+  //     expect(results.split('\n'))
+  //       .be.an('array')
+  //       .of.length(9);
+  //   });
+  // });
 });

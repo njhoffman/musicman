@@ -1,0 +1,146 @@
+[
+  [
+    "/home/nicholas/projects/musicman/cli/test/data/sandbox/1 minute of silence.mp3",
+    {
+      "artist": "Artist A",
+      "title": "1 minute of silence",
+      "album": "Album #1",
+      "mood": "Happy,Upbeat,",
+      "rating": "3.0"
+    }
+  ],
+  [
+    "/home/nicholas/projects/musicman/cli/test/data/sandbox/1-second-and-500-milliseconds-of-silence.mp3",
+    {
+      "artist": "Artist B",
+      "rating": "4.5"
+    }
+  ],
+  [
+    "/home/nicholas/projects/musicman/cli/test/data/sandbox/1-second-of-silence.mp3",
+    {
+      "artist": "Artist C",
+      "title": "1 second of silence",
+      "rating": "4.0"
+    }
+  ],
+  [
+    "/home/nicholas/projects/musicman/cli/test/data/sandbox/10-minutes-of-silence.mp3",
+    {
+      "artist": "Artist D",
+      "title": "10 minutes of silence",
+      "album": "Album #1",
+      "mood": "Relaxing,Chill,"
+    }
+  ],
+  [
+    "/home/nicholas/projects/musicman/cli/test/data/sandbox/10-seconds-of-silence.mp3",
+    {
+      "artist": "Artist E",
+      "title": "10 seconds of silence",
+      "album": "Compiilation Album",
+      "rating": "3.0"
+    }
+  ],
+  [
+    "/home/nicholas/projects/musicman/cli/test/data/sandbox/15-seconds-of-silence.mp3",
+    {
+      "artist": "Artist F",
+      "mood": "Energetic",
+      "rating": "2.5"
+    }
+  ],
+  [
+    "/home/nicholas/projects/musicman/cli/test/data/sandbox/2  seconds of silence.mp3",
+    {
+      "artist": "Artist I",
+      "title": "2 seconds of silence",
+      "album": "~~Album",
+      "rating": "1.5"
+    }
+  ],
+  [
+    "/home/nicholas/projects/musicman/cli/test/data/sandbox/2-minutes-and-30-seconds-of-silence.mp3",
+    {
+      "artist": "Artist G",
+      "title": "2 minutes and 30 seconds of silence",
+      "mood": "Upbeat,Energetic,",
+      "rating": "2.0"
+    }
+  ],
+  [
+    "/home/nicholas/projects/musicman/cli/test/data/sandbox/2-seconds-and-500-milliseconds-of-silence.mp3",
+    {
+      "artist": "Anar Software LLC",
+      "title": "2 Seconds and 500 Milliseconds of Silence",
+      "album": "Blank Audio"
+    }
+  ],
+  [
+    "/home/nicholas/projects/musicman/cli/test/data/sandbox/250-milliseconds-of-silence.mp3",
+    {
+      "artist": "Artist J",
+      "title": "250 milliseconds of silence",
+      "album": "Albums!!",
+      "mood": "Sad,Dpressing,Gloomy,",
+      "rating": "4.0"
+    }
+  ],
+  [
+    "/home/nicholas/projects/musicman/cli/test/data/sandbox/dir1/subdir1/testFile01a.mp3",
+    {
+      "artist": "Artist J",
+      "title": "Test Title 01a",
+      "album": "01AJKSJG38",
+      "mood": "~*WU,Gloomy,!!!["
+    }
+  ],
+  [
+    "/home/nicholas/projects/musicman/cli/test/data/sandbox/dir1/subdir1/testFile02a.mp3",
+    {
+      "artist": "Artist J",
+      "title": "Test Title 02a",
+      "album": "~!@Albums%@!",
+      "mood": "Upbeat",
+      "rating": "4.5"
+    }
+  ],
+  [
+    "/home/nicholas/projects/musicman/cli/test/data/sandbox/dir1/subdir1/testFile03a.mp3",
+    {
+      "artist": "Artist J",
+      "title": "Test Title 03a",
+      "album": "Albums!!",
+      "rating": "3.5"
+    }
+  ],
+  [
+    "/home/nicholas/projects/musicman/cli/test/data/sandbox/dir1/testFile01.mp3",
+    {
+      "artist": "Artist J",
+      "title": "Test File 01",
+      "album": "Albums!!",
+      "mood": "Sad,Gloomy,",
+      "rating": "5.0"
+    }
+  ],
+  [
+    "/home/nicholas/projects/musicman/cli/test/data/sandbox/dir1/testFile02.mp3",
+    {
+      "artist": "Artist J",
+      "title": "Test Title 02",
+      "album": "Albums!!",
+      "mood": "Gloomy,Upbeat,Intense",
+      "rating": "3.5"
+    }
+  ],
+  [
+    "/home/nicholas/projects/musicman/cli/test/data/sandbox/dir1/testFile03.mp3",
+    {
+      "artist": "Artist J",
+      "title": "Test Title 03",
+      "album": "!Albums!",
+      "rating": "5.0"
+    }
+  ]
+]

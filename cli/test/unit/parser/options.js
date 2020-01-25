@@ -101,7 +101,7 @@ describe('Options assignment', () => {
       expect(test1.options.assignments).to.deep.include(assignments);
     });
 
-    it('Should parse field assignments wht empty values correctly', () => {
+    it('Should parse field assignments with empty values correctly', () => {
       const test1 = parser({ args: ['album=""', 'artist='], config });
       const assignments = { album: '', artist: '' };
       expect(test1.options.assignments).to.deep.include(assignments);

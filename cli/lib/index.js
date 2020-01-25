@@ -1,5 +1,5 @@
 const commandParser = require('./parser');
-const mpdConnect = require('./mpd');
+const mpdConnect = require('./clients/mpd');
 const config = require('../config');
 const logger = require('./utils/logger');
 

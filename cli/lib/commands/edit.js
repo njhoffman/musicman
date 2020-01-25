@@ -1,7 +1,8 @@
 const _ = require('lodash');
-const { checkExists, getFiles, filterFiles } = require('../utils/files');
-const { getMetadata, parseFileMetadata, saveMetadata } = require('../utils/metadata');
 
+const { getFilteredFiles, parseFileMetadata } = require('./common');
+const { saveMetadata } = require('../utils/metadata');
+const { checkExists } = require('../utils/files');
 const logger = require('../utils/logger');
 
 const editCommand = async ({ target, options, config }) => {
@@ -10,24 +11,20 @@ const editCommand = async ({ target, options, config }) => {
     throw new Error(`Target does not exist: ${target}`);
   }
 
-  const { switches, assignments } = options;
-  const { recursive = config.recursive } = switches;
+  const { assignments } = options;
 
-  const files = exists.isDirectory() ? getFiles(target, { ext: 'mp3', recursive }) : target;
-
-  const metadataFiles = await getMetadata(files);
-  const parsedMetadata = parseFileMetadata(metadataFiles, config).filter(filterFiles(options.filters));
+  const filtered = await getFilteredFiles({ target, options, config });
 
   // assign new metadata fields, map to Id3 tag names and save
-  const newFilesMetadata = _.map(parsedMetadata, ([file, meta]) => [file, { ...meta, ...assignments }]);
+  const newFilesMetadata = _.map(filtered, ([file, meta]) => [file, { ...meta, ...assignments }]);
 
   saveMetadata(newFilesMetadata, config);
 
   // load new metadata for comparison
-  const savedMetadata = parseFileMetadata(await getMetadata(files), config);
-  logger.outputDifferences(parsedMetadata, savedMetadata);
+  const savedMetadata = await parseFileMetadata(_.unzip(filtered)[0], config);
+  logger.outputDifferences(filtered, savedMetadata);
 
-  return { oldFiles: metadataFiles, newFiles: newFilesMetadata };
+  return { oldFiles: filtered, newFiles: newFilesMetadata };
 };
 
 module.exports = { name: 'edit', func: editCommand };

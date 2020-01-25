@@ -2,8 +2,8 @@ const _ = require('lodash');
 const path = require('path');
 const fs = require('fs');
 
-const { checkExists, getFiles, filterFiles } = require('../utils/files');
-const { getMetadata, parseFileMetadata } = require('../utils/metadata');
+const { getFilteredFiles } = require('./common');
+const { checkExists } = require('../utils/files');
 const logger = require('../utils/logger');
 
 const writePlaylist = (files, outPath) => fs.writeFileSync(outPath, files.join('\n'));
@@ -16,21 +16,14 @@ const playlistCommand = async ({ target, options, config }) => {
     throw new Error(`Target is not a directory: ${target}`);
   }
 
-  const { recursive = config.recursive } = options.switches;
-
-  const files = getFiles(target, { ext: 'mp3', recursive });
-
-  const metadataFiles = await getMetadata(files);
-  const parsedMetadata = parseFileMetadata(metadataFiles, config).filter(filterFiles(options.filters));
-
-  const filtered = _.map(parsedMetadata, ([file, meta]) => [
-    file.replace(config.mpd.baseDirectory, '').replace(/^\//, ''),
-    meta
-  ]);
+  const filtered = await getFilteredFiles({ target, options, config });
+  const filteredPaths = _.map(_.unzip(filtered)[0], ([file]) =>
+    file.replace(config.mpd.baseDirectory, '').replace(/^\//, '')
+  );
 
   const { outputDirectory, outputPath } = config.playlist;
   const outPath = path.join(outputDirectory, outputPath);
-  writePlaylist(_.unzip(filtered)[0], outPath);
+  writePlaylist(filteredPaths, outPath);
 
   logger.info(`${filtered.length} files saved to playlist ${outPath}`);
 

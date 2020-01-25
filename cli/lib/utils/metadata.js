@@ -53,9 +53,6 @@ const parseMetadata = (rawTags = {}, config) => {
   return parsedTags;
 };
 
-const parseFileMetadata = (filesMetadata, config) =>
-  _.map(filesMetadata, ([file, metadata]) => [file, parseMetadata(metadata, config)]);
-
 // transform new metadata to id3 keys for saving
 const prepareId3Tags = config => ([file, fields]) => {
   const filteredTags = _.pick(fields, _.map(config.tags, 'name'));
@@ -78,11 +75,12 @@ const prepareId3Tags = config => ([file, fields]) => {
   return [file, finalTags];
 };
 
+// TODO: put into common, have separate individual file save with logging
 const saveMetadata = (files, config) =>
   files.map(prepareId3Tags(config)).map(([file, id3Tags]) => NodeId3.update(id3Tags, file));
 
 module.exports = {
   getMetadata,
-  parseFileMetadata,
+  parseMetadata,
   saveMetadata
 };

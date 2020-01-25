@@ -5,35 +5,7 @@ describe('Target assignment', () => {
   const testFile = path.join(process.cwd(), 'test/data/sandbox/dir1/testFile01.mp3');
 
   const config = {
-    mpd: { baseDirectory: 'testBaseDir' },
-    tags: [
-      {
-        name: 'artist',
-        id: 'TPE1'
-      },
-      {
-        name: 'title',
-        id: 'TIT2'
-      },
-      {
-        name: 'album',
-        id: 'TALB'
-      },
-      {
-        name: 'CustomField1',
-        id: 'TXXX.Custom1',
-        multi: true
-      },
-      {
-        name: 'CustomField2',
-        id: 'TXXX.Custom2',
-        multi: true
-      },
-      {
-        name: 'CustomField3',
-        id: 'TXXX.Custom3'
-      }
-    ]
+    mpd: { baseDirectory: 'testBaseDir' }
   };
   const currentSong = { file: 'testDir/testSong.mp3' };
 
@@ -54,5 +26,8 @@ describe('Target assignment', () => {
     expect(test1).to.include({ target: process.cwd() });
   });
 
-  // it('Should resolve relative directories to absolute paths', () => {});
+  it('Should resolve relative target path to absolute path ', () => {
+    const test1 = parser({ args: ['./'], config });
+    expect(test1).to.include({ target: process.cwd() });
+  });
 });
