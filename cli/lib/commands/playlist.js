@@ -18,12 +18,12 @@ const playlistCommand = async ({ target, options, config }) => {
   }
 
   const filtered = await getFilteredFiles({ target, options, config });
-  const filteredPaths = _.map(_.unzip(filtered)[0], ([file]) =>
+  const filteredPaths = _.map(_.unzip(filtered)[0], file =>
     file.replace(config.mpd.baseDirectory, '').replace(/^\//, '')
   );
 
   const { outputDirectory, outputPath } = config.playlist;
-  const outPath = path.join(outputDirectory, outputPath);
+  const outPath = path.join(outputDirectory, outputPath.replace(/\.m3u$|$/, '.m3u'));
   writePlaylist(filteredPaths, outPath);
 
   logger.info(`${filtered.length} files saved to playlist ${outPath}`);

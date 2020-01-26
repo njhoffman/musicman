@@ -21,6 +21,8 @@ const columnifyVertical = (output, config) => {
   const options = {
     columns: ['key', 'value'],
     showHeaders: false,
+    maxLineWidth: 'auto',
+    truncate: true,
     config: {
       key: {
         dataTransform: data => (vertical.headers.color ? chalk.hex(vertical.headers.color)(data) : data)
@@ -35,7 +37,7 @@ const columnifyVertical = (output, config) => {
     ? output
     : columnify(output, options)
         .split('\n')
-        .map(line => `  ${line}`)
+        .map(line => `    ${line}`)
         .join('\n');
 };
 

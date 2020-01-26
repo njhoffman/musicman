@@ -26,7 +26,7 @@ const outputMetadata = ({ metadata, target, options, config, format }) => {
   const { filters } = options;
 
   let output;
-  if (metadata.length === 0) {
+  if (metadata && metadata.length === 0) {
     output = outputNotFound(filters, target);
   } else if (format === 'vertical') {
     output = outputVertical(metadata, config);

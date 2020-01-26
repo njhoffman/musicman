@@ -4,7 +4,7 @@ const config = require('../config');
 const logger = require('./utils/logger');
 
 const usage = args => {
-  logger.info('USAGE', args);
+  // logger.info('USAGE', args);
 };
 
 const run = async args => {
@@ -13,8 +13,8 @@ const run = async args => {
   const { command, target, options } = commandParser({ args, currentSong, config });
 
   if (!target) {
-    logger.warn('No target specified');
-    return usage(args);
+    throw new Error('No target specified');
+    // return usage(args);
   }
   await command.func({
     target,
@@ -28,8 +28,9 @@ run(process.argv.slice(2));
 
 /* eslint-disable no-console */
 process.on('unhandledRejection', err => {
-  logger.error('Unhandled Rejection', err);
+  // logger.error(`${err.name}: ${err.message}`);
   console.error(err);
+  process.exit(1);
 });
 
 process.on('uncaughtException', err => {

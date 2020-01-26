@@ -12,7 +12,7 @@ const mergeAssignment = (meta, assignments) => {
       // handle differently if aggregate fields, i.e. '+field1,-field2'
       const isAggregate = _.some(val, valItem => /^[+-]/.test(valItem));
       if (isAggregate) {
-        const existingVals = meta[key].split(',');
+        const existingVals = `${meta[key]}`.split(',');
 
         const toAdd = _.map(val, aggregateVal =>
           /^\+/.test(aggregateVal) ? aggregateVal.replace(/^\+/, '') : false
@@ -22,14 +22,16 @@ const mergeAssignment = (meta, assignments) => {
           /^-/.test(aggregateVal) ? aggregateVal.replace(/^-/, '') : false
         ).filter(Boolean);
 
-        // only include unique items that are added (+) or existed and not removed (-)
+        // only include case-insensitive unique items that are added (+) or existed and not removed (-)
         parsedVal = _.uniqBy(
-          toAdd.concat(
-            _.filter(
-              existingVals,
-              existingVal => !_.some(toRemove, removeVal => _.toLower(removeVal) === _.toLower(existingVal))
+          toAdd
+            .concat(
+              _.filter(
+                existingVals,
+                existingVal => !_.some(toRemove, removeVal => _.toLower(removeVal) === _.toLower(existingVal))
+              )
             )
-          ),
+            .filter(Boolean),
           _.toLower
         );
       }

@@ -6,9 +6,9 @@ const hooks = {
   'commit-msg': 'commitlint -E HUSKY_GIT_PARAMS',
   'pre-push': tasks(['npm run test']),
   'post-push': tasks([
-    'git push --tags --no-verify',
     'npm run todos',
     'npm outdated --prefix cli',
+    'git push --tags --no-verify',
   ]),
 };
 

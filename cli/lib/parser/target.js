@@ -8,7 +8,7 @@ const logger = require('../utils/logger');
 
 const { columns } = termSize();
 
-const getTarget = ({ args, currentSong, baseDirectory }) => {
+const getTarget = ({ args, currentSong, baseDirectory, command }) => {
   const argTarget = _.find(args, arg => {
     return checkExists(arg) ? arg : false;
   });
@@ -18,10 +18,10 @@ const getTarget = ({ args, currentSong, baseDirectory }) => {
     return path.resolve(argTarget);
   }
 
-  // if song playing, assume that is the target, otherwise it is the current directory
-  if (currentSong) {
+  // if song playing and is a view/edit command, set song path as target
+  if (currentSong && /edit|view/.test(command.name)) {
     const target = path.join(baseDirectory, currentSong.file);
-    const msgOut = `Using currently playing song:  ${chalk.blue(
+    const msgOut = `  Using currently playing song:  ${chalk.blue(
       target
         .split('/')
         .pop()
@@ -30,7 +30,9 @@ const getTarget = ({ args, currentSong, baseDirectory }) => {
     logger.info(msgOut);
     return target;
   }
-  return process.cwd();
+  // otherwise it is the current directory if not an edit command
+  // (want to explicitly demand target argument for editing multiple files)
+  return command.name !== 'edit' ? process.cwd() : false;
 };
 
 module.exports = getTarget;

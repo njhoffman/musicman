@@ -18,30 +18,33 @@ const filterRating = (rating, { min, max, exclude }) => {
   return ratingMatch;
 };
 
+// TODO: can probably combine these?
 const filterInclude = (include, metadata) =>
+  // returns true if any matches found
   _.keys(include).every(filterKey => {
     if (include[filterKey] === '') {
       return _.isEmpty(metadata[filterKey]);
     } else if (_.isArray(include[filterKey])) {
       const metaVals = `${metadata[filterKey]}`.split(',').map(_.toLower);
-      return include[filterKey].every(multiVal => metaVals.indexOf(_.toLower(multiVal)) !== -1);
+      return include[filterKey].every(multiVal => metaVals.includes(_.toLower(multiVal)));
     }
 
     const filterVal = _.toLower(include[filterKey]);
-    return _.toLower(metadata[filterKey]).indexOf(filterVal) !== -1;
+    return _.toLower(metadata[filterKey]).includes(filterVal);
   });
 
 const filterExclude = (exclude, metadata) =>
+  // returns true if no matches found
   _.keys(exclude).every(filterKey => {
     if (exclude[filterKey] === '') {
       return !_.isEmpty(metadata[filterKey]);
     } else if (_.isArray(exclude[filterKey])) {
       const metaVals = `${metadata[filterKey]}`.split(',').map(_.toLower);
-      return exclude[filterKey].every(multiVal => metaVals.indexOf(_.toLower(multiVal)) === -1);
+      return exclude[filterKey].every(multiVal => !metaVals.includes(_.toLower(multiVal)));
     }
 
     const filterVal = _.toLower(exclude[filterKey]);
-    return _.toLower(metadata[filterKey]).indexOf(filterVal) === -1;
+    return !_.toLower(metadata[filterKey]).includes(filterVal);
   });
 
 const filterFiles = filters => ([file, metadata]) => {
