@@ -4,7 +4,7 @@ const hooks = {
   // 'pre-commit': tasks(['npm run lint', 'npm run test']),
   // 'pre-push': './.bin/prePushVersion.sh',
   'commit-msg': 'commitlint -E HUSKY_GIT_PARAMS',
-  'pre-push': tasks(['npm run test', 'npm run todos', './.bin/prePushVersion']),
+  'pre-push': tasks(['npm run test', 'npm run todos', '.bin/prePushVersion']),
   'post-push': tasks([
     'npm run todos',
     'npm outdated --prefix cli',
