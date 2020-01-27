@@ -2,18 +2,28 @@ const _ = require('lodash');
 const { inspect } = require('util');
 const termSize = require('term-size');
 
+const config = require('../../config');
+
 const inspectOptions = { colors: true, compact: false, breakLength: termSize().columns };
 
 /* eslint-disable no-console */
 const consoleLog = message => {
   const { NODE_ENV, NODE_TEST_LOG } = process.env;
+  const { padding } = config.output;
+
+  const leftPadding = Array(padding + 1).join(' ');
   let parsed = message;
   if (_.isObject(message)) {
-    parsed = inspect(message, inspectOptions)
+    parsed = inspect(message, inspectOptions);
+  } else if (parsed.includes('\n')) {
+    parsed = parsed
       .split('\n')
-      .map(line => `  ${line}`)
+      .map(line => `${leftPadding}${line}`)
       .join('\n');
+  } else {
+    parsed = `${leftPadding}${parsed}`;
   }
+
   if (NODE_ENV !== 'test' && !NODE_TEST_LOG) {
     console.log(parsed);
   }
@@ -22,7 +32,11 @@ const consoleLog = message => {
 /* eslint-enable no-console */
 
 const log = (logLevel, message) => {
-  return consoleLog(message);
+  const { verbosity } = config.output;
+  if (verbosity >= logLevel) {
+    return consoleLog(message);
+  }
+  return message;
 };
 
 const logger = {

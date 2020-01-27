@@ -4,6 +4,8 @@ const { resetSandbox } = require('../../utils');
 
 describe('Edit Command', () => {
   const fileTarget = path.join(process.cwd(), 'test/data/sandbox/dir1/testFile02.mp3');
+  const fileTarget2 = path.join(process.cwd(), 'test/data/sandbox/dir1/subdir1/testFile03a.mp3');
+
   const dirTarget = path.join(process.cwd(), 'test/data/sandbox');
   const config = {
     rating: { tag: 'POPM', max: 5, email: 'noone@email.com' },
@@ -65,11 +67,18 @@ describe('Edit Command', () => {
       });
     });
 
-    it('Should assign added values to multi fields correctly', async () => {
+    it('Should assign added values to existing  multi fields correctly', async () => {
       const assignments = { mood: ['+Relax', '+Chill'] };
       const newOptions = { ...options, assignments };
       const { newFiles } = await editFunc({ target: fileTarget, options: newOptions, config });
       expect(newFiles[0][1].mood).to.deep.equal(['Relax', 'Chill', 'Gloomy', 'Upbeat', 'Intense']);
+    });
+
+    it('Should assign added values to non-existing multi fields correctly', async () => {
+      const assignments = { mood: ['+Relax', '+Chill'] };
+      const newOptions = { ...options, assignments };
+      const { newFiles } = await editFunc({ target: fileTarget2, options: newOptions, config });
+      expect(newFiles[0][1].mood).to.deep.equal(['Relax', 'Chill']);
     });
 
     it('Should assign subtracted values to multi fields correctly', async () => {

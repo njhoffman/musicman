@@ -32,6 +32,38 @@ const prepareId3Tags = config => ([file, fields]) => {
   return [file, finalTags];
 };
 
+const mergeAssignments = (meta, assignments) => {
+  const parsedAssignments = _.mapValues(assignments, (val, key) => {
+    let parsedVal = val;
+    if (_.isArray(parsedVal)) {
+      // handle differently if aggregate fields, i.e. '+field1,-field2'
+      const isAggregate = _.some(val, valItem => /^[+-]/.test(valItem));
+      if (isAggregate) {
+        const existingVals = _.isUndefined(meta[key]) ? [] : `${meta[key]}`.split(',');
+
+        const toAdd = _.map(val, aggregateVal =>
+          /^\+/.test(aggregateVal) ? aggregateVal.replace(/^\+/, '') : false
+        ).filter(Boolean);
+
+        const toRemove = _.map(val, aggregateVal =>
+          /^-/.test(aggregateVal) ? aggregateVal.replace(/^-/, '') : false
+        ).filter(Boolean);
+
+        // only include case-insensitive unique items that are added (+) or existed and not removed (-)
+        parsedVal = toAdd.concat(
+          _.filter(
+            existingVals,
+            existingVal => !_.some(toRemove, removeVal => _.toLower(removeVal) === _.toLower(existingVal))
+          )
+        );
+      }
+      return _.uniqBy(parsedVal, _.toLower);
+    }
+    return parsedVal;
+  });
+  return { ...meta, ...parsedAssignments };
+};
+
 const writeFile = ([file, id3Tags]) => {
   logger.debug(`Writing file: ${file}`, id3Tags);
   return NodeId3.update(id3Tags, file);
@@ -44,4 +76,4 @@ const writeFiles = config => files => {
     .value();
 };
 
-module.exports = { writeFiles };
+module.exports = { mergeAssignments, writeFiles };

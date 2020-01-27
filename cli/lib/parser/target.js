@@ -21,7 +21,7 @@ const getTarget = ({ args, currentSong, baseDirectory, command }) => {
   // if song playing and is a view/edit command, set song path as target
   if (currentSong && /edit|view/.test(command.name)) {
     const target = path.join(baseDirectory, currentSong.file);
-    const msgOut = `  Using currently playing song:  ${chalk.blue(
+    const msgOut = `Using currently playing song:  ${chalk.blue(
       target
         .split('/')
         .pop()

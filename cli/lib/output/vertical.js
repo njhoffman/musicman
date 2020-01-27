@@ -4,7 +4,8 @@ const chalk = require('chalk');
 
 const parseVertical = (mItem, config) => {
   const splitMulti = false;
-  const configTagNames = _.map(config.tags, 'name').concat('rating');
+  const configTagNames = _.sortBy(['rating'].concat(_.map(config.tags, 'name')), 'tableOrder');
+
   return _.mapValues(_.pick(mItem, configTagNames), (val, key) => {
     const tag = _.find(config.tags, { name: key });
 
@@ -37,7 +38,7 @@ const columnifyVertical = (output, config) => {
     ? output
     : columnify(output, options)
         .split('\n')
-        .map(line => `    ${line}`)
+        .map(line => `  ${line}`)
         .join('\n');
 };
 

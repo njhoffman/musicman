@@ -15,6 +15,8 @@ module.exports = {
     max: 5
   },
   output: {
+    verbosity: 4, // 0-4
+    padding: 1,
     table: {
       headers: {
         visible: true,
