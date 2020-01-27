@@ -1,11 +1,11 @@
 const _ = require('lodash');
 const chalk = require('chalk');
-const diff = require('diff');
 const { inspect } = require('util');
 
 const { consoleLog } = require('./utils/logger');
 const { outputTable } = require('./output/table');
 const { outputVertical } = require('./output/vertical');
+const { outputDifferences } = require('./output/differences');
 
 const inspectOptions = { compact: true, colors: true };
 
@@ -34,24 +34,6 @@ const outputMetadata = ({ metadata, target, options, config, format }) => {
     output = outputTable(metadata, config);
   }
   return consoleLog(output);
-};
-
-const outputDifferences = (orig, curr) => {
-  const differences =
-    orig.length === 1 && curr.length === 1 ? diff.diffJson(orig[0], curr[0]) : diff.diffJson(orig, curr);
-
-  let diffOut = '';
-  differences.forEach(part => {
-    let color = 'grey';
-    if (part.added) {
-      color = 'green';
-    } else if (part.removed) {
-      color = 'red';
-    }
-    // process.stderr.write(`  ${chalk[color](part.value).trim()}`);
-    diffOut += `${chalk[color](part.value)}`;
-  });
-  return consoleLog(diffOut);
 };
 
 module.exports = { outputDifferences, outputMetadata };
