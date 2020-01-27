@@ -7,7 +7,7 @@
     "start": "node lib/index.js",
     "lint": "esw lib test --color",
     "lint:fix": "npm run lint -- --fix",
-    "lint:watch": "npm run lint -- --watch",
+    "lint:watch": "npm run lint -- --watch --clear",
     "test": "NODE_ENV=test mocha",
     "test:watch": "NODE_ENV=test chokidar 'test/**/*.js' 'lib/**/*.js' -c 'node_modules/.bin/mocha'",
     "test:watch:unit": "chokidar 'test/**/*.js' -c 'node_modules/.bin/mocha \"{path}\"'",

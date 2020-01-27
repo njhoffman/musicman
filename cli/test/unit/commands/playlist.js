@@ -86,14 +86,14 @@ describe('Playlist Command', () => {
   describe('Playlist output', () => {
     options = { ...options, switches: { recursive: true } };
     it('Should output playlist file to configured directory', async () => {
-      const results = await playlistFunc({ target: dirTarget, options, config });
+      await playlistFunc({ target: dirTarget, options, config });
       const fileExists = await checkFileExists(playlistPath);
       expect(fileExists, playlistPath).to.be.true;
     });
 
     it('Should append m3u extension if not specified', async () => {
       const newConfig = { ...config, playlist: { ...config.playlist, outputPath: 'test' } };
-      const results = await playlistFunc({ target: dirTarget, options, config: newConfig });
+      await playlistFunc({ target: dirTarget, options, config: newConfig });
       const fileExists = await checkFileExists(playlistPath);
       expect(fileExists, playlistPath).to.be.true;
     });
@@ -107,7 +107,7 @@ describe('Playlist Command', () => {
 
     // TODO: make baseDirectory a playlist config option
     it('Should output playlist with correctly resolved paths based on config.mpd.baseDirectory', async () => {
-      const results = await playlistFunc({ target: dirTarget, options, config });
+      await playlistFunc({ target: dirTarget, options, config });
       const fileContents = (await readFile(playlistPath)).split('\n');
       expect(fileContents[0]).to.not.contain(process.cwd());
       expect(/^test\/data\/sandbox/.test(fileContents[0])).to.be.true;

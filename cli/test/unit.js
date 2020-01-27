@@ -1,6 +1,7 @@
 const { resetSandbox, assignTestTags } = require('./utils');
 
 describe('Music Rater Tests', async () => {
+  const logTime = false;
   let startTime;
   before(async function() {
     this.timeout(10000);
@@ -17,5 +18,5 @@ describe('Music Rater Tests', async () => {
   require('./unit/commands/playlist');
   /* eslint-enable global-require */
 
-  after(() => console.log(`\n    Finished in ${new Date().getTime() - startTime}ms.`));
+  after(() => logTime && console.log(`\n    Finished in ${new Date().getTime() - startTime}ms.`));
 });
