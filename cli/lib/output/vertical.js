@@ -1,6 +1,7 @@
 const _ = require('lodash');
 const columnify = require('columnify');
 const chalk = require('chalk');
+const termSize = require('term-size');
 
 const parseVertical = (mItem, config) => {
   const splitMulti = false;
@@ -22,7 +23,7 @@ const columnifyVertical = (output, config) => {
   const options = {
     columns: ['key', 'value'],
     showHeaders: false,
-    maxLineWidth: 'auto',
+    maxLineWidth: `${termSize().columns - 2}`,
     truncate: true,
     config: {
       key: {

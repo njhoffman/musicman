@@ -1,7 +1,7 @@
 {
   "name": "musicman-cli",
   "description": "",
-  "main": "lib/index.js",
+  "main": "lib/cli.js",
   "scripts": {
     "dev": "nodemon --config ./nodemon.json lib/index.js",
     "start": "node lib/index.js",
@@ -42,6 +42,7 @@
     "columnify": "git+https://github.com/njhoffman/columnify.git#nick",
     "diff": "4.0.2",
     "flat": "5.0.0",
+    "forever": "2.0.0",
     "glob": "7.1.6",
     "lodash": "4.17.15",
     "module-alias": "2.2.2",

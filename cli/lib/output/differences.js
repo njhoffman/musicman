@@ -1,6 +1,7 @@
 const chalk = require('chalk');
 const diff = require('diff');
 const columnify = require('columnify');
+const termSize = require('term-size');
 
 const { consoleLog } = require('../utils/logger');
 
@@ -10,7 +11,7 @@ const columnifyDifferences = output => {
   const options = {
     columns: ['key', 'value'],
     showHeaders: false,
-    maxLineWidth: 'auto',
+    maxLineWidth: `${termSize().columns - 2}`,
     truncate: true
   };
 

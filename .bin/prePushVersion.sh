@@ -4,7 +4,7 @@
 set -e
 
 [ -n "$_CUSTOM_RESOURCES_INNER_PRE_HOOK" ] && {
-  echo " ### version patch successful"
+  echo "\n ### version patch successful"
   exit 0
 }
 
