@@ -22,6 +22,10 @@ const editCommand = async ({ target, options, config }) => {
   saveMetadata(newFilesMetadata, config);
 
   logger.info(`${filtered.length} files updated`);
+  // TODO: handle this better
+  if (filtered.length === 0) {
+    process.exit(0);
+  }
 
   // load new metadata for comparison
   const savedMetadata = await getFilteredFiles({ options: {}, config }, _.unzip(filtered)[0]);

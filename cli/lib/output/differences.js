@@ -22,6 +22,9 @@ const columnifyDifferences = output => {
 
   const keyRegEx = /([^:]+):(.*)$/;
   const parsedOut = output.split('\n').map(line => {
+    if (!keyRegEx.test(line)) {
+      return false;
+    }
     const [key, value] = line.match(keyRegEx).slice(1, 3);
     return { key, value };
   });
@@ -38,6 +41,11 @@ const outputDifferences = (orig, curr) => {
 
   let diffOut = '';
   differences.forEach(part => {
+    const value = part.value
+      .split('\n')
+      .map(line => line.replace(/,$/, '').replace(/"/g, ''))
+      .join('\n');
+
     let color = 'grey';
     if (part.added) {
       color = 'green';
@@ -45,15 +53,10 @@ const outputDifferences = (orig, curr) => {
       color = 'red';
     }
     // process.stderr.write(`  ${chalk[color](part.value).trim()}`);
-    diffOut += `${chalk[color](part.value)}`;
+    diffOut += `${chalk[color](value)}`;
   });
 
   if (diffOut.includes('\n')) {
-    diffOut = diffOut
-      .replace(/"/g, '')
-      .split('\n')
-      .slice(1, -1)
-      .join('\n');
     diffOut = columnifyDifferences(diffOut);
   }
 
