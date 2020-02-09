@@ -33,6 +33,16 @@ module.exports = {
       }
     }
   },
+  stats: {
+    multiFields: ['context', 'mood'],
+    filters: [
+      { name: 'All Songs > 4.0', filter: 'rating:4.0' },
+      { name: 'All Songs > 4.5', filter: 'rating:4.5' },
+      { name: 'All Songs > 5.0', filter: 'rating:5.0' },
+      { name: 'Singles > 4.0', filter: 'rating:4.0 type:singles' },
+      { name: 'Total', filter: 'rating:5.0' }
+    ]
+  },
   tags: [
     {
       id: 'TPE1',
