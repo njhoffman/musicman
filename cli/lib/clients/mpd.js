@@ -12,12 +12,13 @@ const connectMpd = ({ port, host }) =>
       reject(err);
     });
 
-    mpdClient.on('ready', async () => {
-      // console.log(`\nMPD connected at ${chalk.bold(host)}:${chalk.cyan(port)}`);
-      const currentSong = await mpdClient.sendCommandAsync('currentsong');
-      const status = await mpdClient.sendCommandAsync('status');
-      resolve(status.state === 'play' ? currentSong : false);
-    });
+    mpdClient.on('ready', async () => resolve(mpdClient));
   });
 
-module.exports = connectMpd;
+const getCurrentSong = async mpdClient => {
+  const currentSong = await mpdClient.sendCommandAsync('currentsong');
+  const status = await mpdClient.sendCommandAsync('status');
+  return status.state === 'play' ? currentSong : false;
+};
+
+module.exports = { connectMpd, getCurrentSong };

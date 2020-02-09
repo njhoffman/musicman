@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "nodemon --config ./nodemon.json lib/index.js",
     "start": "node lib/index.js",
+    "daemon": "forever start lib/notify-daemon.js",
+    "daemon:stop": "forever stop lib/notify-daemon.js",
     "lint": "esw lib test --color",
     "lint:fix": "npm run lint -- --fix",
     "lint:watch": "npm run lint -- --watch --clear",

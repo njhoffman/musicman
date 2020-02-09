@@ -1,5 +1,5 @@
 const commandParser = require('./parser');
-const mpdConnect = require('./clients/mpd');
+const { getCurrentSong, connectMpd } = require('./clients/mpd');
 const config = require('../config');
 const logger = require('./utils/logger');
 
@@ -8,7 +8,8 @@ const usage = args => {
 };
 
 const run = async args => {
-  const currentSong = await mpdConnect(config.mpd);
+  const mpdClient = await connectMpd(config.mpd);
+  const currentSong = await getCurrentSong(mpdClient);
 
   const { command, target, options } = commandParser({ args, currentSong, config });
 

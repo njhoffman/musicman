@@ -1,89 +1,56 @@
-const mpdConnect = require('./clients/mpd');
+const path = require('path');
+const { exec } = require('child_process');
+
 const config = require('../config');
+const logger = require('./utils/logger');
+const { getCurrentSong, connectMpd } = require('./clients/mpd');
+const { getMetadata, parseMetadata } = require('./metadata');
+
+const getSongInfo = async mpdClient => {
+  const currentSong = await getCurrentSong(mpdClient);
+  if (currentSong.file) {
+    const target = path.join(config.mpd.baseDirectory, currentSong.file);
+    const metadata = await getMetadata(target);
+    return parseMetadata(metadata[0][1], config);
+  }
+  return false;
+};
+
+const sendNotification = song => {
+  const { bin, icon, duration, urgency, fields } = config.daemon;
+
+  // transfered data is handled in the callback function
+  const title = `${song.rating || '*UNRATED*'}   ${song.title}`;
+  const details = fields.map(field => song[field]);
+
+  const args = [`--urgency=${urgency}`, icon ? `--icon=${icon}` : '', `--expire-time=${duration}`];
+
+  const msg = [
+    `Sending notification: `,
+    `${args.filter(Boolean).join('\n\t')}`,
+    `"${title}"`,
+    `"${details.filter(Boolean).join('\n\t')}"`
+  ];
+  logger.debug(msg.join('\n\t'));
+
+  exec(`${bin} ${args.join(' ')} "${title}" "${details.join('\n')}"`);
+};
 
 const run = async args => {
-  const currentSong = await mpdConnect(config.mpd);
-  console.log('CURRENT SONG', currentSong);
+  const mpdClient = await connectMpd(config.mpd);
+  const song = await getSongInfo(mpdClient);
+  if (song) {
+    sendNotification(song);
+  }
+
+  mpdClient.on('system', async name => {
+    if (name === 'player') {
+      const newSong = await getSongInfo(mpdClient);
+      if (newSong) {
+        sendNotification(newSong);
+      }
+    }
+  });
 };
 
 run(process.argv.slice(2));
-
-//   const { broadcast, mpdClient } = modules;
-//
-//   const getStatus = async () => {
-//     const parsed = await mpdClient.sendCommandAsync('status');
-//     const ignored = ['elapsed'];
-//
-//     const differences = getDifferences(parsed, status, ignored);
-//     status = parsed;
-//
-//     if (_.keys(differences).length > 0) {
-//       broadcast(MPD_STATUS, differences);
-//     }
-//   };
-//
-//   const getStats = async () => {
-//     const parsed = await mpdClient.sendCommandAsync('stats');
-//     const differences = getDifferences(parsed, stats);
-//     stats = parsed;
-//     if (_.keys(differences).length > 0) {
-//       broadcast(MPD_STATS, differences);
-//     }
-//   };
-//
-//   const getCurrentSong = async () => {
-//     const parsed = await mpdClient.sendCommandAsync('currentsong');
-//     const differences = getDifferences(parsed, song);
-//     song = parsed;
-//     if (_.keys(differences).length > 0) {
-//       broadcast(MPD_CURRENT_SONG, differences);
-//     }
-//   };
-//
-//   mpdClient.on('error', err => {
-//     logger.info('MPD ERROR', err);
-//     throw new Error(err);
-//   });
-//
-//   mpdClient.on('ready', () => {
-//     logger.info(`MPD connected at ${config.mpd.host}:${config.mpd.port}`);
-//     getStatus();
-//     getStats();
-//   });
-//
-//   mpdClient.on('system', (name, ...args) => {
-//     const systemMap = {
-//       database: () => {},
-//       update: () => {},
-//       stored_playlist: () => {},
-//       playlist: () => {},
-//       player: getStatus,
-//       mixer: () => {},
-//       output: () => {},
-//       options: () => {},
-//       sticker: () => {},
-//       subscription: () => {},
-//       message: () => {}
-//     };
-//     logger.info(`update: ${name}`);
-//     if (args.length > 0) {
-//       logger.info(args);
-//     }
-//
-//     systemMap[name](args);
-//   });
-//
-//   setInterval(() => {
-//     getStatus();
-//     getStats();
-//     getCurrentSong();
-//   }, 3000);
-//
-//   const router = new Router();
-//
-//   router.get('/mpd', (req, res) => {
-//     res.send({ version: config.version });
-//   });
-//   return router;
-// };
-//

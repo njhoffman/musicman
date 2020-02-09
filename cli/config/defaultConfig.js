@@ -9,6 +9,13 @@ module.exports = {
     host: 'localhost',
     baseDirectory: '/Music/Sorted'
   },
+  daemon: {
+    duration: 5000,
+    bin: '/usr/bin/notify-send',
+    urgency: 'LOW',
+    icon: false,
+    fields: ['artist', 'context', 'mood']
+  },
   rating: {
     tag: 'POPM',
     email: 'Default',
