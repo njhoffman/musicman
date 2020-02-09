@@ -1,7 +1,7 @@
-const filterFunc = require('../../lib/metadata/filter').filterFiles;
-const filesMetadata = require('../data/filesMetadata.json');
+const filterFunc = require('./filter').filterFiles;
+const filesMetadata = require('./filter.spec.data.json');
 
-describe('Files Filter', async () => {
+describe('Metadata Files Filter', async () => {
   describe('Field Filters', () => {
     it('Should only include files that match provided field filter string', async () => {
       const filters = { include: { album: 'Albums!!' } };

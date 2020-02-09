@@ -1,6 +1,6 @@
 const { resetSandbox, assignTestTags } = require('./utils');
 
-describe('Music Rater Tests', async () => {
+describe('Integration Tests', async () => {
   const logTime = false;
   let startTime;
   before(async function() {
@@ -11,15 +11,10 @@ describe('Music Rater Tests', async () => {
   });
 
   /* eslint-disable global-require */
-  require('./unit/parser/target');
-  require('./unit/parser/command');
-  require('./unit/parser/options');
-
-  require('./unit/filter');
-  require('./unit/commands/view');
-  require('./unit/commands/edit');
-  require('./unit/commands/playlist');
-  require('./unit/commands/stats');
+  require('./integration/commands/view');
+  require('./integration/commands/edit');
+  require('./integration/commands/playlist');
+  require('./integration/commands/stats');
   /* eslint-enable global-require */
 
   after(() => logTime && console.log(`\n    Finished in ${new Date().getTime() - startTime}ms.`));

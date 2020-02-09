@@ -1,4 +1,4 @@
-const parser = require('../../../lib/parser');
+const parser = require('../parser');
 
 describe('Command assignment', () => {
   const config = {

@@ -1,5 +1,5 @@
 const path = require('path');
-const parser = require('../../../lib/parser');
+const parser = require('../parser');
 
 describe('Target assignment', () => {
   const testFile = path.join(process.cwd(), 'test/data/sandbox/dir1/testFile01.mp3');
