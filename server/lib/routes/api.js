@@ -1,6 +1,6 @@
 const Router = require('express-promise-router');
 
-const config = require('@config');
+const config = require('../../config');
 
 const router = new Router();
 

@@ -2,7 +2,7 @@ const _ = require('lodash');
 const { inspect } = require('util');
 const chalk = require('chalk');
 
-const config = require('@config');
+const config = require('../../config');
 
 const padRight = (str, len) => (len > str.length ? str + new Array(len - str.length + 1).join(' ') : str);
 

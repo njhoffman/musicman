@@ -1,8 +1,7 @@
 const express = require('express');
 
-const config = require('@config');
+const config = require('../config');
 const { MpdClient } = require('./mpd/MpdClient');
-const initializeDatabase = require('./db');
 const initWebsocket = require('./websocket');
 const initRouter = require('./router');
 const logger = require('./utils/logger');
@@ -18,10 +17,9 @@ const startServer = async app => {
 const initServer = async () => {
   const app = express();
   const mpdClient = MpdClient.connect({ port: config.mpd.port, host: config.mpd.host });
-  const db = await initializeDatabase(config.env === 'test' ? config.test.db : config.db);
   const { wss, broadcast } = await initWebsocket(app);
 
-  await initRouter({ app, wss, broadcast, mpdClient, db });
+  await initRouter({ app, wss, broadcast, mpdClient });
   await startServer(app);
   return app;
 };

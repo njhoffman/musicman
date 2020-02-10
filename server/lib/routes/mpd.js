@@ -1,9 +1,9 @@
 const _ = require('lodash');
 const Router = require('express-promise-router');
 
-const { MPD_STATUS, MPD_STATS, MPD_CURRENT_SONG } = require('@lib/constants');
-const logger = require('@lib/utils/logger');
-const config = require('@config');
+const { MPD_STATUS, MPD_STATS, MPD_CURRENT_SONG } = require('../constants');
+const logger = require('../utils/logger');
+const config = require('../../config');
 
 let status = {};
 let song = {};

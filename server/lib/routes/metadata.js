@@ -3,8 +3,8 @@ const path = require('path');
 const Router = require('express-promise-router');
 const { parseFile } = require('music-metadata');
 
-const { crawlDirectory } = require('@lib/utils');
-const config = require('@config');
+const { crawlDirectory } = require('../utils');
+const config = require('../../config');
 
 const router = new Router();
 
