@@ -10,7 +10,7 @@
     "react-hooks"
   ],
   "env": {
-    "node"    : true,
+    "browser"    : true,
     "es6"     : true,
   },
   "globals": {},
@@ -30,7 +30,6 @@
     "comma-dangle":                       0,
     "max-len":                            [1, 120, 2, { "ignoreComments": true} ],
     "key-spacing":                        [0, { "align": "value" }],
-    "jsx-quotes":                         [2, "prefer-single"],
     "no-multi-spaces":                    ["error", { "exceptions": { "VariableDeclarator": true, "ImportDeclaration" : true } }],
     "space-before-function-paren":        ["error", {"anonymous": "never", "named": "never", "asyncArrow" : "always"}],
     "semi":                               [2, "always" ],

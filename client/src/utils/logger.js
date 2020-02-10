@@ -92,7 +92,7 @@ export const prettyJson = json => {
       }
       arr.push(style);
       arr.push('');
-      return '%c' + match + '%c';
+      return `%c${match}%c`;
     },
   );
 

@@ -12,7 +12,6 @@
     "lint:watch": "npm run lint -- --watch --clear",
     "test": "NODE_ENV=test mocha",
     "test:watch": "NODE_ENV=test chokidar 'test/**/*.js' 'lib/**/*.js' -c 'node_modules/.bin/mocha'",
-    "test:watch:unit": "chokidar 'test/**/*.js' -c 'node_modules/.bin/mocha \"{path}\"'",
     "test:coverage": "NODE_ENV=test nyc mocha"
   },
   "author": "",
