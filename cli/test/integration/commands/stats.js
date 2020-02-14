@@ -58,7 +58,10 @@ describe('Stats Command', () => {
   //   //   .be.an('array')
   //   //   .of.length(6);
   // });
+  //
+  // it('Should calculate occurences for multifields assigned in config', () => { })
   // it('Should calculate multifield value occurences correctly', () => { });
+  // it('Should parse filter strings from config into field options', () => { });
   // it('Should calculate total from assigned single filter correctly', () => { });
   // it('Should calculate total from assigned multiple filters correctly', () => { });
   // it('Should calculate total with no filters correctly ', () => { });

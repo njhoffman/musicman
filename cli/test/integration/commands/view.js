@@ -32,44 +32,42 @@ describe('View Command', () => {
   beforeEach(function() {
     resetSandbox();
   });
-
-  it('Should return vertical output if only one file being viewed', async () => {
-    const results = await viewFunc({ target: fileTarget, options, config });
-    expect(results.split('\n'))
-      .be.an('array')
-      .of.length(6);
-  });
-
-  it('Should return vertical list of files if more than one being viewed', async () => {
-    const results = await viewFunc({ target: dirTarget, options, config });
-    expect(results.split('\n'))
-      .to.be.an('array')
-      .of.length(11);
-  });
-
+  //
+  // it('Should return vertical output if only one file being viewed', async () => {
+  //   const results = await viewFunc({ target: fileTarget, options, config });
+  //   expect(results.split('\n'))
+  //     .be.an('array')
+  //     .of.length(6);
+  // });
+  //
+  // it('Should return vertical list of files if more than one being viewed', async () => {
+  //   const results = await viewFunc({ target: dirTarget, options, config });
+  //   expect(results.split('\n'))
+  //     .to.be.an('array')
+  //     .of.length(11);
+  // });
+  //
   describe('Configuration behavior', () => {
     it('Should recursively index target directory if set in config', async () => {
       config.recursive = true;
       const results = await viewFunc({ target: dirTarget, options, config });
-      expect(results.split('\n'))
+      expect(results.metadata)
         .to.be.an('array')
-        .of.length(17);
+        .of.length(16);
     });
 
     it('Should only index target directory if not set in config', async () => {
       config.recursive = false;
       const results = await viewFunc({ target: dirTarget, options, config });
-      expect(results.split('\n'))
+      expect(results.metadata)
         .to.be.an('array')
-        .of.length(11);
+        .of.length(10);
     });
 
     it('Should only list tag fields referenced in config', async () => {
       const newConfig = { ...config, tags: _.initial(config.tags) };
       const results = await viewFunc({ target: fileTarget, config: newConfig, options });
-      expect(results.split('\n'))
-        .to.be.an('array')
-        .of.length(5);
+      expect(results.metadata[0]).to.have.keys(['artist', 'title', 'rating']);
     });
     //
     // it('It should list rating number based on max number defined in config.rating', () => {
@@ -81,33 +79,29 @@ describe('View Command', () => {
     it('Should recursively index target directory if recursive switch provided', async () => {
       const newOptions = { ...options, switches: { recursive: true } };
       const results = await viewFunc({ target: dirTarget, options: newOptions, config });
-      expect(results.split('\n'))
+      expect(results.metadata)
         .to.be.an('array')
-        .of.length(17);
+        .of.length(16);
     });
 
     it('Should only index target directory if provided non-recursive switch provided', async () => {
       const newOptions = { ...options, switches: { recursive: false } };
       const results = await viewFunc({ target: dirTarget, options: newOptions, config });
-      expect(results.split('\n'))
+      expect(results.metadata)
         .to.be.an('array')
-        .of.length(11);
+        .of.length(10);
     });
 
     it('Should exclude fields listed with -x switch', async () => {
       const newOptions = { ...options, switches: { exclude: ['artist'] } };
       const results = await viewFunc({ target: fileTarget, options: newOptions, config });
-      expect(results.split('\n'))
-        .to.be.an('array')
-        .of.length(5);
+      expect(results.metadata[0]).to.have.keys(['album', 'rating', 'title']);
     });
 
     it('Should only show fields specified with -i switch', async () => {
       const newOptions = { ...options, switches: { include: ['artist', 'title'] } };
       const results = await viewFunc({ target: fileTarget, options: newOptions, config });
-      expect(results.split('\n'))
-        .to.be.an('array')
-        .of.length(4);
+      expect(results.metadata[0]).to.have.keys(['artist', 'title']);
     });
     // it('Should return vertical format if "-f vertical" argument provided', () => {
     //   expect(true).to.equal(true);

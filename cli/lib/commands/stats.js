@@ -18,15 +18,16 @@ const calculateMultifield = (multiField, allFiles) => {
   return { [multiField]: multiVals };
 };
 
-const statsCommand = async ({ options, config }) => {
-  const target = config.mpd.baseDirectory;
+const statsCommand = async ({ options, config, target }) => {
+  const { baseDirectory } = config.mpd;
   const { filters, multiFields } = config.stats;
 
-  const allFiles = await getFilteredFiles({ target, options, config });
+  const allFiles = await getFilteredFiles({ target: target || baseDirectory, options, config });
 
   const multifieldOutput = multiFields.map(mf => calculateMultifield(mf, allFiles));
 
-  console.log('ALL FILES', multifieldOutput);
+  multifieldOutput.map(out => logger.info(out));
+  logger.info(`Total: \t${allFiles.length}`);
 
   // return outputMetadata({ target, metadata: _.unzip(filtered)[1], config, options });
 };

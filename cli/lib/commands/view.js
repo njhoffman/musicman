@@ -21,7 +21,8 @@ const viewCommand = async ({ target, options, config }) => {
 
   const format = metadata.length === 1 ? 'vertical' : 'table';
 
-  return outputMetadata({ target, metadata, config, format, options });
+  outputMetadata({ target, metadata, config, format, options });
+  return { metadata };
 };
 
 module.exports = { name: 'view', func: viewCommand };
