@@ -41,6 +41,7 @@
   "dependencies": {
     "chalk": "3.0.0",
     "columnify": "git+https://github.com/njhoffman/columnify.git#nick",
+    "cosmiconfig": "6.0.0",
     "diff": "4.0.2",
     "flat": "5.0.0",
     "forever": "2.0.0",
