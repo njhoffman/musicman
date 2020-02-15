@@ -1,3 +1,5 @@
+import _ from 'lodash';
+
 import { isJson } from './utils';
 import { createLogger, prettyJson } from './utils/logger';
 
@@ -6,6 +8,29 @@ const logger = createLogger('websocket');
 
 logger.debug(`Connecting to websocket: ${address}`);
 const client = new WebSocket(address);
+
+const mpdStatus = data => {
+  if (_.keys(data).length === 1 && _.has(data, 'time')) {
+    logger.debug(`MPD_STATUS: time +${data.time[0] - data.time[1]}s`);
+  } else {
+    logger.debug('MPD_STATUS');
+    prettyJson(data);
+  }
+  return {
+    time: _.get(data, 'time[1]'),
+    state: _.get(data, 'state'),
+  };
+};
+
+const mpdCurrentSong = data => {
+  // Last-Modified
+  logger.debug('MPD_CURRENT_SONG');
+  prettyJson(data);
+  return {
+    artist: _.get(data, 'Artist[0]'),
+    title: _.get(data, 'Title[0]'),
+  };
+};
 
 const initializeWebSocket = ({ setValue }) => {
   client.onopen = () => {
@@ -19,18 +44,12 @@ const initializeWebSocket = ({ setValue }) => {
       const parsedData = JSON.parse(data);
       if (parsedData.type) {
         if (parsedData.type === 'MPD_STATUS') {
-          setValue(state => {
-            return { ...state, time: parsedData.data.time[1] };
-          });
-        }
-
-        if (parsedData.type === 'MPD_CURRENT_SONG') {
-          setValue(state => {
-            return { ...state, artist: parsedData.data.Artist[0], title: parsedData.data.Title[0] };
-          });
-        }
-
-        if (parsedData.type === 'MPD_STATS') {
+          const newData = mpdStatus(parsedData.data);
+          setValue(state => _.defaults(newData, state));
+        } else if (parsedData.type === 'MPD_CURRENT_SONG') {
+          const newData = mpdCurrentSong(parsedData.data);
+          setValue(state => _.defaults(newData, state));
+        } else if (parsedData.type === 'MPD_STATS') {
           logger.trace(`${parsedData.type}`);
         } else {
           logger.debug(`${parsedData.type}`);

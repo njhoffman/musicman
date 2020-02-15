@@ -1,7 +1,7 @@
 const express = require('express');
 
 const config = require('../config');
-const { MpdClient } = require('./mpd/MpdClient');
+const { MpdClient } = require('../../common/mpd/MpdClient');
 const initWebsocket = require('./websocket');
 const initRouter = require('./router');
 const logger = require('./utils/logger');
