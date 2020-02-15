@@ -41,16 +41,13 @@
   "dependencies": {
     "chalk": "3.0.0",
     "columnify": "git+https://github.com/njhoffman/columnify.git#nick",
-    "cosmiconfig": "6.0.0",
     "diff": "4.0.2",
     "flat": "5.0.0",
     "forever": "2.0.0",
     "glob": "7.1.6",
     "lodash": "4.17.15",
-    "module-alias": "2.2.2",
     "node-id3": "0.1.13",
     "pretty-error": "2.1.1",
-    "rc": "1.2.8",
     "term-size": "2.1.1"
   }
 }
