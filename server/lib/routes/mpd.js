@@ -3,7 +3,7 @@ const Router = require('express-promise-router');
 
 const { MPD_STATUS, MPD_STATS, MPD_CURRENT_SONG } = require('../constants');
 const logger = require('../utils/logger');
-const config = require('../../config');
+const config = require('../../../common/config');
 
 let status = {};
 let song = {};

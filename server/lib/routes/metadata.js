@@ -4,7 +4,7 @@ const Router = require('express-promise-router');
 const { parseFile } = require('music-metadata');
 
 const { crawlDirectory } = require('../utils');
-const config = require('../../config');
+const config = require('../../../common/config');
 
 const router = new Router();
 

@@ -2,10 +2,12 @@
 const _ = require('lodash');
 const path = require('path');
 const { cosmiconfigSync } = require('cosmiconfig');
-const appName = require('../../package.json').name;
+const tags = require('./tags.json');
+
+const { name, version } = require('../../package.json');
 
 // You can also search and load synchronously.
-const explorerSync = cosmiconfigSync(appName);
+const explorerSync = cosmiconfigSync(name);
 const { config, filepath } = explorerSync.search() || {};
 
 if (filepath) {
@@ -14,6 +16,12 @@ if (filepath) {
   /* eslint-enable no-console */
 }
 
-const { config: defaultConfig } = explorerSync.load(path.resolve(__dirname, 'defaultConfig.yml'));
+const { config: defaultConfig, filepath: fp } = explorerSync.load(path.resolve(__dirname, 'defaultConfig.yml'));
+const env = process.env.NODE_ENV;
 
-module.exports = _.defaultsDeep(defaultConfig, config);
+defaultConfig.library.tags = _.map(
+  ['popularity', 'volume', 'artist', 'title', 'year', 'genre', 'mood', 'copyright', 'album'],
+  name => _.find(tags, { name })
+);
+
+module.exports = _.defaultsDeep({ version, env }, defaultConfig, config);
