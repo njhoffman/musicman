@@ -1,9 +1,12 @@
 const _ = require('lodash');
+const Confirm = require('prompt-confirm');
 
 const { getFilteredFiles, assignMetadata, saveMetadata } = require('./common');
 const { outputDifferences } = require('../output');
 const { checkExists } = require('../utils/files');
 const logger = require('../utils/logger');
+
+const isTest = process.env.NODE_ENV === 'test';
 
 const editCommand = async ({ target, options, config }) => {
   const exists = checkExists(target);
@@ -15,21 +18,34 @@ const editCommand = async ({ target, options, config }) => {
 
   const filtered = await getFilteredFiles({ target, options, config });
 
+  const prompt = new Confirm({
+    message: `You are about to apply changes to ${filtered.length} files, proceed?`
+  });
+
+  if (filtered.length > 1 && !isTest) {
+    const verifyEdit = await prompt.run();
+    if (!verifyEdit) {
+      logger.info(`Declined to modify ${filtered.length} files`);
+      return false;
+    }
+  }
+
+  // TODO: handle this better
+  if (filtered.length === 0) {
+    return false;
+  }
+
   // assign new metadata fields, map to Id3 tag names and save
   const newFilesMetadata = _.map(filtered, assignMetadata(assignments));
 
   // transform to id3 tags and write to files
   saveMetadata(newFilesMetadata, config);
 
-  logger.info(`${filtered.length} files updated`);
-  // TODO: handle this better
-  if (filtered.length === 0) {
-    process.exit(0);
-  }
-
   // load new metadata for comparison
   const savedMetadata = await getFilteredFiles({ options: {}, config }, _.unzip(filtered)[0]);
   outputDifferences(_.unzip(filtered)[1], _.unzip(savedMetadata)[1]);
+
+  logger.info(`${filtered.length} files updated`);
 
   return { oldFiles: filtered, newFiles: newFilesMetadata };
 };

@@ -12,7 +12,7 @@ const { config, filepath } = explorerSync.search() || {};
 
 if (filepath) {
   /* eslint-disable no-console */
-  console.log(`Loaded configuration from: ${filepath}`);
+  console.log(` Loaded configuration from: ${filepath}`);
   /* eslint-enable no-console */
 }
 

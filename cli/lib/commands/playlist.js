@@ -23,7 +23,6 @@ const playlistCommand = async ({ target, options, config }) => {
   );
 
   const { outputDirectory, outputPath } = config.playlist;
-  console.log('CONFIG', config);
   const outPath = path.join(outputDirectory, outputPath.replace(/\.m3u$|$/, '.m3u'));
   writePlaylist(filteredPaths, outPath);
 
