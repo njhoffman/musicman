@@ -24,4 +24,4 @@ defaultConfig.library.tags = _.map(
   name => _.find(tags, { name })
 );
 
-module.exports = _.defaultsDeep({ version, env }, defaultConfig, config);
+module.exports = _.defaultsDeep({ version, env }, config, defaultConfig);

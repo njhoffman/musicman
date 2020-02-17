@@ -9,45 +9,49 @@ let status = {};
 let song = {};
 let stats = {};
 
-const getDifferences = (before, after, ignored = []) =>
-  _.fromPairs(
-    _.keys(after)
-      .filter(key => _.indexOf(ignored, key) === -1 && !_.isEqual(after[key], before[key]))
+const getDifferences = (before, after, ignored = []) => {
+  const diff = _.fromPairs(
+    _.keys(before)
+      .concat(_.keys(after))
+      .filter(key => !ignored.includes(key) && !_.isEqual(after[key], before[key]))
       .map(key => [key, [before[key], after[key]]])
   );
+  return diff;
+};
+
+const getStatus = async (mpdClient, broadcast) => {
+  const parsed = await mpdClient.sendCommandAsync('status');
+  const ignored = ['elapsed'];
+
+  const differences = getDifferences(parsed, status, ignored);
+  status = parsed;
+
+  if (_.keys(differences).length > 0) {
+    broadcast(MPD_STATUS, differences);
+  }
+};
+
+const getStats = async (mpdClient, broadcast) => {
+  const parsed = await mpdClient.sendCommandAsync('stats');
+  const differences = getDifferences(parsed, stats);
+  stats = parsed;
+  if (_.keys(differences).length > 0) {
+    // logger.trace
+    broadcast(MPD_STATS, differences);
+  }
+};
+
+const getCurrentSong = async (mpdClient, broadcast) => {
+  const parsed = await mpdClient.sendCommandAsync('currentsong');
+  const differences = getDifferences(parsed, song);
+  song = parsed;
+  if (_.keys(differences).length > 0) {
+    broadcast(MPD_CURRENT_SONG, differences);
+  }
+};
 
 module.exports = modules => {
   const { broadcast, mpdClient } = modules;
-
-  const getStatus = async () => {
-    const parsed = await mpdClient.sendCommandAsync('status');
-    const ignored = ['elapsed'];
-
-    const differences = getDifferences(parsed, status, ignored);
-    status = parsed;
-
-    if (_.keys(differences).length > 0) {
-      broadcast(MPD_STATUS, differences);
-    }
-  };
-
-  const getStats = async () => {
-    const parsed = await mpdClient.sendCommandAsync('stats');
-    const differences = getDifferences(parsed, stats);
-    stats = parsed;
-    if (_.keys(differences).length > 0) {
-      broadcast(MPD_STATS, differences);
-    }
-  };
-
-  const getCurrentSong = async () => {
-    const parsed = await mpdClient.sendCommandAsync('currentsong');
-    const differences = getDifferences(parsed, song);
-    song = parsed;
-    if (_.keys(differences).length > 0) {
-      broadcast(MPD_CURRENT_SONG, differences);
-    }
-  };
 
   mpdClient.on('error', err => {
     logger.info('MPD ERROR', err);
@@ -56,8 +60,7 @@ module.exports = modules => {
 
   mpdClient.on('ready', () => {
     logger.info(`MPD connected at ${config.mpd.host}:${config.mpd.port}`);
-    getStatus();
-    getStats();
+    getStats(mpdClient, broadcast);
   });
 
   mpdClient.on('system', (name, ...args) => {
@@ -66,7 +69,7 @@ module.exports = modules => {
       update: () => {},
       stored_playlist: () => {},
       playlist: () => {},
-      player: getStatus,
+      player: () => getStatus(mpdClient, broadcast),
       mixer: () => {},
       output: () => {},
       options: () => {},
@@ -74,7 +77,9 @@ module.exports = modules => {
       subscription: () => {},
       message: () => {}
     };
-    logger.info(`update: ${name}`);
+    logger.info(`system update: ${name}`);
+    // update player => getCurrentSong, getStatus
+    // update
     if (args.length > 0) {
       logger.info(args);
     }
@@ -83,9 +88,9 @@ module.exports = modules => {
   });
 
   setInterval(() => {
-    getStatus();
-    getStats();
-    getCurrentSong();
+    getStatus(mpdClient, broadcast);
+    // getStats(mpdClient, broadcast);
+    getCurrentSong(mpdClient, broadcast);
   }, 3000);
 
   const router = new Router();

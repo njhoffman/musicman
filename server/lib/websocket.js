@@ -49,6 +49,7 @@ const initWebSocket = app =>
     const broadcast = (type, data) => {
       wss.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
+          // const { port /* ,address */ } = client._socket._peername;
           logger.debug(`${type}:`, data);
           client.send(JSON.stringify({ type, data }));
         }
