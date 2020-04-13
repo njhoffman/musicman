@@ -1,7 +1,7 @@
 const path = require('path');
 const { exec } = require('child_process');
 
-const config = require('../config');
+const config = require('../../common/config');
 const logger = require('./utils/logger');
 const { getCurrentSong, connectMpd } = require('./clients/mpd');
 const { getMetadata, parseMetadata } = require('./metadata');
