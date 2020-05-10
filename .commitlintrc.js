@@ -1,6 +1,6 @@
 module.exports = {
-  extends: ['@commitlint/config-conventional'],
-  "rules": {
-    "header-max-length": [1, "always", 72],
+  extends: ['./node_modules/commitlint-config-gitmoji'],
+  rules: {
+    'header-max-length': [1, 'always', 72]
   }
 };

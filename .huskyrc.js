@@ -3,20 +3,21 @@ const tasks = arr => arr.join(' && ');
 const hooks = {
   // 'pre-commit': tasks(['npm run lint', 'npm run test']),
   // 'pre-push': './.bin/prePushVersion.sh',
+  // 'prepare-commit-msg': exec < /dev/tty && gitmoji --hook $1
   'commit-msg': 'commitlint -E HUSKY_GIT_PARAMS',
   'pre-push': tasks([
     'npm run test',
     'npm run todos',
-    '.bin/prePushVersion.sh',
+    '.bin/prePushVersion.sh'
   ]),
   'post-push': tasks([
     'npm run todos',
     'npm outdated --prefix cli',
-    'git push --tags --no-verify',
-  ]),
+    'git push --tags --no-verify'
+  ])
 };
 
-module.exports = {hooks};
+module.exports = { hooks };
 
 // applypatch-msg
 // commit-msg
