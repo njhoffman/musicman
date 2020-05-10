@@ -1,10 +1,13 @@
 const path = require('path');
 const { exec } = require('child_process');
+const PrettyError = require('pretty-error');
 
-const config = require('../../common/config');
+const config = require('musicman-common/config');
 const logger = require('./utils/logger');
 const { getCurrentSong, connectMpd } = require('./clients/mpd');
 const { getMetadata, parseMetadata } = require('./metadata');
+
+const pe = new PrettyError();
 
 const getSongInfo = async mpdClient => {
   const currentSong = await getCurrentSong(mpdClient);
@@ -54,3 +57,17 @@ const run = async args => {
 };
 
 run(process.argv.slice(2));
+
+/* eslint-disable no-console */
+process.on('unhandledRejection', err => {
+  logger.error(`Unhandled Rejection ${err.name}: ${err.message}\n`, pe.render(err));
+  // console.error(err);
+  process.exit(1);
+});
+
+process.on('uncaughtException', err => {
+  logger.error(`Unhandled Exception ${err.name}: ${err.message}\n`, pe.render(err));
+  // console.error(err);
+  process.exit(1);
+});
+/* eslint-enable no-console */

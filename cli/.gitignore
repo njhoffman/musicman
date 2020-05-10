@@ -14,9 +14,11 @@ node_modules
 dist
 build
 
-
-# coverage reports
+# code coverage
 .nyc_output/
-coverage
 .coveralls.yml
+reports/coverage
 
+# stryker mutations
+.stryker-tmp
+reports/mutation

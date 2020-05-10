@@ -10,7 +10,7 @@ exit: false # could be expressed as "no-exit: true"
 extension:
   - js
 file:
-  - test/integration.js
+  - ./test/integration.js
 forbid-only: false
 forbid-pending: false
 full-trace: false
@@ -22,7 +22,7 @@ opts: false
 recursive: false
 reporter: spec
 require:
-  - test/setup.js
+  - ./test/setup.js
 retries: 1
 slow: 75
 sort: false

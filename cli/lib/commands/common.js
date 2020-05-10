@@ -1,7 +1,13 @@
 const _ = require('lodash');
 
 const { getFiles } = require('../utils/files');
-const { getMetadata, parseMetadata, writeFiles, filterFiles, mergeAssignments } = require('../metadata');
+const {
+  getMetadata,
+  parseMetadata,
+  writeFiles,
+  filterFiles,
+  mergeAssignments
+} = require('../metadata');
 
 const saveMetadata = (files, config) => _.map([files], writeFiles(config));
 
@@ -15,6 +21,7 @@ const getFilteredFiles = async ({ target, options = {}, config = {} }, fileList)
 
   const files = fileList || getFiles(target, { ext: 'mp3', recursive });
 
+  // TODO: fix memory overflow in event loop
   const metadataFiles = await getMetadata(files);
   const parsedFiles = parseFileMetadata(metadataFiles, config);
   return filters ? _.filter(parsedFiles, filterFiles(filters)) : parsedFiles;

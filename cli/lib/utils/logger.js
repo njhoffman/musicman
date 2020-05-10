@@ -2,7 +2,7 @@ const _ = require('lodash');
 const { inspect } = require('util');
 const termSize = require('term-size');
 
-const config = require('../../../common/config');
+const config = require('musicman-common/config');
 
 const inspectOptions = { colors: true, compact: false, breakLength: termSize().columns };
 

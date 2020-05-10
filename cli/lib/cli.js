@@ -1,7 +1,11 @@
+const PrettyError = require('pretty-error');
+const config = require('musicman-common/config');
+
 const commandParser = require('./parser');
 const { getCurrentSong, connectMpd } = require('./clients/mpd');
-const config = require('../../common/config');
 const logger = require('./utils/logger');
+
+const pe = new PrettyError();
 
 const usage = args => {
   // logger.info('USAGE', args);
@@ -29,13 +33,13 @@ run(process.argv.slice(2));
 
 /* eslint-disable no-console */
 process.on('unhandledRejection', err => {
-  // logger.error(`${err.name}: ${err.message}`);
-  console.error(err);
+  logger.error(`Unhandled Rejection ${err.name}: ${err.message}\n`, pe.render(err));
+  // console.error(err);
   process.exit(1);
 });
 
 process.on('uncaughtException', err => {
-  logger.error('Unhandled Exception', err);
-  console.error(err);
+  logger.error(`Unhandled Exception ${err.name}: ${err.message}\n`, pe.render(err));
+  // console.error(err);
+  process.exit(1);
 });
-/* eslint-enable no-console */

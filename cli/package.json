@@ -17,6 +17,10 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@stryker-mutator/core": "^3.1.0",
+    "@stryker-mutator/javascript-mutator": "^3.1.0",
+    "@stryker-mutator/mocha-framework": "^3.1.0",
+    "@stryker-mutator/mocha-runner": "^3.1.0",
     "babel-eslint": "10.0.3",
     "chai": "4.2.0",
     "chokidar": "3.3.1",
@@ -46,6 +50,7 @@
     "forever": "2.0.0",
     "glob": "7.1.6",
     "lodash": "4.17.15",
+    "musicman-common": "file:../common",
     "node-id3": "0.1.13",
     "pretty-error": "2.1.1",
     "prompt-confirm": "2.0.4",
