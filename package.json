@@ -11,11 +11,11 @@
   "author": "Nick Hoffman",
   "license": "ISC",
   "devDependencies": {
-    "@commitlint/cli": "8.3.5",
-    "@commitlint/config-conventional": "8.3.4",
+    "@commitlint/cli": "^11.0.0",
+    "@commitlint/config-conventional": "^11.0.0",
     "commitlint-config-gitmoji": "^1.0.1",
-    "husky": "4.2.1",
-    "leasot": "10.0.0",
-    "standard-version": "7.1.0"
+    "husky": "^4.3.0",
+    "leasot": "^11.3.0",
+    "standard-version": "^9.0.0"
   }
 }
