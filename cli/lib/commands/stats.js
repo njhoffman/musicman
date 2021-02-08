@@ -41,7 +41,7 @@ const statsCommand = async ({ options, config, target }) => {
   logger.info(`Scanning ${target || baseDirectory} for mp3 files`);
   const allFiles = await getFilteredFiles({ target: target || baseDirectory, options, config });
 
-  logger.debug(`Found ${allFiles.length} files`);
+  logger.debug(`Processed ${allFiles.length} files`);
   const multifieldOutput = multiFields.map(mf => calculateMultifield(mf, allFiles));
   const ratingsOutput = allFiles.reduce(calculateRatings, { unrated: 0, rated: 0, ratings: {} });
 

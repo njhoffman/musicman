@@ -23,7 +23,8 @@ const playlistCommand = async ({ target, options, config }) => {
   );
 
   const { outputDirectory, outputPath } = config.playlist;
-  const outPath = path.join(outputDirectory, outputPath.replace(/\.m3u$|$/, '.m3u'));
+  const playlistPath = options.switches.write ? options.switches.write : outputPath;
+  const outPath = path.join(outputDirectory, playlistPath.replace(/\.m3u$|$/, '.m3u'));
   writePlaylist(filteredPaths, outPath);
 
   logger.info(`${filtered.length} files saved to playlist ${outPath}`);

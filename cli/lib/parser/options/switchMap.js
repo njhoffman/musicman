@@ -27,10 +27,10 @@ module.exports = {
       return { exclude: optionList[i + 1].split(',') };
     }
   },
-  name: {
+  write: {
     description: 'File name/path of the playlist to write',
-    alias: '-n',
-    examples: ['-n party', '-n "Folder Name/Party Songs"'],
+    alias: '-w',
+    examples: ['-w party', '-w "Folder Name/Party Songs"'],
     func: (used, optionList, i) => {
       used.push(optionList[i + 1]);
       return { exclude: optionList[i + 1] };
