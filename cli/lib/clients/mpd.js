@@ -1,3 +1,4 @@
+const Promise = require('bluebird');
 const logger = require('../utils/logger');
 
 // TODO: fork this into it's own repo

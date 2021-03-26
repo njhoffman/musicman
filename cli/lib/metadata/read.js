@@ -1,6 +1,7 @@
 const _ = require('lodash');
 const NodeId3 = require('node-id3');
 const flatten = require('flat');
+const Promise = require('bluebird');
 
 const readMetadata = file =>
   new Promise((resolve, reject) => {
@@ -8,15 +9,25 @@ const readMetadata = file =>
       if (err) {
         reject(err);
       } else {
-        // console.log(tags.raw);
-        resolve(tags.raw);
+        // TODO: transform image field,
+        //   APIC: { mime: 'jpeg', type: { id: 3, name: 'front cover' }, imageBuffer: <Buffer ff d8 ff e0 00 10 ... 224530 more bytes>
+        const rawTags = _.omit(tags.raw, ['APIC']);
+        resolve(rawTags);
       }
     });
   });
 
 // read metadata tags for files array and return [file, metadata]
+// TODO: Promise.all should be Promise.map with concurrency limit
 const getMetadata = async files =>
-  Promise.all([].concat(files).map(async file => Promise.all([file, readMetadata(file)])));
+  Promise.all(
+    [].concat(files).map(
+      async (file, i) => {
+        return Promise.all([file, readMetadata(file)]);
+      },
+      { concurency: 5 }
+    )
+  );
 
 const metakeysTransform = (metadata, config) =>
   _.mapKeys(metadata, (tagVal, tagKey) => {
