@@ -29,7 +29,9 @@ const run = async args => {
   return process.exit(0);
 };
 
-run(process.argv.slice(2));
+// run(process.argv.slice(2));
+
+run(["playlist", "-r", "/home/nicholas/Music/Sorted/Rated/Rock"])
 
 /* eslint-disable no-console */
 process.on('unhandledRejection', err => {

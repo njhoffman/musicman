@@ -3,10 +3,11 @@
   "description": "",
   "main": "lib/cli.js",
   "scripts": {
-    "dev": "nodemon --config ./nodemon.json lib/index.js",
-    "start": "node lib/index.js",
+    "dev": "nodemon --config ./nodemon.json lib/cli.js",
+    "start": "node lib/cli.js",
     "daemon": "forever start lib/notify-daemon.js",
     "daemon:stop": "forever stop lib/notify-daemon.js",
+    "profile": "ndb --prof npm run start",
     "lint": "esw lib test --color",
     "lint:fix": "npm run lint -- --fix",
     "lint:watch": "npm run lint -- --watch --clear",

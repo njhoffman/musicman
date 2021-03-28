@@ -18,15 +18,14 @@ const readMetadata = file =>
   });
 
 // read metadata tags for files array and return [file, metadata]
-// TODO: Promise.all should be Promise.map with concurrency limit
 const getMetadata = async files =>
-  Promise.all(
-    [].concat(files).map(
-      async (file, i) => {
-        return Promise.all([file, readMetadata(file)]);
-      },
-      { concurency: 5 }
-    )
+  Promise.map(
+    [].concat(files),
+    async (file, i) => {
+      process.stdout.write(` ...${i} files left\r`);
+      return Promise.all([file, readMetadata(file)]);
+    },
+    { concurrency: 5 }
   );
 
 const metakeysTransform = (metadata, config) =>
