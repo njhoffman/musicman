@@ -41,7 +41,7 @@ describe('Playlist Command', () => {
   let options = { switches: {}, filters: {}, assignments: {} };
   const playlistPath = path.join(config.playlist.outputDirectory, config.playlist.outputPath);
 
-  beforeEach(function() {
+  beforeEach(function () {
     resetSandbox();
   });
 
@@ -49,23 +49,17 @@ describe('Playlist Command', () => {
     it('Should list all files recursively if recursive switch (-r) provided or set in config', async () => {
       const newOptions = { ...options, switches: { recursive: true } };
       const results = await playlistFunc({ target: dirTarget, options: newOptions, config });
-      expect(results.split('\n'))
-        .be.an('array')
-        .of.length(17);
+      expect(results.split('\n')).be.an('array').of.length(17);
 
       const newConfig = { ...config, recursive: true };
       const results2 = await playlistFunc({ target: dirTarget, options, config: newConfig });
-      expect(results2.split('\n'))
-        .be.an('array')
-        .of.length(17);
+      expect(results2.split('\n')).be.an('array').of.length(17);
     });
 
     it('Should only list files in current directory if non-recursive switch (-nr) provided', async () => {
       const newOptions = { ...options, switches: { recursive: false } };
       const results = await playlistFunc({ target: dirTarget, options: newOptions, config });
-      expect(results.split('\n'))
-        .be.an('array')
-        .of.length(11);
+      expect(results.split('\n')).be.an('array').of.length(11);
     });
   });
 

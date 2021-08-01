@@ -37,7 +37,7 @@ describe('Edit Command', () => {
   const options = { switches: {}, filters: {}, assignments: {} };
 
   describe('Field assignment', () => {
-    beforeEach(function() {
+    beforeEach(function () {
       resetSandbox();
     });
 

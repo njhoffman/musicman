@@ -1,3 +1,4 @@
+const _ = require('lodash');
 const PrettyError = require('pretty-error');
 const config = require('musicman-common/config');
 
@@ -13,6 +14,7 @@ const usage = args => {
 
 const run = async args => {
   const mpdClient = await connectMpd(config.mpd);
+
   const currentSong = await getCurrentSong(mpdClient);
 
   const { command, target, options } = commandParser({ args, currentSong, config });
@@ -29,9 +31,7 @@ const run = async args => {
   return process.exit(0);
 };
 
-// run(process.argv.slice(2));
-
-run(["playlist", "-r", "/home/nicholas/Music/Sorted/Rated/Rock"])
+run(process.argv.slice(2));
 
 /* eslint-disable no-console */
 process.on('unhandledRejection', err => {
