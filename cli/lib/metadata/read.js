@@ -12,6 +12,7 @@ const readMetadata = file =>
         // TODO: transform image field,
         //   APIC: { mime: 'jpeg', type: { id: 3, name: 'front cover' }, imageBuffer: <Buffer ff d8 ff e0 00 10 ... 224530 more bytes>
         const rawTags = _.omit(tags.raw, ['APIC']);
+
         resolve(rawTags);
       }
     });

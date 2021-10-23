@@ -32,6 +32,8 @@ describe('View Command', () => {
   beforeEach(function() {
     resetSandbox();
   });
+  // it('Should escape glob characters correctly')
+  // it('Should index directory correctly with special glob characters')
   //
   // it('Should return vertical output if only one file being viewed', async () => {
   //   const results = await viewFunc({ target: fileTarget, options, config });

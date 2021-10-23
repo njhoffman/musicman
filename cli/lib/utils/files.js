@@ -16,7 +16,10 @@ const getFiles = (dir, options = { ext: 'mp3', recursive: false }) => {
   if (exists && exists.isFile()) {
     return [dir];
   } else if (exists && exists.isDirectory()) {
-    const globPath = recursive ? `${dir}/**/*.${ext}` : `${dir}/*.${ext}`;
+    const globPath = (recursive ? `${dir}/**/*.${ext}` : `${dir}/*.${ext}`)
+      .replace('[', '\\[')
+      .replace(']', '\\]');
+
     const files = glob.sync(globPath);
     return files;
   }
