@@ -18,10 +18,6 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@stryker-mutator/core": "^3.1.0",
-    "@stryker-mutator/javascript-mutator": "^3.1.0",
-    "@stryker-mutator/mocha-framework": "^3.1.0",
-    "@stryker-mutator/mocha-runner": "^3.1.0",
     "babel-eslint": "^10.1.0",
     "chai": "^4.3.4",
     "chokidar-cli": "^2.1.0",
@@ -46,7 +42,7 @@
   "dependencies": {
     "bluebird": "^3.7.2",
     "chalk": "^4.1.2",
-    "columnify": "git+https://github.com/njhoffman/columnify.git#nick",
+    "columnify": "git+https://github.com/njhoffman/columnify.git#master",
     "diff": "^5.0.0",
     "flat": "^5.0.2",
     "forever": "^3.0.4",
