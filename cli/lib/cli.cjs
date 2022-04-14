@@ -2,9 +2,9 @@ const _ = require('lodash');
 const PrettyError = require('pretty-error');
 const config = require('musicman-common/config');
 
-const commandParser = require('./parser');
-const { getCurrentSong, connectMpd } = require('./clients/mpd');
-const logger = require('./utils/logger');
+const commandParser = require('./parser/index.cjs');
+const { getCurrentSong, connectMpd } = require('./clients/mpd.cjs');
+const logger = require('./utils/logger.cjs');
 
 const pe = new PrettyError();
 

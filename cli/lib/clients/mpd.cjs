@@ -1,5 +1,5 @@
 const Promise = require('bluebird');
-const logger = require('../utils/logger');
+const logger = require('../utils/logger.cjs');
 
 // TODO: fork this into it's own repo
 const { MpdClient } = require('../../../common/mpd/MpdClient');

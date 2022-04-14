@@ -2,10 +2,10 @@ const _ = require('lodash');
 const chalk = require('chalk');
 const { inspect } = require('util');
 
-const { consoleLog } = require('./utils/logger');
-const { outputTable } = require('./output/table');
-const { outputVertical } = require('./output/vertical');
-const { outputDifferences } = require('./output/differences');
+const { consoleLog } = require('../utils/logger.cjs');
+const { outputTable } = require('./table.cjs');
+const { outputVertical } = require('./vertical.cjs');
+const { outputDifferences } = require('./differences.cjs');
 
 const inspectOptions = { compact: true, colors: true };
 

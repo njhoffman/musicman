@@ -3,8 +3,8 @@ const chalk = require('chalk');
 const path = require('path');
 const termSize = require('term-size');
 
-const { checkExists } = require('../utils/files');
-const logger = require('../utils/logger');
+const { checkExists } = require('../utils/files.cjs');
+const logger = require('../utils/logger.cjs');
 
 const { columns } = termSize();
 

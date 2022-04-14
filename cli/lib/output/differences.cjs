@@ -3,7 +3,7 @@ const diff = require('diff');
 const columnify = require('columnify');
 const termSize = require('term-size');
 
-const { consoleLog } = require('../utils/logger');
+const { consoleLog } = require('../utils/logger.cjs');
 
 const columnifyDifferences = output => {
   const { NODE_ENV } = process.env;

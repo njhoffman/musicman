@@ -1,7 +1,8 @@
 {
   "name": "musicman-cli",
   "description": "",
-  "main": "lib/cli.js",
+  "type": "module",
+  "main": "lib/cli.cjs",
   "scripts": {
     "dev": "nodemon --config ./nodemon.json lib/cli.js",
     "start": "node lib/cli.js",
@@ -42,7 +43,7 @@
   "dependencies": {
     "bluebird": "^3.7.2",
     "chalk": "^4.1.2",
-    "columnify": "git+https://github.com/njhoffman/columnify.git#master",
+    "columnify": "git+https://github.com/njhoffman/columnify.git#nick",
     "diff": "^5.0.0",
     "flat": "^5.0.2",
     "forever": "^3.0.4",

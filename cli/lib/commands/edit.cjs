@@ -1,10 +1,10 @@
 const _ = require('lodash');
 const Confirm = require('prompt-confirm');
 
-const { getFilteredFiles, assignMetadata, saveMetadata } = require('./common');
-const { outputDifferences } = require('../output');
-const { checkExists } = require('../utils/files');
-const logger = require('../utils/logger');
+const { getFilteredFiles, assignMetadata, saveMetadata } = require('./common.cjs');
+const { outputDifferences } = require('../output/index.cjs');
+const { checkExists } = require('../utils/files.cjs');
+const logger = require('../utils/logger.cjs');
 
 const isTest = process.env.NODE_ENV === 'test';
 

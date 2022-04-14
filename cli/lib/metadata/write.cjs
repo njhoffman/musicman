@@ -2,7 +2,7 @@ const _ = require('lodash');
 const NodeId3 = require('node-id3');
 const { unflatten } = require('flat');
 
-const logger = require('../utils/logger');
+const logger = require('../utils/logger.cjs');
 
 const toRating = (newRating, ratingMax) => Math.round((newRating * 255) / ratingMax);
 

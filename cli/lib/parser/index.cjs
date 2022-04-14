@@ -1,6 +1,6 @@
-const getCommand = require('./parser/command');
-const getTarget = require('./parser/target');
-const getOptions = require('./parser/options');
+const getCommand = require('./command.cjs');
+const getTarget = require('./target.cjs');
+const getOptions = require('./options.cjs');
 
 // command line parser for assigning
 //   command:  which command to execute

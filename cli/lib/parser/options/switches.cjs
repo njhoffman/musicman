@@ -1,5 +1,5 @@
 const _ = require('lodash');
-const switchMap = require('./switchMap');
+const switchMap = require('./switchMap.cjs');
 
 const parseSwitches = (optionList, config) => {
   const switches = {};

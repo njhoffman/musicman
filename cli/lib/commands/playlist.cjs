@@ -2,10 +2,10 @@ const _ = require('lodash');
 const path = require('path');
 const fs = require('fs');
 
-const { getFilteredFiles } = require('./common');
-const { checkExists } = require('../utils/files');
-const logger = require('../utils/logger');
-const { outputMetadata } = require('../output');
+const { getFilteredFiles } = require('./common.cjs');
+const { checkExists } = require('../utils/files.cjs');
+const logger = require('../utils/logger.cjs');
+const { outputMetadata } = require('../output/index.cjs');
 
 const writePlaylist = (files, outPath) => fs.writeFileSync(outPath, files.join('\n'));
 

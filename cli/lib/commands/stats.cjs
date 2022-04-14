@@ -1,7 +1,7 @@
 const _ = require('lodash');
 
-const { getFilteredFiles } = require('./common');
-const logger = require('../utils/logger');
+const { getFilteredFiles } = require('./common.cjs');
+const logger = require('../utils/logger.cjs');
 
 const calculateMultifield = (multiField, allFiles) => {
   const multiVals = {};

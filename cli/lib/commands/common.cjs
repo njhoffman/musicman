@@ -1,14 +1,14 @@
 const _ = require('lodash');
 
-const logger = require('../utils/logger');
-const { getFiles } = require('../utils/files');
+const logger = require('../utils/logger.cjs');
+const { getFiles } = require('../utils/files.cjs');
 const {
   getMetadata,
   parseMetadata,
   writeFiles,
   filterFiles,
   mergeAssignments
-} = require('../metadata');
+} = require('../metadata.cjs');
 
 const saveMetadata = (files, config) => _.map([files], writeFiles(config));
 

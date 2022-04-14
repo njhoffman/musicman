@@ -1,6 +1,6 @@
-const parseSwitches = require('./options/switches');
-const parseFilters = require('./options/filters');
-const parseAssignments = require('./options/assignments');
+const parseSwitches = require('./options/switches.cjs');
+const parseFilters = require('./options/filters.cjs');
+const parseAssignments = require('./options/assignments.cjs');
 
 const getOptions = (optionList, config, commandName) => {
   const { switches, remaining } = parseSwitches(optionList, config);

@@ -1,6 +1,6 @@
 const _ = require('lodash');
 
-const commands = require('../commands');
+const commands = require('../commands/index.cjs');
 
 const getCommand = (args, currentSong) => {
   const firstArg = (args[0] || '').trim();
