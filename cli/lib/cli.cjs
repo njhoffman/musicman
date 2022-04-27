@@ -14,21 +14,21 @@ const usage = args => {
 
 const run = async args => {
   const mpdClient = await connectMpd(config.mpd);
-
   const currentSong = await getCurrentSong(mpdClient);
-
   const { command, target, options } = commandParser({ args, currentSong, config });
 
   if (!target) {
     throw new Error('No target specified');
     // return usage(args);
   }
+
   await command.func({
     target,
     options: { ...options, commandName: command.name },
     config
   });
-  return process.exit(0);
+
+  process.exit(0);
 };
 
 run(process.argv.slice(2));

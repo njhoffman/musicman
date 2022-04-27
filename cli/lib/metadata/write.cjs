@@ -65,7 +65,7 @@ const mergeAssignments = (meta, assignments) => {
 };
 
 const writeFile = ([file, id3Tags]) => {
-  logger.debug(`Writing file: ${file}`, id3Tags);
+  logger.debug(`Writing file: ${file}\nWith Tags:`, id3Tags);
   return NodeId3.update(id3Tags, file);
 };
 

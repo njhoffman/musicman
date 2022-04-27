@@ -50,7 +50,7 @@
     "glob": "^7.2.0",
     "lodash": "^4.17.21",
     "musicman-common": "file:../common",
-    "node-id3": "^0.2.3",
+    "node-id3": "0.1.13",
     "pretty-error": "^3.0.4",
     "prompt-confirm": "2.0.4",
     "term-size": "^2.2.1"

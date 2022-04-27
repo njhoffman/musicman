@@ -43,7 +43,7 @@ const parseMetadata = (rawTags = {}, config) => {
 
   // flatten and include relevant TXXX custom tags
   _.each(rawTags.TXXX, ({ description, value }) => {
-    const txName = `TXXX.${description}`;
+  const txName = `TXXX.${description}`;
     if (_.find(config.tags, { id: txName })) {
       selectedTags[txName] = value;
     }

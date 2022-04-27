@@ -10,12 +10,6 @@ const { name, version } = require('../../package.json');
 const explorerSync = cosmiconfigSync(name);
 const { config, filepath } = explorerSync.search() || {};
 
-if (filepath) {
-  /* eslint-disable no-console */
-  console.log(` Loaded configuration from: ${filepath}`);
-  /* eslint-enable no-console */
-}
-
 const { config: defaultConfig, filepath: fp } = explorerSync.load(path.resolve(__dirname, 'defaultConfig.yml'));
 const env = process.env.NODE_ENV;
 
