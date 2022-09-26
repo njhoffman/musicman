@@ -7,7 +7,7 @@ check-leaks: false
 color: true
 delay: false
 diff: true
-exit: false  # could be expressed as "no-exit: true"
+exit: false # could be expressed as "no-exit: true"
 extension:
   - js
 file:
@@ -27,8 +27,8 @@ require:
 retries: 1
 slow: 75
 sort: false
-spec: lib/**/*.spec.js  # the positional arguments!
-timeout: false  # same as "no-timeout: true" or "timeout: 0"
-trace-warnings: true  # node flags ok
+spec: lib/**/*.spec.js # the positional arguments!
+timeout: false # same as "no-timeout: true" or "timeout: 0"
+trace-warnings: true # node flags ok
 ui: bdd
-v8-stack-trace-limit: 100  # V8 flags are prepended with "v8-"
+v8-stack-trace-limit: 100 # V8 flags are prepended with "v8-"

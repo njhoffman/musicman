@@ -1,4 +1,3 @@
-const _ = require('lodash');
 const PrettyError = require('pretty-error');
 const config = require('musicman-common/config');
 
@@ -25,7 +24,7 @@ const run = async args => {
   await command.func({
     target,
     options: { ...options, commandName: command.name },
-    config
+    config,
   });
 
   process.exit(0);
