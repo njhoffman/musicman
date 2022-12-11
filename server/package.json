@@ -37,7 +37,7 @@
   "dependencies": {
     "bunyan": "1.8.12",
     "chalk": "3.0.0",
-    "express": "4.17.1",
+    "express": "4.17.3",
     "express-promise-router": "3.0.3",
     "lodash": "4.17.15",
     "music-metadata": "4.8.4",
