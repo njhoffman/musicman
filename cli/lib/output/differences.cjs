@@ -7,7 +7,6 @@ const { consoleLog } = require('../utils/logger.cjs');
 
 const columnifyDifferences = output => {
   const { NODE_ENV } = process.env;
-
   const options = {
     columns: ['key', 'value'],
     showHeaders: false,
@@ -37,7 +36,9 @@ const columnifyDifferences = output => {
 
 const outputDifferences = (orig, curr) => {
   const differences =
-    orig.length === 1 && curr.length === 1 ? diff.diffJson(orig[0], curr[0]) : diff.diffJson(orig, curr);
+    orig.length === 1 && curr.length === 1
+      ? diff.diffJson(orig[0], curr[0])
+      : diff.diffJson(orig, curr);
 
   let diffOut = '';
   differences.forEach(part => {
