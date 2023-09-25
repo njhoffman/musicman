@@ -1,6 +1,7 @@
 const _ = require('lodash');
 
 const { getFilteredFiles } = require('./common.cjs');
+const { outputStats } = require('../output/index.cjs');
 const logger = require('../utils/logger.cjs');
 
 const calculateMultifield = (multiField, allFiles) => {
@@ -45,11 +46,8 @@ const statsCommand = async ({ options, config, target }) => {
   const multifieldOutput = multiFields.map(mf => calculateMultifield(mf, allFiles));
   const ratingsOutput = allFiles.reduce(calculateRatings, { unrated: 0, rated: 0, ratings: {} });
 
-  multifieldOutput.map(out => logger.info(out));
-  logger.info(ratingsOutput);
-  logger.info(`Total: \t${allFiles.length}`);
-
-  // return outputMetadata({ target, metadata: _.unzip(filtered)[1], config, options });
+  const stats = { ...multifieldOutput, ...ratingsOutput };
+  return outputStats({ target, stats, config, options });
 };
 
 module.exports = { name: 'stats', func: statsCommand };

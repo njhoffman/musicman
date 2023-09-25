@@ -6,6 +6,7 @@ const { consoleLog } = require('../utils/logger.cjs');
 const { outputTable } = require('./table.cjs');
 const { outputVertical } = require('./vertical.cjs');
 const { outputDifferences } = require('./differences.cjs');
+const { outputStats } = require('./stats.cjs');
 
 const inspectOptions = { compact: true, colors: true };
 
@@ -36,4 +37,4 @@ const outputMetadata = ({ metadata, target, options, config, format }) => {
   return consoleLog(output);
 };
 
-module.exports = { outputDifferences, outputMetadata };
+module.exports = { outputDifferences, outputMetadata, outputStats };
