@@ -54,6 +54,7 @@
     "node-id3": "0.1.13",
     "pretty-error": "^3.0.4",
     "prompt-confirm": "2.0.4",
+    "sqlite3": "^5.1.6",
     "term-size": "^2.2.1"
   }
 }

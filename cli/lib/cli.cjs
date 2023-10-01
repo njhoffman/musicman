@@ -12,8 +12,9 @@ const usage = args => {
 };
 
 const run = async args => {
-  const mpdClient = await connectMpd(config.mpd);
-  const currentSong = await getCurrentSong(mpdClient);
+  // const mpdClient = await connectMpd(config.mpd);
+  // const currentSong = await getCurrentSong(mpdClient);
+  const currentSong = false;
   const { command, target, options } = commandParser({ args, currentSong, config });
 
   if (!target) {
@@ -24,7 +25,7 @@ const run = async args => {
   await command.func({
     target,
     options: { ...options, commandName: command.name },
-    config,
+    config
   });
 
   process.exit(0);
