@@ -1,7 +1,7 @@
 const _ = require('lodash');
 const { outputMetadata } = require('../output/index.cjs');
 const { checkExists } = require('../utils/files.cjs');
-const { getFilteredFiles } = require('./common.cjs')
+const { getFilteredFiles } = require('./common.cjs');
 
 const viewCommand = async ({ target, options, config }) => {
   const exists = checkExists(target);

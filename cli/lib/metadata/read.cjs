@@ -1,7 +1,31 @@
 const _ = require('lodash');
+const fs = require('fs');
 const NodeId3 = require('node-id3');
+const mp3Duration = require('mp3-duration');
 const flatten = require('flat');
 const Promise = require('bluebird');
+
+const readSize = file =>
+  new Promise((resolve, reject) => {
+    fs.stat(file, (err, stats) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(stats.size);
+      }
+    });
+  });
+
+const readDuration = file =>
+  new Promise((resolve, reject) => {
+    mp3Duration(file, (err, duration) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(duration);
+      }
+    });
+  });
 
 const readMetadata = file =>
   new Promise((resolve, reject) => {
@@ -12,9 +36,28 @@ const readMetadata = file =>
         // TODO: transform image field,
         //   APIC: { mime: 'jpeg', type: { id: 3, name: 'front cover' }, imageBuffer: <Buffer ff d8 ff e0 00 10 ... 224530 more bytes>
         const rawTags = _.omit(tags.raw, ['APIC']);
-
         resolve(rawTags);
       }
+    });
+  });
+
+const readMetadataFull = file =>
+  new Promise((resolve, reject) => {
+    readDuration(file).then(duration => {
+      readSize(file).then(size => {
+        NodeId3.read(file, (err, tags) => {
+          if (err) {
+            reject(err);
+          } else {
+            // TODO: transform image field,
+            //   APIC: { mime: 'jpeg', type: { id: 3, name: 'front cover' }, imageBuffer: <Buffer ff d8 ff e0 00 10 ... 224530 more bytes>
+            const rawTags = _.omit(tags.raw, ['APIC']);
+            rawTags.duration = duration;
+            rawTags.size = size;
+            resolve(rawTags);
+          }
+        });
+      });
     });
   });
 
@@ -25,6 +68,17 @@ const getMetadata = async files =>
     async (file, i) => {
       process.stdout.write(` ...${i} files left\r`);
       return Promise.all([file, readMetadata(file)]);
+    },
+    { concurrency: 5 }
+  );
+
+// read metadata tags, duration and size for files array
+const getMetadataFull = async files =>
+  Promise.map(
+    [].concat(files),
+    async (file, i) => {
+      process.stdout.write(` ...${i} files left\r`);
+      return Promise.all([file, readMetadataFull(file)]);
     },
     { concurrency: 5 }
   );
@@ -43,7 +97,7 @@ const parseMetadata = (rawTags = {}, config) => {
 
   // flatten and include relevant TXXX custom tags
   _.each(rawTags.TXXX, ({ description, value }) => {
-  const txName = `TXXX.${description}`;
+    const txName = `TXXX.${description}`;
     if (_.find(config.tags, { id: txName })) {
       selectedTags[txName] = value;
     }
@@ -56,7 +110,15 @@ const parseMetadata = (rawTags = {}, config) => {
     parsedTags.rating = getRating(rawTags[ratingTag].rating, config.rating.max);
   }
 
+  if (rawTags.duration) {
+    parsedTags.duration = rawTags.duration;
+  }
+
+  if (rawTags.size) {
+    parsedTags.size = rawTags.size;
+  }
+
   return parsedTags;
 };
 
-module.exports = { getMetadata, parseMetadata };
+module.exports = { getMetadata, getMetadataFull, parseMetadata };

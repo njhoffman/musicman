@@ -50,6 +50,7 @@
     "forever": "^3.0.4",
     "glob": "^7.2.0",
     "lodash": "^4.17.21",
+    "mp3-duration": "^1.1.0",
     "musicman-common": "file:../common",
     "node-id3": "0.1.13",
     "pretty-error": "^3.0.4",

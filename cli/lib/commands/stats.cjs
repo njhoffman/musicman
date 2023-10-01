@@ -14,7 +14,8 @@ const calculateMultifield = (multiField, allFiles) => {
       .split(',')
       .filter(Boolean)
       .forEach(mfValue => {
-        multiVals[mfValue] = _.has(multiVals, mfValue) ? (multiVals[mfValue] += 1) : 1;
+        const val = mfValue.trim();
+        multiVals[val] = _.has(multiVals, val) ? (multiVals[val] += 1) : 1;
       });
   });
   return { [multiField]: multiVals };
@@ -35,18 +36,38 @@ const calculateRatings = (totals, [, file]) => {
   });
 };
 
+const calculateSizes = (totals, [, file]) => {
+  return _.merge(totals, {
+    size: file.size ? totals.size + Math.floor(file.size / 1024) : totals.size,
+    duration: file.duration ? totals.duration + Math.floor(file.duration) : totals.duration
+  });
+};
+
 const statsCommand = async ({ options, config, target }) => {
   const { baseDirectory } = config.mpd;
   const { multiFields } = config.stats;
 
   logger.info(`Scanning ${target || baseDirectory} for mp3 files`);
-  const allFiles = await getFilteredFiles({ target: target || baseDirectory, options, config });
+  // TODO: add option to include duration and size
+  const allFiles = await getFilteredFiles({
+    target: target || baseDirectory,
+    options,
+    config,
+    fullMetadata: true
+  });
 
   logger.debug(`Processed ${allFiles.length} files`);
-  const multifieldOutput = multiFields.map(mf => calculateMultifield(mf, allFiles));
+
+  const multifieldOutput = []
+    .concat(multiFields, 'genre', 'grouping')
+    .map(mf => calculateMultifield(mf, allFiles));
+
   const ratingsOutput = allFiles.reduce(calculateRatings, { unrated: 0, rated: 0, ratings: {} });
 
-  const stats = { ...multifieldOutput, ...ratingsOutput };
+  const sizesOutput = allFiles.reduce(calculateSizes, { size: 0, duration: 0 });
+
+  const stats = { ...multifieldOutput, ...ratingsOutput, ...sizesOutput };
+
   return outputStats({ target, stats, config, options });
 };
 
