@@ -5,7 +5,7 @@ const NodeId3 = require('node-id3');
 const fs = require('fs');
 const Promise = require('bluebird');
 
-const testTags = require('./data/testTags');
+const testTags = require('./data/testTags.cjs');
 
 const sourceDir = path.join(process.cwd(), 'test/data/source');
 const destinationDir = path.join(process.cwd(), 'test/data/sandbox');

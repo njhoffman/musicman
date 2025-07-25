@@ -1,4 +1,4 @@
-const { resetSandbox, assignTestTags } = require('./utils');
+const { resetSandbox, assignTestTags } = require('./utils.cjs');
 
 describe('Integration Tests', async () => {
   const logTime = false;
@@ -11,10 +11,10 @@ describe('Integration Tests', async () => {
   });
 
   /* eslint-disable global-require */
-  require('./integration/commands/view');
-  require('./integration/commands/edit');
-  require('./integration/commands/playlist');
-  require('./integration/commands/stats');
+  require('./integration/commands/view.cjs');
+  require('./integration/commands/edit.cjs');
+  require('./integration/commands/playlist.cjs');
+  require('./integration/commands/stats.cjs');
   /* eslint-enable global-require */
 
   after(() => logTime && console.log(`\n    Finished in ${new Date().getTime() - startTime}ms.`));

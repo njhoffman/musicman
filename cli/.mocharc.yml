@@ -11,7 +11,7 @@ exit: false # could be expressed as "no-exit: true"
 extension:
   - js
 file:
-  - ./test/integration.js
+  - ./test/integration.cjs
 forbid-only: false
 forbid-pending: false
 full-trace: false
@@ -23,12 +23,12 @@ opts: false
 recursive: false
 reporter: spec
 require:
-  - ./test/setup.js
+  - ./test/setup.cjs
 retries: 1
 slow: 75
 sort: false
-spec: lib/**/*.spec.js # the positional arguments!
-timeout: false # same as "no-timeout: true" or "timeout: 0"
+spec: lib/**/*.spec.cjs # the positional arguments!
+timeout: 0 # same as "no-timeout: true" or "timeout: 0"
 trace-warnings: true # node flags ok
 ui: bdd
 v8-stack-trace-limit: 100 # V8 flags are prepended with "v8-"

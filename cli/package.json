@@ -1,6 +1,6 @@
 {
   "name": "musicman-cli",
-  "description": "",
+  "description": "mp3 metadata manager",
   "type": "module",
   "main": "lib/cli.cjs",
   "scripts": {
@@ -14,7 +14,7 @@
     "lint:fix": "npm run lint -- --fix",
     "lint:watch": "npm run lint -- --watch --clear",
     "test": "NODE_ENV=test mocha",
-    "test:watch": "NODE_ENV=test chokidar 'test/**/*.js' 'lib/**/*.js' -c 'node_modules/.bin/mocha'",
+    "test:watch": "NODE_ENV=test chokidar 'test/**/*.cjs' 'lib/**/*.cjs' -c 'node_modules/.bin/mocha'",
     "test:coverage": "NODE_ENV=test nyc mocha"
   },
   "author": "",

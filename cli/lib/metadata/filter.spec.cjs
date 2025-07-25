@@ -1,4 +1,4 @@
-const filterFunc = require('./filter').filterFiles;
+const filterFunc = require('./filter.cjs').filterFiles;
 const filesMetadata = require('./filter.spec.data.json');
 
 describe('Metadata Files Filter', async () => {

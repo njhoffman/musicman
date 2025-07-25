@@ -1,6 +1,6 @@
 const path = require('path');
-const playlistFunc = require('../../../lib/commands/playlist').func;
-const { resetSandbox, checkFileExists, readFile } = require('../../utils');
+const playlistFunc = require('../../../lib/commands/playlist.cjs').func;
+const { resetSandbox, checkFileExists, readFile } = require('../../utils.cjs');
 
 describe('Playlist Command', () => {
   const dirTarget = path.join(process.cwd(), 'test/data/sandbox');

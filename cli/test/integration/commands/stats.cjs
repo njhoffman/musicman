@@ -1,8 +1,8 @@
 const _ = require('lodash');
 const path = require('path');
 
-const statsFunc = require('../../../lib/commands/stats').func;
-const { resetSandbox } = require('../../utils');
+const statsFunc = require('../../../lib/commands/stats.cjs').func;
+const { resetSandbox } = require('../../utils.cjs');
 
 describe('Stats Command', () => {
   const dirTarget = path.join(process.cwd(), 'test/data/sandbox');

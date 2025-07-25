@@ -1,4 +1,4 @@
-const parser = require('../parser');
+const parser = require('./index.cjs');
 
 describe('Command assignment', () => {
   const config = {

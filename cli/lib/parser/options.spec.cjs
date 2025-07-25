@@ -1,4 +1,4 @@
-const parser = require('../parser');
+const parser = require('./index.cjs');
 
 describe('Options assignment', () => {
   const config = {
@@ -108,7 +108,10 @@ describe('Options assignment', () => {
     });
 
     it('Should parse TXXX field assignments correctly', () => {
-      const test1 = parser({ args: ['CustomField3="Test Custom Value"', 'artist=TestArtist'], config });
+      const test1 = parser({
+        args: ['CustomField3="Test Custom Value"', 'artist=TestArtist'],
+        config
+      });
       const assignments = { CustomField3: 'Test Custom Value', artist: 'TestArtist' };
       expect(test1.options.assignments).to.deep.include(assignments);
     });
@@ -116,7 +119,10 @@ describe('Options assignment', () => {
     it('Should parse TXXX field array assignments correctly', () => {
       const args = ['CustomField1=Cf1,Cf2', 'CustomField2="CF Value 1, CF Value 2"'];
       const test1 = parser({ args, config });
-      const assignments = { CustomField1: ['Cf1', 'Cf2'], CustomField2: ['CF Value 1', 'CF Value 2'] };
+      const assignments = {
+        CustomField1: ['Cf1', 'Cf2'],
+        CustomField2: ['CF Value 1', 'CF Value 2']
+      };
       expect(test1.options.assignments).to.deep.include(assignments);
     });
   });

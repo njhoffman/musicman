@@ -1,7 +1,7 @@
 const _ = require('lodash');
 const path = require('path');
-const viewFunc = require('../../../lib/commands/view').func;
-const { resetSandbox } = require('../../utils');
+const viewFunc = require('../../../lib/commands/view.cjs').func;
+const { resetSandbox } = require('../../utils.cjs');
 
 describe('View Command', () => {
   const fileTarget = path.join(process.cwd(), 'test/data/sandbox/dir1/testFile01.mp3');
@@ -29,7 +29,7 @@ describe('View Command', () => {
 
   const options = { switches: {}, filters: {}, assignments: {} };
 
-  beforeEach(function() {
+  beforeEach(function () {
     resetSandbox();
   });
   // it('Should escape glob characters correctly')
@@ -53,17 +53,13 @@ describe('View Command', () => {
     it('Should recursively index target directory if set in config', async () => {
       config.recursive = true;
       const results = await viewFunc({ target: dirTarget, options, config });
-      expect(results.metadata)
-        .to.be.an('array')
-        .of.length(16);
+      expect(results.metadata).to.be.an('array').of.length(16);
     });
 
     it('Should only index target directory if not set in config', async () => {
       config.recursive = false;
       const results = await viewFunc({ target: dirTarget, options, config });
-      expect(results.metadata)
-        .to.be.an('array')
-        .of.length(10);
+      expect(results.metadata).to.be.an('array').of.length(10);
     });
 
     it('Should only list tag fields referenced in config', async () => {
@@ -81,17 +77,13 @@ describe('View Command', () => {
     it('Should recursively index target directory if recursive switch provided', async () => {
       const newOptions = { ...options, switches: { recursive: true } };
       const results = await viewFunc({ target: dirTarget, options: newOptions, config });
-      expect(results.metadata)
-        .to.be.an('array')
-        .of.length(16);
+      expect(results.metadata).to.be.an('array').of.length(16);
     });
 
     it('Should only index target directory if provided non-recursive switch provided', async () => {
       const newOptions = { ...options, switches: { recursive: false } };
       const results = await viewFunc({ target: dirTarget, options: newOptions, config });
-      expect(results.metadata)
-        .to.be.an('array')
-        .of.length(10);
+      expect(results.metadata).to.be.an('array').of.length(10);
     });
 
     it('Should exclude fields listed with -x switch', async () => {
