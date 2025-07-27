@@ -47,14 +47,16 @@ const filterExclude = (exclude, metadata) =>
     return !_.toLower(metadata[filterKey]).includes(filterVal);
   });
 
-const filterFiles = filters => ([file, metadata]) => {
-  const { include = {}, exclude = {} } = filters;
+const filterFiles =
+  filters =>
+  ([file, metadata]) => {
+    const { include = {}, exclude = {} } = filters;
 
-  const ratingMatch = filterRating(metadata.rating, filters.rating || {});
-  const includeMatch = filterInclude(include, metadata);
-  const excludeMatch = filterExclude(exclude, metadata);
+    const ratingMatch = filterRating(metadata.rating, filters.rating || {});
+    const includeMatch = filterInclude(include, metadata);
+    const excludeMatch = filterExclude(exclude, metadata);
 
-  return includeMatch && excludeMatch && ratingMatch;
-};
+    return includeMatch && excludeMatch && ratingMatch;
+  };
 
 module.exports = { filterFiles };

@@ -27,7 +27,8 @@ const columnifyVertical = (output, config) => {
     truncate: true,
     config: {
       key: {
-        dataTransform: data => (vertical.headers.color ? chalk.hex(vertical.headers.color)(data) : data)
+        dataTransform: data =>
+          vertical.headers.color ? chalk.hex(vertical.headers.color)(data) : data
       },
       value: {
         dataTransform: data => (vertical.color ? chalk.hex(vertical.color)(data) : data)

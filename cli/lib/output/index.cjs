@@ -17,7 +17,10 @@ const outputNotFound = (filters, target) => {
     let filterStr = !_.isEmpty(include) ? `\n\t${inspect({ include }, inspectOptions)}` : '';
     filterStr += !_.isEmpty(exclude) ? `\n\t${inspect(exclude)}` : '';
     const { min, max } = _.get(filters, 'rating');
-    filterStr += !_.isNull(min) || !_.isNull(max) ? `\n\t${inspect({ rating: filters.rating }, inspectOptions)}` : '';
+    filterStr +=
+      !_.isNull(min) || !_.isNull(max)
+        ? `\n\t${inspect({ rating: filters.rating }, inspectOptions)}`
+        : '';
     output += filterStr ? `\n  that match filters: ${filterStr}` : '(no filters)';
   }
   return output;

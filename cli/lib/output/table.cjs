@@ -22,14 +22,18 @@ const outputTable = (metadata, config) => {
   // always include rating column, place it first if not otherwise defined
   const ratingColumn = { ...config.rating, name: 'rating', tableOrder: -1, align: 'center' };
   // sorty and only include columns that have tableOrder property
-  const columns = _.sortBy([ratingColumn].concat(_.filter(config.tags, 'tableOrder')), 'tableOrder');
+  const columns = _.sortBy(
+    [ratingColumn].concat(_.filter(config.tags, 'tableOrder')),
+    'tableOrder'
+  );
 
   // prepare columns configuration for columnify
   const columnsConfig = {};
   _.each(columns, tag => {
     const cellColor = tag.color || table.color;
     const dataTransform = data => {
-      const emptyCell = (_.isArray(data) && data.filter(Boolean).length === 0) || data.trim().length === 0;
+      const emptyCell =
+        (_.isArray(data) && data.filter(Boolean).length === 0) || data.trim().length === 0;
       if (cellColor && !emptyCell) {
         return chalk.hex(cellColor)(data);
       }

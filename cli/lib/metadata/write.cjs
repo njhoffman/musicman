@@ -6,7 +6,8 @@ const logger = require('../utils/logger.cjs');
 
 const toRating = (newRating, ratingMax) => Math.round((newRating * 255) / ratingMax);
 
-const prepareRating = (rating, { min, max, email }) => (rating === '' ? {} : { email, rating: toRating(rating, max) });
+const prepareRating = (rating, { min, max, email }) =>
+  rating === '' ? {} : { email, rating: toRating(rating, max) };
 
 const prepareCustomFields = txxxFields =>
   _.map(_.keys(txxxFields), txKey => ({
@@ -15,22 +16,24 @@ const prepareCustomFields = txxxFields =>
   }));
 
 // transform new metadata to id3 keys for saving
-const prepareId3Tags = config => ([file, fields]) => {
-  const filteredTags = _.pick(fields, _.map(config.tags, 'name'));
-  const editTags = _.mapKeys(filteredTags, (value, name) => _.find(config.tags, { name }).id);
+const prepareId3Tags =
+  config =>
+  ([file, fields]) => {
+    const filteredTags = _.pick(fields, _.map(config.tags, 'name'));
+    const editTags = _.mapKeys(filteredTags, (value, name) => _.find(config.tags, { name }).id);
 
-  // special rating handler
-  if (_.isString(fields.rating)) {
-    editTags[config.rating.tag] = prepareRating(fields.rating, config.rating);
-  }
+    // special rating handler
+    if (_.isString(fields.rating)) {
+      editTags[config.rating.tag] = prepareRating(fields.rating, config.rating);
+    }
 
-  const finalTags = unflatten(editTags);
+    const finalTags = unflatten(editTags);
 
-  // special TXXX keys handler
-  finalTags.TXXX = prepareCustomFields(finalTags.TXXX);
+    // special TXXX keys handler
+    finalTags.TXXX = prepareCustomFields(finalTags.TXXX);
 
-  return [file, finalTags];
-};
+    return [file, finalTags];
+  };
 
 const mergeAssignments = (meta, assignments) => {
   const parsedAssignments = _.mapValues(assignments, (val, key) => {
@@ -53,7 +56,8 @@ const mergeAssignments = (meta, assignments) => {
         parsedVal = toAdd.concat(
           _.filter(
             existingVals,
-            existingVal => !_.some(toRemove, removeVal => _.toLower(removeVal) === _.toLower(existingVal))
+            existingVal =>
+              !_.some(toRemove, removeVal => _.toLower(removeVal) === _.toLower(existingVal))
           )
         );
       }
@@ -70,10 +74,9 @@ const writeFile = ([file, id3Tags]) => {
 };
 
 const writeFiles = config => files => {
-  return _.chain(files)
-    .map(prepareId3Tags(config))
-    .map(writeFile)
-    .value();
+  return _.chain(files).map(prepareId3Tags(config))
+.map(writeFile)
+.value();
 };
 
 module.exports = { mergeAssignments, writeFiles };

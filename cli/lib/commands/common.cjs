@@ -15,8 +15,8 @@ const saveMetadata = (files, config) => _.map([files], writeFiles(config));
 
 const assignMetadata =
   assignments =>
-    ([file, meta]) =>
-      [file, mergeAssignments(meta, assignments)];
+  ([file, meta]) =>
+    [file, mergeAssignments(meta, assignments)];
 
 const parseFileMetadata = (filesMetadata, config) =>
   _.map(filesMetadata, ([file, metadata]) => [file, parseMetadata(metadata, config)]);
