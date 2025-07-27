@@ -50,3 +50,27 @@ This is a Node.js CLI application for MP3 metadata management that integrates wi
 - All source files use `.cjs` extension (CommonJS)
 - Test files mirror the `lib/` structure
 - Uses absolute imports and proper CommonJS module.exports
+
+## Development Workflow
+
+### Mandatory Steps After Any Updates
+
+1. **Always run tests** after completing any set of updates to ensure no regressions
+2. **Run linter** and fix any issues before committing
+3. **Add comprehensive tests** for new functionality:
+   - Unit tests for individual functions/modules
+   - Integration tests for command interactions
+   - Be thorough but avoid testing trivial/obvious functionality
+4. **Commit and version** based on update scope:
+   - **Patch bump**: Bug fixes, minor improvements, dependency patches
+   - **Minor bump**: New features, significant improvements, dependency minor updates
+   - **Major bump**: Breaking changes (decided together with user)
+
+### Testing Guidelines
+
+- Follow existing test structure in `test/` directory
+- Use Mocha + Chai + Sinon pattern established in codebase
+- Integration tests should use fixtures from `test/data/`
+- Unit tests should be co-located with source files (`.spec.cjs` suffix)
+- Test real functionality, not implementation details
+- Mock external dependencies (MPD, file system when appropriate)
