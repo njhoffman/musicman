@@ -74,3 +74,19 @@ This is a Node.js CLI application for MP3 metadata management that integrates wi
 - Unit tests should be co-located with source files (`.spec.cjs` suffix)
 - Test real functionality, not implementation details
 - Mock external dependencies (MPD, file system when appropriate)
+
+## Testing Patterns (Current Implementation)
+
+### Unit Test Structure
+- **Use proxyquire** for dependency mocking instead of direct sinon stubbing
+- **Environment-dependent testing**: Delete require.cache and set NODE_ENV when needed
+- **Constructor mocking**: Use function constructors for testing user interaction components
+- **Comprehensive coverage**: Tests exist for all major modules with 91 passing tests
+
+### Established Test Files
+- `lib/metadata/read.spec.cjs` - Metadata reading with proxyquire mocking
+- `lib/metadata/write.spec.cjs` - Metadata writing and assignment merging
+- `lib/clients/mpd.spec.cjs` - MPD client connection and song operations
+- `lib/utils/files.spec.cjs` - File system operations and utilities
+- `lib/commands/edit.spec.cjs` - Edit command workflow including confirmations
+- `lib/integration.spec.cjs` - Parser-to-command integration workflows
