@@ -21,21 +21,21 @@ describe('Metadata Write', () => {
     it('should merge simple assignments', () => {
       const meta = { artist: 'Old Artist' };
       const assignments = { title: 'New Title', artist: 'New Artist' };
-      const result = mergeAssignments(meta, assignments);
+      const result = writeModule.mergeAssignments(meta, assignments);
       expect(result).to.deep.equal({ artist: 'New Artist', title: 'New Title' });
     });
 
     it('should handle array assignments', () => {
       const meta = {};
       const assignments = { genre: ['Rock', 'Alternative'] };
-      const result = mergeAssignments(meta, assignments);
+      const result = writeModule.mergeAssignments(meta, assignments);
       expect(result.genre).to.deep.equal(['Rock', 'Alternative']);
     });
 
     it('should handle aggregate array assignments with addition', () => {
       const meta = { genre: 'Rock,Pop' };
       const assignments = { genre: ['+Alternative', '+Jazz'] };
-      const result = mergeAssignments(meta, assignments);
+      const result = writeModule.mergeAssignments(meta, assignments);
       expect(result.genre).to.include('Alternative');
       expect(result.genre).to.include('Jazz');
       expect(result.genre).to.include('Rock');
@@ -45,7 +45,7 @@ describe('Metadata Write', () => {
     it('should handle aggregate array assignments with removal', () => {
       const meta = { genre: 'Rock,Pop,Jazz' };
       const assignments = { genre: ['-Pop', '+Alternative'] };
-      const result = mergeAssignments(meta, assignments);
+      const result = writeModule.mergeAssignments(meta, assignments);
       expect(result.genre).to.include('Rock');
       expect(result.genre).to.include('Jazz');
       expect(result.genre).to.include('Alternative');
@@ -55,7 +55,7 @@ describe('Metadata Write', () => {
     it('should deduplicate array values case-insensitively', () => {
       const meta = {};
       const assignments = { genre: ['Rock', 'rock', 'ROCK'] };
-      const result = mergeAssignments(meta, assignments);
+      const result = writeModule.mergeAssignments(meta, assignments);
       expect(result.genre).to.have.length(1);
       expect(result.genre[0]).to.equal('Rock');
     });
@@ -72,17 +72,15 @@ describe('Metadata Write', () => {
     };
 
     it('should transform and write metadata to files', () => {
-      nodeId3Stub.returns(true);
-
       const files = [
         ['test1.mp3', { artist: 'Artist 1', title: 'Title 1' }],
         ['test2.mp3', { artist: 'Artist 2', custom: 'Custom Value' }]
       ];
 
-      const writer = writeFiles(config);
+      const writer = writeModule.writeFiles(config);
       const results = writer(files);
 
-      expect(nodeId3Stub.calledTwice).to.be.true;
+      expect(nodeId3Stub.update.calledTwice).to.be.true;
       expect(results).to.have.length(2);
     });
 

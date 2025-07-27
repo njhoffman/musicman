@@ -17,6 +17,7 @@ describe('Edit Command', () => {
     confirmStub = sinon.stub();
     outputStub = sinon.stub();
 
+    // Default edit command for most tests (with isTest = true)
     editCommand = proxyquire('./edit.cjs', {
       './common.cjs': {
         getFilteredFiles: getFilteredFilesStub,
@@ -28,8 +29,9 @@ describe('Edit Command', () => {
       '../output/index.cjs': {
         outputDifferences: outputStub
       },
-      'prompt-confirm': function() {
-        return { run: confirmStub };
+      'prompt-confirm': function(options) {
+        this.run = confirmStub;
+        return this;
       }
     });
 
@@ -78,6 +80,28 @@ describe('Edit Command', () => {
     });
 
     it('should request confirmation for multiple files', async () => {
+      // Create a fresh instance with non-test environment
+      delete require.cache[require.resolve('./edit.cjs')];
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
+      
+      const editCommandNonTest = proxyquire('./edit.cjs', {
+        './common.cjs': {
+          getFilteredFiles: getFilteredFilesStub,
+          saveMetadata: saveMetadataStub
+        },
+        '../utils/files.cjs': {
+          checkExists: checkExistsStub
+        },
+        '../output/index.cjs': {
+          outputDifferences: outputStub
+        },
+        'prompt-confirm': function(options) {
+          this.run = confirmStub;
+          return this;
+        }
+      });
+      
       checkExistsStub.returns(true);
       const mockFiles = [
         ['file1.mp3', { artist: 'Old Artist 1' }],
@@ -87,7 +111,7 @@ describe('Edit Command', () => {
       confirmStub.resolves(true);
       saveMetadataStub.returns(true);
 
-      const result = await editCommand.func({
+      const result = await editCommandNonTest.func({
         target: '/path/dir',
         options: mockOptions,
         config: mockConfig
@@ -95,9 +119,35 @@ describe('Edit Command', () => {
 
       expect(confirmStub.calledOnce).to.be.true;
       expect(result.oldFiles).to.deep.equal(mockFiles);
+      
+      // Restore NODE_ENV and clear cache
+      process.env.NODE_ENV = originalEnv;
+      delete require.cache[require.resolve('./edit.cjs')];
     });
 
     it('should abort when user declines confirmation', async () => {
+      // Create a fresh instance with non-test environment
+      delete require.cache[require.resolve('./edit.cjs')];
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
+      
+      const editCommandNonTest = proxyquire('./edit.cjs', {
+        './common.cjs': {
+          getFilteredFiles: getFilteredFilesStub,
+          saveMetadata: saveMetadataStub
+        },
+        '../utils/files.cjs': {
+          checkExists: checkExistsStub
+        },
+        '../output/index.cjs': {
+          outputDifferences: outputStub
+        },
+        'prompt-confirm': function(options) {
+          this.run = confirmStub;
+          return this;
+        }
+      });
+      
       checkExistsStub.returns(true);
       const mockFiles = [
         ['file1.mp3', { artist: 'Old Artist 1' }],
@@ -106,7 +156,7 @@ describe('Edit Command', () => {
       getFilteredFilesStub.resolves(mockFiles);
       confirmStub.resolves(false);
 
-      const result = await editCommand.func({
+      const result = await editCommandNonTest.func({
         target: '/path/dir',
         options: mockOptions,
         config: mockConfig
@@ -114,6 +164,10 @@ describe('Edit Command', () => {
 
       expect(result).to.be.false;
       expect(saveMetadataStub.called).to.be.false;
+      
+      // Restore NODE_ENV and clear cache
+      process.env.NODE_ENV = originalEnv;
+      delete require.cache[require.resolve('./edit.cjs')];
     });
 
     it('should return false when no files match filter', async () => {

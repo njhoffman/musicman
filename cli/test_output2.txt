@@ -1,0 +1,171 @@
+10:14:39 AM
+resize:  can't open terminal /dev/tty
+resize:  can't open terminal /dev/tty
+
+[0m[0m
+[0m  Integration Tests[0m
+[0m    View Command[0m
+[0m      Configuration behavior[0m
+ ...0 files left ...1 files left ...2 files left ...3 files left ...4 files left ...15 files left ...14 files left ...13 files left ...12 files left ...11 files left ...10 files left ...9 files left ...8 files left ...7 files left ...6 files left ...5 files left      [32m  ✓[0m[90m Should recursively index target directory if set in config[0m
+ ...0 files left ...1 files left ...2 files left ...3 files left ...4 files left ...9 files left ...8 files left ...7 files left ...6 files left ...5 files left      [32m  ✓[0m[90m Should only index target directory if not set in config[0m
+ ...0 files leftresize:  can't open terminal /dev/tty
+      [32m  ✓[0m[90m Should only list tag fields referenced in config[0m
+[0m      Switches[0m
+ ...0 files left ...1 files left ...2 files left ...3 files left ...4 files left ...15 files left ...14 files left ...13 files left ...12 files left ...11 files left ...10 files left ...9 files left ...8 files left ...7 files left ...6 files left ...5 files left      [32m  ✓[0m[90m Should recursively index target directory if recursive switch provided[0m
+ ...0 files left ...1 files left ...2 files left ...3 files left ...4 files left ...9 files left ...8 files left ...7 files left ...6 files left ...5 files left      [32m  ✓[0m[90m Should only index target directory if provided non-recursive switch provided[0m
+ ...0 files leftresize:  can't open terminal /dev/tty
+      [32m  ✓[0m[90m Should exclude fields listed with -x switch[0m
+ ...0 files leftresize:  can't open terminal /dev/tty
+      [32m  ✓[0m[90m Should only show fields specified with -i switch[0m
+
+[0m  MPD Client[0m
+[0m    connectMpd[0m
+    [32m  ✓[0m[90m should resolve when MPD connection is ready[0m
+    [32m  ✓[0m[90m should reject when MPD connection fails[0m
+[0m    getCurrentSong[0m
+    [32m  ✓[0m[90m should return current song when playing[0m
+    [32m  ✓[0m[90m should return false when not playing[0m
+    [32m  ✓[0m[90m should return false when stopped[0m
+
+[0m  Edit Command[0m
+[0m    editCommand[0m
+
+[0m  Integration Tests[0m
+[0m    Parser to Command Integration[0m
+    [32m  ✓[0m[90m should parse view command with filters and execute[0m
+    [32m  ✓[0m[90m should parse edit command with assignments[0m
+    [32m  ✓[0m[90m should default to current directory when no target specified[0m
+[0m    File Operations Integration[0m
+    [32m  ✓[0m[90m should find mp3 files in test directory[0m
+    [32m  ✓[0m[90m should handle non-existent directory gracefully[0m
+[0m    Command Workflow Integration[0m
+    [32m  ✓[0m[90m should handle view command workflow[0m
+    [32m  ✓[0m[90m should handle edit command workflow structure[0m
+[0m    Filter and Assignment Integration[0m
+    [32m  ✓[0m[90m should combine multiple filter types correctly[0m
+    [32m  ✓[0m[90m should handle mixed filters and assignments[0m
+[0m    Switch and Option Integration[0m
+    [32m  ✓[0m[90m should combine switches with other options[0m
+    [32m  ✓[0m[90m should handle negated switches[0m
+
+[0m  Metadata Files Filter[0m
+[0m    Field Filters[0m
+    [32m  ✓[0m[90m Should only include files that match provided field filter string[0m
+    [32m  ✓[0m[90m Should include files that partially match field filter [0m
+    [32m  ✓[0m[90m Should only include files that intersect field matches for multiple filters[0m
+    [32m  ✓[0m[90m Should include all files that do not match provided negation field filter[0m
+    [32m  ✓[0m[90m Should include all files that intersect non-matches for multiple negation filters[0m
+    [32m  ✓[0m[90m Should include files that match empty field values[0m
+    [32m  ✓[0m[90m Should include files that match multiple empty field values[0m
+    [32m  ✓[0m[90m Should exclude files that match empty negated field values[0m
+    [32m  ✓[0m[90m Should exclude files that match multiple empty negated field values[0m
+[0m    Rating Filters[0m
+    [32m  ✓[0m[90m should only include files with higher rating if provided with a single number[0m
+    [32m  ✓[0m[90m should only include files that exist within range of provided rating[0m
+    [32m  ✓[0m[90m Should exclude files that match negation rating single number[0m
+    [32m  ✓[0m[90m Should exclude files that match negation rating range [0m
+    [32m  ✓[0m[90m Should include all files that have no rating if filter value is empty[0m
+    [32m  ✓[0m[90m Should exclude all files that have no rating if negated filter value is empty[0m
+[0m    Array Filters[0m
+    [32m  ✓[0m[90m Should include files that contain array element match[0m
+    [32m  ✓[0m[90m Should only include files that do not contain negated array match elements[0m
+
+[0m  Metadata Read[0m
+[0m    getMetadata[0m
+ ...0 files left    [32m  ✓[0m[90m should read metadata for single file[0m
+ ...0 files left ...1 files left    [32m  ✓[0m[90m should read metadata for multiple files[0m
+ ...0 files left    [32m  ✓[0m[90m should handle read errors[0m
+[0m    getMetadataFull[0m
+ ...0 files left    [32m  ✓[0m[90m should read metadata with duration and size[0m
+[0m    parseMetadata[0m
+    [32m  ✓[0m[90m should transform id3 tags to config names[0m
+    [32m  ✓[0m[90m should handle TXXX custom tags[0m
+    [32m  ✓[0m[90m should convert rating values[0m
+    [32m  ✓[0m[90m should include duration and size if present[0m
+
+[0m  Metadata Write[0m
+[0m    mergeAssignments[0m
+    [32m  ✓[0m[90m should merge simple assignments[0m
+    [32m  ✓[0m[90m should handle array assignments[0m
+    [32m  ✓[0m[90m should handle aggregate array assignments with addition[0m
+    [32m  ✓[0m[90m should handle aggregate array assignments with removal[0m
+    [32m  ✓[0m[90m should deduplicate array values case-insensitively[0m
+[0m    writeFiles[0m
+    [32m  ✓[0m[90m should transform and write metadata to files[0m
+    [32m  ✓[0m[90m should handle rating conversion[0m
+    [32m  ✓[0m[90m should prepare TXXX custom fields[0m
+
+[0m  Command assignment[0m
+  [32m  ✓[0m[90m Should default to view command if no matching arguments provided[0m
+  [32m  ✓[0m[90m Should edit command if first argument is a rating number current song playing[0m
+  [32m  ✓[0m[90m Should return view command if first argument is a rating and no song playing[0m
+  [32m  ✓[0m[90m Should return edit command if any args contain assignment (=) operator[0m
+  [32m  ✓[0m[90m Should return view command if any args contain filter (:) and none with (=) operators[0m
+
+[0m  Options assignment[0m
+[0m    Switches[0m
+    [32m  ✓[0m[90m Should parse recursive switches correctly[0m
+    [32m  ✓[0m[90m Should parse inclusion output fields switch correctly[0m
+    [32m  ✓[0m[90m Should parse exclusion output fields switch correctly[0m
+[0m    Field filters[0m
+    [32m  ✓[0m[90m Should parse field filters correctly[0m
+    [32m  ✓[0m[90m Should parse field filters with empty values correctly[0m
+    [32m  ✓[0m[90m Should parse field negation filters correctly[0m
+    [32m  ✓[0m[90m Should parse field array filters correctly[0m
+    [32m  ✓[0m[90m Should parse field array negation filters correctly[0m
+[0m    Field assignments[0m
+    [32m  ✓[0m[90m Should parse field assignments correctly[0m
+    [32m  ✓[0m[90m Should parse field assignments with empty values correctly[0m
+    [32m  ✓[0m[90m Should parse TXXX field assignments correctly[0m
+    [32m  ✓[0m[90m Should parse TXXX field array assignments correctly[0m
+
+[0m  Target assignment[0m
+  [32m  ✓[0m[90m Should assign target if argument is a file or directory that exists[0m
+  [32m  ✓[0m[90m Should assign target to currently playing song if target not provided or does not exists[0m
+  [32m  ✓[0m[90m Should assign target to current directory if no song playing and last argument is not a valid target[0m
+  [32m  ✓[0m[90m Should resolve relative target path to absolute path [0m
+
+[0m  Files Utilities[0m
+[0m    checkExists[0m
+    [32m  ✓[0m[90m should return stat object when file exists[0m
+    [32m  ✓[0m[90m should return false when file does not exist[0m
+[0m    getFiles[0m
+    [32m  ✓[0m[90m should return single file when target is a file[0m
+    [32m  ✓[0m[90m should return files from directory non-recursively[0m
+    [32m  ✓[0m[90m should return files from directory recursively[0m
+    [32m  ✓[0m[90m should escape square brackets in directory names[0m
+    [32m  ✓[0m[90m should return null when target does not exist[0m
+    [32m  ✓[0m[90m should use default options when none provided[0m
+
+
+[92m [0m[32m 89 passing[0m[90m (223ms)[0m
+[31m  2 failing[0m
+
+[0m  1) Edit Command
+       editCommand
+         should request confirmation for multiple files:
+
+      [31mAssertionError: expected false to be true[0m
+      [32m+ expected[0m [31m- actual[0m
+
+      [31m-false[0m
+      [32m+true[0m
+      [0m[90m
+      at Assertion.<anonymous> (node_modules/chai/lib/chai/core/assertions.js:666:10)
+      at Assertion.propertyGetter (node_modules/chai/lib/chai/utils/addProperty.js:62:29)
+      at Reflect.get (<anonymous>)
+      at Object.proxyGetter [as get] (node_modules/chai/lib/chai/utils/proxify.js:98:22)
+      at Context.<anonymous> (lib/commands/edit.spec.cjs:105:43)
+[0m
+[0m  2) Edit Command
+       editCommand
+         should abort when user declines confirmation:
+[0m[31m     AssertionError: expected { …(2) } to be false[0m[90m
+      at Assertion.<anonymous> (node_modules/chai/lib/chai/core/assertions.js:701:10)
+      at Assertion.propertyGetter (node_modules/chai/lib/chai/utils/addProperty.js:62:29)
+      at Reflect.get (<anonymous>)
+      at Object.proxyGetter [as get] (node_modules/chai/lib/chai/utils/proxify.js:98:22)
+      at Context.<anonymous> (lib/commands/edit.spec.cjs:130:27)
+[0m
+
+

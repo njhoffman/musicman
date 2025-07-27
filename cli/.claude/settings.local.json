@@ -12,7 +12,12 @@
       "Bash(npx --prefix /home/nicholas/ghq/github.com/njhoffman/musicman standard-version --release-as minor)",
       "Bash(npm test:*)",
       "Bash(NODE_ENV=test ./node_modules/.bin/mocha)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(export npm_config_prefix=\"\")",
+      "Bash(npm:*)",
+      "Bash(env)",
+      "Bash(pnpm config get:*)",
+      "Bash(unset NPM_CONFIG_PREFIX)"
     ],
     "deny": []
   }
