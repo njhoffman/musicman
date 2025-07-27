@@ -12,6 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Lint code**: `npm run lint` (ESLint)
 - **Fix lint issues**: `npm run lint:fix`
 - **Lint watch mode**: `npm run lint:watch`
+- **Check config**: `npm run config:check` (validates configuration)
 
 ## Architecture Overview
 
@@ -57,11 +58,12 @@ This is a Node.js CLI application for MP3 metadata management that integrates wi
 
 1. **Always run tests** after completing any set of updates to ensure no regressions
 2. **Run linter** and fix any issues before committing
-3. **Add comprehensive tests** for new functionality:
+3. **Check configuration** with `npm run config:check` to ensure config is valid
+4. **Add comprehensive tests** for new functionality:
    - Unit tests for individual functions/modules
    - Integration tests for command interactions
    - Be thorough but avoid testing trivial/obvious functionality
-4. **Commit and version** based on update scope:
+5. **Commit and version** based on update scope:
    - **Patch bump**: Bug fixes, minor improvements, dependency patches
    - **Minor bump**: New features, significant improvements, dependency minor updates
    - **Major bump**: Breaking changes (decided together with user)

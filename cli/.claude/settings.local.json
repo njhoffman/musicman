@@ -17,7 +17,12 @@
       "Bash(npm:*)",
       "Bash(env)",
       "Bash(pnpm config get:*)",
-      "Bash(unset NPM_CONFIG_PREFIX)"
+      "Bash(unset NPM_CONFIG_PREFIX)",
+      "Bash(ls:*)",
+      "Bash(node:*)",
+      "Bash(mv:*)",
+      "Bash(cp:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

@@ -41,7 +41,7 @@ describe('Playlist Command', () => {
   let options = { switches: {}, filters: {}, assignments: {} };
   const playlistPath = path.join(config.playlist.outputDirectory, config.playlist.outputPath);
 
-  beforeEach(function () {
+  beforeEach(function() {
     resetSandbox();
   });
 
