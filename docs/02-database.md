@@ -9,7 +9,12 @@
 
 - On startup, if it doesn't exist, create a new sqlite database with the following tables:
     - songs
--
+- Import the tags.json data into the database under a 'tags' table, and add all defined custom
+fields (in my local config) to that table.
+
+When these fields are saved to songs and their database component, they shoul
+  - id: TXXX.PrimaryGenre
+    name: primary
 
 ### Database command
 

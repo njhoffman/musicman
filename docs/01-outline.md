@@ -81,6 +81,8 @@ There are command integration tests in `cli/test/integration/commands` that uses
 - Version Control: Use git for version control, commit messages following conventional commit format
   with gitmoji.  Project root `package.json` and git tags track version number.
 - Documentation: Add necessary documentation for project, including README.md, USAGE.md for cli
-  interface, and CHANGELOG.md for version history (automatically generate and update this file).
+  interface, and CHANGELOG.md for version history (automatically generate and update this file
+  only when minor or major version bumps occur).
 
-We will begin with the specs outlined in `02-database.md`.
+Before starting with the larger plans in #2 we are going to complete some smaller chores such as
+updating dependencies.

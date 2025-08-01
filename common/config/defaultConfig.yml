@@ -1,42 +1,79 @@
 ---
+# Default delimiter for CSV output and field separation
 delimiter: ","
+
+# Playlist generation settings
 playlist:
+  # Default filename for generated playlists
   outputPath: default.m3u
+  # Directory where playlists are saved (relative to user home or absolute path)
   outputDirectory: ".mpd/playlists/"
+
+# MPD (Music Player Daemon) connection settings
 mpd:
+  # Port number for MPD connection
   port: 6600
+  # Hostname or IP address of MPD server
   host: localhost
+  # Base directory where music files are stored on MPD server
   baseDirectory: "/Music/Sorted"
+
+# Notification daemon settings for desktop notifications
 daemon:
+  # Display duration for notifications in milliseconds
   duration: 5000
+  # Path to notification binary (notify-send on Linux)
   bin: "/usr/bin/notify-send"
+  # Notification urgency level (LOW, NORMAL, CRITICAL)
   urgency: LOW
+  # Whether to show an icon with notifications
   icon: false
+  # Metadata fields to include in notifications
   fields:
   - artist
   - context
   - mood
+
+# Rating system configuration
 rating:
+  # ID3 tag used for storing ratings (POPM = Popularimeter)
   tag: POPM
+  # Email identifier for rating system
   email: Default
+  # Maximum rating value (1-5 scale)
   max: 5
+
+# Output formatting and display settings
 output:
+  # Verbosity level for logging (1=error to 6=trace)
   verbosity: 4
+  # Padding around output elements
   padding: 1
+  # Table output format settings
   table:
     headers:
+      # Whether to show column headers
       visible: true
+      # Whether to capitalize header text
       capitalize: false
     seperators:
+      # Whether to show vertical separators between columns
       vertical: false
+      # Whether to show horizontal separators between rows
       horizontal: false
+  # Vertical output format settings
   vertical:
     headers:
+      # Whether to show field names in vertical output
       visible: true
+
+# Statistics and filtering configuration
 stats:
+  # Fields that can contain multiple values (comma-separated)
   multiFields:
   - context
   - mood
+  # Predefined filter sets for statistics
   filters:
   - name: All Songs > 4.0
     filter: rating:4.0
@@ -48,94 +85,127 @@ stats:
     filter: rating:4.0 type:singles
   - name: Total
     filter: rating:5.0
+
+# ID3 tag definitions and display settings
 tags:
+# Artist name (ID3v2 TPE1)
 - id: TPE1
   name: artist
   tableOrder: 1
+# Song title (ID3v2 TIT2)
 - id: TIT2
   name: title
   tableOrder: 2
   maxWidth: 30
+# Album name (ID3v2 TALB)
 - id: TALB
   name: album
   tableOrder: 3
   maxWidth: 20
+# Genre (ID3v2 TCON)
 - id: TCON
   name: genre
+
+# Music library settings
 library:
+  # ID3 tag version to use for metadata
   tagId: ID3v2.4
+  # Base path for music library scanning
   basePath: "/home/nicholas/Music"
+  # Core tags that can be viewed and manipulated - essential for playlists and basic info
+  tags:
+  - popularity
+  - volume
+  - artist
+  - title
+  - year
+  - genre
+  - album
+  # ['popularity', 'volume', 'artist', 'title', 'year', 'genre', 'mood', 'copyright', 'album'],
+
+# View configurations for different display contexts
+views:
+  # Default view used by other views unless overridden
+  default:
+  - name: artist
+  - name: title
+  - name: album
+  - name: year
+  - name: genre
+  # Edit view for metadata editing operations
+  edit:
+  - name: artist
+  - name: title
+  - name: album
+  - name: year
+  - name: genre
+  - name: rating
+  # Playlist view for playlist generation and management
+  playlist:
+  - name: artist
+  - name: title
+  - name: album
+  - name: rating
+  # Statistics view for data analysis
+  stats:
+  - name: artist
+  - name: title
+  - name: album
+  - name: genre
+  - name: rating
+
+# WebSocket server settings for real-time communication
 websocket:
+  # Port for WebSocket connections
   port: 8999
+
+# HTTP server settings
 server:
+  # Port for HTTP server
   port: 3000
+
+# Logging configuration
 logger:
+  # Color schemes for different log levels (hex color codes)
   colors:
     fatal:
-      fg:
-      - 255
-      - 255
-      - 255
-      bg:
-      - 230
-      - 20
-      - 20
+      # Foreground color (white)
+      fg: '#FFFFFF'
+      # Background color (dark red)
+      bg: '#E61414'
+      # Font styling
+      gui: 'italic'
     error:
-      fg:
-      - 255
-      - 255
-      - 255
-      bg:
-      - 180
-      - 20
-      - 20
+      fg: '#FFFFFF'
+      bg: '#B41414'
+      gui: 'normal'
     warn:
-      fg:
-      - 255
-      - 255
-      - 255
-      bg:
-      - 180
-      - 60
-      - 20
+      fg: '#FFFFFF'
+      bg: '#B43C14'
+      gui: 'normal'
     log:
-      fg:
-      - 255
-      - 255
-      - 255
-      bg:
-      - 60
-      - 110
-      - 180
+      fg: '#FFFFFF'
+      bg: '#3C6EB4'
+      gui: 'normal'
     info:
-      fg:
-      - 255
-      - 255
-      - 255
-      bg:
-      - 20
-      - 50
-      - 130
+      fg: '#FFFFFF'
+      bg: '#143282'
+      gui: 'normal'
     debug:
-      fg:
-      - 255
-      - 255
-      - 255
-      bg:
-      - 80
-      - 100
-      - 200
+      fg: '#FFFFFF'
+      bg: '#5064C8'
+      gui: 'normal'
     trace:
-      fg:
-      - 255
-      - 255
-      - 255
-      bg:
-      - 100
-      - 150
-      - 220
+      fg: '#FFFFFF'
+      bg: '#6496DC'
+      gui: 'normal'
+  # File logging settings
   file:
+    # Log file name
     name: musicman.log
+    # Minimum level for file logging (3=warn)
     level: 3
+  # Console logging settings
   stdout:
+    # Minimum level for console logging (5=debug)
     level: 5

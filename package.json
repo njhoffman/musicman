@@ -1,6 +1,6 @@
 {
   "name": "musicman",
-  "version": "1.0.24",
+  "version": "1.1.0",
   "description": "Music Manager",
   "main": "index.js",
   "scripts": {
@@ -11,11 +11,11 @@
   "author": "Nick Hoffman",
   "license": "ISC",
   "devDependencies": {
-    "@commitlint/cli": "^11.0.0",
-    "@commitlint/config-conventional": "^11.0.0",
-    "commitlint-config-gitmoji": "^1.0.1",
-    "husky": "^4.3.0",
-    "leasot": "^11.3.0",
-    "standard-version": "^9.0.0"
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "commitlint-config-gitmoji": "^2.3.1",
+    "husky": "^9.1.7",
+    "leasot": "^14.4.0",
+    "standard-version": "^9.5.0"
   }
 }

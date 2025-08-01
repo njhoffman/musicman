@@ -11,6 +11,7 @@ describe('Integration Tests', async () => {
   });
 
   /* eslint-disable global-require */
+  require('./unit/config.cjs');
   require('./integration/commands/view.cjs');
   require('./integration/commands/edit.cjs');
   require('./integration/commands/playlist.cjs');

@@ -92,3 +92,13 @@ This is a Node.js CLI application for MP3 metadata management that integrates wi
 - `lib/utils/files.spec.cjs` - File system operations and utilities
 - `lib/commands/edit.spec.cjs` - Edit command workflow including confirmations
 - `lib/integration.spec.cjs` - Parser-to-command integration workflows
+
+## Current Session Context
+Last worked on major configuration restructuring. Implemented library.tags system, views configuration, and converted logger colors to hex format. Added comprehensive config validation and test suite. All 9 config tests passing. Ready for database integration phase.
+
+### Key Changes This Session
+- **Config Structure**: Added library.tags and views properties
+- **Tag Resolution**: User custom tags now take precedence over global tags.json
+- **Logger Format**: Converted to hex colors with GUI styling support
+- **Validation**: Enhanced schema for new config properties
+- **Tests**: Added `test/unit/config.cjs` with comprehensive coverage
