@@ -1,0 +1,75 @@
+#!/bin/sh
+# todo-status [-f FILE] [SECTION]
+#
+# Summarize a TODO.md: per-project ("## " heading) open/done counts and the
+# open "- [ ]" items, titled by their **bold lead** (else the first line,
+# truncated). An item tagged "(due YYYY-MM-DD)" anywhere in its text shows the
+# date, plus OVERDUE once it has passed.
+#
+# SECTION prints one project's full text instead: a number ("3") matches
+# "## 3.", anything else is a case-insensitive substring of the heading.
+#
+# FILE defaults to TODO.md at the git top level, else ./TODO.md.
+# TODO_TODAY=YYYY-MM-DD overrides today's date (tests).
+
+file=
+while [ $# -gt 0 ]; do
+  case $1 in
+    -f) file=$2; shift 2 ;;
+    -h | --help) sed -n '2,13s/^# \{0,1\}//p' "$0"; exit 0 ;;
+    *) break ;;
+  esac
+done
+section=$1
+
+if [ -z "$file" ]; then
+  top=$(git rev-parse --show-toplevel 2>/dev/null) || top=.
+  file=$top/TODO.md
+fi
+[ -r "$file" ] || { echo "todo-status: no readable $file" >&2; exit 1; }
+
+if [ -n "$section" ]; then
+  awk -v want="$section" '
+    BEGIN { num = (want ~ /^[0-9]+$/); want = tolower(want) }
+    /^## / {
+      head = substr($0, 4)
+      on = num ? (index(head, want ".") == 1) : (index(tolower(head), want) > 0)
+      if (on) found = 1
+    }
+    on { print }
+    END { if (!found) { print "todo-status: no section matching \"" want "\"" > "/dev/stderr"; exit 1 } }
+  ' "$file"
+  exit
+fi
+
+awk -v today="${TODO_TODAY:-$(date +%F)}" '
+  function title(t) {
+    if (match(t, /^\*\*[^*]+\*\*/)) return substr(t, 3, RLENGTH - 4)
+    return length(t) > 90 ? substr(t, 1, 87) "..." : t
+  }
+  # Emit the buffered item, once its continuation lines are all in.
+  function flush(  due, tag) {
+    if (item == "") return
+    tag = ""
+    if (match(body, /\(due [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]\)/)) {
+      due = substr(body, RSTART + 5, 10)
+      tag = "  [due " due (due < today ? ", OVERDUE" : "") "]"
+      if (due < today) overdue++
+    }
+    lines[nsec] = lines[nsec] "  - " item tag "\n"
+    item = ""
+  }
+  /^## / { flush(); heads[++nsec] = substr($0, 4); next }
+  /^- \[ \] / { flush(); item = title(substr($0, 7)); body = $0; open[nsec]++; nopen++; next }
+  /^- \[[xX]\] / { flush(); done[nsec]++; ndone++; next }
+  /^[ \t]/ { if (item != "") body = body " " $0; next }
+  /^[^ \t]/ { flush() }
+  END {
+    flush()
+    for (i = 1; i <= nsec; i++) {
+      if (open[i] + done[i] == 0) continue
+      printf "%s%s  [%d/%d done]\n%s", (shown++ ? "\n" : ""), heads[i], done[i], open[i] + done[i], lines[i]
+    }
+    if (nopen + ndone) printf "\n%d open, %d done, %d overdue\n", nopen, ndone, overdue
+  }
+' "$file"

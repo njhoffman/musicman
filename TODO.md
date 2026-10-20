@@ -1,7 +1,8 @@
 # TODO
 
-Tracks known issues, refactoring, and planned features. Check items off (or remove them) in the commit
-that resolves them. Feature specs live in `docs/`.
+Tracks known issues, refactoring, and planned features. Check items off (`- [x]`) in the commit that
+resolves them; `.claude/scripts/todo-status` and `/todo` show open/done counts per section. Tag an item
+`(due YYYY-MM-DD)` to get a date and an OVERDUE flag. Feature specs live in `docs/`.
 
 ## Bugs
 
