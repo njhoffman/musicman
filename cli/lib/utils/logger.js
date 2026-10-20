@@ -2,7 +2,6 @@ const _ = require('lodash');
 const fs = require('fs');
 const path = require('path');
 const { inspect } = require('util');
-const termSize = require('term-size').default;
 
 const { defaultConfig } = require('musicman-common/config');
 
@@ -47,7 +46,8 @@ const configureLogFile = ({ name, level = 5 } = {}) => {
   }
 };
 
-const inspectOptions = { colors: true, compact: false, breakLength: termSize().columns };
+// objects are wrapped at the terminal width, or 80 columns when not a terminal
+const inspectOptions = () => ({ colors: true, compact: false, breakLength: process.stdout.columns || 80 });
 
 /* eslint-disable no-console */
 const consoleLog = message => {
@@ -57,7 +57,7 @@ const consoleLog = message => {
   const leftPadding = Array(padding + 1).join(' ');
   let parsed = message;
   if (_.isObject(message)) {
-    parsed = inspect(message, inspectOptions);
+    parsed = inspect(message, inspectOptions());
   } else if (parsed.includes('\n')) {
     parsed = parsed
       .split('\n')

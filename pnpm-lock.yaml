@@ -229,9 +229,6 @@ importers:
       string-width:
         specifier: ^8.3.0
         version: 8.3.0
-      term-size:
-        specifier: ^4.0.0
-        version: 4.0.0
     devDependencies:
       babel-eslint:
         specifier: ^10.1.0
@@ -3590,11 +3587,6 @@ packages:
   table@6.9.0:
     resolution: {integrity: sha512-9kY+CygyYM6j02t5YFHbNz2FN5QmYGv9zAjVp4lCDjlCw7amdckXlEt/bjMhUIfj4ThGRE4gCUH5+yGnNuPo5A==}
     engines: {node: '>=10.0.0'}
-
-  term-size@4.0.0:
-    resolution: {integrity: sha512-105zga8eUjLH0I+ffu2UXZLCHCEu6fbgpeKRnBmScUQuMbEXtR77DQkUS9XoaJhvxko6W/4ZiwcPETtzYUgYrw==}
-    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
-    deprecated: Renamed to terminal-size
 
   terminal-paginator@2.0.2:
     resolution: {integrity: sha512-IZMT5ECF9p4s+sNCV8uvZSW9E1+9zy9Ji9xz2oee8Jfo7hUFpauyjxkhfRcIH6Lu3Wdepv5D1kVRc8Hx74/LfQ==}
@@ -7678,8 +7670,6 @@ snapshots:
       slice-ansi: 4.0.0
       string-width: 4.2.3
       strip-ansi: 6.0.1
-
-  term-size@4.0.0: {}
 
   terminal-paginator@2.0.2(supports-color@5.5.0):
     dependencies:

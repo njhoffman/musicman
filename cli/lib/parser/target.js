@@ -1,12 +1,9 @@
 const _ = require('lodash');
 const chalk = require('chalk').default;
 const path = require('path');
-const termSize = require('term-size').default;
 
 const { checkExists } = require('../utils/files.js');
 const logger = require('../utils/logger.js');
-
-const { columns } = termSize();
 
 const getTarget = ({ args, currentSong, baseDirectory, command }) => {
   // commands that never take a path target (search) always use their default target
@@ -31,7 +28,7 @@ const getTarget = ({ args, currentSong, baseDirectory, command }) => {
       target
         .split('/')
         .pop()
-        .slice(0, columns - 21)
+        .slice(0, (process.stdout.columns || 80) - 21)
     )}`;
     logger.info(msgOut);
     logger.debug(`mid3v2 "${target}"`);
