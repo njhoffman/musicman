@@ -86,6 +86,32 @@ describe('Metadata Read', () => {
       expect(mp3DurationStub).to.not.have.been.called;
     });
 
+    it('should reject when reading the file size fails', async () => {
+      nodeId3Stub.read.yields(null, { raw: { TPE1: 'Test Artist' } });
+      headerDurationStub.resolves(200);
+      fsStub.stat.yields(new Error('EACCES'));
+
+      try {
+        await readModule.getMetadataFull(['test.mp3']);
+        expect.fail('Should have rejected');
+      } catch (err) {
+        expect(err.message).to.equal('EACCES');
+      }
+    });
+
+    it('should reject when reading the duration fails', async () => {
+      nodeId3Stub.read.yields(null, { raw: { TPE1: 'Test Artist' } });
+      headerDurationStub.rejects(new Error('ENOENT'));
+      fsStub.stat.yields(null, { size: 1 });
+
+      try {
+        await readModule.getMetadataFull(['test.mp3']);
+        expect.fail('Should have rejected');
+      } catch (err) {
+        expect(err.message).to.equal('ENOENT');
+      }
+    });
+
     it('should decode duration when no frame header is found', async () => {
       const mockTags = { raw: { TPE1: 'Test Artist' } };
       nodeId3Stub.read.yields(null, mockTags);

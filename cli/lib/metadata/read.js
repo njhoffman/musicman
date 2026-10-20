@@ -55,23 +55,15 @@ const readMetadata = file =>
     });
   });
 
-const readMetadataFull = file =>
-  new Promise((resolve, reject) => {
-    readDuration(file).then(duration => {
-      readSize(file).then(size => {
-        NodeId3.read(file, (err, tags) => {
-          if (err) {
-            reject(err);
-          } else {
-            const rawTags = toRawTags(tags);
-            rawTags.duration = duration;
-            rawTags.size = size;
-            resolve(rawTags);
-          }
-        });
-      });
-    });
-  });
+// raw tags with duration and size, rejects if any of the reads fail
+const readMetadataFull = async file => {
+  const [duration, size, rawTags] = await Promise.all([
+    readDuration(file),
+    readSize(file),
+    readMetadata(file)
+  ]);
+  return { ...rawTags, duration, size };
+};
 
 // read files with limited concurrency and return [file, result], reporting progress on stderr
 const readFiles = async (files, reader) => {
@@ -137,4 +129,4 @@ const parseMetadata = (rawTags = {}, config) => {
   return parsedTags;
 };
 
-module.exports = { getMetadata, getMetadataFull, parseMetadata };
+module.exports = { getMetadata, getMetadataFull, parseMetadata, readMetadataFull };
