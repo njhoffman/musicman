@@ -94,12 +94,9 @@ that resolves them. Feature specs live in `docs/`.
 
 ## Spotify sync (`docs/03-spotify-id.md`)
 
-- [ ] **Open question, uploading:** the Spotify Web API cannot upload audio; local files only reach Spotify
-      through the desktop app and cannot be added to playlists through the API. Decide what "push" means for
-      songs not on Spotify (e.g. report them only).
-- [ ] **Open question, downloading:** the Spotify API does not provide audio downloads (DRM); tools like spotDL
-      fetch audio from YouTube instead, with their own terms of service concerns. Decide the source for `--pull`.
-- [ ] **Spotify API authentication:** OAuth app credentials and token storage for playlist read/write.
+- [ ] **Spotify credentials:** read `SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET` from the environment, falling
+      back to `spotify.clientId`/`spotify.clientSecret` in the config; OAuth token storage outside the config.
+- [ ] **Sync config:** `sync.uploadDirectory`, `sync.downloadDirectory`, `sync.spotdlCommand`.
 - [ ] **`sync` command and cache:** refresh a local cache of the mapped Spotify playlists and report how many
       songs would be pulled and pushed.
 - [ ] **Beets integration:** read paths from `~/.config/beets/config.yaml` and wrap the beets workflow
@@ -110,11 +107,18 @@ that resolves them. Feature specs live in `docs/`.
       liveness, loudness, mode, speechiness, tempo, time_signature, valence, and other Spotify tags.
 - [ ] **Liked Songs:** add every local song rated 4.5 or higher to Liked Songs.
 - [ ] **Grouping playlists:** sync songs to the Spotify playlists mapped from `grouping` values in the doc.
-- [ ] **`sync --pull`:** confirm the count, download Spotify-only songs with a progress bar that can be
-      cancelled and resumed, tag them with available and playlist tags, and `beet import --singletons` them
-      into `Sorted/Unrated/_Singles`.
-- [ ] **`sync --push`:** confirm upload and per-playlist counts, then push with a progress bar that can be
-      cancelled and resumed, listing each song uploaded or added to a playlist.
+- [ ] **`sync --push` export:** export songs missing from Spotify to `sync.uploadDirectory`, one subfolder per
+      target playlist (hardlinks when possible), with a `README.md` checklist and printed summary. Verify first
+      how Spotify desktop Local Files sources handle subfolders.
+- [ ] **Verify pushed local files:** on `sync`, read local tracks in the mapped playlists, report songs still
+      missing, and remove completed ones from the export directory.
+- [ ] **`sync --pull` manifest:** write track URL, target playlist, and tags for Spotify-only songs to
+      `sync.downloadDirectory`.
+- [ ] **spotDL download script:** download the manifest with spotDL using `{track-id}` in the output template;
+      reruns skip existing files.
+- [ ] **`sync --import`:** match downloads to the manifest by track id, write the Spotify id and playlist tags,
+      `beet import -s -q --quiet-fallback=asis -l <log>` into `Sorted/Unrated/_Singles`, report untaggable files,
+      update the database.
 
 ## Housekeeping
 

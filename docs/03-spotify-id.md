@@ -26,6 +26,32 @@
 - if yes will begin the process with visual progress bar , can be canceled and resumed, show each song uploaded or
   assigned to a playlist from fields below
 
+### Design decisions (agreed 2026-10-20)
+
+- **Credentials**: `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` from the environment, or `spotify.clientId`
+  and `spotify.clientSecret` in the config; the environment takes precedence. OAuth tokens are stored outside
+  the config file.
+- **Upload (push)**: the Spotify Web API cannot upload audio or add local files to playlists, so musicman
+  exports songs that are not on Spotify to `sync.uploadDirectory` for the desktop app's Local Files:
+  - one subfolder per target playlist (including Liked Songs); a song in several playlists is in each folder
+  - hardlinks when on the same filesystem as the library, copies otherwise
+  - `README.md` checklist in the export directory grouped by playlist, the same summary printed by `sync --push`
+  - the Web API can read local tracks in playlists, so the next `sync` verifies what was added, reports what is
+    still missing, and removes completed items from the export directory
+  - verify first: whether each subfolder must be added as its own Local Files source and can be toggled
+  - local files only play on other devices on the same network with the playlist downloaded
+- **Download (pull)**: a separate spotDL script, not run inline:
+  - `sync --pull` writes a manifest (track URL, target playlist, tags to apply) to `sync.downloadDirectory`
+  - the script downloads the manifest with spotDL (installed: 4.5.2) into `sync.downloadDirectory`, using
+    `{track-id}` in the output template; a rerun skips existing files, which gives cancel and resume
+  - spotDL writes ID3v2.3 and the Spotify track URL in `WOAS`, matching the library's tag version
+  - `sync --import` matches files to manifest entries by track id, writes the Spotify id and playlist tags,
+    imports with `beet import -s -q --quiet-fallback=asis -l <log>` into `Sorted/Unrated/_Singles`, reports
+    files beets logged as untaggable, and updates the database
+  - spotDL downloads audio from YouTube, which is against YouTube's terms of service
+- **Config**: `spotify.clientId`, `spotify.clientSecret`, `sync.uploadDirectory`, `sync.downloadDirectory`,
+  `sync.spotdlCommand`.
+
 *the map below shows the association between id3 tags and spotify playlists (ignore empty ones for now)*
 
 ```
