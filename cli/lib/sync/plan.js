@@ -30,7 +30,7 @@ const syncPlan = (db, config, songs) => {
   const songByTrack = new Map(_.map([...ids], ([file, id]) => [id, file]));
   const playlists = db.prepare('SELECT id, name FROM spotify_playlists').all();
   const tracksOf = db.prepare(
-    'SELECT track_id, is_local, name, artists FROM spotify_playlist_tracks WHERE playlist_id = ?'
+    'SELECT track_id, is_local, name, artists, album FROM spotify_playlist_tracks WHERE playlist_id = ?'
   );
 
   return _.map(playlists, ({ id, name }) => {

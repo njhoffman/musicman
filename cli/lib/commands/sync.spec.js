@@ -182,6 +182,59 @@ describe('Sync Command', () => {
       expect(writes()).to.deep.equal([['PUT', 'https://api.spotify.com/v1/me/tracks']]);
     });
 
+    it('should write a download manifest of Liked Songs tracks that are not in the library', async () => {
+      const liked = {
+        items: [
+          {
+            added_at: 'x',
+            track: {
+              id: 'remote-only',
+              name: 'Remote',
+              artists: [{ name: 'Someone' }],
+              album: { name: 'Album' }
+            }
+          }
+        ],
+        next: null
+      };
+      const baseFetch = fetchImpl;
+      fetchImpl = async (url, request) =>
+        url === 'https://api.spotify.com/v1/me/tracks?limit=50'
+          ? {
+              ok: true,
+              status: 200,
+              headers: { get: () => null },
+              text: async () => JSON.stringify(liked)
+            }
+          : baseFetch(url, request);
+      config.sync.downloadDirectory = path.join(directory, 'download');
+
+      const dryRun = await syncFunc({
+        options: { switches: { pull: true, dryRun: true } },
+        config,
+        env,
+        file,
+        fetchImpl
+      });
+      expect(dryRun.pulled.manifest.tracks.map(track => track.trackId)).to.deep.equal([
+        'remote-only'
+      ]);
+      expect(fs.existsSync(path.join(directory, 'download', 'manifest.json'))).to.be.false;
+
+      const result = await syncFunc({
+        options: { switches: { pull: true } },
+        config,
+        env,
+        file,
+        fetchImpl
+      });
+      const written = JSON.parse(fs.readFileSync(result.pulled.file, 'utf8'));
+      expect(written.tracks[0]).to.include({
+        trackId: 'remote-only',
+        url: 'https://open.spotify.com/track/remote-only'
+      });
+    });
+
     it('should not write to Spotify when the push is declined or a dry run', async () => {
       await push({}, async () => false);
       await push({ dryRun: true }, async () => true);

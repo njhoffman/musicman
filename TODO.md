@@ -112,8 +112,8 @@ OVERDUE flag. Feature specs live in `docs/`.
       how Spotify desktop Local Files sources handle subfolders.
 - [ ] **Verify pushed local files:** on `sync`, read local tracks in the mapped playlists, report songs still
       missing, and remove completed ones from the export directory.
-- [ ] **`sync --pull` manifest:** write track URL, target playlist, and tags for Spotify-only songs to
-      `sync.downloadDirectory`.
+- [x] **`sync --pull` manifest:** writes `manifest.json` to `sync.downloadDirectory` with each Spotify-only
+      track's URL, its targets, and the tags those targets' filters imply (`--dry-run` to preview).
 - [ ] **spotDL download script:** download the manifest with spotDL using `{track-id}` in the output template;
       reruns skip existing files.
 - [ ] **`sync --import`:** match downloads to the manifest by track id, write the Spotify id and playlist tags,

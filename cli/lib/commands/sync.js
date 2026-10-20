@@ -12,6 +12,7 @@ const { playlistTargets, songTargets } = require('../sync/targets.js');
 const { refreshCache } = require('../sync/cache.js');
 const { syncPlan } = require('../sync/plan.js');
 const { pushPlan } = require('../sync/push.js');
+const { buildManifest, writeManifest } = require('../sync/pull.js');
 const { renderColumns } = require('../output/render.js');
 const { backupIfDue, openLibrary } = require('../db/index.js');
 const { getFilteredFiles } = require('./common.js');
@@ -96,10 +97,29 @@ const runPush = async ({ db, client, config, plan, prune, dryRun, confirm }) => 
   return results;
 };
 
+// write the download manifest for tracks that are only on Spotify
+const runPull = ({ config, plan, dryRun }) => {
+  const manifest = buildManifest(plan, config);
+  const withoutIds = _.sumBy(plan, target => target.noId.length);
+  if (withoutIds > 0) {
+    logger.warn(
+      `${withoutIds} songs have no Spotify id yet, so the manifest may list songs you already have (run sync --match first)`
+    );
+  }
+  if (dryRun) {
+    logger.info(`Dry run: would write ${manifest.tracks.length} tracks to the download manifest`);
+    return { manifest };
+  }
+  const file = writeManifest(config, manifest);
+  logger.info(`Wrote ${manifest.tracks.length} tracks to download to ${file}`);
+  return { manifest, file };
+};
+
 const runPlan = async ({
   client,
   config,
   push = false,
+  pull = false,
   prune = false,
   dryRun = false,
   confirm = confirmPrompt
@@ -137,7 +157,8 @@ const runPlan = async ({
     const pushed = push
       ? await runPush({ db, client, config, plan, prune, dryRun, confirm })
       : undefined;
-    return { plan, pushed };
+    const pulled = pull ? runPull({ config, plan, dryRun }) : undefined;
+    return { plan, pushed, pulled };
   } finally {
     db.close();
   }
@@ -276,15 +297,16 @@ const syncCommand = async ({
     if (!status.loggedIn) {
       return status;
     }
-    const { plan, pushed } = await runPlan({
+    const { plan, pushed, pulled } = await runPlan({
       client: status.client,
       config,
       push: Boolean(switches.push),
+      pull: Boolean(switches.pull),
       prune: Boolean(switches.prune),
       dryRun: Boolean(switches.dryRun),
       confirm
     });
-    return { ..._.omit(status, 'client'), plan, pushed };
+    return { ..._.omit(status, 'client'), plan, pushed, pulled };
   } catch (err) {
     logger.error(err.message);
     process.exitCode = 1;

@@ -71,6 +71,11 @@ module.exports = {
     alias: '-P',
     func: () => ({ push: true })
   },
+  pull: {
+    description: 'Write a download manifest of Spotify tracks that are not in the library',
+    alias: '-d',
+    func: () => ({ pull: true })
+  },
   prune: {
     description: 'With --push, also remove tracks whose song no longer belongs in the playlist',
     alias: '-X',
