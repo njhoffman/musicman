@@ -374,6 +374,16 @@ describe('Config Tests', () => {
       expect(config.db.backupInterval).to.equal('1 day');
     });
 
+    it('should resolve a relative log file name in the mpd base directory', () => {
+      const { loadConfig: loadRealConfig } = require('../../../common/config/index.js');
+      expect(loadRealConfig({ userConfig: { mpd: { baseDirectory: '/music' } } }).logger.file).to.deep.equal({
+        name: '/music/musicman.log',
+        level: 5
+      });
+      const absolute = loadRealConfig({ userConfig: { logger: { file: { name: '/var/log/mm.log' } } } });
+      expect(absolute.logger.file.name).to.equal('/var/log/mm.log');
+    });
+
     it('should expand ~ in configured database paths', () => {
       const { loadConfig: loadRealConfig } = require('../../../common/config/index.js');
       const config = loadRealConfig({

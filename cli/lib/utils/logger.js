@@ -1,8 +1,13 @@
 const _ = require('lodash');
+const fs = require('fs');
+const path = require('path');
 const { inspect } = require('util');
 const termSize = require('term-size').default;
 
 const { defaultConfig } = require('musicman-common/config');
+
+// log file written by log messages, set by configureLogFile
+let logFile = null;
 
 // output settings start from the defaults until configure is called with the loaded config
 let settings = _.pick(defaultConfig.output, ['padding', 'verbosity']);
@@ -25,6 +30,21 @@ const progressDone = () => {
 
 const configure = output => {
   settings = { ...settings, ..._.pick(output, ['padding', 'verbosity']) };
+};
+
+/**
+ * Appends log messages at or below level (config scale, 5 = debug) to file, without colors and with a
+ * timestamp and level. Called with no file to stop writing.
+ */
+const configureLogFile = ({ name, level = 5 } = {}) => {
+  if (logFile) {
+    fs.closeSync(logFile.fd);
+    logFile = null;
+  }
+  if (name) {
+    fs.mkdirSync(path.dirname(name), { recursive: true });
+    logFile = { fd: fs.openSync(name, 'a'), level };
+  }
 };
 
 const inspectOptions = { colors: true, compact: false, breakLength: termSize().columns };
@@ -54,7 +74,30 @@ const consoleLog = message => {
 };
 /* eslint-enable no-console */
 
+// log file levels use the config scale: 2 error, 3 warn, 4 info, 5 debug, 6 trace
+const levelNames = ['error', 'warn', 'info', 'debug', 'trace'];
+
+// eslint-disable-next-line no-control-regex
+const stripAnsi = text => text.replace(/\u001b\[[0-9;]*m/g, '');
+
+const writeLogFile = (logLevel, message) => {
+  if (!logFile || logLevel + 2 > logFile.level) {
+    return;
+  }
+  const text = _.isString(message)
+    ? message
+    : inspect(message, { compact: true, breakLength: Infinity });
+  const line = `${new Date().toISOString()} ${levelNames[logLevel]
+    .toUpperCase()
+    .padEnd(5)} ${stripAnsi(text)}\n`;
+  fs.writeSync(logFile.fd, line);
+};
+
+// log file only, for detail that would flood the terminal (e.g. every file of a library update)
+const logToFile = (levelName, message) => writeLogFile(levelNames.indexOf(levelName), message);
+
 const log = (logLevel, message) => {
+  writeLogFile(logLevel, message);
   const { verbosity } = settings;
   if (verbosity >= logLevel) {
     return consoleLog(message);
@@ -73,6 +116,8 @@ const logger = {
 module.exports = {
   availableWidth,
   configure,
+  configureLogFile,
+  logToFile,
   consoleLog,
   progress,
   progressDone,

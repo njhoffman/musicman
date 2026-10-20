@@ -63,6 +63,11 @@ const buildConfig = ({
     backupDirectory: expandHome(_.get(config, 'db.backupDirectory')) || libraryFile('.musicman')
   };
 
+  const logFileName = expandHome(_.get(config, 'logger.file.name'));
+  if (logFileName) {
+    config.logger.file.name = path.isAbsolute(logFileName) ? logFileName : libraryFile(logFileName);
+  }
+
   const { tags, missing } = resolveLibraryTags(config);
   config.library.tags = tags;
   errors.push(...validateLibrary(config, missing));

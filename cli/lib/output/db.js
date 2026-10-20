@@ -1,6 +1,8 @@
 const chalk = require('chalk').default;
 
-const { availableWidth, consoleLog } = require('../utils/logger.js');
+const logger = require('../utils/logger.js');
+
+const { availableWidth, consoleLog } = logger;
 const { renderKeyValues } = require('./render.js');
 
 const title = text => chalk.hex('#8888FF')(text);
@@ -34,7 +36,7 @@ const formatProgress = ({ done, total, added, updated, moved }, width = 30) => {
 };
 
 const outputUpdateSummary = summary =>
-  consoleLog(
+  logger.info(
     section(`Database update (${summary.target})`, [
       ['scanned', `${summary.scanned}`],
       ['unchanged', `${summary.unchanged}`],

@@ -197,10 +197,10 @@ logger:
       gui: 'normal'
   # File logging settings
   file:
-    # Log file name
+    # Log file, relative names are in mpd.baseDirectory
     name: musicman.log
-    # Minimum level for file logging (3=warn)
-    level: 3
+    # Most detailed level written to the log file (2=error, 3=warn, 4=info, 5=debug, 6=trace)
+    level: 5
   # Console logging settings
   stdout:
     # Minimum level for console logging (5=debug)

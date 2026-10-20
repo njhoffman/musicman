@@ -50,7 +50,10 @@ const runUpdate = async (db, { config, target }) => {
     onFile: (action, file, detail) =>
       action === 'failed'
         ? logger.warn(`failed  ${file}: ${detail}`)
-        : logger.debug(`${action.padEnd(7)} ${file}${detail ? ` (from ${detail})` : ''}`)
+        : logger.logToFile(
+            'debug',
+            `${action.padEnd(7)} ${file}${detail ? ` (from ${detail})` : ''}`
+          )
   });
   logger.progressDone();
   outputUpdateSummary(summary);

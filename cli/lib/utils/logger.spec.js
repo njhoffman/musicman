@@ -56,4 +56,54 @@ describe('Logger', () => {
       expect(write).to.not.have.been.called;
     });
   });
+
+  describe('log file', () => {
+    const fs = require('fs');
+    const os = require('os');
+    const path = require('path');
+    let directory;
+    let logFile;
+    const lines = () => fs.readFileSync(logFile, 'utf8').trim().split('\n');
+
+    beforeEach(() => {
+      directory = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-log-'));
+      logFile = path.join(directory, 'logs', 'musicman.log');
+    });
+
+    afterEach(() => {
+      logger.configureLogFile();
+      fs.rmSync(directory, { recursive: true, force: true });
+    });
+
+    it('should write messages up to the configured level with timestamp and level', () => {
+      logger.configureLogFile({ name: logFile, level: 4 });
+      logger.info('info message');
+      logger.debug('debug message');
+      logger.warn('warn message');
+      expect(lines()).to.have.length(2);
+      expect(lines()[0]).to.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z INFO  info message$/);
+      expect(lines()[1]).to.match(/ WARN  warn message$/);
+    });
+
+    it('should strip colors and append to an existing log', () => {
+      fs.mkdirSync(path.dirname(logFile), { recursive: true });
+      fs.writeFileSync(logFile, 'existing\n');
+      logger.configureLogFile({ name: logFile, level: 5 });
+      logger.debug('\u001b[31mred\u001b[39m text');
+      expect(lines()).to.have.length(2);
+      expect(lines()[1]).to.match(/ DEBUG red text$/);
+    });
+
+    it('should write file only messages without logging to the console', () => {
+      logger.configureLogFile({ name: logFile, level: 5 });
+      expect(logger.logToFile('debug', 'added song.mp3')).to.be.undefined;
+      expect(lines()[0]).to.match(/ DEBUG added song.mp3$/);
+    });
+
+    it('should not write anything without a log file', () => {
+      logger.configureLogFile();
+      logger.error('not written');
+      expect(fs.existsSync(logFile)).to.be.false;
+    });
+  });
 });

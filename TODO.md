@@ -16,6 +16,9 @@ resolves them; `.claude/scripts/todo-status` and `/todo` show open/done counts p
       it is not shown (`commands/edit.js`).
 - [ ] **`stats.filters` is never used.** The predefined filter sets in config ("All Songs > 4.0", ...) are
       validated but `commands/stats.js` does not compute them.
+- [ ] **Logging levels use different scales.** `output.verbosity` (comment says 1=error..6=trace, code treats
+      0=error..4=trace, so the default 4 shows trace), `logger.file.level` (2=error..6=trace), and the unused
+      `logger.stdout.level` (5=debug). Pick one scale and use level names in config.
 - [ ] **Logger ignores `logger.colors`.** The hex colors and `gui` styles in config are validated but never
       applied by `utils/logger.js`.
 
@@ -80,8 +83,8 @@ resolves them; `.claude/scripts/todo-status` and `/todo` show open/done counts p
       results and play it.
 - [ ] **Faster `search`:** it filters every song in JavaScript (about 3s for 6,445 songs); query `song_tags`
       directly for field filters and free text, keeping the same matching rules.
-- [ ] **Log file:** the spec asks for a detailed `db --update` log; the logger only writes to stdout. Add a log
-      file (e.g. `logger.file` in config) and write per-file update actions there at `debug` level.
+- [x] **Log file:** `logger.file.name` (default `musicman.log` in `mpd.baseDirectory`) at `logger.file.level`
+      (default 5 = debug); per-file `db --update` actions go to the log only.
 - [x] **Database tests and error handling** for backups, `search`, and the database-backed commands.
 
 ## Spotify sync (`docs/03-spotify-id.md`)

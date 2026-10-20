@@ -9,6 +9,7 @@ const pe = new PrettyError();
 
 const config = loadConfig({ create: true });
 logger.configure(config.output);
+logger.configureLogFile(config.logger.file);
 
 const usage = args => {
   // logger.info('USAGE', args);
