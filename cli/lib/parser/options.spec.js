@@ -109,6 +109,12 @@ describe('Options assignment', () => {
       expect(test1.options.filters).to.deep.include(filters);
     });
 
+    it('Should parse empty multi value field filters as empty', () => {
+      const test1 = parser({ args: ['CustomField1:', '~CustomField2:'], config });
+      expect(test1.options.filters.include).to.deep.equal({ CustomField1: '' });
+      expect(test1.options.filters.exclude).to.deep.equal({ CustomField2: '' });
+    });
+
     it('Should parse field negation filters correctly', () => {
       const test1 = parser({ args: ['~album:TestAlbum', '~artist:"Test Artist"'], config });
       const filters = { exclude: { album: 'TestAlbum', artist: 'Test Artist' } };

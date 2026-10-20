@@ -26,7 +26,8 @@ const parseFilters = (optionList, config, commandName) => {
     } else if (filterKey === 'rating') {
       filters.rating = parseRating(tagValue, type);
     } else if (tagConfig) {
-      if (tagConfig.multi) {
+      // an empty value matches songs without the field, multi value or not
+      if (tagConfig.multi && tagValue !== '') {
         filters[type][filterKey] = tagValue.split(',').map(tv => tv.trim());
       } else {
         // just assign whole string if not a multi field
