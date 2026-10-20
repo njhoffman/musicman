@@ -280,73 +280,42 @@ function getUserConfigPath() {
 /**
  * Ensures user config file exists, copying from default if needed
  */
-function ensureUserConfig() {
-  const userConfigPath = getUserConfigPath();
+function ensureUserConfig(userConfigPath = getUserConfigPath()) {
   const defaultConfigPath = path.join(__dirname, 'defaultConfig.yml');
 
   if (!fs.existsSync(userConfigPath)) {
-    try {
-      fs.copyFileSync(defaultConfigPath, userConfigPath);
-      console.log(`Created user config file at ${userConfigPath}`);
-      console.log('Please review and customize your configuration settings.');
-    } catch (error) {
-      console.error(`Failed to create user config file: ${error.message}`);
-      throw error;
-    }
+    fs.copyFileSync(defaultConfigPath, userConfigPath);
+    console.log(`Created user config file at ${userConfigPath}`);
+    console.log('Please review and customize your configuration settings.');
+  }
+}
+
+/**
+ * Reads the user config file, returns an empty config if it does not exist
+ */
+function readUserConfig(userConfigPath = getUserConfigPath()) {
+  if (!fs.existsSync(userConfigPath)) {
+    return {};
+  }
+  try {
+    return yaml.load(fs.readFileSync(userConfigPath, 'utf8')) || {};
+  } catch (error) {
+    throw new Error(`Failed to parse user config file ${userConfigPath}: ${error.message}`);
   }
 }
 
 /**
  * Validates user config file
  */
-function validateUserConfig() {
-  const userConfigPath = getUserConfigPath();
-
-  if (!fs.existsSync(userConfigPath)) {
-    return [];
-  }
-
-  try {
-    const userConfigContent = fs.readFileSync(userConfigPath, 'utf8');
-    const userConfig = yaml.load(userConfigContent);
-    
-    const errors = validateConfig(userConfig);
-    
-    if (errors.length > 0) {
-      console.warn('Configuration validation issues found:');
-      errors.forEach(error => console.warn(`  - ${error}`));
-    }
-    
-    return errors;
-  } catch (error) {
-    console.error(`Failed to parse user config file: ${error.message}`);
-    throw error;
-  }
-}
-
-/**
- * Performs config initialization and validation
- */
-function initializeConfig() {
-  // Ensure user config exists
-  ensureUserConfig();
-  
-  // Validate user config
-  const validationErrors = validateUserConfig();
-  
-  if (validationErrors.length > 0) {
-    console.warn(`Found ${validationErrors.length} configuration validation issues`);
-    console.warn('Please check your ~/.musicmanrc.yml file');
-  }
-  
-  return validationErrors;
+function validateUserConfig(userConfigPath = getUserConfigPath()) {
+  return validateConfig(readUserConfig(userConfigPath));
 }
 
 module.exports = {
   validateConfig,
   validateUserConfig,
+  readUserConfig,
   ensureUserConfig,
   getUserConfigPath,
-  initializeConfig,
   configSchema
 };

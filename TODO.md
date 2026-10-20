@@ -10,10 +10,6 @@ that resolves them. Feature specs live in `docs/`.
       index. With the default `multiFields: [context, mood]`, index 3 holds grouping, so `stats[3].genre` is
       undefined and `outputStat` throws ("Cannot convert undefined or null to object"). Only configs with
       exactly `[context, mood, picks]` work. Key stats by field name and render every configured multi field.
-- [ ] **Config validation and config loading use different files.** `validator.js` always validates
-      `~/.musicmanrc.yml`, while the loader uses a cosmiconfig search from the current directory up to home.
-      Run outside home (e.g. `/mnt/music`) the user config is not loaded at all and defaults are used silently.
-      Validate the file that was actually loaded, and decide whether to fall back to `~/.musicmanrc.yml`.
 - [ ] **`pnpm lint` fails with 103 errors.** Since the `.js` rename it lints files again, but most errors are
       airbnb's `import/extensions` rejecting explicit `.js` requires. Fixed as part of the ESLint migration below.
 - [ ] **Progress output goes to stdout.** `metadata/read.js` writes ` ...N files left\r` with
@@ -33,9 +29,6 @@ that resolves them. Feature specs live in `docs/`.
       MPD is down. Connect only when no target is given or the command needs the current song.
 - [ ] **Make the notify daemon testable.** `notify-daemon.js` runs on require; split notification building
       and sending from the MPD loop so `sendNotification` can be unit tested.
-- [ ] **Config loading has side effects on require.** Requiring `musicman-common/config` creates
-      `~/.musicmanrc.yml` if missing and reads the real home config, so tests depend on the developer's config
-      (the logger requires it at import). Load config explicitly and inject it.
 - [ ] **Unify validation behavior.** Schema validation only warns, while tag and view checks in
       `common/config/index.js` are fatal. Pick one policy and move the tag/view/legacy checks into
       `validator.js`.

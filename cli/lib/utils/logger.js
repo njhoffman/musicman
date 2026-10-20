@@ -2,14 +2,21 @@ const _ = require('lodash');
 const { inspect } = require('util');
 const termSize = require('term-size').default;
 
-const config = require('musicman-common/config');
+const { defaultConfig } = require('musicman-common/config');
+
+// output settings start from the defaults until configure is called with the loaded config
+let settings = _.pick(defaultConfig.output, ['padding', 'verbosity']);
+
+const configure = output => {
+  settings = { ...settings, ..._.pick(output, ['padding', 'verbosity']) };
+};
 
 const inspectOptions = { colors: true, compact: false, breakLength: termSize().columns };
 
 /* eslint-disable no-console */
 const consoleLog = message => {
   const { NODE_ENV, NODE_TEST_LOG } = process.env;
-  const { padding } = config.output;
+  const { padding } = settings;
 
   const leftPadding = Array(padding + 1).join(' ');
   let parsed = message;
@@ -32,7 +39,7 @@ const consoleLog = message => {
 /* eslint-enable no-console */
 
 const log = (logLevel, message) => {
-  const { verbosity } = config.output;
+  const { verbosity } = settings;
   if (verbosity >= logLevel) {
     return consoleLog(message);
   }
@@ -48,6 +55,7 @@ const logger = {
 };
 
 module.exports = {
+  configure,
   consoleLog,
   ...logger
 };

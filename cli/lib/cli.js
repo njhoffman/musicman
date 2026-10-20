@@ -1,11 +1,14 @@
 const PrettyError = require('pretty-error');
-const config = require('musicman-common/config');
+const { loadConfig } = require('musicman-common/config');
 
 const commandParser = require('./parser/index.js');
 const { getCurrentSong, connectMpd } = require('./clients/mpd.js');
 const logger = require('./utils/logger.js');
 
 const pe = new PrettyError();
+
+const config = loadConfig({ create: true });
+logger.configure(config.output);
 
 const usage = args => {
   // logger.info('USAGE', args);

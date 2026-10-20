@@ -2,12 +2,15 @@ const path = require('path');
 const { execFile } = require('child_process');
 const PrettyError = require('pretty-error');
 
-const config = require('musicman-common/config');
+const { loadConfig } = require('musicman-common/config');
 const logger = require('./utils/logger.js');
 const { getCurrentSong, connectMpd } = require('./clients/mpd.js');
 const { getMetadata, parseMetadata } = require('./metadata/read.js');
 
 const pe = new PrettyError();
+
+const config = loadConfig({ create: true });
+logger.configure(config.output);
 
 const getSongInfo = async mpdClient => {
   const currentSong = await getCurrentSong(mpdClient);

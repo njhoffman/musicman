@@ -1,16 +1,23 @@
-const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const path = require('path');
 const proxyquire = require('proxyquire');
 
+const loadConfigModule = globalTags =>
+  proxyquire('../../../common/config/index.js', {
+    './tags.json': globalTags,
+    '../../package.json': { name: 'musicman', version: '1.0.0' }
+  });
+
 describe('Config Tests', () => {
-  let mockConfig;
   let mockDefaultConfig;
   let mockUserConfig;
   let configModule;
-  let validatorModule;
 
   beforeEach(() => {
+    // validation warnings for intentionally invalid configs are not test output
+    sinon.stub(console, 'warn');
+
     // Mock default config
     mockDefaultConfig = {
       library: {
@@ -67,49 +74,23 @@ describe('Config Tests', () => {
       { id: 'RVAD', name: 'volume', description: 'Volume' }
     ];
 
-    // Mock cosmiconfig
-    const mockCosmiconfig = {
-      search: sinon.stub().returns({
-        config: mockUserConfig,
-        filepath: '/home/user/.musicmanrc.yml'
-      }),
-      load: sinon.stub().returns({
-        config: mockDefaultConfig,
-        filepath: '/path/to/defaultConfig.yml'
-      })
-    };
-
-    // Mock validator
-    validatorModule = {
-      initializeConfig: sinon.stub()
-    };
-
-    // Setup config module with mocked dependencies
-    configModule = proxyquire('../../../common/config/index.js', {
-      cosmiconfig: { cosmiconfigSync: () => mockCosmiconfig },
-      './tags.json': mockGlobalTags,
-      './validator': validatorModule,
-      '../../package.json': { name: 'musicman', version: '1.0.0' }
+    configModule = loadConfigModule(mockGlobalTags).loadConfig({
+      userConfig: mockUserConfig,
+      defaultConfig: mockDefaultConfig
     });
   });
 
-  const loadConfig = (userConfig, defaultConfig = mockDefaultConfig) => {
-    const mockCosmiconfig = {
-      search: sinon.stub().returns({ config: userConfig, filepath: '/home/user/.musicmanrc.yml' }),
-      load: sinon.stub().returns({ config: defaultConfig, filepath: '/path/to/defaultConfig.yml' })
-    };
-    return proxyquire('../../../common/config/index.js', {
-      cosmiconfig: { cosmiconfigSync: () => mockCosmiconfig },
-      './tags.json': [
-        { id: 'TPE1', name: 'artist' },
-        { id: 'TIT2', name: 'title' },
-        { id: 'TALB', name: 'album' },
-        { id: 'TCON', name: 'genre' }
-      ],
-      './validator': validatorModule,
-      '../../package.json': { name: 'musicman', version: '1.0.0' }
-    });
-  };
+  afterEach(() => {
+    sinon.restore();
+  });
+
+  const loadConfig = (userConfig, defaultConfig = mockDefaultConfig) =>
+    loadConfigModule([
+      { id: 'TPE1', name: 'artist' },
+      { id: 'TIT2', name: 'title' },
+      { id: 'TALB', name: 'album' },
+      { id: 'TCON', name: 'genre' }
+    ]).loadConfig({ userConfig, defaultConfig });
 
   const captureFatal = load => {
     const originalExit = process.exit;
@@ -142,91 +123,18 @@ describe('Config Tests', () => {
     });
 
     it('should fallback to global tags when tag not found in user config', () => {
-      // Create a config with only global tags, no user config override
-      const globalOnlyConfig = {};
-
-      const simpleDefaultConfig = {
-        library: {
-          tags: ['artist', 'title', 'album']
-        }
-      };
-
-      const mockCosmiconfig = {
-        search: sinon.stub().returns({
-          config: globalOnlyConfig,
-          filepath: '/home/user/.musicmanrc.yml'
-        }),
-        load: sinon.stub().returns({
-          config: simpleDefaultConfig,
-          filepath: '/path/to/defaultConfig.yml'
-        })
-      };
-
-      const testModule = proxyquire('../../../common/config/index.js', {
-        cosmiconfig: { cosmiconfigSync: () => mockCosmiconfig },
-        './tags.json': [
-          { id: 'TPE1', name: 'artist', description: 'Artist' },
-          { id: 'TIT2', name: 'title', description: 'Title' },
-          { id: 'TALB', name: 'album', description: 'Album' }
-        ],
-        './validator': validatorModule,
-        '../../package.json': { name: 'musicman', version: '1.0.0' }
-      });
-
-      expect(testModule.library.tags).to.have.length(3);
-      expect(testModule.library.tags.map(t => t.name)).to.deep.equal(['artist', 'title', 'album']);
+      const config = loadConfig({}, { library: { tags: ['artist', 'title', 'album'] } });
+      expect(config.library.tags.map(t => t.name)).to.deep.equal(['artist', 'title', 'album']);
     });
 
     it('should throw fatal error for undefined tags', () => {
-      // Create config with undefined tag
-      const badConfig = {
-        library: {
-          tags: ['artist', 'nonexistent_tag']
-        }
-      };
-
-      const mockCosmiconfig = {
-        search: sinon.stub().returns({
-          config: badConfig,
-          filepath: '/home/user/.musicmanrc.yml'
-        }),
-        load: sinon.stub().returns({
-          config: mockDefaultConfig,
-          filepath: '/path/to/defaultConfig.yml'
-        })
-      };
-
-      // Mock process.exit to capture the error
-      const originalExit = process.exit;
-      let exitCalled = false;
-      process.exit = () => {
-        exitCalled = true;
-      };
-
-      // Mock console.error to capture the error message
-      const originalError = console.error;
-      let errorMessage = '';
-      console.error = msg => {
-        errorMessage = errorMessage || msg;
-      };
-
-      try {
-        proxyquire('../../../common/config/index.js', {
-          cosmiconfig: { cosmiconfigSync: () => mockCosmiconfig },
-          './tags.json': [{ id: 'TPE1', name: 'artist', description: 'Artist' }],
-          './validator': validatorModule,
-          '../../package.json': { name: 'musicman', version: '1.0.0' }
-        });
-
-        expect(exitCalled).to.be.true;
-        expect(errorMessage).to.include(
-          "Fatal error: Tag 'nonexistent_tag' defined in library.tags"
-        );
-      } finally {
-        process.exit = originalExit;
-        console.error = originalError;
-      }
+      const result = captureFatal(() => loadConfig({ library: { tags: ['artist', 'nonexistent_tag'] } }));
+      expect(result.exitCalled).to.be.true;
+      expect(result.messages[0]).to.include(
+        "Fatal error: Tag 'nonexistent_tag' defined in library.tags"
+      );
     });
+
     it('should accept text and custom text frames in library.tags', () => {
       const result = captureFatal(() =>
         loadConfig({
@@ -351,8 +259,67 @@ describe('Config Tests', () => {
   });
 
   describe('Config Initialization', () => {
-    it('should call initializeConfig on module load', () => {
-      expect(validatorModule.initializeConfig).to.have.been.calledOnce;
+    let tmpDir;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-config-'));
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it('should not read or create config files when required', () => {
+      const existsSync = sinon.spy(fs, 'existsSync');
+      const copyFileSync = sinon.spy(fs, 'copyFileSync');
+      loadConfigModule([]);
+      expect(existsSync).to.not.have.been.called;
+      expect(copyFileSync).to.not.have.been.called;
+    });
+
+    it('should use ~/.musicmanrc.yml as the user config path', () => {
+      const { getUserConfigPath } = require('../../../common/config/validator.js');
+      expect(getUserConfigPath()).to.equal(path.join(os.homedir(), '.musicmanrc.yml'));
+    });
+
+    it('should load the user config from the given path', () => {
+      const userConfigPath = path.join(tmpDir, '.musicmanrc.yml');
+      fs.writeFileSync(userConfigPath, 'rating:\n  email: test@example.com\n');
+      const config = loadConfigModule([]).loadConfig({
+        userConfigPath,
+        defaultConfig: { ...mockDefaultConfig, library: { tags: [] }, views: {} }
+      });
+      expect(config.rating.email).to.equal('test@example.com');
+      expect(config.rating.tag).to.equal('POPM');
+    });
+
+    it('should use defaults without creating a file when user config is missing', () => {
+      const userConfigPath = path.join(tmpDir, '.musicmanrc.yml');
+      const config = loadConfigModule([]).loadConfig({
+        userConfigPath,
+        defaultConfig: { ...mockDefaultConfig, library: { tags: [] }, views: {} }
+      });
+      expect(config.rating.email).to.equal('Default');
+      expect(fs.existsSync(userConfigPath)).to.be.false;
+    });
+
+    it('should create the user config from defaults when create is set', () => {
+      const userConfigPath = path.join(tmpDir, '.musicmanrc.yml');
+      sinon.stub(console, 'log');
+      loadConfigModule([]).loadConfig({
+        userConfigPath,
+        create: true,
+        defaultConfig: { ...mockDefaultConfig, library: { tags: [] }, views: {} }
+      });
+      expect(fs.readFileSync(userConfigPath, 'utf8')).to.equal(
+        fs.readFileSync(path.join(__dirname, '../../../common/config/defaultConfig.yml'), 'utf8')
+      );
+    });
+
+    it('should warn about validation issues in the loaded user config', () => {
+      loadConfig({ unknownOption: true });
+      expect(console.warn).to.have.been.calledWithMatch('1 configuration validation issues');
+      expect(console.warn).to.have.been.calledWithMatch('unknownOption is not a valid configuration option');
     });
 
     it('should merge configs with proper precedence', () => {
