@@ -52,4 +52,43 @@ describe('Sync Command', () => {
     expect(await run({}, { fetchImpl })).to.deep.equal({ loggedIn: true, user: 'user1' });
     expect(fetchImpl.firstCall.args[0]).to.equal('https://api.spotify.com/v1/me');
   });
+
+  it('should keep a successful login when the user lookup fails', async () => {
+    const response = (status, body) => ({
+      ok: status === 200,
+      status,
+      headers: { get: () => null },
+      json: async () => body,
+      text: async () => JSON.stringify(body)
+    });
+    const fetchImpl = sinon.stub();
+    fetchImpl
+      .withArgs('https://accounts.spotify.com/api/token')
+      .resolves(response(200, { access_token: 'a', refresh_token: 'r', expires_in: 3600 }));
+    fetchImpl
+      .withArgs('https://api.spotify.com/v1/me')
+      .resolves(response(503, { message: 'no healthy upstream' }));
+    const net = require('net');
+    const port = await new Promise(resolve => {
+      const server = net.createServer().listen(0, '127.0.0.1', () => {
+        const { port: free } = server.address();
+        server.close(() => resolve(free));
+      });
+    });
+    const loginEnv = { ...env, SPOTIFY_REDIRECT_URI: `http://127.0.0.1:${port}/callback` };
+    const result = await syncFunc({
+      options: { switches: { login: true } },
+      config: {},
+      env: loginEnv,
+      file,
+      fetchImpl,
+      open: url => {
+        const state = new URL(url).searchParams.get('state');
+        fetch(`http://127.0.0.1:${port}/callback?code=c&state=${state}`);
+      }
+    });
+    expect(result).to.deep.equal({ user: null });
+    expect(process.exitCode).to.not.equal(1);
+    expect(fs.existsSync(file)).to.be.true;
+  });
 });

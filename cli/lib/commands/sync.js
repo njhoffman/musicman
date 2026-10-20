@@ -19,9 +19,17 @@ const runLogin = async ({ credentials, file, fetchImpl, open }) => {
     open,
     onUrl: url => logger.info(`Log in to Spotify in the browser (opening it now): ${url}`)
   });
-  const me = await userClient({ credentials, file, fetchImpl }).get('/me');
-  logger.info(`Logged in to Spotify as ${me.display_name || me.id}, token saved to ${file}`);
-  return { user: me.id };
+  // the login is complete once the token is saved, looking up the user is only informational
+  try {
+    const me = await userClient({ credentials, file, fetchImpl }).get('/me');
+    logger.info(`Logged in to Spotify as ${me.display_name || me.id}, token saved to ${file}`);
+    return { user: me.id };
+  } catch (err) {
+    logger.warn(
+      `Logged in to Spotify, token saved to ${file}; could not look up the user: ${err.message}`
+    );
+    return { user: null };
+  }
 };
 
 const showStatus = async ({ credentials, file, fetchImpl, env }) => {
