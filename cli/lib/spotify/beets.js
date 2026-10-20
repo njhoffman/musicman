@@ -8,7 +8,7 @@ const { DatabaseSync } = require('node:sqlite');
 const expandHome = file =>
   file && file.startsWith('~/') ? path.join(os.homedir(), file.slice(2)) : file;
 
-// beets library database and music directory from the beets config, null when there is no config
+// beets library database, music directory, and path rules from the beets config, null without a config
 const readBeetsConfig = configPath => {
   if (!configPath || !fs.existsSync(configPath)) {
     return null;
@@ -16,8 +16,27 @@ const readBeetsConfig = configPath => {
   const beets = yaml.load(fs.readFileSync(configPath, 'utf8')) || {};
   return {
     library: expandHome(beets.library || path.join(path.dirname(configPath), 'library.db')),
-    directory: expandHome(beets.directory || '~/Music')
+    directory: expandHome(beets.directory || '~/Music'),
+    paths: beets.paths || {}
   };
+};
+
+// absolute paths of every item in the beets library
+const readBeetsItems = beets => {
+  if (!beets || !fs.existsSync(beets.library)) {
+    return new Set();
+  }
+  const db = new DatabaseSync(beets.library, { readOnly: true });
+  try {
+    return new Set(
+      _.map(db.prepare('SELECT path FROM items').all(), ({ path: itemPath }) => {
+        const file = Buffer.from(itemPath).toString();
+        return path.isAbsolute(file) ? file : path.join(beets.directory, file);
+      })
+    );
+  } finally {
+    db.close();
+  }
 };
 
 /**
@@ -48,4 +67,4 @@ const readBeetsSpotifyIds = configPath => {
   }
 };
 
-module.exports = { readBeetsConfig, readBeetsSpotifyIds };
+module.exports = { readBeetsConfig, readBeetsItems, readBeetsSpotifyIds };

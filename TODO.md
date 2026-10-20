@@ -95,8 +95,9 @@ OVERDUE flag. Feature specs live in `docs/`.
 - [x] **`sync` command and cache:** (p1) refreshes the cache of Liked Songs and mapped playlists (playlists
       skipped when their snapshot is unchanged) and reports per target: songs to add, songs without a
       Spotify id, tracks to prune, and tracks to pull.
-- [ ] **Beets integration:** read paths from `~/.config/beets/config.yaml` and wrap the beets workflow
-      (`Sorted/Unrated` to `Sorted/Rated` after rating and assigning a `grouping`).
+- [x] **Beets integration:** `musicman sort` (`--dry-run` to preview) finds rated songs in beets' unsorted
+      folder (from its default path) with a grouping that has a beets path rule, runs `beet update -m` for
+      songs beets has and `beet import -s -q -A` for the others, then updates the database.
 - [x] **Spotify track ids:** (p1) `sync --match` (`--dry-run` to preview): beets ids, then ISRC, then scored
       artist/title search; confident matches written as `TXXX.spotify_track_id`, probable ones listed by
       `sync --review`, misses rechecked after 30 days.

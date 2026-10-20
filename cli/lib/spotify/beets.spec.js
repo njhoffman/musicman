@@ -41,7 +41,8 @@ describe('Beets Spotify Ids', () => {
   it('should read the library and music directory from the beets config', () => {
     expect(readBeetsConfig(configPath)).to.deep.equal({
       library: path.join(directory, 'library.db'),
-      directory: path.join(directory, 'music')
+      directory: path.join(directory, 'music'),
+      paths: {}
     });
   });
 
