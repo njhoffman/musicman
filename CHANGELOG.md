@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.3.0](https://github.com/njhoffman/musicman/compare/v1.2.0...v1.3.0) (2026-10-20)
+
+
+### Features
+
+* Add comprehensive configuration management system ([541ea2c](https://github.com/njhoffman/musicman/commit/541ea2c788796c029f95b8bc9d6e1c3ef1a26936))
+* Add comprehensive configuration validation and library management ([0e60fd8](https://github.com/njhoffman/musicman/commit/0e60fd8a35a591388338409fd54967e38fe46713))
+
+
+### Bug Fixes
+
+* Resolve all failing unit tests ([4ffe12f](https://github.com/njhoffman/musicman/commit/4ffe12f8eef97d30084869432fa013e3ab674181))
+
 ## [1.1.0](https://github.com/njhoffman/musicman/compare/v1.0.24...v1.1.0) (2025-01-27)
 
 ### Features
