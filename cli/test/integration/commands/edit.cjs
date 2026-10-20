@@ -9,29 +9,31 @@ describe('Edit Command', () => {
   const dirTarget = path.join(process.cwd(), 'test/data/sandbox');
   const config = {
     rating: { tag: 'POPM', max: 5, email: 'noone@email.com' },
-    tags: [
-      {
-        id: 'TPE1',
-        name: 'artist',
-        viewIndex: 1
-      },
-      {
-        id: 'TIT2',
-        name: 'title',
-        viewIndex: 2
-      },
-      {
-        id: 'TXXX.CustomField',
-        name: 'customfield',
-        viewIndex: 3
-      },
-      {
-        id: 'TXXX.Mood',
-        name: 'mood',
-        viewIndex: 4,
-        multi: true
-      }
-    ]
+    library: {
+      tags: [
+        {
+          id: 'TPE1',
+          name: 'artist',
+          viewIndex: 1
+        },
+        {
+          id: 'TIT2',
+          name: 'title',
+          viewIndex: 2
+        },
+        {
+          id: 'TXXX.CustomField',
+          name: 'customfield',
+          viewIndex: 3
+        },
+        {
+          id: 'TXXX.Mood',
+          name: 'mood',
+          viewIndex: 4,
+          multi: true
+        }
+      ]
+    }
   };
 
   const options = { switches: {}, filters: {}, assignments: {} };

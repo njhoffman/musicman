@@ -85,7 +85,7 @@ const getMetadataFull = async files =>
 
 const metakeysTransform = (metadata, config) =>
   _.mapKeys(metadata, (tagVal, tagKey) => {
-    const tag = _.find(config.tags, { id: tagKey });
+    const tag = _.find(config.library.tags, { id: tagKey });
     return tag.name;
   });
 
@@ -93,12 +93,12 @@ const getRating = (rating, ratingMax) => ((rating / 255) * ratingMax).toFixed(1)
 
 // convert id3 tag names to associated tag names in config
 const parseMetadata = (rawTags = {}, config) => {
-  const selectedTags = flatten(_.pick(rawTags, _.map(config.tags, 'id')));
+  const selectedTags = flatten(_.pick(rawTags, _.map(config.library.tags, 'id')));
 
   // flatten and include relevant TXXX custom tags
   _.each(rawTags.TXXX, ({ description, value }) => {
     const txName = `TXXX.${description}`;
-    if (_.find(config.tags, { id: txName })) {
+    if (_.find(config.library.tags, { id: txName })) {
       selectedTags[txName] = value;
     }
   });

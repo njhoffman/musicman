@@ -16,7 +16,7 @@ const parseFilters = (optionList, config, commandName) => {
   optionList.forEach(option => {
     const [key, val] = option.split(':');
     const filterKey = key.replace(/^~/, '');
-    const tagConfig = _.find(config.tags, { name: filterKey });
+    const tagConfig = _.find(config.library.tags, { name: filterKey });
     const tagValue = `${val}`.replace(/"/g, '');
     const type = /^~/.test(key) ? 'exclude' : 'include';
 

@@ -56,6 +56,23 @@ finalConfig.library.tags = _.compact(
   })
 );
 
+// Library tags are read and written as strings, so only text and custom text frames are supported
+const isTextFrame = id => /^T(?!XXX$)[A-Z0-9]{3}$/.test(id) || /^TXXX\..+/.test(id);
+_.each(finalConfig.library.tags, ({ name, id }) => {
+  if (!isTextFrame(id)) {
+    fatal(
+      `Tag '${name}' in library.tags uses frame '${id}', only text (T***) and custom (TXXX.*) frames are supported`
+    );
+  }
+});
+
+// Each frame can only map to one tag name
+_.each(_.groupBy(finalConfig.library.tags, 'id'), (tags, id) => {
+  if (tags.length > 1) {
+    fatal(`Tags '${_.map(tags, 'name').join("', '")}' in library.tags share frame '${id}'`);
+  }
+});
+
 // Views can only display library tags, plus rating which is configured separately
 const viewableTags = ['rating'].concat(_.map(finalConfig.library.tags, 'name'));
 _.each(finalConfig.views, (view, viewName) => {

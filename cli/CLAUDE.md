@@ -28,7 +28,7 @@ This is a Node.js CLI application for MP3 metadata management that integrates wi
 - **Commands**: `lib/commands/` - Available CLI commands (view, edit, playlist, stats)
 - **MPD Client**: `lib/clients/mpd.cjs` - Connects to MPD and gets current song info
 - **Metadata Handling**: `lib/metadata/` - Read/write MP3 metadata using node-id3
-- **Output Formatters**: `lib/output/` - Various output formats (table, vertical, stats, differences)
+- **Output Formatters**: `lib/output/` - Various output formats (table, list, stats, differences), table and list configured by `views.table` and `views.list`
 
 ### Key Dependencies
 

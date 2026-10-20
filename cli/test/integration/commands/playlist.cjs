@@ -13,29 +13,31 @@ describe('Playlist Command', () => {
     mpd: {
       baseDirectory: process.cwd()
     },
-    tags: [
-      {
-        name: 'artist',
-        id: 'TPE1',
-        viewIndex: 1
-      },
-      {
-        name: 'title',
-        id: 'TIT2',
-        viewIndex: 2
-      },
-      {
-        name: 'album',
-        id: 'TALB',
-        viewIndex: 3
-      },
-      {
-        name: 'mood',
-        id: 'TXXX.Mood',
-        viewIndex: 4,
-        multi: true
-      }
-    ]
+    library: {
+      tags: [
+        {
+          name: 'artist',
+          id: 'TPE1',
+          viewIndex: 1
+        },
+        {
+          name: 'title',
+          id: 'TIT2',
+          viewIndex: 2
+        },
+        {
+          name: 'album',
+          id: 'TALB',
+          viewIndex: 3
+        },
+        {
+          name: 'mood',
+          id: 'TXXX.Mood',
+          viewIndex: 4,
+          multi: true
+        }
+      ]
+    }
   };
 
   let options = { switches: {}, filters: {}, assignments: {} };

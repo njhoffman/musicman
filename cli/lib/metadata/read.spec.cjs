@@ -70,11 +70,13 @@ describe('Metadata Read', () => {
 
   describe('parseMetadata', () => {
     const config = {
-      tags: [
-        { name: 'artist', id: 'TPE1' },
-        { name: 'title', id: 'TIT2' },
-        { name: 'custom', id: 'TXXX.Custom' }
-      ],
+      library: {
+        tags: [
+          { name: 'artist', id: 'TPE1' },
+          { name: 'title', id: 'TIT2' },
+          { name: 'custom', id: 'TXXX.Custom' }
+        ]
+      },
       rating: { tag: 'POPM', max: 5 }
     };
 
@@ -103,6 +105,29 @@ describe('Metadata Read', () => {
       const rawTags = { duration: 180.5, size: 5000000 };
       const result = readModule.parseMetadata(rawTags, config);
       expect(result).to.include({ duration: 180.5, size: 5000000 });
+    });
+
+    it('should only read frames defined in library.tags', () => {
+      const rawTags = {
+        TPE1: 'Test Artist',
+        TPE2: 'Test Album Artist',
+        TXXX: [{ description: 'Other', value: 'Other Value' }]
+      };
+      const result = readModule.parseMetadata(rawTags, {
+        ...config,
+        tags: [{ name: 'album_artist', id: 'TPE2' }]
+      });
+      expect(result).to.deep.equal({ artist: 'Test Artist' });
+    });
+
+    it('should read tags resolved from tags.json once in library.tags', () => {
+      const libraryConfig = {
+        ...config,
+        library: { tags: [...config.library.tags, { name: 'album_artist', id: 'TPE2' }] }
+      };
+      const rawTags = { TPE1: 'Test Artist', TPE2: 'Test Album Artist' };
+      const result = readModule.parseMetadata(rawTags, libraryConfig);
+      expect(result).to.deep.equal({ artist: 'Test Artist', album_artist: 'Test Album Artist' });
     });
   });
 });

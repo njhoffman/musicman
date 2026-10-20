@@ -5,7 +5,8 @@ describe('Target assignment', () => {
   const testFile = path.join(process.cwd(), 'test/data/sandbox/dir1/testFile01.mp3');
 
   const config = {
-    mpd: { baseDirectory: 'testBaseDir' }
+    mpd: { baseDirectory: 'testBaseDir' },
+    library: { tags: [] }
   };
   const currentSong = { file: 'testDir/testSong.mp3' };
 

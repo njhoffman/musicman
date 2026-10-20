@@ -19,8 +19,11 @@ const prepareCustomFields = txxxFields =>
 const prepareId3Tags =
   config =>
   ([file, fields]) => {
-    const filteredTags = _.pick(fields, _.map(config.tags, 'name'));
-    const editTags = _.mapKeys(filteredTags, (value, name) => _.find(config.tags, { name }).id);
+    const filteredTags = _.pick(fields, _.map(config.library.tags, 'name'));
+    const editTags = _.mapKeys(
+      filteredTags,
+      (value, name) => _.find(config.library.tags, { name }).id
+    );
 
     // special rating handler
     if (_.isString(fields.rating)) {

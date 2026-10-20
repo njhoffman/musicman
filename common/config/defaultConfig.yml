@@ -92,17 +92,15 @@ library:
   tagId: ID3v2.4
   # Base path for music library scanning
   basePath: "/home/nicholas/Music"
-  # Core tags that can be viewed and manipulated - essential for playlists and basic info
+  # Tags that are read, edited, filtered, and displayed - essential for playlists and basic info
+  # Only text (T***) and custom (TXXX.*) frames are supported, rating is configured separately
   tags:
-  - popularity
-  - volume
   - artist
   - title
   - year
   - genre
   - album
   - album_artist
-  # ['popularity', 'volume', 'artist', 'title', 'year', 'genre', 'mood', 'copyright', 'album'],
 
 # View configurations for each output format, tags are displayed in the order listed
 # and must be included in library.tags (rating is always available)

@@ -11,12 +11,14 @@ describe('Integration Tests', () => {
   const testDataDir = path.join(process.cwd(), 'test/data/sandbox');
   const config = {
     mpd: { baseDirectory: 'testBaseDir' },
-    tags: [
-      { name: 'artist', id: 'TPE1' },
-      { name: 'title', id: 'TIT2' },
-      { name: 'album', id: 'TALB' },
-      { name: 'genre', id: 'TCON' }
-    ],
+    library: {
+      tags: [
+        { name: 'artist', id: 'TPE1' },
+        { name: 'title', id: 'TIT2' },
+        { name: 'album', id: 'TALB' },
+        { name: 'genre', id: 'TCON' }
+      ]
+    },
     rating: { tag: 'POPM', max: 5, email: 'test@example.com' }
   };
 

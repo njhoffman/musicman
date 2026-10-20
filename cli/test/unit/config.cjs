@@ -15,7 +15,7 @@ describe('Config Tests', () => {
     // Mock default config
     mockDefaultConfig = {
       library: {
-        tags: ['rating', 'volume', 'artist', 'title', 'year', 'genre', 'album']
+        tags: ['artist', 'title', 'year', 'genre', 'album']
       },
       views: {
         table: {
@@ -37,7 +37,7 @@ describe('Config Tests', () => {
     // Mock user config with custom tags
     mockUserConfig = {
       library: {
-        tags: ['rating', 'volume', 'artist', 'title', 'year', 'genre', 'album', 'context', 'mood']
+        tags: ['artist', 'title', 'year', 'genre', 'album', 'context', 'mood']
       },
       views: {
         table: {
@@ -87,18 +87,53 @@ describe('Config Tests', () => {
 
     // Setup config module with mocked dependencies
     configModule = proxyquire('../../../common/config/index.js', {
-      'cosmiconfig': { cosmiconfigSync: () => mockCosmiconfig },
+      cosmiconfig: { cosmiconfigSync: () => mockCosmiconfig },
       './tags.json': mockGlobalTags,
       './validator': validatorModule,
       '../../package.json': { name: 'musicman', version: '1.0.0' }
     });
   });
 
+  const loadConfig = (userConfig, defaultConfig = mockDefaultConfig) => {
+    const mockCosmiconfig = {
+      search: sinon.stub().returns({ config: userConfig, filepath: '/home/user/.musicmanrc.yml' }),
+      load: sinon.stub().returns({ config: defaultConfig, filepath: '/path/to/defaultConfig.yml' })
+    };
+    return proxyquire('../../../common/config/index.js', {
+      cosmiconfig: { cosmiconfigSync: () => mockCosmiconfig },
+      './tags.json': [
+        { id: 'TPE1', name: 'artist' },
+        { id: 'TIT2', name: 'title' },
+        { id: 'TALB', name: 'album' },
+        { id: 'TCON', name: 'genre' }
+      ],
+      './validator': validatorModule,
+      '../../package.json': { name: 'musicman', version: '1.0.0' }
+    });
+  };
+
+  const captureFatal = load => {
+    const originalExit = process.exit;
+    const originalError = console.error;
+    const result = { exitCalled: false, messages: [] };
+    process.exit = () => {
+      result.exitCalled = true;
+    };
+    console.error = msg => result.messages.push(msg);
+    try {
+      load();
+    } finally {
+      process.exit = originalExit;
+      console.error = originalError;
+    }
+    return result;
+  };
+
   describe('Library Tags Configuration', () => {
     it('should map library.tags to tag objects from user config first', () => {
       expect(configModule.library.tags).to.be.an('array');
-      expect(configModule.library.tags).to.have.length(9);
-      
+      expect(configModule.library.tags).to.have.length(7);
+
       // Check that custom tags are included
       const tagNames = configModule.library.tags.map(tag => tag.name);
       expect(tagNames).to.include('context');
@@ -110,7 +145,7 @@ describe('Config Tests', () => {
     it('should fallback to global tags when tag not found in user config', () => {
       // Create a config with only global tags, no user config override
       const globalOnlyConfig = {};
-      
+
       const simpleDefaultConfig = {
         library: {
           tags: ['artist', 'title', 'album']
@@ -129,7 +164,7 @@ describe('Config Tests', () => {
       };
 
       const testModule = proxyquire('../../../common/config/index.js', {
-        'cosmiconfig': { cosmiconfigSync: () => mockCosmiconfig },
+        cosmiconfig: { cosmiconfigSync: () => mockCosmiconfig },
         './tags.json': [
           { id: 'TPE1', name: 'artist', description: 'Artist' },
           { id: 'TIT2', name: 'title', description: 'Title' },
@@ -165,66 +200,87 @@ describe('Config Tests', () => {
       // Mock process.exit to capture the error
       const originalExit = process.exit;
       let exitCalled = false;
-      process.exit = () => { exitCalled = true; };
+      process.exit = () => {
+        exitCalled = true;
+      };
 
       // Mock console.error to capture the error message
       const originalError = console.error;
       let errorMessage = '';
-      console.error = (msg) => { errorMessage = errorMessage || msg; };
+      console.error = msg => {
+        errorMessage = errorMessage || msg;
+      };
 
       try {
         proxyquire('../../../common/config/index.js', {
-          'cosmiconfig': { cosmiconfigSync: () => mockCosmiconfig },
+          cosmiconfig: { cosmiconfigSync: () => mockCosmiconfig },
           './tags.json': [{ id: 'TPE1', name: 'artist', description: 'Artist' }],
           './validator': validatorModule,
           '../../package.json': { name: 'musicman', version: '1.0.0' }
         });
 
         expect(exitCalled).to.be.true;
-        expect(errorMessage).to.include("Fatal error: Tag 'nonexistent_tag' defined in library.tags");
+        expect(errorMessage).to.include(
+          "Fatal error: Tag 'nonexistent_tag' defined in library.tags"
+        );
       } finally {
         process.exit = originalExit;
         console.error = originalError;
       }
     });
+    it('should accept text and custom text frames in library.tags', () => {
+      const result = captureFatal(() =>
+        loadConfig({
+          tags: [{ id: 'TXXX.Mood', name: 'mood' }],
+          library: { tags: ['artist', 'mood'] },
+          views: { table: { tags: [{ name: 'mood' }] }, list: { tags: [{ name: 'artist' }] } }
+        })
+      );
+      expect(result.exitCalled).to.be.false;
+    });
+
+    it('should throw fatal error for non-text frames in library.tags', () => {
+      const result = captureFatal(() =>
+        loadConfig({
+          tags: [{ id: 'POPM', name: 'popularity' }],
+          library: { tags: ['artist', 'popularity'] },
+          views: { table: { tags: [{ name: 'artist' }] }, list: { tags: [{ name: 'artist' }] } }
+        })
+      );
+      expect(result.exitCalled).to.be.true;
+      expect(result.messages[0]).to.include(
+        "Fatal error: Tag 'popularity' in library.tags uses frame 'POPM'"
+      );
+    });
+
+    it('should throw fatal error for bare TXXX frame in library.tags', () => {
+      const result = captureFatal(() =>
+        loadConfig({
+          tags: [{ id: 'TXXX', name: 'user_text' }],
+          library: { tags: ['user_text'] },
+          views: { table: { tags: [] }, list: { tags: [] } }
+        })
+      );
+      expect(result.exitCalled).to.be.true;
+      expect(result.messages[0]).to.include("uses frame 'TXXX'");
+    });
+
+    it('should throw fatal error for library.tags sharing a frame', () => {
+      const result = captureFatal(() =>
+        loadConfig({
+          tags: [{ id: 'TPE1', name: 'performer' }],
+          library: { tags: ['artist', 'performer'] },
+          views: { table: { tags: [] }, list: { tags: [] } }
+        })
+      );
+      expect(result.exitCalled).to.be.true;
+      expect(result.messages[0]).to.include(
+        "Fatal error: Tags 'artist', 'performer' in library.tags share frame 'TPE1'"
+      );
+    });
   });
 
   describe('Views Configuration', () => {
-    const loadConfig = (userConfig, defaultConfig = mockDefaultConfig) => {
-      const mockCosmiconfig = {
-        search: sinon.stub().returns({ config: userConfig, filepath: '/home/user/.musicmanrc.yml' }),
-        load: sinon.stub().returns({ config: defaultConfig, filepath: '/path/to/defaultConfig.yml' })
-      };
-      return proxyquire('../../../common/config/index.js', {
-        cosmiconfig: { cosmiconfigSync: () => mockCosmiconfig },
-        './tags.json': [
-          { id: 'TPE1', name: 'artist' },
-          { id: 'TIT2', name: 'title' },
-          { id: 'TALB', name: 'album' },
-          { id: 'TCON', name: 'genre' }
-        ],
-        './validator': validatorModule,
-        '../../package.json': { name: 'musicman', version: '1.0.0' }
-      });
-    };
-
-    const captureFatal = load => {
-      const originalExit = process.exit;
-      const originalError = console.error;
-      const result = { exitCalled: false, messages: [] };
-      process.exit = () => {
-        result.exitCalled = true;
-      };
-      console.error = msg => result.messages.push(msg);
-      try {
-        load();
-      } finally {
-        process.exit = originalExit;
-        console.error = originalError;
-      }
-      return result;
-    };
-
     it('should have table and list views with tags', () => {
       expect(configModule.views).to.have.all.keys('table', 'list');
       expect(configModule.views.table.tags).to.be.an('array');

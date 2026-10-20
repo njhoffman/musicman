@@ -3,34 +3,36 @@ const parser = require('./index.cjs');
 describe('Options assignment', () => {
   const config = {
     mpd: { baseDirectory: 'testBaseDir' },
-    tags: [
-      {
-        name: 'artist',
-        id: 'TPE1'
-      },
-      {
-        name: 'title',
-        id: 'TIT2'
-      },
-      {
-        name: 'album',
-        id: 'TALB'
-      },
-      {
-        name: 'CustomField1',
-        id: 'TXXX.Custom1',
-        multi: true
-      },
-      {
-        name: 'CustomField2',
-        id: 'TXXX.Custom2',
-        multi: true
-      },
-      {
-        name: 'CustomField3',
-        id: 'TXXX.Custom3'
-      }
-    ]
+    library: {
+      tags: [
+        {
+          name: 'artist',
+          id: 'TPE1'
+        },
+        {
+          name: 'title',
+          id: 'TIT2'
+        },
+        {
+          name: 'album',
+          id: 'TALB'
+        },
+        {
+          name: 'CustomField1',
+          id: 'TXXX.Custom1',
+          multi: true
+        },
+        {
+          name: 'CustomField2',
+          id: 'TXXX.Custom2',
+          multi: true
+        },
+        {
+          name: 'CustomField3',
+          id: 'TXXX.Custom3'
+        }
+      ]
+    }
   };
 
   describe('Switches', () => {
@@ -61,6 +63,12 @@ describe('Options assignment', () => {
       const test1 = parser({ args: ['album:"Test Album"', 'artist:TestArtist'], config });
       const filters = { include: { album: 'Test Album', artist: 'TestArtist' } };
       expect(test1.options.filters).to.deep.include(filters);
+    });
+
+    it('Should ignore field filters for tags not in library.tags', () => {
+      const tagsConfig = { ...config, tags: [{ name: 'genre', id: 'TCON' }] };
+      const test1 = parser({ args: ['genre:Rock', 'artist:TestArtist'], config: tagsConfig });
+      expect(test1.options.filters.include).to.deep.equal({ artist: 'TestArtist' });
     });
 
     it('Should parse field filters with empty values correctly', () => {
@@ -99,6 +107,12 @@ describe('Options assignment', () => {
       const test1 = parser({ args: ['album="Test Album"', 'artist=TestArtist'], config });
       const assignments = { album: 'Test Album', artist: 'TestArtist' };
       expect(test1.options.assignments).to.deep.include(assignments);
+    });
+
+    it('Should ignore field assignments for tags not in library.tags', () => {
+      const tagsConfig = { ...config, tags: [{ name: 'genre', id: 'TCON' }] };
+      const test1 = parser({ args: ['genre=Rock', 'artist=TestArtist'], config: tagsConfig });
+      expect(test1.options.assignments).to.deep.equal({ artist: 'TestArtist' });
     });
 
     it('Should parse field assignments with empty values correctly', () => {

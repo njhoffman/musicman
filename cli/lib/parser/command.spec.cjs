@@ -2,7 +2,8 @@ const parser = require('./index.cjs');
 
 describe('Command assignment', () => {
   const config = {
-    mpd: { baseDirectory: 'testBaseDir' }
+    mpd: { baseDirectory: 'testBaseDir' },
+    library: { tags: [] }
   };
   const currentSong = { file: 'testDir/testSong.mp3' };
 

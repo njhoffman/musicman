@@ -5,7 +5,7 @@ const parseAssignments = (optionList, config, commandName) => {
 
   optionList.forEach(option => {
     const [key, val] = option.split('=');
-    const tagConfig = _.find(config.tags, { name: key });
+    const tagConfig = _.find(config.library.tags, { name: key });
     const tagValue = `${val}`.replace(/"/g, '');
 
     if (/^\d+(?:.\d+)?$/.test(option) && commandName === 'edit') {

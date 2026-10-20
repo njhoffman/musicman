@@ -44,7 +44,7 @@ describe('Edit Command', () => {
   });
 
   describe('editCommand', () => {
-    const mockConfig = { tags: [] };
+    const mockConfig = { library: { tags: [] } };
     const mockOptions = { assignments: { artist: 'New Artist' } };
 
     it('should throw error when target does not exist', async () => {

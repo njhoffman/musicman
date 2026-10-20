@@ -63,11 +63,13 @@ describe('Metadata Write', () => {
 
   describe('writeFiles', () => {
     const config = {
-      tags: [
-        { name: 'artist', id: 'TPE1' },
-        { name: 'title', id: 'TIT2' },
-        { name: 'custom', id: 'TXXX.Custom' }
-      ],
+      library: {
+        tags: [
+          { name: 'artist', id: 'TPE1' },
+          { name: 'title', id: 'TIT2' },
+          { name: 'custom', id: 'TXXX.Custom' }
+        ]
+      },
       rating: { tag: 'POPM', max: 5, email: 'test@example.com' }
     };
 
@@ -103,6 +105,19 @@ describe('Metadata Write', () => {
 
       const callArgs = nodeId3Stub.update.firstCall.args;
       expect(callArgs[0].TXXX).to.deep.equal([{ description: 'Custom', value: 'Custom Value' }]);
+    });
+
+    it('should only write fields defined in library.tags', () => {
+      const files = [['test.mp3', { artist: 'Artist', album_artist: 'Album Artist' }]];
+      const writer = writeModule.writeFiles({
+        ...config,
+        tags: [{ name: 'album_artist', id: 'TPE2' }]
+      });
+      writer(files);
+
+      const callArgs = nodeId3Stub.update.firstCall.args;
+      expect(callArgs[0]).to.include({ TPE1: 'Artist' });
+      expect(callArgs[0]).to.not.have.property('TPE2');
     });
   });
 });

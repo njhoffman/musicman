@@ -8,23 +8,25 @@ describe('View Command', () => {
   const dirTarget = path.join(process.cwd(), 'test/data/sandbox');
   const config = {
     rating: { tag: 'POPM', max: 5, email: 'fake@email.com' },
-    tags: [
-      {
-        name: 'artist',
-        id: 'TPE1',
-        viewIndex: 1
-      },
-      {
-        name: 'title',
-        id: 'TIT2',
-        viewIndex: 2
-      },
-      {
-        name: 'album',
-        id: 'TALB',
-        viewIndex: 3
-      }
-    ]
+    library: {
+      tags: [
+        {
+          name: 'artist',
+          id: 'TPE1',
+          viewIndex: 1
+        },
+        {
+          name: 'title',
+          id: 'TIT2',
+          viewIndex: 2
+        },
+        {
+          name: 'album',
+          id: 'TALB',
+          viewIndex: 3
+        }
+      ]
+    }
   };
 
   const options = { switches: {}, filters: {}, assignments: {} };
@@ -63,7 +65,7 @@ describe('View Command', () => {
     });
 
     it('Should only list tag fields referenced in config', async () => {
-      const newConfig = { ...config, tags: _.initial(config.tags) };
+      const newConfig = { ...config, library: { tags: _.initial(config.library.tags) } };
       const results = await viewFunc({ target: fileTarget, config: newConfig, options });
       expect(results.metadata[0]).to.have.keys(['artist', 'title', 'rating']);
     });

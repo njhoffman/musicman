@@ -32,7 +32,9 @@
 - Outdated `output.table`, `output.vertical`, and `tags[].tableOrder` in user config are fatal errors
 - Config merge replaces arrays from user config instead of merging by index
 - `~/.musicmanrc.yml` migrated; `albumArtist` renamed to `album_artist` to match tags.json
-- Known gap: metadata is still read using `config.tags`, so library tags only defined in tags.json show as empty
+- `library.tags` controls which tags are read, written, filtered, and assigned; `tags` only holds definitions
+- `library.tags` must use text (`T***`) or custom (`TXXX.*`) frames and unique frames, otherwise fatal error
+- `popularity` (POPM, used by rating) and `volume` (RVAD) removed from `library.tags`
 
 
 ## Current Session Summary (2025-01-27)
