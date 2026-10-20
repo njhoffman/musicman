@@ -67,4 +67,12 @@ const sortCommand = async ({ options, config, runBeet, confirm = confirmPrompt }
 
 const defaultTarget = baseDirectory => baseDirectory;
 
-module.exports = { name: 'sort', func: sortCommand, defaultTarget, targetArgs: false };
+module.exports = {
+  name: 'sort',
+  description: 'Move rated songs with a sorted grouping out of Unrated with beets',
+  usage: 'musicman sort [--dry-run]',
+  switches: ['dry-run'],
+  func: sortCommand,
+  defaultTarget,
+  targetArgs: false
+};

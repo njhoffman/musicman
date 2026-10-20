@@ -92,4 +92,11 @@ const dbCommand = async ({ target, options, config }) => {
 // without a target argument the whole library is updated
 const defaultTarget = baseDirectory => baseDirectory;
 
-module.exports = { name: 'db', func: dbCommand, defaultTarget };
+module.exports = {
+  name: 'db',
+  description: 'Show library database stats, update it from the files, or back it up',
+  usage: 'musicman db [--update [target]] [--backup]',
+  switches: ['update', 'backup'],
+  func: dbCommand,
+  defaultTarget
+};

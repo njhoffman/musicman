@@ -54,6 +54,8 @@ OVERDUE flag. Feature specs live in `docs/`.
       commitlint config). Either set them up or remove them. Decide between gitmoji and plain conventional
       commits; both configs are installed.
 - [ ] **`todos` script** (p3) points `leasot` at `.js` files and `server/`; update or remove.
+- [ ] **`cli/package.json` version is stale.** (p3) It says 1.2.0 while releases bump only the root
+      `package.json` (1.13.0, shown by `musicman --version`). Remove the field or have releases bump it.
 - [ ] **Versioning:** (p3) root is 1.4.x, `cli` is 1.2.0, `common` is 1.0.0. Decide whether packages are versioned
       independently or with the root.
 

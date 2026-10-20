@@ -316,4 +316,12 @@ const syncCommand = async ({
 
 const defaultTarget = baseDirectory => baseDirectory;
 
-module.exports = { name: 'sync', func: syncCommand, defaultTarget, targetArgs: false };
+module.exports = {
+  name: 'sync',
+  description: 'Sync Liked Songs and playlists with Spotify; without switches, show the plan',
+  usage: 'musicman sync [--login | --match | --review | --push [--prune] | --pull] [--dry-run]',
+  switches: ['login', 'match', 'review', 'push', 'prune', 'pull', 'dry-run'],
+  func: syncCommand,
+  defaultTarget,
+  targetArgs: false
+};

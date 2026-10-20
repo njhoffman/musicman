@@ -24,4 +24,10 @@ const viewCommand = async ({ target, options, config }) => {
   return { metadata };
 };
 
-module.exports = { name: 'view', func: viewCommand };
+module.exports = {
+  name: 'view',
+  description: 'Show tags of files: a table for several files, a list for one',
+  usage: 'musicman [view] [target] [field:value ...]',
+  switches: ['recursive', 'norecursive', 'include', 'exclude', 'files'],
+  func: viewCommand
+};

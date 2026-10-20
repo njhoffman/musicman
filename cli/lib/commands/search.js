@@ -98,6 +98,9 @@ const defaultTarget = baseDirectory => baseDirectory;
 
 module.exports = {
   name: 'search',
+  description: 'Search the whole library by field:value, mpc style pairs, or free text',
+  usage: 'musicman search [field:value | field value | text ...] [--add | --play]',
+  switches: ['add', 'play', 'files'],
   func: searchCommand,
   defaultTarget,
   targetArgs: false,

@@ -80,4 +80,10 @@ const statsCommand = async ({ options, config, target }) => {
   return outputStats({ target, stats, config, options });
 };
 
-module.exports = { name: 'stats', func: statsCommand };
+module.exports = {
+  name: 'stats',
+  description: 'Count values, ratings, and populated tags across files',
+  usage: 'musicman stats [target] [field:value ...]',
+  switches: ['recursive', 'norecursive', 'files'],
+  func: statsCommand
+};

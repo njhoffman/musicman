@@ -34,4 +34,10 @@ const playlistCommand = async ({ target, options, config }) => {
   return outputMetadata({ target, metadata: _.unzip(filtered)[1], config, options });
 };
 
-module.exports = { name: 'playlist', func: playlistCommand };
+module.exports = {
+  name: 'playlist',
+  description: 'Write the files matching filters to an MPD playlist',
+  usage: 'musicman playlist [target] [field:value ...] [-w name]',
+  switches: ['recursive', 'norecursive', 'write', 'files'],
+  func: playlistCommand
+};

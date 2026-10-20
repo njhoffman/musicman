@@ -57,4 +57,10 @@ const editCommand = async ({ target, options, config }) => {
   return { oldFiles: filtered, newFiles: newFilesMetadata };
 };
 
-module.exports = { name: 'edit', func: editCommand };
+module.exports = {
+  name: 'edit',
+  description: 'Write field=value assignments, or a rating number, to files',
+  usage: 'musicman [edit] [target] field=value ... | musicman 4.5',
+  switches: ['recursive', 'norecursive', 'files'],
+  func: editCommand
+};

@@ -5,12 +5,12 @@ module.exports = {
     func: () => ({ recursive: true })
   },
   norecursive: {
-    description: 'Apply or show files in all subdirectories of target directory',
+    description: 'Only apply or show files directly in the target directory',
     alias: '-nr',
     func: () => ({ recursive: false })
   },
   include: {
-    description: 'Only show these comma-seperated field names in output',
+    description: 'Only show these comma-separated field names in output',
     alias: '-i',
     examples: ['-i artist,title', '-i "artist,album type"'],
     func: (used, optionList, i) => {
