@@ -38,7 +38,7 @@ This document preserves important context and working preferences for future Cla
 
 ### Current Project: MusicMan CLI
 - **Purpose**: MP3 metadata management CLI that integrates with MPD (Music Player Daemon)
-- **Language**: Node.js using CommonJS modules (.cjs files)
+- **Language**: Node.js using CommonJS modules (.js files)
 - **Testing**: Mocha + Chai + Sinon with proxyquire for mocking
 - **Main components**: parser, commands, metadata handling, MPD client, output formatters
 
@@ -46,12 +46,12 @@ This document preserves important context and working preferences for future Cla
 1. **Dependency updates** - Updated all CLI and root package dependencies systematically
 2. **ID3 tag names** - Updated tags.json with 13 specific mappings + 58 new descriptive names
 3. **Comprehensive test suite** - Added unit and integration tests for all major components:
-   - metadata/read.spec.cjs - metadata reading functions with mocking
-   - metadata/write.spec.cjs - metadata writing and merging operations
-   - clients/mpd.spec.cjs - MPD client connection and song retrieval
-   - utils/files.spec.cjs - file operations and utilities
-   - commands/edit.spec.cjs - edit command workflow with confirmation logic
-   - integration.spec.cjs - parser-to-command workflows and component integration
+   - metadata/read.spec.js - metadata reading functions with mocking
+   - metadata/write.spec.js - metadata writing and merging operations
+   - clients/mpd.spec.js - MPD client connection and song retrieval
+   - utils/files.spec.js - file operations and utilities
+   - commands/edit.spec.js - edit command workflow with confirmation logic
+   - integration.spec.js - parser-to-command workflows and component integration
 4. **Test infrastructure** - Used proxyquire for proper dependency mocking, handled NODE_ENV testing issues
 5. **All tests passing** - Resolved from 8 failing tests to 91 passing tests
 
@@ -65,13 +65,13 @@ This document preserves important context and working preferences for future Cla
 - **Environment issue**: nvm incompatibility with npm_config_prefix (user is fixing)
 - **Test environment**: NODE_ENV=test disables confirmation prompts in edit command
 - **Linting**: ESLint configured but some unavoidable warnings for test dependencies
-- **File structure**: lib/ for source, test/ mirrors lib/ structure, .spec.cjs for unit tests
+- **File structure**: lib/ for source, test/ mirrors lib/ structure, .spec.js for unit tests
 
 ## Common Commands to Remember
 ```bash
 npm test                    # Run all tests
 npm run lint               # Check code style
-npx eslint lib/**/*.cjs    # Direct ESLint on source files
+npx eslint lib/**/*.js    # Direct ESLint on source files
 git add . && git commit -m "message"  # Standard commit flow
 ```
 

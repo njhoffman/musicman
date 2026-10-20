@@ -5,7 +5,7 @@
 - Values systematic approach with proper planning and tracking
 - Expects comprehensive testing and validation
 - Uses conventional commits with gitmoji
-- Works in CommonJS format (.cjs files)
+- Works in CommonJS format (.js files)
 - Testing: Mocha + Chai + Sinon with proxyquire for mocking
 
 ## Project Structure
@@ -66,8 +66,8 @@
 - `common/config/defaultConfig.yml` - Added defaults, converted logger colors
 - `common/config/validator.js` - Enhanced validation schema  
 - `common/config/index.js` - Fixed tag resolution logic
-- `cli/test/unit/config.cjs` - New comprehensive test suite
-- `cli/test/integration.cjs` - Added unit test inclusion
+- `cli/test/unit/config.js` - New comprehensive test suite
+- `cli/test/integration.js` - Added unit test inclusion
 
 ## Next Priority Tasks
 1. **Database Integration** - User mentioned "next we will work on the database"

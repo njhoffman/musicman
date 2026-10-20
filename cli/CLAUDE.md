@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-- **Start CLI**: `pnpm start` or `node lib/cli.cjs`
+- **Start CLI**: `pnpm start` or `node lib/cli.js`
 - **Development mode**: `pnpm dev` (uses nodemon for auto-restart)
 - **Run tests**: `pnpm test` (uses Mocha)
 - **Test with coverage**: `pnpm test:coverage` (uses nyc)
@@ -20,35 +20,35 @@ This is a Node.js CLI application for MP3 metadata management that integrates wi
 
 ### Core Components
 
-- **Entry Point**: `lib/cli.cjs` - Main application entry, handles command parsing and execution
+- **Entry Point**: `lib/cli.js` - Main application entry, handles command parsing and execution
 - **Command Parser**: `lib/parser/` - Parses CLI arguments into command, target, and options
   - Commands are parsed from args and current MPD song context
   - Targets can be files/directories or current playing song
   - Options include switches, filters, and field assignments
 - **Commands**: `lib/commands/` - Available CLI commands (view, edit, playlist, stats)
-- **MPD Client**: `lib/clients/mpd.cjs` - Connects to MPD and gets current song info
+- **MPD Client**: `lib/clients/mpd.js` - Connects to MPD and gets current song info
 - **Metadata Handling**: `lib/metadata/` - Read/write MP3 metadata using node-id3
 - **Output Formatters**: `lib/output/` - Various output formats (table, list, stats, differences), table and list configured by `views.table` and `views.list`
 
 ### Key Dependencies
 
-- Uses CommonJS modules (`.cjs` files)
+- Uses CommonJS modules (`.js` files)
 - **musicman-common**: Local dependency for shared configuration
 - **node-id3**: MP3 metadata reading/writing
 - **sqlite3**: Database operations
-- **cli-table3**: Column layout for table, list, and differences output via `lib/output/render.cjs` (cells are truncated before colors are applied)
-- **Notify daemon**: `lib/notify-daemon.cjs` runs as a systemd user service (`pnpm daemon:install`, then `systemctl --user enable --now musicman-notify`)
+- **cli-table3**: Column layout for table, list, and differences output via `lib/output/render.js` (cells are truncated before colors are applied)
+- **Notify daemon**: `lib/notify-daemon.js` runs as a systemd user service (`pnpm daemon:install`, then `systemctl --user enable --now musicman-notify`)
 
 ### Testing Setup
 
 - **Framework**: Mocha with Chai assertions
 - **Test data**: `test/data/` contains MP3 files and metadata for testing
-- **Global setup**: `test/setup.cjs` configures sinon, chai, and test globals
+- **Global setup**: `test/setup.js` configures sinon, chai, and test globals
 - **Integration tests**: `test/integration/` for command testing
 
 ### File Structure Notes
 
-- All source files use `.cjs` extension (CommonJS)
+- All source files use `.js` extension (CommonJS, no `"type": "module"`)
 - Test files mirror the `lib/` structure
 - Uses absolute imports and proper CommonJS module.exports
 
@@ -73,7 +73,7 @@ This is a Node.js CLI application for MP3 metadata management that integrates wi
 - Follow existing test structure in `test/` directory
 - Use Mocha + Chai + Sinon pattern established in codebase
 - Integration tests should use fixtures from `test/data/`
-- Unit tests should be co-located with source files (`.spec.cjs` suffix)
+- Unit tests should be co-located with source files (`.spec.js` suffix)
 - Test real functionality, not implementation details
 - Mock external dependencies (MPD, file system when appropriate)
 
@@ -86,12 +86,12 @@ This is a Node.js CLI application for MP3 metadata management that integrates wi
 - **Comprehensive coverage**: Tests exist for all major modules with 91 passing tests
 
 ### Established Test Files
-- `lib/metadata/read.spec.cjs` - Metadata reading with proxyquire mocking
-- `lib/metadata/write.spec.cjs` - Metadata writing and assignment merging
-- `lib/clients/mpd.spec.cjs` - MPD client connection and song operations
-- `lib/utils/files.spec.cjs` - File system operations and utilities
-- `lib/commands/edit.spec.cjs` - Edit command workflow including confirmations
-- `lib/integration.spec.cjs` - Parser-to-command integration workflows
+- `lib/metadata/read.spec.js` - Metadata reading with proxyquire mocking
+- `lib/metadata/write.spec.js` - Metadata writing and assignment merging
+- `lib/clients/mpd.spec.js` - MPD client connection and song operations
+- `lib/utils/files.spec.js` - File system operations and utilities
+- `lib/commands/edit.spec.js` - Edit command workflow including confirmations
+- `lib/integration.spec.js` - Parser-to-command integration workflows
 
 ## Current Session Context
 Last worked on major configuration restructuring. Implemented library.tags system, views configuration, and converted logger colors to hex format. Added comprehensive config validation and test suite. All 9 config tests passing. Ready for database integration phase.
@@ -101,4 +101,4 @@ Last worked on major configuration restructuring. Implemented library.tags syste
 - **Tag Resolution**: User custom tags now take precedence over global tags.json
 - **Logger Format**: Converted to hex colors with GUI styling support
 - **Validation**: Enhanced schema for new config properties
-- **Tests**: Added `test/unit/config.cjs` with comprehensive coverage
+- **Tests**: Added `test/unit/config.js` with comprehensive coverage
