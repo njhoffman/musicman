@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.4.0](https://github.com/njhoffman/musicman/compare/v1.3.0...v1.4.0) (2026-10-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* tags no longer controls which metadata is read or written,
+only tags listed in library.tags are. library.tags only supports text (T***)
+and custom (TXXX.*) frames.
+* output.table, output.vertical, and tags[].tableOrder are
+no longer supported; use views.table and views.list instead.
+
+### Features
+
+* configure views per output format ([3d26072](https://github.com/njhoffman/musicman/commit/3d26072fbedfed655cd5c95148507d7bcd7ddc80))
+* read and write metadata using library.tags ([2b1c1ff](https://github.com/njhoffman/musicman/commit/2b1c1ffdce2f5fb319a4a9443c9c1e98838b392a))
+
 ## [1.3.0](https://github.com/njhoffman/musicman/compare/v1.2.0...v1.3.0) (2026-10-20)
 
 
