@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.14.0](https://github.com/njhoffman/musicman/compare/v1.13.0...v1.14.0) (2026-10-20)
+
+
+### Features
+
+* add --help and --version ([6e5bb08](https://github.com/njhoffman/musicman/commit/6e5bb08f1f32852cf196478d245690009fdc517d))
+* add sort command to move rated songs out of Unrated with beets ([fcff961](https://github.com/njhoffman/musicman/commit/fcff9616bf9cf2584cdccb825beab3ba9e63eee8))
+* show colored level badges on terminal log lines ([0ca4439](https://github.com/njhoffman/musicman/commit/0ca443925d31057b00fe153ffe6a26d06a4de78c))
+* write a download manifest with sync --pull ([e452053](https://github.com/njhoffman/musicman/commit/e4520538f9b23fb88c69b4dd813c7846d125cf1b))
+
+
+### Bug Fixes
+
+* report no matches in edit before building the confirmation prompt ([5e78470](https://github.com/njhoffman/musicman/commit/5e78470fc7e16afb6c34b02ea364879fb565f3c8))
+
 ## [1.13.0](https://github.com/njhoffman/musicman/compare/v1.12.0...v1.13.0) (2026-10-20)
 
 
