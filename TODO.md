@@ -96,8 +96,9 @@ OVERDUE flag. Feature specs live in `docs/`.
 - [x] **Sync config:** (p1) `sync.likedRating`, `sync.playlists` (filter to playlist, your 38 mappings
       moved from the doc), `sync.uploadDirectory`, `sync.downloadDirectory`, `sync.spotdlCommand`,
       `sync.beetsConfig`.
-- [ ] **`sync` command and cache:** (p1) refresh a local cache of the mapped Spotify playlists and report how many
-      songs would be pulled and pushed.
+- [x] **`sync` command and cache:** (p1) refreshes the cache of Liked Songs and mapped playlists (playlists
+      skipped when their snapshot is unchanged) and reports per target: songs to add, songs without a
+      Spotify id, tracks to prune, and tracks to pull.
 - [ ] **Beets integration:** read paths from `~/.config/beets/config.yaml` and wrap the beets workflow
       (`Sorted/Unrated` to `Sorted/Rated` after rating and assigning a `grouping`).
 - [x] **Spotify track ids:** (p1) `sync --match` (`--dry-run` to preview): beets ids, then ISRC, then scored

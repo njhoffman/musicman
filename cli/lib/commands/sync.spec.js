@@ -37,20 +37,38 @@ describe('Sync Command', () => {
     expect(await run({})).to.deep.equal({ loggedIn: false });
   });
 
-  it('should report the logged in user', async () => {
+  it('should report the logged in user and refresh the sync plan', async () => {
     writeTokens(file, {
       access_token: 'a',
       refresh_token: 'r',
       expires_at: Date.now() + 3600 * 1000
     });
-    const fetchImpl = sinon.stub().resolves({
+    const library = path.join(directory, 'music');
+    fs.mkdirSync(library);
+    const config = {
+      mpd: { baseDirectory: library },
+      db: {
+        path: path.join(directory, 'musicman.sqlite'),
+        backupDirectory: path.join(directory, 'backups')
+      },
+      library: { tags: [] },
+      tags: [],
+      sync: { likedRating: 4.5, playlists: [] }
+    };
+    require('../db/index.js').openLibrary(config).close();
+    const bodies = {
+      'https://api.spotify.com/v1/me': { id: 'user1', display_name: 'User One' },
+      'https://api.spotify.com/v1/me/tracks?limit=50': { items: [], next: null }
+    };
+    const fetchImpl = sinon.stub().callsFake(async url => ({
       ok: true,
       status: 200,
       headers: { get: () => null },
-      text: async () => JSON.stringify({ id: 'user1', display_name: 'User One' })
-    });
-    expect(await run({}, { fetchImpl })).to.deep.equal({ loggedIn: true, user: 'user1' });
-    expect(fetchImpl.firstCall.args[0]).to.equal('https://api.spotify.com/v1/me');
+      text: async () => JSON.stringify(bodies[url])
+    }));
+    const result = await syncFunc({ options: { switches: {} }, config, env, file, fetchImpl });
+    expect(result).to.include({ loggedIn: true, user: 'user1' });
+    expect(result.plan.map(target => target.name)).to.deep.equal(['Liked Songs']);
   });
 
   it('should keep a successful login when the user lookup fails', async () => {
