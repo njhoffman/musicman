@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.6.0](https://github.com/njhoffman/musicman/compare/v1.5.0...v1.6.0) (2026-10-20)
+
+
+### Features
+
+* add populated tag counts to stats command ([017a976](https://github.com/njhoffman/musicman/commit/017a9762cec8a86f9fca36bb925f1e1451fc8b81))
+
+
+### Bug Fixes
+
+* continue without current song when MPD is not running ([36635a8](https://github.com/njhoffman/musicman/commit/36635a8a0ea7038771b0497e05a3825d1890ef04))
+* map year to ID3v2.3 TYER frame ([2fd218a](https://github.com/njhoffman/musicman/commit/2fd218a1673b0bc136e2b029c419426e8d3f1ebc))
+* render stats for configured multi fields instead of fixed indexes ([23f03a1](https://github.com/njhoffman/musicman/commit/23f03a1b1a6a7bbc8c33d4529287fd63e97a1fe0))
+
 ## [1.5.0](https://github.com/njhoffman/musicman/compare/v1.4.1...v1.5.0) (2026-10-20)
 
 
