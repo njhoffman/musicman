@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.4.1](https://github.com/njhoffman/musicman/compare/v1.4.0...v1.4.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* render output columns with cli-table3 instead of columnify fork ([9ce771b](https://github.com/njhoffman/musicman/commit/9ce771b3c3e620ba696e11ea57e34d6c03e861de))
+
 ## [1.4.0](https://github.com/njhoffman/musicman/compare/v1.3.0...v1.4.0) (2026-10-20)
 
 
