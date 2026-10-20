@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.5.0](https://github.com/njhoffman/musicman/compare/v1.4.1...v1.5.0) (2026-10-20)
+
+
+### Bug Fixes
+
+* run notify daemon as systemd user service instead of forever ([45dcd3d](https://github.com/njhoffman/musicman/commit/45dcd3d6332226e9b9d71b64804a3037ac0247d5))
+
 ### [1.4.1](https://github.com/njhoffman/musicman/compare/v1.4.0...v1.4.1) (2026-10-20)
 
 
