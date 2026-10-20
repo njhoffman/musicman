@@ -29,4 +29,6 @@ fields (in my local config) to that table.
   - specific fields can be searched by how this project uses them (rating:5.0, title:"some title") or how mpc does it
     (r(rating 5.0 title "some title")
   - if no fields are specified, take a search string as an argument for title and artist
+  - if --add switch, append to playlist
+  - if --play switch, create a new playlist with the results and play it
 - Add appropriate tests and error handling for the database commands, including the `--update` switch.

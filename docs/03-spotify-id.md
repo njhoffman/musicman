@@ -2,6 +2,11 @@
 
 - new 'sync' command
 - read beets config for path details: ~/.config/beets/config.yaml
+  - beets attempts to automatically assign tags for all files and moves them to 'Sorted/Unrated' folder
+  - after I rate it and assign it a genre 'grouping', it gets moved to 'Sorted/Rated'
+  - beets can't always identify, especially songs, so additional identification is needed in this library
+  - i would like this library to act as a wrapper for the beets program so I don't have to manually do it, and augment
+    it's specifically for spotify
 - beets spotify plugin should assign matching spotify ids ids to local 'Rated' songs, but it may miss some so we will
   need to look up the song in spotify from here as well
 - 'beets spotifysync' is supposed to also fill out the following custom tags:
@@ -9,8 +14,9 @@
   - try to populate these from spotify along with any other spotify specific tags
 - if still not found, it will need to be marked for upload it to spotify
 - all local songs rating 4.5 and above should be added to 'Liked Songs' playlist in spotify
-- if song exists in spotify, but not locally, download it, assign the tags you can, we will use 'beet import
-  --singletons' to move it into 'Sorted/Unrated/_Singles' folder, where I will manually rate it and add other tags, then
+- if song exists in spotify, but not locally, download it, assign the tags you can
+  - we will use 'beet import --singletons' to move it into 'Sorted/Unrated/_Singles' folder
+  - I will then manually rate it and add other tags, then
   import it into the Rated folder (it's never a full album download so always treated a single)
 - spotify playlist items will be cached locally, 'sync' command without arguments will refresh the cache and output the
   number of songs that will be pulled from spotify and pushed to spotify
