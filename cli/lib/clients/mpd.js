@@ -1,8 +1,9 @@
+const _ = require('lodash');
 const Promise = require('bluebird');
+const { MpdClient, cmd } = require('musicman-common/mpd/MpdClient.js');
 const logger = require('../utils/logger.js');
 
 // TODO: fork this into it's own repo
-const { MpdClient } = require('musicman-common/mpd/MpdClient.js');
 
 const connectMpd = ({ port, host }, { timeout = 2000 } = {}) =>
   new Promise((resolve, reject) => {
@@ -50,4 +51,25 @@ const getAvailableSong = async (mpdConfig, options) => {
   }
 };
 
-module.exports = { connectMpd, getAvailableSong, getCurrentSong };
+// commands per MPD command list, well under MPD's default max_command_list_size
+const commandListSize = 500;
+
+/**
+ * Adds songs (paths relative to the MPD music directory) to the queue. With replace the queue is
+ * cleared first and playback starts with the new songs.
+ */
+const queueSongs = async (mpdConfig, songPaths, { replace = false } = {}) => {
+  const mpdClient = await connectMpd(mpdConfig);
+  try {
+    const adds = songPaths.map(songPath => cmd('add', [songPath]));
+    const commands = replace ? [cmd('clear', []), ...adds, cmd('play', [])] : adds;
+    await Promise.each(_.chunk(commands, commandListSize), chunk =>
+      mpdClient.sendCommandListAsync(chunk)
+    );
+    return songPaths.length;
+  } finally {
+    mpdClient.socket.destroy();
+  }
+};
+
+module.exports = { connectMpd, getAvailableSong, getCurrentSong, queueSongs };

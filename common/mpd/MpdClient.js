@@ -15,13 +15,11 @@ function Command(name, args) {
 }
 
 Command.prototype.toString = function toString() {
-  return `${this.name} ${this.args.map(argEscape).join(' ')}`;
+  return [this.name, ...this.args.map(argEscape)].join(' ');
 };
 
 // convenience
-const cmd = (name, args) => {
-  return new Command(name, args);
-};
+const cmd = (name, args) => new Command(name, args);
 
 const parseMpdData = msg =>
   _.fromPairs(
@@ -53,6 +51,14 @@ class MpdClient extends BaseClient {
   constructor() {
     super();
     this.currentState = { song: {}, stats: {}, status: {} };
+  }
+
+  // send commands as one command list, resolves when MPD has run all of them
+  async sendCommandListAsync(commands) {
+    const list = ['command_list_begin', ...commands.map(String), 'command_list_end'].join('\n');
+    return new Promise((resolve, reject) => {
+      this.sendCommand(list, err => (err ? reject(err) : resolve()));
+    });
   }
 
   async sendCommandAsync(commandName) {

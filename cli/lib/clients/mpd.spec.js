@@ -143,4 +143,18 @@ describe('MPD Client', () => {
       expect(result).to.be.false;
     });
   });
+
+  describe('MPD commands', () => {
+    const { cmd } = require('musicman-common/mpd/MpdClient.js');
+    const { argEscape } = require('musicman-common/mpd/utils.js');
+
+    it('should escape backslashes and double quotes in arguments', () => {
+      expect(argEscape('a "b" c\\d')).to.equal('"a \\"b\\" c\\\\d"');
+    });
+
+    it('should format commands without a trailing space when there are no arguments', () => {
+      expect(String(cmd('clear', []))).to.equal('clear');
+      expect(String(cmd('add', ['dir/song.mp3']))).to.equal('add "dir/song.mp3"');
+    });
+  });
 });

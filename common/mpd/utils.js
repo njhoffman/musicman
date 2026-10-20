@@ -41,9 +41,7 @@ const parseArrayMessage = msg => {
   return results;
 };
 
-const argEscape = arg => {
-  // replace all " with \"
-  return `"${arg.toString().replace(/"/g, '\\"')}"`;
-};
-
+const argEscape = arg =>
+  // MPD arguments are double quoted with backslashes and double quotes escaped
+  `"${arg.toString().replace(/[\\"]/g, '\\$&')}"`;
 module.exports = { parseKeyValueMessage, parseArrayMessage, argEscape };
