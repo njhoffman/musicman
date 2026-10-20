@@ -66,8 +66,8 @@ that resolves them. Feature specs live in `docs/`.
 ## Features
 
 - [ ] **Database** (`docs/02-database.md`): sqlite library database, `db --update`, `stats`/`view`/`edit`
-      reading from the database, `search` command with `--add` and `--play`. Decide on the driver first:
-      Node 24's built-in `node:sqlite` avoids native builds; `sqlite3` is installed but unused.
+      reading from the database, `search` command with `--add` and `--play`. Use Node's built-in
+      `node:sqlite` (`DatabaseSync`), no native sqlite dependency.
 - [ ] **Spotify sync** (`docs/03-spotify-id.md`): `sync`, `sync --pull`, `sync --push`, beets integration,
       playlist mapping from `grouping`.
 - [ ] **Custom field definition changes** should be fatal once the database stores them (from

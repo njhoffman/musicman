@@ -3,8 +3,7 @@ packages:
   - cli
   - common
 
-# packages allowed to run install (build) scripts
+# approvals for dependency install (build) scripts
 allowBuilds:
-  sqlite3: true
   # postinstall only prints a funding message
   core-js: false

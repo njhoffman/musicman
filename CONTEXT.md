@@ -23,6 +23,16 @@
 
 # Session Progress
 
+## Session Summary (2026-10-20, later)
+- pnpm workspace (`cli`, `common`); `client` and `server` are placeholders outside the workspace
+- All cli files are `.js` CommonJS (no `"type": "module"`); ESM-only deps load through `require(esm)` with `.default`
+- Config is loaded explicitly with `loadConfig()` from `musicman-common/config`, always from `~/.musicmanrc.yml`;
+  nothing is read or created on require, tests inject configs
+- CLI continues without the current song when MPD is unavailable (`getAvailableSong`, 2s connect timeout)
+- Notify daemon runs as a systemd user service (`pnpm daemon:install`)
+- Database work will use built-in `node:sqlite`; `sqlite3` removed
+- Known issues and planned work are tracked in `TODO.md`
+
 ## Session Summary (2026-10-20)
 - **COMPLETED**: Views keyed by output format instead of command
 - `views.table` and `views.list` replace `views.default/edit/playlist/stats`; the `vertical` format is renamed `list`

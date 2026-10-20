@@ -18,5 +18,8 @@
     "leasot": "^14.4.0",
     "standard-version": "^9.5.0"
   },
-  "packageManager": "pnpm@12.14.0"
+  "packageManager": "pnpm@12.14.0",
+  "engines": {
+    "node": ">=24"
+  }
 }
