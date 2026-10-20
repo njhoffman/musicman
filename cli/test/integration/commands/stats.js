@@ -93,4 +93,14 @@ describe('Stats Command', () => {
     const moodSection = lines.slice(lines.indexOf('Mood') + 1, lines.indexOf('Ratings'));
     expect(moodSection).to.include('Upbeat 2');
   });
+
+  it('Should count populated tags across files', async () => {
+    const lines = await runStats(['mood']);
+    const header = lines.find(line => /^Tags \(\d+ files\)$/.test(line));
+    const total = Number(header.match(/\d+/)[0]);
+    const tagRows = lines.slice(lines.indexOf(header) + 1).filter(Boolean);
+    const artistRow = tagRows.find(line => line.startsWith('artist '));
+    expect(artistRow.split(/\s+/)).to.deep.equal(['artist', `${total}`, '100%', 'TPE1']);
+    expect(tagRows.some(line => line.startsWith('mood '))).to.be.true;
+  });
 });

@@ -7,6 +7,9 @@ const { defaultConfig } = require('musicman-common/config');
 // output settings start from the defaults until configure is called with the loaded config
 let settings = _.pick(defaultConfig.output, ['padding', 'verbosity']);
 
+// terminal columns left after the left padding added by consoleLog, unlimited when not a terminal
+const availableWidth = () => (process.stdout.columns || Infinity) - settings.padding;
+
 const configure = output => {
   settings = { ...settings, ..._.pick(output, ['padding', 'verbosity']) };
 };
@@ -55,6 +58,7 @@ const logger = {
 };
 
 module.exports = {
+  availableWidth,
   configure,
   consoleLog,
   ...logger

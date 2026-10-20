@@ -2,9 +2,8 @@ const _ = require('lodash');
 const chalk = require('chalk').default;
 const diff = require('diff');
 const { renderKeyValues } = require('./render.js');
-const termSize = require('term-size').default;
 
-const { consoleLog } = require('../utils/logger.js');
+const { availableWidth, consoleLog } = require('../utils/logger.js');
 
 const diffColor = part => {
   if (part.added) {
@@ -29,7 +28,7 @@ const formatDifferences = differences => {
   const colorLine = (cell, rowIndex) => chalk[lines[rowIndex].color](cell);
   return renderKeyValues(
     _.map(lines, ({ text }) => text.match(keyRegEx).slice(1, 3)),
-    termSize().columns - 2,
+    availableWidth() - 2,
     { formatKey: colorLine, formatValue: colorLine }
   )
     .split('\n')

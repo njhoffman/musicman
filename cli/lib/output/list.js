@@ -1,6 +1,6 @@
 const _ = require('lodash');
 const chalk = require('chalk').default;
-const termSize = require('term-size').default;
+const { availableWidth } = require('../utils/logger.js');
 const { renderKeyValues } = require('./render.js');
 
 const parseList = (mItem, config) => {
@@ -27,7 +27,7 @@ const formatList = (output, config) => {
   return _.map([].concat(output), item =>
     renderKeyValues(
       _.map(_.toPairs(item), ([key, value]) => [key, _.isNil(value) ? '' : String(value)]),
-      termSize().columns - 2,
+      availableWidth() - 2,
       { formatKey, formatValue }
     )
       .split('\n')

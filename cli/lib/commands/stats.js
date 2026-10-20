@@ -1,6 +1,7 @@
 const _ = require('lodash');
 
 const { getFilteredFiles } = require('./common.js');
+const { countTags } = require('../metadata/tags.js');
 const { outputStats } = require('../output/index.js');
 const logger = require('../utils/logger.js');
 
@@ -53,7 +54,8 @@ const statsCommand = async ({ options, config, target }) => {
     target: target || baseDirectory,
     options,
     config,
-    fullMetadata: true
+    fullMetadata: true,
+    withRaw: true
   });
 
   logger.debug(`Processed ${allFiles.length} files`);
@@ -61,14 +63,19 @@ const statsCommand = async ({ options, config, target }) => {
   // value counts keyed by field name, genre and grouping are always included
   const fields = _.assign(
     {},
-    ..._.uniq(['genre', 'grouping'].concat(multiFields)).map(mf => calculateMultifield(mf, allFiles))
+    ..._.uniq(['genre', 'grouping'].concat(multiFields)).map(mf =>
+      calculateMultifield(mf, allFiles)
+    )
   );
 
   const ratingsOutput = allFiles.reduce(calculateRatings, { unrated: 0, rated: 0, ratings: {} });
 
   const sizesOutput = allFiles.reduce(calculateSizes, { size: 0, duration: 0 });
 
-  const stats = { fields, ...ratingsOutput, ...sizesOutput };
+  // number of files with each populated id3 frame, including custom TXXX fields
+  const tags = countTags(_.map(allFiles, 2), config);
+
+  const stats = { fields, tags, total: allFiles.length, ...ratingsOutput, ...sizesOutput };
 
   return outputStats({ target, stats, config, options });
 };

@@ -96,9 +96,10 @@ describe('Table Output', () => {
   it('should drop columns past the terminal width and truncate the one crossing it', () => {
     process.stdout.columns = 16;
     const lines = renderLines(metadata, config);
-    lines.forEach(line => expect(line.length).to.be.at.most(16));
+    // one column of left padding is added by consoleLog
+    lines.forEach(line => expect(line.length).to.be.at.most(15));
     expect(lines[0]).to.not.include('Artist');
-    expect(lines[0]).to.include('Ra…');
+    expect(lines[0]).to.include('R…');
   });
 
   it('should truncate colored cells by visible width', () => {

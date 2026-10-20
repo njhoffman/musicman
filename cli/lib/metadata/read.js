@@ -27,16 +27,22 @@ const readDuration = file =>
     });
   });
 
+// raw id3 frames, cover art is reduced to a presence marker so image data is not kept in memory
+const toRawTags = tags => {
+  const rawTags = _.omit(tags.raw, ['APIC']);
+  if (_.has(tags.raw, 'APIC')) {
+    rawTags.APIC = true;
+  }
+  return rawTags;
+};
+
 const readMetadata = file =>
   new Promise((resolve, reject) => {
     NodeId3.read(file, (err, tags) => {
       if (err) {
         reject(err);
       } else {
-        // TODO: transform image field,
-        //   APIC: { mime: 'jpeg', type: { id: 3, name: 'front cover' }, imageBuffer: <Buffer ff d8 ff e0 00 10 ... 224530 more bytes>
-        const rawTags = _.omit(tags.raw, ['APIC']);
-        resolve(rawTags);
+        resolve(toRawTags(tags));
       }
     });
   });
@@ -49,9 +55,7 @@ const readMetadataFull = file =>
           if (err) {
             reject(err);
           } else {
-            // TODO: transform image field,
-            //   APIC: { mime: 'jpeg', type: { id: 3, name: 'front cover' }, imageBuffer: <Buffer ff d8 ff e0 00 10 ... 224530 more bytes>
-            const rawTags = _.omit(tags.raw, ['APIC']);
+            const rawTags = toRawTags(tags);
             rawTags.duration = duration;
             rawTags.size = size;
             resolve(rawTags);

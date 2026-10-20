@@ -1,7 +1,8 @@
 const _ = require('lodash');
 const chalk = require('chalk').default;
 
-const { consoleLog } = require('../utils/logger.js');
+const { availableWidth, consoleLog } = require('../utils/logger.js');
+const { renderColumns } = require('./render.js');
 
 const maxLen = (arr, maxLenStatic) => {
   return maxLenStatic || arr.reduce((a, b) => (a.length > b.length ? a : b)).length;
@@ -20,6 +21,28 @@ const outputStat = (title, stat, maxLenStatic = 12) => {
   return output;
 };
 
+// rounded down so 100% means every file, counts under 1% are shown as <1%
+const formatPercent = (count, total) => {
+  const percent = total > 0 ? Math.floor((count / total) * 100) : 0;
+  return percent === 0 && count > 0 ? '<1%' : `${percent}%`;
+};
+
+const outputTags = (tags, total) => {
+  // frame id last so it is truncated first on narrow terminals
+  const rows = _.map(tags, ({ name, id, count }) => [
+    name,
+    `${count}`,
+    formatPercent(count, total),
+    id
+  ]);
+  const columns = [{}, { align: 'right' }, { align: 'right' }, {}];
+  const maxLineWidth = availableWidth() - 2;
+  const table =
+    rows.length > 0 ? renderColumns({ rows, columns, splitter: '  ', maxLineWidth }) : '';
+  const lines = table ? _.map(table.split('\n'), line => `  ${line}`) : [];
+  return `\n${chalk.hex('#8888FF')(`Tags (${total} files)`)}\n${lines.join('\n')}\n`;
+};
+
 const outputStats = ({ stats, config }) => {
   let output = '';
   const { genre, grouping, ...multiFields } = stats.fields;
@@ -35,6 +58,7 @@ const outputStats = ({ stats, config }) => {
     total_duration: `${Math.round(stats.duration / 60)} min`,
     total_size: `${Math.round(stats.size / 1024)} MB`
   });
+  output += outputTags(stats.tags, stats.total);
   return consoleLog(output);
 };
 

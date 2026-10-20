@@ -15,6 +15,10 @@ that resolves them. Feature specs live in `docs/`.
       `String.replace`, which matches anywhere in the path. Use `path.relative`.
 - [ ] **`edit` asks for confirmation before checking for zero matches**, and constructs the prompt even when
       it is not shown (`commands/edit.js`).
+- [ ] **`year` is mapped to a frame the library does not use.** `year` is `TDRL` (ID3v2.4 release time), but
+      files carry the year in `TYER`/`TORY` (ID3v2.3); `stats` shows `TYER` on 99% of a 951-file sample and
+      `TDRL` on none, so `year` is always empty and `edit year=...` writes a v2.4 frame into a v2.3 tag. Map
+      `year` to the frame chosen in the ID3 version decision below.
 - [ ] **`stats.filters` is never used.** The predefined filter sets in config ("All Songs > 4.0", ...) are
       validated but `commands/stats.js` does not compute them.
 - [ ] **Logger ignores `logger.colors`.** The hex colors and `gui` styles in config are validated but never
@@ -33,10 +37,23 @@ that resolves them. Feature specs live in `docs/`.
 - [ ] **Replace `prompt-confirm`** (unmaintained since 2017) with `@inquirer/confirm`.
 - [ ] **Vendored MPD client.** `common/mpd/MpdClient` is a local copy; evaluate a maintained client
       (e.g. `mpd-api`) instead of forking it.
-- [ ] **Move existing TODO comments here and remove them from code:** image field transform
-      (`metadata/read.js`), combine include/exclude filters (`metadata/filter.js`), memory overflow when
+- [ ] **Move existing TODO comments here and remove them from code:** combine include/exclude filters (`metadata/filter.js`), memory overflow when
       reading many files (`commands/common.js`), duration/size option for stats (`commands/stats.js`),
       zero-match handling in edit (`commands/edit.js`).
+
+- [ ] **Decide between ID3v2.3 and ID3v2.4 frames.** Findings so far:
+      - Every sampled file (2000 of 6437 in `Sorted/Rated`) is ID3v2.3.
+      - beets is configured with `id3v23: true`, so imports keep writing v2.3.
+      - `node-id3` always writes v2.3 tags and lets v2.4 frames (e.g. `TDRL`, `TDRC`, `TDOR`) be written into
+        them, which other readers may ignore.
+      - `library.tagId: ID3v2.4` in `defaultConfig.yml` is validated but not used anywhere.
+
+      Options: stay on v2.3 and map tags to v2.3 frames (`TYER`, `TORY`, `TDAT`), matching beets and node-id3;
+      or move to v2.4 (`TDRC`, `TDOR`), which needs beets `id3v23: false`, a writer that supports v2.4 tags,
+      and a migration of existing files. Either way, make `library.tagId` drive the frame mapping or remove it.
+- [ ] **Clean up duplicate TXXX fields.** `stats` shows case and spelling variants of the same field
+      (`Comment`/`COMMENT`, `ALBUMARTISTS`/`ALBUM_ARTISTS`, `ARTISTS`/`Artists`) from different taggers.
+      Decide which to keep and consolidate them, possibly through beets.
 
 ## Tooling
 
@@ -72,6 +89,9 @@ that resolves them. Feature specs live in `docs/`.
       playlist mapping from `grouping`.
 - [ ] **Custom field definition changes** should be fatal once the database stores them (from
       `docs/scratch.md`).
+- [ ] **Faster `stats`.** It reads full metadata (`mp3-duration` decodes each file to compute duration),
+      about 2m10s for 951 files. Read duration from `TLEN` or the MP3 header (Xing/VBRI) and only decode when
+      neither is present.
 - [ ] **Smarter terminal fitting** for the table view: shrink the widest columns instead of dropping the
       rightmost ones.
 - [ ] Honor `views.list.headers.visible` (currently ignored) and implement `views.table.seperators.horizontal`

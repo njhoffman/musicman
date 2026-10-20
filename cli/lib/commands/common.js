@@ -18,11 +18,16 @@ const assignMetadata =
   ([file, meta]) =>
     [file, mergeAssignments(meta, assignments)];
 
-const parseFileMetadata = (filesMetadata, config) =>
-  _.map(filesMetadata, ([file, metadata]) => [file, parseMetadata(metadata, config)]);
+// [file, parsed metadata], with raw id3 frames appended as a third element when withRaw is set
+const parseFileMetadata = (filesMetadata, config, withRaw = false) =>
+  _.map(filesMetadata, ([file, metadata]) =>
+    withRaw
+      ? [file, parseMetadata(metadata, config), metadata]
+      : [file, parseMetadata(metadata, config)]
+  );
 
 const getFilteredFiles = async (
-  { target, options = {}, config = {}, fullMetadata = false },
+  { target, options = {}, config = {}, fullMetadata = false, withRaw = false },
   fileList
 ) => {
   const { switches: { recursive = config.recursive } = {}, filters } = options;
@@ -35,7 +40,7 @@ const getFilteredFiles = async (
   const metadataFiles = fullMetadata ? await getMetadataFull(files) : await getMetadata(files);
 
   // logger.debug(`Parsing metadata for ${metadataFiles.length} files`);
-  const parsedFiles = parseFileMetadata(metadataFiles, config);
+  const parsedFiles = parseFileMetadata(metadataFiles, config, withRaw);
   return filters ? _.filter(parsedFiles, filterFiles(filters)) : parsedFiles;
 };
 

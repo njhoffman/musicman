@@ -14,9 +14,15 @@ describe('Stats Output', () => {
     },
     rated: 3,
     unrated: 1,
-    ratings: { '4.5': 2, '5.0': 1 },
+    ratings: { 4.5: 2, '5.0': 1 },
     size: 2048,
-    duration: 600
+    duration: 600,
+    total: 4,
+    tags: [
+      { id: 'TPE1', name: 'artist', count: 4 },
+      { id: 'TXXX.Mood', name: 'mood', count: 3 },
+      { id: 'TXXX.ASIN', name: 'TXXX:ASIN', count: 1 }
+    ]
   };
 
   it('should render a section for every field in config order', () => {
@@ -30,12 +36,47 @@ describe('Stats Output', () => {
       'Ratings',
       'Overall'
     ]);
+    expect(output).to.include('Tags (4 files)');
   });
 
   it('should render sorted value counts', () => {
     const output = stripAnsi(outputStats({ stats }));
     const moodLines = output.split('Mood\n')[1].split('\n').slice(0, 2);
     expect(moodLines.map(line => line.trim())).to.deep.equal(['Happy 3', 'Sad 1']);
+  });
+
+  it('should render tag counts with percentages in tag order', () => {
+    const output = stripAnsi(outputStats({ stats }));
+    const tagLines = output
+      .split('Tags (4 files)\n')[1]
+      .split('\n')
+      .filter(line => line.trim())
+      .map(line => line.trim().split(/\s+/));
+    expect(tagLines).to.deep.equal([
+      ['artist', '4', '100%', 'TPE1'],
+      ['mood', '3', '75%', 'TXXX.Mood'],
+      ['TXXX:ASIN', '1', '25%', 'TXXX.ASIN']
+    ]);
+  });
+
+  it('should round percentages down and show counts under 1% as <1%', () => {
+    const tags = [
+      { id: 'APIC', name: 'image', count: 948 },
+      { id: 'TPE1', name: 'artist', count: 951 },
+      { id: 'TKEY', name: 'key', count: 1 }
+    ];
+    const output = stripAnsi(outputStats({ stats: { ...stats, tags, total: 951 } }));
+    const percents = output
+      .split('Tags (951 files)\n')[1]
+      .split('\n')
+      .filter(line => line.trim())
+      .map(line => line.trim().split(/\s+/)[2]);
+    expect(percents).to.deep.equal(['99%', '100%', '<1%']);
+  });
+
+  it('should render an empty tags section when no files matched', () => {
+    const output = stripAnsi(outputStats({ stats: { ...stats, tags: [], total: 0 } }));
+    expect(output.trim().endsWith('Tags (0 files)')).to.be.true;
   });
 
   it('should render totals', () => {

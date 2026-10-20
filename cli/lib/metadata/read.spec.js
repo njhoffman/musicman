@@ -34,6 +34,23 @@ describe('Metadata Read', () => {
       expect(result[0]).to.deep.equal(['test.mp3', mockTags.raw]);
     });
 
+    it('should replace cover art with a presence marker', async () => {
+      const mockTags = {
+        raw: { TPE1: 'Test Artist', APIC: { imageBuffer: Buffer.from('image') } }
+      };
+      nodeId3Stub.read.yields(null, mockTags);
+
+      const [[, rawTags]] = await readModule.getMetadata(['test.mp3']);
+      expect(rawTags).to.deep.equal({ TPE1: 'Test Artist', APIC: true });
+    });
+
+    it('should not add a cover art marker when there is no cover art', async () => {
+      nodeId3Stub.read.yields(null, { raw: { TPE1: 'Test Artist' } });
+
+      const [[, rawTags]] = await readModule.getMetadata(['test.mp3']);
+      expect(rawTags).to.not.have.property('APIC');
+    });
+
     it('should read metadata for multiple files', async () => {
       const mockTags = { raw: { TPE1: 'Test Artist' } };
       nodeId3Stub.read.yields(null, mockTags);

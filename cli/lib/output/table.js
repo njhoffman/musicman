@@ -1,6 +1,7 @@
 const _ = require('lodash');
 const chalk = require('chalk').default;
 const { renderColumns } = require('./render.js');
+const { availableWidth } = require('../utils/logger.js');
 
 const outputTable = (metadata, config) => {
   const { views: { table = {} } = {} } = config;
@@ -40,7 +41,7 @@ const outputTable = (metadata, config) => {
       formatHeader: colorHeader
     })),
     splitter: _.isString(seperators.vertical) ? seperators.vertical : ' ',
-    maxLineWidth: process.stdout.columns || Infinity
+    maxLineWidth: availableWidth()
   });
 };
 
