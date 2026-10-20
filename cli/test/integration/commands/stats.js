@@ -43,7 +43,10 @@ describe('Stats Command', () => {
           name: 'mood',
           viewIndex: 4,
           multi: true
-        }
+        },
+        { id: 'TXXX.Context', name: 'context', multi: true },
+        { id: 'TCON', name: 'genre' },
+        { id: 'TIT1', name: 'grouping' }
       ]
     }
   };
@@ -54,17 +57,40 @@ describe('Stats Command', () => {
     resetSandbox();
   });
 
-  // it.only('Should run the command', async () => {
-  //   const results = await statsFunc({ target: dirTarget, options, config });
-  //   // expect(results.split('\n'))
-  //   //   .be.an('array')
-  //   //   .of.length(6);
-  // });
-  //
-  // it('Should calculate occurences for multifields assigned in config', () => { })
-  // it('Should calculate multifield value occurences correctly', () => { });
-  // it('Should parse filter strings from config into field options', () => { });
-  // it('Should calculate total from assigned single filter correctly', () => { });
-  // it('Should calculate total from assigned multiple filters correctly', () => { });
-  // it('Should calculate total with no filters correctly ', () => { });
+  // eslint-disable-next-line no-control-regex
+  const stripAnsi = str => str.replace(/\u001b\[[0-9;]*m/g, '');
+  // output lines with color and left padding removed
+  const runStats = async multiFields => {
+    const statsConfig = { ...config, stats: { ...config.stats, multiFields } };
+    const output = await statsFunc({ target: dirTarget, options, config: statsConfig });
+    return stripAnsi(output)
+      .split('\n')
+      .map(line => line.trim());
+  };
+
+  it('Should output stats with the default multiFields', async () => {
+    const lines = await runStats(['context', 'mood']);
+    ['Genres', 'Groupings', 'Context', 'Mood', 'Ratings', 'Overall'].forEach(section =>
+      expect(lines).to.include(section)
+    );
+    expect(lines).to.not.include('Picks');
+  });
+
+  it('Should output a section for each configured multi field', async () => {
+    const lines = await runStats(['mood']);
+    expect(lines).to.include('Mood');
+    expect(lines).to.not.include('Context');
+  });
+
+  it('Should not duplicate genre when configured as a multi field', async () => {
+    const lines = await runStats(['genre', 'mood']);
+    expect(lines.filter(line => line === 'Genres')).to.have.length(1);
+    expect(lines).to.not.include('Genre');
+  });
+
+  it('Should count multi field values across files', async () => {
+    const lines = await runStats(['mood']);
+    const moodSection = lines.slice(lines.indexOf('Mood') + 1, lines.indexOf('Ratings'));
+    expect(moodSection).to.include('Upbeat 2');
+  });
 });

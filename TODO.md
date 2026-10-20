@@ -5,11 +5,6 @@ that resolves them. Feature specs live in `docs/`.
 
 ## Bugs
 
-- [ ] **Stats output depends on `stats.multiFields` order and contents.** `output/stats.js` reads
-      `stats[0].context`, `stats[1].mood`, `stats[2].picks`, `stats[3].genre`, `stats[4].grouping` by array
-      index. With the default `multiFields: [context, mood]`, index 3 holds grouping, so `stats[3].genre` is
-      undefined and `outputStat` throws ("Cannot convert undefined or null to object"). Only configs with
-      exactly `[context, mood, picks]` work. Key stats by field name and render every configured multi field.
 - [ ] **`pnpm lint` fails with 103 errors.** Since the `.js` rename it lints files again, but most errors are
       airbnb's `import/extensions` rejecting explicit `.js` requires. Fixed as part of the ESLint migration below.
 - [ ] **Progress output goes to stdout.** `metadata/read.js` writes ` ...N files left\r` with
@@ -20,6 +15,8 @@ that resolves them. Feature specs live in `docs/`.
       `String.replace`, which matches anywhere in the path. Use `path.relative`.
 - [ ] **`edit` asks for confirmation before checking for zero matches**, and constructs the prompt even when
       it is not shown (`commands/edit.js`).
+- [ ] **`stats.filters` is never used.** The predefined filter sets in config ("All Songs > 4.0", ...) are
+      validated but `commands/stats.js` does not compute them.
 - [ ] **Logger ignores `logger.colors`.** The hex colors and `gui` styles in config are validated but never
       applied by `utils/logger.js`.
 
@@ -63,7 +60,6 @@ that resolves them. Feature specs live in `docs/`.
       sandbox MP3s, `filesMetadata.json`, and `testTags.js` exist only locally and tests cannot run from a fresh
       clone. Track them (or generate them) and narrow the ignore rule.
 
-- [ ] Integration tests for `stats` covering different `multiFields` configs (would have caught the stats bug).
 - [ ] Tests for `utils/logger.js` verbosity levels and padding.
 - [ ] Tests for `notify-daemon` notification arguments after the refactor above.
 

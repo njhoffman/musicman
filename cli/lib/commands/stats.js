@@ -58,15 +58,17 @@ const statsCommand = async ({ options, config, target }) => {
 
   logger.debug(`Processed ${allFiles.length} files`);
 
-  const multifieldOutput = []
-    .concat(multiFields, 'genre', 'grouping')
-    .map(mf => calculateMultifield(mf, allFiles));
+  // value counts keyed by field name, genre and grouping are always included
+  const fields = _.assign(
+    {},
+    ..._.uniq(['genre', 'grouping'].concat(multiFields)).map(mf => calculateMultifield(mf, allFiles))
+  );
 
   const ratingsOutput = allFiles.reduce(calculateRatings, { unrated: 0, rated: 0, ratings: {} });
 
   const sizesOutput = allFiles.reduce(calculateSizes, { size: 0, duration: 0 });
 
-  const stats = { ...multifieldOutput, ...ratingsOutput, ...sizesOutput };
+  const stats = { fields, ...ratingsOutput, ...sizesOutput };
 
   return outputStats({ target, stats, config, options });
 };
