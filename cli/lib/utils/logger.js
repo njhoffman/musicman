@@ -4,6 +4,10 @@ const path = require('path');
 const { inspect } = require('util');
 
 const { defaultConfig } = require('musicman-common/config');
+const { logLevels } = require('musicman-common/config/validator');
+
+// position of a level name in logLevels (error, warn, info, debug, trace), higher is more detailed
+const levelIndex = name => logLevels.indexOf(name);
 
 // log file written by log messages, set by configureLogFile
 let logFile = null;
@@ -32,22 +36,26 @@ const configure = output => {
 };
 
 /**
- * Appends log messages at or below level (config scale, 5 = debug) to file, without colors and with a
- * timestamp and level. Called with no file to stop writing.
+ * Appends log messages up to level (a logLevels name) to file, without colors and with a timestamp and
+ * level. Called with no file to stop writing.
  */
-const configureLogFile = ({ name, level = 5 } = {}) => {
+const configureLogFile = ({ name, level = 'debug' } = {}) => {
   if (logFile) {
     fs.closeSync(logFile.fd);
     logFile = null;
   }
   if (name) {
     fs.mkdirSync(path.dirname(name), { recursive: true });
-    logFile = { fd: fs.openSync(name, 'a'), level };
+    logFile = { fd: fs.openSync(name, 'a'), level: levelIndex(level) };
   }
 };
 
 // objects are wrapped at the terminal width, or 80 columns when not a terminal
-const inspectOptions = () => ({ colors: true, compact: false, breakLength: process.stdout.columns || 80 });
+const inspectOptions = () => ({
+  colors: true,
+  compact: false,
+  breakLength: process.stdout.columns || 80
+});
 
 /* eslint-disable no-console */
 const consoleLog = message => {
@@ -74,44 +82,34 @@ const consoleLog = message => {
 };
 /* eslint-enable no-console */
 
-// log file levels use the config scale: 2 error, 3 warn, 4 info, 5 debug, 6 trace
-const levelNames = ['error', 'warn', 'info', 'debug', 'trace'];
-
 // eslint-disable-next-line no-control-regex
 const stripAnsi = text => text.replace(/\u001b\[[0-9;]*m/g, '');
 
 const writeLogFile = (logLevel, message) => {
-  if (!logFile || logLevel + 2 > logFile.level) {
+  if (!logFile || logLevel > logFile.level) {
     return;
   }
   const text = _.isString(message)
     ? message
     : inspect(message, { compact: true, breakLength: Infinity });
-  const line = `${new Date().toISOString()} ${levelNames[logLevel]
+  const line = `${new Date().toISOString()} ${logLevels[logLevel]
     .toUpperCase()
     .padEnd(5)} ${stripAnsi(text)}\n`;
   fs.writeSync(logFile.fd, line);
 };
 
 // log file only, for detail that would flood the terminal (e.g. every file of a library update)
-const logToFile = (levelName, message) => writeLogFile(levelNames.indexOf(levelName), message);
+const logToFile = (levelName, message) => writeLogFile(levelIndex(levelName), message);
 
 const log = (logLevel, message) => {
   writeLogFile(logLevel, message);
-  const { verbosity } = settings;
-  if (verbosity >= logLevel) {
+  if (levelIndex(settings.verbosity) >= logLevel) {
     return consoleLog(message);
   }
   return message;
 };
 
-const logger = {
-  error: log.bind(null, 0),
-  warn: log.bind(null, 1),
-  info: log.bind(null, 2),
-  debug: log.bind(null, 3),
-  trace: log.bind(null, 4)
-};
+const logger = _.fromPairs(logLevels.map(name => [name, log.bind(null, levelIndex(name))]));
 
 module.exports = {
   availableWidth,

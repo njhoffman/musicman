@@ -81,8 +81,8 @@ rating:
 
 # Output formatting and display settings
 output:
-  # Verbosity level for logging (1=error to 6=trace)
-  verbosity: 4
+  # Most detailed log level shown in the terminal: error, warn, info, debug, or trace
+  verbosity: info
   # Padding around output elements
   padding: 1
 
@@ -224,9 +224,5 @@ logger:
   file:
     # Log file, relative names are in mpd.baseDirectory
     name: musicman.log
-    # Most detailed level written to the log file (2=error, 3=warn, 4=info, 5=debug, 6=trace)
-    level: 5
-  # Console logging settings
-  stdout:
-    # Minimum level for console logging (5=debug)
-    level: 5
+    # Most detailed level written to the log file: error, warn, info, debug, or trace
+    level: debug

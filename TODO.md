@@ -17,9 +17,9 @@ OVERDUE flag. Feature specs live in `docs/`.
       it is not shown (`commands/edit.js`).
 - [ ] **`stats.filters` is never used.** (p3) The predefined filter sets in config ("All Songs > 4.0", ...) are
       validated but `commands/stats.js` does not compute them.
-- [ ] **Logging levels use different scales.** `output.verbosity` (comment says 1=error..6=trace, code treats
-      0=error..4=trace, so the default 4 shows trace), `logger.file.level` (2=error..6=trace), and the unused
-      `logger.stdout.level` (5=debug). Pick one scale and use level names in config.
+- [x] **Logging levels use different scales.** `output.verbosity` (default `info`) and `logger.file.level`
+      (default `debug`) now take level names (error, warn, info, debug, trace); the unused
+      `logger.stdout.level` was removed.
 - [ ] **Logger ignores `logger.colors`.** (p3) The hex colors and `gui` styles in config are validated but never
       applied by `utils/logger.js`.
 

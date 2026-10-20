@@ -6,6 +6,9 @@ const os = require('os');
 
 // Use console for logging since common doesn't have logger
 
+// log level names from least to most detailed, used by output.verbosity and logger.file.level
+const logLevels = ['error', 'warn', 'info', 'debug', 'trace'];
+
 // Schema definition for config validation
 const configSchema = {
   delimiter: { type: 'string', required: false },
@@ -74,7 +77,7 @@ const configSchema = {
   output: {
     type: 'object',
     properties: {
-      verbosity: { type: 'number', min: 1, max: 6, required: false },
+      verbosity: { type: 'string', enum: logLevels, required: false },
       padding: { type: 'number', min: 0, required: false }
     }
   },
@@ -206,14 +209,7 @@ const configSchema = {
         type: 'object',
         properties: {
           name: { type: 'string', required: false },
-          level: { type: 'number', min: 0, max: 6, required: false }
-        },
-        required: false
-      },
-      stdout: {
-        type: 'object',
-        properties: {
-          level: { type: 'number', min: 0, max: 6, required: false }
+          level: { type: 'string', enum: logLevels, required: false }
         },
         required: false
       }
@@ -263,8 +259,8 @@ function validateValue(value, schema, path = '') {
     return result;
   }
 
-  // Type validation
-  if (schema.type === 'string' && typeof value !== 'string') {
+  // Type validation, values limited to an enum only report the enum
+  if (schema.type === 'string' && typeof value !== 'string' && !schema.enum) {
     result.errors.push(`${path} must be a string`);
   } else if (schema.type === 'number' && typeof value !== 'number') {
     result.errors.push(`${path} must be a number`);
@@ -424,6 +420,7 @@ function readUserConfig(userConfigPath = getUserConfigPath()) {
 }
 
 module.exports = {
+  logLevels,
   parseInterval,
   parsePlaylistId,
   validateConfig,

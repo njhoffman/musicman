@@ -335,11 +335,11 @@ describe('Config Tests', () => {
     });
 
     it('should treat wrong types and out of range values as fatal errors', () => {
-      const result = captureFatal(() => loadConfig({ mpd: { port: 'abc' }, output: { verbosity: 9 } }));
+      const result = captureFatal(() => loadConfig({ mpd: { port: 'abc' }, output: { verbosity: 'loud' } }));
       expect(result.exitCalled).to.be.true;
       const output = result.messages.join('\n');
       expect(output).to.include('mpd.port must be a number');
-      expect(output).to.include('output.verbosity must be <= 6');
+      expect(output).to.include('output.verbosity must be one of: error, warn, info, debug, trace');
     });
 
     it('should report every error before exiting', () => {
@@ -378,7 +378,7 @@ describe('Config Tests', () => {
       const { loadConfig: loadRealConfig } = require('../../../common/config/index.js');
       expect(loadRealConfig({ userConfig: { mpd: { baseDirectory: '/music' } } }).logger.file).to.deep.equal({
         name: '/music/musicman.log',
-        level: 5
+        level: 'debug'
       });
       const absolute = loadRealConfig({ userConfig: { logger: { file: { name: '/var/log/mm.log' } } } });
       expect(absolute.logger.file.name).to.equal('/var/log/mm.log');
@@ -441,6 +441,21 @@ describe('Config Tests', () => {
         downloadDirectory: '/music/.musicman/download',
         beetsConfig: path.join(os.homedir(), '.config/beets/config.yaml')
       });
+    });
+
+    it('should require level names instead of numbers for log levels', () => {
+      const result = captureFatal(() => loadConfig({ output: { verbosity: 4 }, logger: { file: { level: 5 } } }));
+      expect(result.exitCalled).to.be.true;
+      const output = result.messages.join('\n');
+      expect(output).to.include('output.verbosity must be one of: error, warn, info, debug, trace');
+      expect(output).to.include('logger.file.level must be one of: error, warn, info, debug, trace');
+      expect(output).to.not.include('must be a string');
+    });
+
+    it('should warn about the removed logger.stdout option', () => {
+      const result = captureFatal(() => loadConfig({ logger: { stdout: { level: 5 } } }));
+      expect(result.exitCalled).to.be.false;
+      expect(console.warn).to.have.been.calledWithMatch('logger.stdout is not a valid configuration option');
     });
 
     it('should parse backup intervals', () => {
