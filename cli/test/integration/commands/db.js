@@ -1,7 +1,11 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const NodeId3 = require('node-id3');
 const dbFunc = require('../../../lib/commands/db.js').func;
+const viewFunc = require('../../../lib/commands/view.js').func;
+const statsFunc = require('../../../lib/commands/stats.js').func;
+const editFunc = require('../../../lib/commands/edit.js').func;
 
 describe('Db Command', () => {
   let library;
@@ -17,8 +21,17 @@ describe('Db Command', () => {
       mpd: { baseDirectory: path.join(library, 'music') },
       db: { path: path.join(library, 'db', 'musicman.sqlite') },
       rating: { tag: 'POPM', max: 5 },
-      library: { tags: [{ id: 'TPE1', name: 'artist' }] },
-      tags: [{ id: 'TXXX.Mood', name: 'mood', multi: true }]
+      library: {
+        tags: [
+          { id: 'TPE1', name: 'artist' },
+          { id: 'TIT2', name: 'title' },
+          { id: 'TXXX.Mood', name: 'mood', multi: true },
+          { id: 'TCON', name: 'genre' },
+          { id: 'TIT1', name: 'grouping' }
+        ]
+      },
+      tags: [{ id: 'TXXX.Mood', name: 'mood', multi: true }],
+      stats: { multiFields: ['mood'] }
     };
   });
 
@@ -59,5 +72,89 @@ describe('Db Command', () => {
     });
     expect(result).to.be.false;
     expect(process.exitCode).to.equal(1);
+  });
+
+  describe('Database backed commands', () => {
+    const view = async (switches = {}) =>
+      (
+        await viewFunc({
+          target: config.mpd.baseDirectory,
+          options: options({ recursive: true, ...switches }),
+          config
+        })
+      ).metadata;
+    const update = () =>
+      dbFunc({ target: config.mpd.baseDirectory, options: options({ update: true }), config });
+    const songTitle = file => {
+      const { DatabaseSync } = require('node:sqlite');
+      const db = new DatabaseSync(config.db.path);
+      const row = db
+        .prepare(
+          "SELECT value FROM song_tags JOIN songs ON songs.id = song_id WHERE path = ? AND frame_id = 'TIT2'"
+        )
+        .get(file);
+      db.close();
+      return row && row.value;
+    };
+
+    it('Should read the same metadata from the database as from the files', async () => {
+      await update();
+      const fromDatabase = await view();
+      const fromFiles = await view({ files: true });
+      // the database stores multi value fields as separate values, so trailing commas are not kept
+      const normalize = metadata =>
+        metadata.map(meta =>
+          meta.mood ? { ...meta, mood: meta.mood.split(',').filter(Boolean) } : meta
+        );
+      expect(fromDatabase).to.have.length(16);
+      expect(normalize(fromDatabase)).to.deep.equal(normalize(fromFiles));
+    });
+
+    it('Should read the same stats from the database as from the files', async () => {
+      await update();
+      const lines = output =>
+        output
+          .replace(/\u001b\[[0-9;]*m/g, '')
+          .split('\n')
+          .map(line => line.trim());
+      const statsOptions = switches => options({ recursive: true, ...switches });
+      const fromDatabase = await statsFunc({
+        target: config.mpd.baseDirectory,
+        options: statsOptions({}),
+        config
+      });
+      const fromFiles = await statsFunc({
+        target: config.mpd.baseDirectory,
+        options: statsOptions({ files: true }),
+        config
+      });
+      expect(lines(fromDatabase)).to.deep.equal(lines(fromFiles));
+    });
+
+    it('Should read files changed since the last update from disk', async () => {
+      await update();
+      const file = path.join(config.mpd.baseDirectory, 'dir1/testFile01.mp3');
+      NodeId3.update({ title: 'Changed Title' }, file);
+      fs.utimesSync(file, new Date(), new Date(Date.now() + 5000));
+      const metadata = await view();
+      expect(metadata.map(meta => meta.title)).to.include('Changed Title');
+    });
+
+    it('Should read files when the database does not exist', async () => {
+      const metadata = await view();
+      expect(metadata).to.have.length(16);
+      expect(fs.existsSync(config.db.path)).to.be.false;
+    });
+
+    it('Should update database rows for edited files', async () => {
+      await update();
+      const target = path.join(config.mpd.baseDirectory, 'dir1/testFile02.mp3');
+      await editFunc({
+        target,
+        options: { ...options({}), assignments: { title: 'Edited Title' } },
+        config
+      });
+      expect(songTitle('dir1/testFile02.mp3')).to.equal('Edited Title');
+    });
   });
 });

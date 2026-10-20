@@ -1,6 +1,7 @@
 const { getMeta, openDatabase, setMeta } = require('./database.js');
 const { syncTagDefinitions } = require('./tags.js');
 const { updateDatabase } = require('./update.js');
+const { readStoredMetadata } = require('./read.js');
 
 /**
  * Opens the library database from config.db.path and stores tag definitions.
@@ -18,4 +19,4 @@ const openLibrary = (config, dbPath = config.db.path) => {
   return db;
 };
 
-module.exports = { getMeta, openLibrary, setMeta, updateDatabase };
+module.exports = { getMeta, openLibrary, readStoredMetadata, setMeta, updateDatabase };

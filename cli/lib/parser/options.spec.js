@@ -62,6 +62,16 @@ describe('Options assignment', () => {
       expect(test2.options.switches).to.include({ recursive: true });
     });
 
+    it('Should parse files switch', () => {
+      expect(parser({ args: ['--files'], config }).options.switches).to.include({ files: true });
+      expect(parser({ args: ['-f'], config }).options.switches).to.include({ files: true });
+    });
+
+    it('Should not treat bare words named like switches as switches', () => {
+      const test1 = parser({ args: ['files', 'recursive'], config });
+      expect(test1.options.switches).to.deep.equal({});
+    });
+
     it('Should parse update switch alias', () => {
       const test1 = parser({ args: ['-u'], config });
       expect(test1.options.switches).to.include({ update: true });

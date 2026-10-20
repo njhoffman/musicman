@@ -84,7 +84,7 @@ describe('Edit Command', () => {
       delete require.cache[require.resolve('./edit.js')];
       const originalEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'development';
-      
+
       const editCommandNonTest = proxyquire('./edit.js', {
         './common.js': {
           getFilteredFiles: getFilteredFilesStub,
@@ -101,7 +101,7 @@ describe('Edit Command', () => {
           return this;
         }
       });
-      
+
       checkExistsStub.returns(true);
       const mockFiles = [
         ['file1.mp3', { artist: 'Old Artist 1' }],
@@ -119,7 +119,7 @@ describe('Edit Command', () => {
 
       expect(confirmStub.calledOnce).to.be.true;
       expect(result.oldFiles).to.deep.equal(mockFiles);
-      
+
       // Restore NODE_ENV and clear cache
       process.env.NODE_ENV = originalEnv;
       delete require.cache[require.resolve('./edit.js')];
@@ -130,7 +130,7 @@ describe('Edit Command', () => {
       delete require.cache[require.resolve('./edit.js')];
       const originalEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'development';
-      
+
       const editCommandNonTest = proxyquire('./edit.js', {
         './common.js': {
           getFilteredFiles: getFilteredFilesStub,
@@ -147,7 +147,7 @@ describe('Edit Command', () => {
           return this;
         }
       });
-      
+
       checkExistsStub.returns(true);
       const mockFiles = [
         ['file1.mp3', { artist: 'Old Artist 1' }],
@@ -164,7 +164,7 @@ describe('Edit Command', () => {
 
       expect(result).to.be.false;
       expect(saveMetadataStub.called).to.be.false;
-      
+
       // Restore NODE_ENV and clear cache
       process.env.NODE_ENV = originalEnv;
       delete require.cache[require.resolve('./edit.js')];

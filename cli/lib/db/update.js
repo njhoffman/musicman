@@ -74,27 +74,53 @@ const likePrefix = prefix => `${prefix.replace(/[\\%_]/g, char => `\\${char}`)}/
  */
 const updateDatabase = async (
   db,
-  { config, target, onProgress = _.noop, onFile = _.noop, concurrency = 5 }
+  {
+    config,
+    target,
+    files: fileList,
+    record = true,
+    onProgress = _.noop,
+    onFile = _.noop,
+    concurrency = 5
+  }
 ) => {
   const startedAt = Date.now();
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
-  const scope = path.relative(baseDirectory, path.resolve(target));
-  if (scope.startsWith('..') || path.isAbsolute(scope)) {
+  const relativePath = file => path.relative(baseDirectory, path.resolve(file));
+  const isOutside = relative => relative.startsWith('..') || path.isAbsolute(relative);
+
+  // an explicit file list updates only those songs, a target updates and prunes its whole scope
+  const scope = fileList ? null : relativePath(target);
+  if (scope !== null && isOutside(scope)) {
     throw new Error(`Target ${target} is not inside mpd.baseDirectory ${baseDirectory}`);
   }
+  const outside = fileList ? _.filter(fileList, file => isOutside(relativePath(file))) : [];
+  if (outside.length > 0) {
+    throw new Error(
+      `Files are not inside mpd.baseDirectory ${baseDirectory}: ${outside.join(', ')}`
+    );
+  }
 
-  const files = await Promise.map(listFiles(path.resolve(target)), async file => {
+  const listed = fileList
+    ? [].concat(fileList).map(file => path.resolve(file))
+    : listFiles(path.resolve(target));
+  const files = await Promise.map(listed, async file => {
     const { mtimeMs, size } = await fs.promises.stat(file);
-    return { file, path: path.relative(baseDirectory, file), mtime: Math.floor(mtimeMs), size };
+    return { file, path: relativePath(file), mtime: Math.floor(mtimeMs), size };
   });
 
-  const scopeRows = scope
-    ? db
-        .prepare(
-          "SELECT id, path, mtime, size FROM songs WHERE path = ? OR path LIKE ? ESCAPE '\\'"
-        )
-        .all(scope, likePrefix(scope))
-    : db.prepare('SELECT id, path, mtime, size FROM songs').all();
+  const selectSongs = 'SELECT id, path, mtime, size FROM songs';
+  let scopeRows;
+  if (fileList) {
+    const selectPath = db.prepare(`${selectSongs} WHERE path = ?`);
+    scopeRows = _.compact(_.map(files, file => selectPath.get(file.path)));
+  } else if (scope) {
+    scopeRows = db
+      .prepare(`${selectSongs} WHERE path = ? OR path LIKE ? ESCAPE '\\'`)
+      .all(scope, likePrefix(scope));
+  } else {
+    scopeRows = db.prepare(selectSongs).all();
+  }
   const rowsByPath = _.keyBy(scopeRows, 'path');
   const seen = new Set(_.map(files, 'path'));
 
@@ -213,8 +239,14 @@ const updateDatabase = async (
     })
   );
 
-  const summary = { ...counts, target: scope || '.', seconds: (Date.now() - startedAt) / 1000 };
-  setMeta(db, 'lastUpdate', { at: new Date().toISOString(), ...summary });
+  const summary = {
+    ...counts,
+    target: fileList ? `${files.length} files` : scope || '.',
+    seconds: (Date.now() - startedAt) / 1000
+  };
+  if (record) {
+    setMeta(db, 'lastUpdate', { at: new Date().toISOString(), ...summary });
+  }
   return summary;
 };
 

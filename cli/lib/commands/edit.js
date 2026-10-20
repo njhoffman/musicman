@@ -1,7 +1,12 @@
 const _ = require('lodash');
 const Confirm = require('prompt-confirm');
 
-const { getFilteredFiles, assignMetadata, saveMetadata } = require('./common.js');
+const {
+  getFilteredFiles,
+  assignMetadata,
+  saveMetadata,
+  updateLibraryFiles
+} = require('./common.js');
 const { outputDifferences } = require('../output/index.js');
 const { checkExists } = require('../utils/files.js');
 const logger = require('../utils/logger.js');
@@ -44,6 +49,9 @@ const editCommand = async ({ target, options, config }) => {
   // load new metadata for comparison
   const savedMetadata = await getFilteredFiles({ options: {}, config }, _.unzip(filtered)[0]);
   outputDifferences(_.unzip(filtered)[1], _.unzip(savedMetadata)[1]);
+
+  // keep the library database in step with the files that were written
+  await updateLibraryFiles({ files: _.unzip(filtered)[0], options, config });
 
   logger.info(`${filtered.length} files updated`);
 

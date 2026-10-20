@@ -71,8 +71,6 @@ that resolves them. Feature specs live in `docs/`.
 ## Database (`docs/02-database.md`)
 
 - [ ] **Backups:** back up the database to `db.backupDirectory` every `db.backupInterval`.
-- [ ] **Use the database in `stats`, `view`, and `edit`:** `edit` writes the file, then updates the row from
-      the written file.
 - [ ] **`search` command:** field syntax as used here (`rating:5.0 title:"some title"`) and mpc style
       (`rating 5.0 title "some title"`); free text searches title and artist; exact matches on multi-value
       fields.

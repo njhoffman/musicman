@@ -36,6 +36,11 @@ module.exports = {
       return { write: optionList[i + 1] };
     }
   },
+  files: {
+    description: 'Read tags from the files instead of the library database',
+    alias: '-f',
+    func: () => ({ files: true })
+  },
   update: {
     description: 'Update the database from the mpd base directory or the target directory',
     alias: '-u',
