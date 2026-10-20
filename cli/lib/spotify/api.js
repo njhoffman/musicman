@@ -16,7 +16,6 @@ const createClient = ({
   const request = async (method, url, body) => {
     const fullUrl = url.startsWith('http') ? url : `${apiUrl}${url}`;
     for (let attempt = 0; ; attempt += 1) {
-
       const token = await getToken();
 
       const res = await fetchImpl(fullUrl, {
@@ -29,7 +28,6 @@ const createClient = ({
 
         await sleep(retryAfter > 0 ? retryAfter * 1000 : baseDelayMs * 2 ** attempt);
       } else {
-
         const text = await res.text();
         const json = text ? JSON.parse(text) : null;
         if (!res.ok) {
@@ -51,7 +49,6 @@ const createClient = ({
     const items = [];
     let next = url;
     while (next) {
-
       const page = await request('GET', next);
       items.push(...page.items);
       next = page.next;

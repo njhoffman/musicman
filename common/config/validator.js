@@ -289,7 +289,7 @@ function validateValue(value, schema, path = '') {
 
   // Object property validation
   if (schema.type === 'object' && schema.properties && typeof value === 'object') {
-    Object.keys(value).forEach(key => {
+    Object.keys(value).forEach((key) => {
       const keyPath = `${path}.${key}`;
       if (legacyOptions[keyPath]) {
         result.errors.push(`${keyPath} is no longer supported (${legacyOptions[keyPath]})`);
@@ -312,7 +312,7 @@ function validateValue(value, schema, path = '') {
 function validateConfig(config) {
   const result = { errors: [], warnings: [] };
 
-  Object.keys(config).forEach(key => {
+  Object.keys(config).forEach((key) => {
     if (!configSchema[key]) {
       result.warnings.push(`${key} is not a valid configuration option`);
     } else {
@@ -337,7 +337,7 @@ function validateConfig(config) {
     }
   });
 
-  if (_.some(config.tags, tag => _.has(tag, 'tableOrder'))) {
+  if (_.some(config.tags, (tag) => _.has(tag, 'tableOrder'))) {
     result.errors.push('tags[].tableOrder is no longer supported (column order is set by views.<format>.tags)');
   }
 
@@ -351,12 +351,12 @@ function validateConfig(config) {
 function validateLibrary(config, missingTags = []) {
   const errors = _.map(
     missingTags,
-    name => `Tag '${name}' defined in library.tags but not found in user tags or global tags.json`
+    (name) => `Tag '${name}' defined in library.tags but not found in user tags or global tags.json`
   );
   const libraryTags = _.get(config, 'library.tags', []);
 
   // Library tags are read and written as strings, so only text and custom text frames are supported
-  const isTextFrame = id => /^T(?!XXX$)[A-Z0-9]{3}$/.test(id) || /^TXXX\..+/.test(id);
+  const isTextFrame = (id) => /^T(?!XXX$)[A-Z0-9]{3}$/.test(id) || /^TXXX\..+/.test(id);
   _.each(libraryTags, ({ name, id }) => {
     if (!isTextFrame(id)) {
       errors.push(

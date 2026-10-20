@@ -77,9 +77,7 @@ const writeFile = ([file, id3Tags]) => {
 };
 
 const writeFiles = config => files => {
-  return _.chain(files).map(prepareId3Tags(config))
-.map(writeFile)
-.value();
+  return _.chain(files).map(prepareId3Tags(config)).map(writeFile).value();
 };
 
 module.exports = { mergeAssignments, writeFiles };

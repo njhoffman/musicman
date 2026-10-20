@@ -29,7 +29,6 @@ const run = async args => {
 
 run(process.argv.slice(2));
 
-
 process.on('unhandledRejection', err => {
   logger.error(`Unhandled Rejection ${err.name}: ${err.message}\n`, pe.render(err));
   // console.error(err);

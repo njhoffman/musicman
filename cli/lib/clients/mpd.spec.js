@@ -58,7 +58,10 @@ describe('MPD Client', () => {
     it('should reject and close the socket when MPD does not respond', async () => {
       const clock = sinon.useFakeTimers();
       mockMpdClient.socket = { destroy: sinon.stub() };
-      const connectPromise = mpdModule.connectMpd({ port: 6600, host: 'unreachable' }, { timeout: 100 });
+      const connectPromise = mpdModule.connectMpd(
+        { port: 6600, host: 'unreachable' },
+        { timeout: 100 }
+      );
       clock.tick(100);
 
       try {

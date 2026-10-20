@@ -13,7 +13,9 @@ try {
   errors.forEach(error => console.log(`  error: ${error}`));
 
   if (errors.length === 0) {
-    console.log(`✓ Configuration is valid${warnings.length > 0 ? ` (${warnings.length} warnings)` : ''}`);
+    console.log(
+      `✓ Configuration is valid${warnings.length > 0 ? ` (${warnings.length} warnings)` : ''}`
+    );
     console.log(`Config file: ${configPath}`);
   } else {
     console.log(`✗ Found ${errors.length} configuration errors`);

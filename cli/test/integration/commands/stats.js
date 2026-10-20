@@ -52,7 +52,7 @@ describe('Stats Command', () => {
 
   const options = { switches: {}, filters: {}, assignments: {} };
 
-  beforeEach(function() {
+  beforeEach(function () {
     resetSandbox();
   });
 

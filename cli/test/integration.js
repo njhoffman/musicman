@@ -3,13 +3,12 @@ const { resetSandbox, assignTestTags } = require('./utils.js');
 describe('Integration Tests', () => {
   const logTime = false;
   let startTime;
-  before(async function() {
+  before(async function () {
     this.timeout(10000);
     startTime = new Date().getTime();
     await assignTestTags();
     resetSandbox();
   });
-
 
   require('./unit/config.js');
   require('./integration/commands/view.js');
@@ -18,7 +17,6 @@ describe('Integration Tests', () => {
   require('./integration/commands/stats.js');
   require('./integration/commands/db.js');
   require('./integration/commands/search.js');
-
 
   after(() => logTime && console.log(`\n    Finished in ${new Date().getTime() - startTime}ms.`));
 });

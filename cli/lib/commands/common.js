@@ -18,8 +18,7 @@ const saveMetadata = (files, config) => _.map([files], writeFiles(config));
 
 const assignMetadata =
   assignments =>
-  ([file, meta]) =>
-    [file, mergeAssignments(meta, assignments)];
+  ([file, meta]) => [file, mergeAssignments(meta, assignments)];
 
 // [file, parsed metadata], with raw id3 frames appended as a third element when withRaw is set
 const readFileMetadata = (files, fullMetadata) =>

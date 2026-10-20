@@ -128,7 +128,9 @@ describe('Config Tests', () => {
     });
 
     it('should throw fatal error for undefined tags', () => {
-      const result = captureFatal(() => loadConfig({ library: { tags: ['artist', 'nonexistent_tag'] } }));
+      const result = captureFatal(() =>
+        loadConfig({ library: { tags: ['artist', 'nonexistent_tag'] } })
+      );
       expect(result.exitCalled).to.be.true;
       expect(result.messages[0]).to.include(
         "Fatal error: Tag 'nonexistent_tag' defined in library.tags"
@@ -320,7 +322,9 @@ describe('Config Tests', () => {
     it('should warn about validation issues in the loaded user config', () => {
       loadConfig({ unknownOption: true });
       expect(console.warn).to.have.been.calledWithMatch('1 configuration warnings');
-      expect(console.warn).to.have.been.calledWithMatch('unknownOption is not a valid configuration option');
+      expect(console.warn).to.have.been.calledWithMatch(
+        'unknownOption is not a valid configuration option'
+      );
     });
 
     it('should map year to the ID3v2.3 TYER frame by default', () => {
@@ -335,7 +339,9 @@ describe('Config Tests', () => {
     });
 
     it('should treat wrong types and out of range values as fatal errors', () => {
-      const result = captureFatal(() => loadConfig({ mpd: { port: 'abc' }, output: { verbosity: 'loud' } }));
+      const result = captureFatal(() =>
+        loadConfig({ mpd: { port: 'abc' }, output: { verbosity: 'loud' } })
+      );
       expect(result.exitCalled).to.be.true;
       const output = result.messages.join('\n');
       expect(output).to.include('mpd.port must be a number');
@@ -360,7 +366,9 @@ describe('Config Tests', () => {
           userConfig: { unknownOption: true, library: { tags: ['artist', 'nonexistent_tag'] } },
           defaultConfig: mockDefaultConfig
         });
-        expect(checked.warnings).to.deep.equal(['unknownOption is not a valid configuration option']);
+        expect(checked.warnings).to.deep.equal([
+          'unknownOption is not a valid configuration option'
+        ]);
         expect(checked.errors[0]).to.include("Tag 'nonexistent_tag' defined in library.tags");
       });
       expect(result.exitCalled).to.be.false;
@@ -376,11 +384,15 @@ describe('Config Tests', () => {
 
     it('should resolve a relative log file name in the mpd base directory', () => {
       const { loadConfig: loadRealConfig } = require('../../../common/config/index.js');
-      expect(loadRealConfig({ userConfig: { mpd: { baseDirectory: '/music' } } }).logger.file).to.deep.equal({
+      expect(
+        loadRealConfig({ userConfig: { mpd: { baseDirectory: '/music' } } }).logger.file
+      ).to.deep.equal({
         name: '/music/musicman.log',
         level: 'debug'
       });
-      const absolute = loadRealConfig({ userConfig: { logger: { file: { name: '/var/log/mm.log' } } } });
+      const absolute = loadRealConfig({
+        userConfig: { logger: { file: { name: '/var/log/mm.log' } } }
+      });
       expect(absolute.logger.file.name).to.equal('/var/log/mm.log');
     });
 
@@ -396,7 +408,9 @@ describe('Config Tests', () => {
     it('should treat an invalid backup interval as a fatal error', () => {
       const result = captureFatal(() => loadConfig({ db: { backupInterval: 'often' } }));
       expect(result.exitCalled).to.be.true;
-      expect(result.messages.join('\n')).to.include("db.backupInterval 'often' must be a number of");
+      expect(result.messages.join('\n')).to.include(
+        "db.backupInterval 'often' must be a number of"
+      );
     });
 
     it('should require at least one backup to keep', () => {
@@ -410,7 +424,10 @@ describe('Config Tests', () => {
         loadConfig({
           sync: {
             playlists: [
-              { filter: 'grouping:Rock', playlist: 'https://open.spotify.com/playlist/5MUDXMSHkjbA2CIYXjj1Vz?si=a1' },
+              {
+                filter: 'grouping:Rock',
+                playlist: 'https://open.spotify.com/playlist/5MUDXMSHkjbA2CIYXjj1Vz?si=a1'
+              },
               { filter: 'mood:Happy' },
               { filter: 'mood:Sad', playlist: 'not a playlist' }
             ]
@@ -419,14 +436,18 @@ describe('Config Tests', () => {
       );
       const output = result.messages.join('\n');
       expect(output).to.include('sync.playlists[1] must have a filter and a playlist');
-      expect(output).to.include("sync.playlists[2].playlist 'not a playlist' is not a Spotify playlist URL or id");
+      expect(output).to.include(
+        "sync.playlists[2].playlist 'not a playlist' is not a Spotify playlist URL or id"
+      );
       expect(output).to.not.include('sync.playlists[0]');
     });
 
     it('should parse Spotify playlist URLs, URIs, and ids', () => {
       const { parsePlaylistId } = require('../../../common/config/validator.js');
       const id = '5MUDXMSHkjbA2CIYXjj1Vz';
-      expect(parsePlaylistId(`https://open.spotify.com/playlist/${id}?si=a9900a672c9c4839`)).to.equal(id);
+      expect(
+        parsePlaylistId(`https://open.spotify.com/playlist/${id}?si=a9900a672c9c4839`)
+      ).to.equal(id);
       expect(parsePlaylistId(`spotify:playlist:${id}`)).to.equal(id);
       expect(parsePlaylistId(id)).to.equal(id);
       expect(parsePlaylistId('https://open.spotify.com/album/x')).to.be.null;
@@ -444,18 +465,24 @@ describe('Config Tests', () => {
     });
 
     it('should require level names instead of numbers for log levels', () => {
-      const result = captureFatal(() => loadConfig({ output: { verbosity: 4 }, logger: { file: { level: 5 } } }));
+      const result = captureFatal(() =>
+        loadConfig({ output: { verbosity: 4 }, logger: { file: { level: 5 } } })
+      );
       expect(result.exitCalled).to.be.true;
       const output = result.messages.join('\n');
       expect(output).to.include('output.verbosity must be one of: error, warn, info, debug, trace');
-      expect(output).to.include('logger.file.level must be one of: error, warn, info, debug, trace');
+      expect(output).to.include(
+        'logger.file.level must be one of: error, warn, info, debug, trace'
+      );
       expect(output).to.not.include('must be a string');
     });
 
     it('should warn about the removed logger.stdout option', () => {
       const result = captureFatal(() => loadConfig({ logger: { stdout: { level: 5 } } }));
       expect(result.exitCalled).to.be.false;
-      expect(console.warn).to.have.been.calledWithMatch('logger.stdout is not a valid configuration option');
+      expect(console.warn).to.have.been.calledWithMatch(
+        'logger.stdout is not a valid configuration option'
+      );
     });
 
     it('should parse backup intervals', () => {

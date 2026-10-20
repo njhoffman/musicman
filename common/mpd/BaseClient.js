@@ -53,7 +53,7 @@ class BaseClient extends EventEmitter {
 
   handleIdleResults(msg) {
     const self = this;
-    msg.split('\n').forEach(system => {
+    msg.split('\n').forEach((system) => {
       if (system.length > 0) {
         const name = system.substring(9);
         self.emit(`system-${name}`);

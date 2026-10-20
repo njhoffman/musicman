@@ -13,8 +13,8 @@ const defaultConfig = yaml.load(fs.readFileSync(path.resolve(__dirname, 'default
 // Map library.tags names to actual tag objects
 // First check user's custom tags, then fall back to global tags.json
 // This ensures we support both user-defined custom tags and standard ID3 tags
-const resolveLibraryTags = config => {
-  const resolved = _.map(config.library.tags, name => ({
+const resolveLibraryTags = (config) => {
+  const resolved = _.map(config.library.tags, (name) => ({
     name,
     tag: _.find(config.tags || [], { name }) || _.find(globalTags, { name })
   }));
@@ -48,16 +48,16 @@ const buildConfig = ({
   );
 
   // database files default to the music library directory
-  const expandHome = file => (file && file.startsWith('~/') ? path.join(os.homedir(), file.slice(2)) : file);
+  const expandHome = (file) => (file && file.startsWith('~/') ? path.join(os.homedir(), file.slice(2)) : file);
   const baseDirectory = _.get(config, 'mpd.baseDirectory');
-  const libraryFile = name => (baseDirectory ? path.join(baseDirectory, name) : null);
+  const libraryFile = (name) => (baseDirectory ? path.join(baseDirectory, name) : null);
   config.db = {
     ...config.db,
     path: expandHome(_.get(config, 'db.path')) || libraryFile('musicman.sqlite'),
     backupDirectory: expandHome(_.get(config, 'db.backupDirectory')) || libraryFile('.musicman')
   };
 
-  const musicmanFile = name => (baseDirectory ? path.join(baseDirectory, '.musicman', name) : null);
+  const musicmanFile = (name) => (baseDirectory ? path.join(baseDirectory, '.musicman', name) : null);
   config.sync = {
     ...config.sync,
     uploadDirectory: expandHome(_.get(config, 'sync.uploadDirectory')) || musicmanFile('upload'),
@@ -80,7 +80,7 @@ const buildConfig = ({
 /**
  * Validates the user config (~/.musicmanrc.yml) without exiting, returns { errors, warnings }.
  */
-const checkConfig = options => _.pick(buildConfig(options), ['errors', 'warnings']);
+const checkConfig = (options) => _.pick(buildConfig(options), ['errors', 'warnings']);
 
 /**
  * Loads the user config (~/.musicmanrc.yml) merged over the default config.
@@ -97,11 +97,11 @@ const loadConfig = (options = {}) => {
 
   if (warnings.length > 0) {
     console.warn(`Found ${warnings.length} configuration warnings in ${userConfigPath}:`);
-    warnings.forEach(warning => console.warn(`  - ${warning}`));
+    warnings.forEach((warning) => console.warn(`  - ${warning}`));
   }
 
   if (errors.length > 0) {
-    errors.forEach(error => console.error(`Fatal error: ${error}`));
+    errors.forEach((error) => console.error(`Fatal error: ${error}`));
     console.error(`Fix ${userConfigPath} and run again`);
     process.exit(1);
   }

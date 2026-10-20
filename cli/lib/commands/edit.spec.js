@@ -29,7 +29,7 @@ describe('Edit Command', () => {
       '../output/index.js': {
         outputDifferences: outputStub
       },
-      'prompt-confirm': function(options) {
+      'prompt-confirm': function (options) {
         this.run = confirmStub;
         return this;
       }
@@ -96,7 +96,7 @@ describe('Edit Command', () => {
         '../output/index.js': {
           outputDifferences: outputStub
         },
-        'prompt-confirm': function(options) {
+        'prompt-confirm': function (options) {
           this.run = confirmStub;
           return this;
         }
@@ -142,7 +142,7 @@ describe('Edit Command', () => {
         '../output/index.js': {
           outputDifferences: outputStub
         },
-        'prompt-confirm': function(options) {
+        'prompt-confirm': function (options) {
           this.run = confirmStub;
           return this;
         }

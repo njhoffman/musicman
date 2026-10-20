@@ -42,7 +42,9 @@ const outputDifferences = (orig, curr) => {
       ? diff.diffJson(orig[0], curr[0])
       : diff.diffJson(orig, curr);
 
-  const diffOut = _.map(differences, part => chalk[diffColor(part)](cleanDiffValue(part.value))).join('');
+  const diffOut = _.map(differences, part =>
+    chalk[diffColor(part)](cleanDiffValue(part.value))
+  ).join('');
 
   const output =
     diffOut.includes('\n') && process.env.NODE_ENV !== 'test'

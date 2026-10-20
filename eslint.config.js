@@ -1,7 +1,7 @@
-const js = require('@eslint/js');
-const n = require('eslint-plugin-n');
-const prettier = require('eslint-config-prettier');
-const globals = require('globals');
+const js = require('@eslint/js')
+const n = require('eslint-plugin-n')
+const prettier = require('eslint-config-prettier')
+const globals = require('globals')
 
 module.exports = [
   {
@@ -42,4 +42,4 @@ module.exports = [
   },
   // formatting is left to prettier (pnpm format)
   prettier
-];
+]

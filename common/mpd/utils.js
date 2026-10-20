@@ -1,7 +1,7 @@
-const parseKeyValueMessage = msg => {
+const parseKeyValueMessage = (msg) => {
   const result = {};
 
-  msg.split('\n').forEach(p => {
+  msg.split('\n').forEach((p) => {
     if (p.length === 0) {
       return;
     }
@@ -15,11 +15,11 @@ const parseKeyValueMessage = msg => {
   return result;
 };
 
-const parseArrayMessage = msg => {
+const parseArrayMessage = (msg) => {
   const results = [];
   let obj = {};
 
-  msg.split('\n').forEach(p => {
+  msg.split('\n').forEach((p) => {
     if (p.length === 0) {
       return;
     }
@@ -41,7 +41,7 @@ const parseArrayMessage = msg => {
   return results;
 };
 
-const argEscape = arg =>
+const argEscape = (arg) =>
   // MPD arguments are double quoted with backslashes and double quotes escaped
   `"${arg.toString().replace(/[\\"]/g, '\\$&')}"`;
 module.exports = { parseKeyValueMessage, parseArrayMessage, argEscape };
