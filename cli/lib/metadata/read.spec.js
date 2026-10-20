@@ -5,17 +5,20 @@ const proxyquire = require('proxyquire');
 describe('Metadata Read', () => {
   let nodeId3Stub;
   let mp3DurationStub;
+  let headerDurationStub;
   let fsStub;
   let readModule;
 
   beforeEach(() => {
     nodeId3Stub = { read: sinon.stub() };
     mp3DurationStub = sinon.stub();
+    headerDurationStub = sinon.stub().resolves(null);
     fsStub = { stat: sinon.stub() };
 
     readModule = proxyquire('./read.js', {
       'node-id3': nodeId3Stub,
       'mp3-duration': mp3DurationStub,
+      './duration.js': { readHeaderDuration: headerDurationStub },
       fs: fsStub
     });
   });
@@ -73,7 +76,17 @@ describe('Metadata Read', () => {
   });
 
   describe('getMetadataFull', () => {
-    it('should read metadata with duration and size', async () => {
+    it('should read duration from frame headers without decoding', async () => {
+      nodeId3Stub.read.yields(null, { raw: { TPE1: 'Test Artist' } });
+      headerDurationStub.resolves(200.25);
+      fsStub.stat.yields(null, { size: 5000000 });
+
+      const [[, rawTags]] = await readModule.getMetadataFull(['test.mp3']);
+      expect(rawTags.duration).to.equal(200.25);
+      expect(mp3DurationStub).to.not.have.been.called;
+    });
+
+    it('should decode duration when no frame header is found', async () => {
       const mockTags = { raw: { TPE1: 'Test Artist' } };
       nodeId3Stub.read.yields(null, mockTags);
       mp3DurationStub.yields(null, 180.5);

@@ -4,6 +4,7 @@ const NodeId3 = require('node-id3');
 const mp3Duration = require('mp3-duration');
 const { flatten } = require('flat');
 const Promise = require('bluebird');
+const { readHeaderDuration } = require('./duration.js');
 
 const readSize = file =>
   new Promise((resolve, reject) => {
@@ -16,7 +17,7 @@ const readSize = file =>
     });
   });
 
-const readDuration = file =>
+const decodeDuration = file =>
   new Promise((resolve, reject) => {
     mp3Duration(file, (err, duration) => {
       if (err) {
@@ -26,6 +27,12 @@ const readDuration = file =>
       }
     });
   });
+
+// duration from mp3 frame headers, decoding the whole file only when no frame header is found
+const readDuration = async file => {
+  const duration = await readHeaderDuration(file);
+  return duration === null ? decodeDuration(file) : duration;
+};
 
 // raw id3 frames, cover art is reduced to a presence marker so image data is not kept in memory
 const toRawTags = tags => {

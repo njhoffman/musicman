@@ -79,9 +79,6 @@ that resolves them. Feature specs live in `docs/`.
       playlist mapping from `grouping`.
 - [ ] **Custom field definition changes** should be fatal once the database stores them (from
       `docs/scratch.md`).
-- [ ] **Faster `stats`.** It reads full metadata (`mp3-duration` decodes each file to compute duration),
-      about 2m10s for 951 files. Read duration from `TLEN` or the MP3 header (Xing/VBRI) and only decode when
-      neither is present.
 - [ ] **Smarter terminal fitting** for the table view: shrink the widest columns instead of dropping the
       rightmost ones.
 - [ ] Honor `views.list.headers.visible` (currently ignored) and implement `views.table.seperators.horizontal`
