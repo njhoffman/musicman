@@ -1,3 +1,10 @@
-onlyBuiltDependencies:
-  - core-js
-  - husky
+# client and server are placeholders and are not part of the workspace yet
+packages:
+  - cli
+  - common
+
+# packages allowed to run install (build) scripts
+allowBuilds:
+  sqlite3: true
+  # postinstall only prints a funding message
+  core-js: false

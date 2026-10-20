@@ -2,7 +2,6 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const proxyquire = require('proxyquire');
-const yaml = require('js-yaml');
 
 describe('Config Tests', () => {
   let mockConfig;

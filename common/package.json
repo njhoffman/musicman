@@ -1,5 +1,5 @@
 {
-  "name": "musicmanager-common",
+  "name": "musicman-common",
   "version": "1.0.0",
   "description": "",
   "scripts": {
@@ -22,8 +22,6 @@
   },
   "dependencies": {
     "cosmiconfig": "6.0.0",
-    "iconv-lite": "^0.5.0",
-    "int64-buffer": "^0.99.1007",
     "js-yaml": "^4.1.0",
     "lodash": "4.17.15"
   }

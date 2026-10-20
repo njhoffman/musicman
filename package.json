@@ -6,7 +6,7 @@
   "scripts": {
     "release": "standard-version",
     "todos": "leasot -x 'cli/lib/**/*.js' 'cli/test/**/*.js' 'cli/config/**/*.js' 'server/lib/**/*.js' 'server/test/**/*.js'",
-    "test": "npm run test --prefix cli"
+    "test": "pnpm --filter musicman-cli test"
   },
   "author": "Nick Hoffman",
   "license": "ISC",
@@ -17,5 +17,6 @@
     "husky": "^9.1.7",
     "leasot": "^14.4.0",
     "standard-version": "^9.5.0"
-  }
+  },
+  "packageManager": "pnpm@12.14.0"
 }
