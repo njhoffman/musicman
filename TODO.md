@@ -93,7 +93,9 @@ OVERDUE flag. Feature specs live in `docs/`.
 - [x] **Spotify credentials:** `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI` (or `_URL`)
       from the environment, falling back to `spotify.*` in the config; `sync --login` saves OAuth tokens to
       `$XDG_STATE_HOME/musicman/spotify-token.json` (mode 0600).
-- [ ] **Sync config:** (p1) `sync.uploadDirectory`, `sync.downloadDirectory`, `sync.spotdlCommand`.
+- [x] **Sync config:** (p1) `sync.likedRating`, `sync.playlists` (filter to playlist, your 38 mappings
+      moved from the doc), `sync.uploadDirectory`, `sync.downloadDirectory`, `sync.spotdlCommand`,
+      `sync.beetsConfig`.
 - [ ] **`sync` command and cache:** (p1) refresh a local cache of the mapped Spotify playlists and report how many
       songs would be pulled and pushed.
 - [ ] **Beets integration:** read paths from `~/.config/beets/config.yaml` and wrap the beets workflow

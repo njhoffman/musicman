@@ -37,6 +37,23 @@ spotify:
   # Must match a redirect URI registered for the app
   redirectUri: http://127.0.0.1:6659/callback
 
+# Spotify sync settings
+sync:
+  # Songs rated at least this are added to Spotify Liked Songs
+  likedRating: 4.5
+  # Spotify playlists to keep in sync: songs matching filter (view/search syntax) belong in playlist
+  #   - filter: grouping:AlternativeMetal.Artists
+  #     playlist: https://open.spotify.com/playlist/5MUDXMSHkjbA2CIYXjj1Vz
+  playlists: []
+  # Songs to add to Spotify through the desktop app, defaults to .musicman/upload in mpd.baseDirectory
+  uploadDirectory:
+  # spotDL downloads, defaults to .musicman/download in mpd.baseDirectory
+  downloadDirectory:
+  # Command used by the spotDL download script
+  spotdlCommand: spotdl
+  # beets config, used to find the beets library and its Spotify ids
+  beetsConfig: ~/.config/beets/config.yaml
+
 # Notification daemon settings for desktop notifications
 daemon:
   # Display duration for notifications in milliseconds

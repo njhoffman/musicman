@@ -19,7 +19,15 @@ describe('Database', () => {
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
         .all()
         .map(({ name }) => name);
-      expect(tables).to.deep.equal(['meta', 'song_tags', 'songs', 'tags']);
+      expect(tables).to.deep.equal([
+        'meta',
+        'song_tags',
+        'songs',
+        'spotify_matches',
+        'spotify_playlist_tracks',
+        'spotify_playlists',
+        'tags'
+      ]);
       expect(db.prepare('PRAGMA user_version').get().user_version).to.equal(migrations.length);
     });
 

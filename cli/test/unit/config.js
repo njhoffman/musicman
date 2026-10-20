@@ -405,6 +405,44 @@ describe('Config Tests', () => {
       expect(result.messages.join('\n')).to.include('db.backupCount must be >= 1');
     });
 
+    it('should validate sync playlist mappings', () => {
+      const result = captureFatal(() =>
+        loadConfig({
+          sync: {
+            playlists: [
+              { filter: 'grouping:Rock', playlist: 'https://open.spotify.com/playlist/5MUDXMSHkjbA2CIYXjj1Vz?si=a1' },
+              { filter: 'mood:Happy' },
+              { filter: 'mood:Sad', playlist: 'not a playlist' }
+            ]
+          }
+        })
+      );
+      const output = result.messages.join('\n');
+      expect(output).to.include('sync.playlists[1] must have a filter and a playlist');
+      expect(output).to.include("sync.playlists[2].playlist 'not a playlist' is not a Spotify playlist URL or id");
+      expect(output).to.not.include('sync.playlists[0]');
+    });
+
+    it('should parse Spotify playlist URLs, URIs, and ids', () => {
+      const { parsePlaylistId } = require('../../../common/config/validator.js');
+      const id = '5MUDXMSHkjbA2CIYXjj1Vz';
+      expect(parsePlaylistId(`https://open.spotify.com/playlist/${id}?si=a9900a672c9c4839`)).to.equal(id);
+      expect(parsePlaylistId(`spotify:playlist:${id}`)).to.equal(id);
+      expect(parsePlaylistId(id)).to.equal(id);
+      expect(parsePlaylistId('https://open.spotify.com/album/x')).to.be.null;
+    });
+
+    it('should default sync directories to .musicman in the mpd base directory', () => {
+      const { loadConfig: loadRealConfig } = require('../../../common/config/index.js');
+      const config = loadRealConfig({ userConfig: { mpd: { baseDirectory: '/music' } } });
+      expect(config.sync).to.include({
+        likedRating: 4.5,
+        uploadDirectory: '/music/.musicman/upload',
+        downloadDirectory: '/music/.musicman/download',
+        beetsConfig: path.join(os.homedir(), '.config/beets/config.yaml')
+      });
+    });
+
     it('should parse backup intervals', () => {
       const { parseInterval } = require('../../../common/config/validator.js');
       expect(parseInterval('1 day')).to.equal(24 * 60 * 60 * 1000);

@@ -1,4 +1,6 @@
 // schema migrations, applied in order; PRAGMA user_version is the number already applied
+// 1: songs, song_tags, tags, meta
+// 2: spotify_matches (lookup results per song), spotify_playlists and spotify_playlist_tracks (cache)
 module.exports = [
   `
   CREATE TABLE songs (
@@ -33,5 +35,35 @@ module.exports = [
     key TEXT PRIMARY KEY,
     value TEXT
   );
+  `,
+  `
+  CREATE TABLE spotify_matches (
+    song_id INTEGER PRIMARY KEY REFERENCES songs (id) ON DELETE CASCADE,
+    status TEXT NOT NULL,
+    track_id TEXT,
+    source TEXT,
+    candidate TEXT,
+    checked_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE spotify_playlists (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    snapshot_id TEXT,
+    synced_at TEXT
+  );
+
+  CREATE TABLE spotify_playlist_tracks (
+    playlist_id TEXT NOT NULL REFERENCES spotify_playlists (id) ON DELETE CASCADE,
+    track_id TEXT,
+    is_local INTEGER NOT NULL DEFAULT 0,
+    name TEXT,
+    artists TEXT,
+    album TEXT,
+    duration_ms INTEGER,
+    added_at TEXT
+  );
+  CREATE INDEX spotify_playlist_tracks_playlist ON spotify_playlist_tracks (playlist_id);
+  CREATE INDEX spotify_playlist_tracks_track ON spotify_playlist_tracks (track_id);
   `
 ];

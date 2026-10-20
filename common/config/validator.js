@@ -33,6 +33,17 @@ const configSchema = {
       backupCount: { type: 'number', min: 1, required: false }
     }
   },
+  sync: {
+    type: 'object',
+    properties: {
+      likedRating: { type: 'number', min: 0, required: false },
+      playlists: { type: 'array', required: false },
+      uploadDirectory: { type: 'string', required: false },
+      downloadDirectory: { type: 'string', required: false },
+      spotdlCommand: { type: 'string', required: false },
+      beetsConfig: { type: 'string', required: false }
+    }
+  },
   spotify: {
     type: 'object',
     properties: {
@@ -222,6 +233,14 @@ function parseInterval(interval) {
   return match ? Number(match[1]) * intervalUnits[match[2].toLowerCase()] : null;
 }
 
+/**
+ * Spotify playlist id from a playlist URL, spotify:playlist: URI, or bare id; null when invalid
+ */
+function parsePlaylistId(playlist) {
+  const match = `${playlist}`.trim().match(/(?:playlist[/:])?([A-Za-z0-9]{22})(?:[?/].*)?$/);
+  return match ? match[1] : null;
+}
+
 // options moved into views, reported as errors with where they moved to
 const legacyOptions = {
   'output.table': 'moved to views.table',
@@ -314,6 +333,14 @@ function validateConfig(config) {
     );
   }
 
+  _.each(_.get(config, 'sync.playlists', []), (entry, i) => {
+    if (!_.isPlainObject(entry) || !_.isString(entry.filter) || !_.isString(entry.playlist)) {
+      result.errors.push(`sync.playlists[${i}] must have a filter and a playlist`);
+    } else if (!parsePlaylistId(entry.playlist)) {
+      result.errors.push(`sync.playlists[${i}].playlist '${entry.playlist}' is not a Spotify playlist URL or id`);
+    }
+  });
+
   if (_.some(config.tags, tag => _.has(tag, 'tableOrder'))) {
     result.errors.push('tags[].tableOrder is no longer supported (column order is set by views.<format>.tags)');
   }
@@ -398,6 +425,7 @@ function readUserConfig(userConfigPath = getUserConfigPath()) {
 
 module.exports = {
   parseInterval,
+  parsePlaylistId,
   validateConfig,
   validateLibrary,
   readUserConfig,

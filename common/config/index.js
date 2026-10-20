@@ -4,13 +4,7 @@ const os = require('os');
 const path = require('path');
 const yaml = require('js-yaml');
 const globalTags = require('./tags.json');
-const {
-  ensureUserConfig,
-  getUserConfigPath,
-  readUserConfig,
-  validateConfig,
-  validateLibrary
-} = require('./validator');
+const { ensureUserConfig, getUserConfigPath, readUserConfig, validateConfig, validateLibrary } = require('./validator');
 
 const { version: pkgVersion } = require('../../package.json');
 
@@ -61,6 +55,14 @@ const buildConfig = ({
     ...config.db,
     path: expandHome(_.get(config, 'db.path')) || libraryFile('musicman.sqlite'),
     backupDirectory: expandHome(_.get(config, 'db.backupDirectory')) || libraryFile('.musicman')
+  };
+
+  const musicmanFile = name => (baseDirectory ? path.join(baseDirectory, '.musicman', name) : null);
+  config.sync = {
+    ...config.sync,
+    uploadDirectory: expandHome(_.get(config, 'sync.uploadDirectory')) || musicmanFile('upload'),
+    downloadDirectory: expandHome(_.get(config, 'sync.downloadDirectory')) || musicmanFile('download'),
+    beetsConfig: expandHome(_.get(config, 'sync.beetsConfig'))
   };
 
   const logFileName = expandHome(_.get(config, 'logger.file.name'));
