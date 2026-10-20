@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# todo-fzf [-f FILE] [QUERY...]
+#
+# Pick an open TODO.md item in fzf: project + title + due date, OVERDUE in red,
+# the item's full text in the preview. Enter opens $VISUAL/$EDITOR (falling
+# back to nvim, then vi, when that isn't an executable) at the item's line;
+# ctrl-y copies the title (pushclip.sh when ~/.shell has it, else wl-copy or xclip). QUERY seeds the fzf search.
+# Items come from `todo-status -l`, so parsing rules live there.
+
+set -euo pipefail
+
+here=$(dirname "$(readlink -f "$0")")
+status=(sh "$here/todo-status")
+[[ ${1-} == -f ]] && { status+=(-f "$2"); shift 2; }
+file=$("${status[@]}" -p)
+items=$("${status[@]}" -l)
+[[ -n $items ]] || { echo "todo-fzf: no open items in $file" >&2; exit 1; }
+
+# Short project label: heading up to its colon, capped at 28 chars.
+rows=$(awk -F'\t' -v OFS='\t' '{
+  proj = $3; sub(/:.*/, "", proj)
+  if (length(proj) > 28) proj = substr(proj, 1, 27) "~"
+  tag = $5 == "" ? "" : ($6 ? "  \033[31m[due " $5 ", OVERDUE]\033[0m" : "  \033[33m[due " $5 "]\033[0m")
+  printf "%s\t%s\t\033[34m%-28s\033[0m  %s%s\t%s\n", $1, $2, proj, $4, tag, $4
+}' <<<"$items")
+
+# ctrl-y copies with ~/.shell's pushclip.sh (tmux and system clipboard) when present
+if [[ -x ~/.shell/scripts/clip/pushclip.sh ]]; then
+  clip=~/.shell/scripts/clip/pushclip.sh
+elif command -v wl-copy >/dev/null; then
+  clip=wl-copy
+else
+  clip='xclip -selection clipboard'
+fi
+
+if command -v bat >/dev/null; then
+  preview="bat --color=always --style=numbers --language=markdown --line-range={1}:{2} -- ${file@Q}"
+else
+  preview="sed -n {1},{2}p -- ${file@Q}"
+fi
+
+pick=$(fzf --ansi --delimiter='\t' --with-nth=3 --no-sort --layout=reverse \
+  --prompt='todo> ' --query="$*" \
+  --preview="$preview" --preview-window='down,40%,wrap' \
+  --bind="ctrl-y:execute-silent(printf %s {4} | $clip)+abort" \
+  <<<"$rows") || exit 0
+
+# $EDITOR can name a shell function (nvim.run), which a script can't run.
+read -ra editor <<<"${VISUAL:-${EDITOR:-vi}}"
+type -P "${editor[0]}" >/dev/null || editor=("$(type -P nvim || echo vi)")
+exec "${editor[@]}" "+${pick%%$'\t'*}" "$file"
