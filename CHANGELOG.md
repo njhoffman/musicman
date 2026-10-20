@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.8.0](https://github.com/njhoffman/musicman/compare/v1.7.0...v1.8.0) (2026-10-20)
+
+
+### Features
+
+* read stats, view, and edit metadata from the library database ([1022428](https://github.com/njhoffman/musicman/commit/1022428e7ef0476ff0b09b5d733602c1b0b5b101))
+
+
+### Bug Fixes
+
+* stop truncating piped output on large results ([7b55b51](https://github.com/njhoffman/musicman/commit/7b55b51c5fa1d536e46c7391ab010b88f8c20fea))
+
 ## [1.7.0](https://github.com/njhoffman/musicman/compare/v1.6.1...v1.7.0) (2026-10-20)
 
 
