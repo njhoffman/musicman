@@ -3,6 +3,7 @@ const path = require('path');
 
 const { getFilteredFiles } = require('./common.js');
 const { queueSongs } = require('../clients/mpd.js');
+const { matchingPaths } = require('../db/search.js');
 const { outputMetadata } = require('../output/index.js');
 const parseFilters = require('../parser/options/filters.js');
 const logger = require('../utils/logger.js');
@@ -57,10 +58,12 @@ const searchCommand = async ({ target, options, config }) => {
   }
 
   const { filters, words } = parseTerms(terms, config);
+  // the database narrows the candidates, the same filters as view decide the results
   const matched = await getFilteredFiles({
     target,
     options: { ...options, switches: { ...options.switches, recursive: true }, filters },
-    config
+    config,
+    prefilter: db => matchingPaths(db, { config, filters, words })
   });
   const results = _.filter(matched, matchesWords(words));
 

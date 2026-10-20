@@ -57,7 +57,7 @@ const openLibraryOrExplain = config => {
  * [file, rawTags] for files, from the library database when it can be used, otherwise from the files.
  * Files missing from the database or changed since the last db --update are read from disk.
  */
-const readMetadata = async ({ files, options, config, fullMetadata }) => {
+const readMetadata = async ({ files, options, config, fullMetadata, prefilter }) => {
   const unavailable = databaseUnavailable(files, { options, config });
   if (unavailable) {
     if (unavailable.warn) {
@@ -69,7 +69,7 @@ const readMetadata = async ({ files, options, config, fullMetadata }) => {
   const db = openLibraryOrExplain(config);
   let result;
   try {
-    result = readStoredMetadata(db, { config, files });
+    result = readStoredMetadata(db, { config, files, onlyPaths: prefilter ? prefilter(db) : null });
   } finally {
     db.close();
   }
@@ -84,7 +84,11 @@ const readMetadata = async ({ files, options, config, fullMetadata }) => {
       fullMetadata ? rawTags : _.omit(rawTags, ['duration', 'size'])
     ]).concat(fromFiles)
   );
-  return _.map(files, file => [file, byFile.get(file)]);
+  // files skipped by the prefilter are not returned
+  return _.filter(
+    _.map(files, file => [file, byFile.get(file)]),
+    ([, rawTags]) => rawTags
+  );
 };
 
 // update the library database rows for files that were just written, when the database is in use
@@ -112,7 +116,7 @@ const parseFileMetadata = (filesMetadata, config, withRaw = false) =>
   );
 
 const getFilteredFiles = async (
-  { target, options = {}, config = {}, fullMetadata = false, withRaw = false },
+  { target, options = {}, config = {}, fullMetadata = false, withRaw = false, prefilter },
   fileList
 ) => {
   const { switches: { recursive = config.recursive } = {}, filters } = options;
@@ -125,7 +129,7 @@ const getFilteredFiles = async (
   // files given explicitly (e.g. re-reading after a write) are always read from disk
   const metadataFiles = fileList
     ? await readFileMetadata(files, fullMetadata)
-    : await readMetadata({ files, options, config, fullMetadata });
+    : await readMetadata({ files, options, config, fullMetadata, prefilter });
 
   // logger.debug(`Parsing metadata for ${metadataFiles.length} files`);
   const parsedFiles = parseFileMetadata(metadataFiles, config, withRaw);

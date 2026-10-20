@@ -81,8 +81,8 @@ resolves them; `.claude/scripts/todo-status` and `/todo` show open/done counts p
       fields.
 - [x] **`search --add` and `--play`:** append results to the playlist, or create a new playlist from the
       results and play it.
-- [ ] **Faster `search`:** it filters every song in JavaScript (about 3s for 6,445 songs); query `song_tags`
-      directly for field filters and free text, keeping the same matching rules.
+- [x] **Faster `search`:** a SQL prefilter narrows candidates (superset of the JavaScript filters), about
+      200-500ms instead of 1-2s on 6,445 songs with identical results.
 - [x] **Log file:** `logger.file.name` (default `musicman.log` in `mpd.baseDirectory`) at `logger.file.level`
       (default 5 = debug); per-file `db --update` actions go to the log only.
 - [x] **Database tests and error handling** for backups, `search`, and the database-backed commands.

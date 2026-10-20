@@ -51,11 +51,17 @@ const toRawTags = (song, tagRows) => {
 /**
  * Raw tags from the database for files inside mpd.baseDirectory, as [file, rawTags] in file order.
  * Files missing from the database or changed since it was updated (mtime or size) are returned as
- * stale so they can be read from disk.
+ * stale so they can be read from disk. With onlyPaths (relative paths), unchanged stored files not in
+ * it are skipped; stale files are always returned so callers can check them.
  */
-const readStoredMetadata = (db, { config, files }) => {
+const readStoredMetadata = (db, { config, files, onlyPaths = null }) => {
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
-  const selectSong = db.prepare('SELECT id, path, mtime, size, duration FROM songs WHERE path = ?');
+  const songs = new Map(
+    _.map(db.prepare('SELECT id, path, mtime, size, duration FROM songs').all(), song => [
+      song.path,
+      song
+    ])
+  );
   const selectTags = db.prepare(
     'SELECT frame_id, value FROM song_tags WHERE song_id = ? ORDER BY rowid'
   );
@@ -63,11 +69,12 @@ const readStoredMetadata = (db, { config, files }) => {
   const stored = [];
   const stale = [];
   _.each(files, file => {
-    const song = selectSong.get(path.relative(baseDirectory, path.resolve(file)));
+    const relative = path.relative(baseDirectory, path.resolve(file));
+    const song = songs.get(relative);
     const stat = song && fs.statSync(file);
     if (!song || song.mtime !== Math.floor(stat.mtimeMs) || song.size !== stat.size) {
       stale.push(file);
-    } else {
+    } else if (!onlyPaths || onlyPaths.has(relative)) {
       stored.push([file, toRawTags(song, selectTags.all(song.id))]);
     }
   });
