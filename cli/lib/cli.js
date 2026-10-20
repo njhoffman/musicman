@@ -2,7 +2,7 @@ const PrettyError = require('pretty-error');
 const { loadConfig } = require('musicman-common/config');
 
 const commandParser = require('./parser/index.js');
-const { getCurrentSong, connectMpd } = require('./clients/mpd.js');
+const { getAvailableSong } = require('./clients/mpd.js');
 const logger = require('./utils/logger.js');
 
 const pe = new PrettyError();
@@ -15,8 +15,7 @@ const usage = args => {
 };
 
 const run = async args => {
-  const mpdClient = await connectMpd(config.mpd);
-  const currentSong = await getCurrentSong(mpdClient);
+  const currentSong = await getAvailableSong(config.mpd);
   const { command, target, options } = commandParser({ args, currentSong, config });
 
   if (!target) {

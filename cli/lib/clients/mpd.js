@@ -4,16 +4,27 @@ const logger = require('../utils/logger.js');
 // TODO: fork this into it's own repo
 const { MpdClient } = require('musicman-common/mpd/MpdClient.js');
 
-const connectMpd = ({ port, host }) =>
+const connectMpd = ({ port, host }, { timeout = 2000 } = {}) =>
   new Promise((resolve, reject) => {
     const mpdClient = MpdClient.connect({ port, host });
 
+    // an unreachable host never errors on its own, give up after timeout
+    const timer = setTimeout(() => {
+      if (mpdClient.socket) {
+        mpdClient.socket.destroy();
+      }
+      reject(new Error(`timed out connecting to ${host}:${port}`));
+    }, timeout);
+
     mpdClient.on('error', err => {
-      logger.error('MPD ERROR', err);
+      clearTimeout(timer);
       reject(err);
     });
 
-    mpdClient.on('ready', async () => resolve(mpdClient));
+    mpdClient.on('ready', async () => {
+      clearTimeout(timer);
+      resolve(mpdClient);
+    });
   });
 
 const getCurrentSong = async mpdClient => {
@@ -22,4 +33,15 @@ const getCurrentSong = async mpdClient => {
   return status.state === 'play' ? currentSong : false;
 };
 
-module.exports = { connectMpd, getCurrentSong };
+// current song if MPD is reachable, otherwise false so commands with explicit targets still work
+const getAvailableSong = async (mpdConfig, options) => {
+  try {
+    const mpdClient = await connectMpd(mpdConfig, options);
+    return await getCurrentSong(mpdClient);
+  } catch (err) {
+    logger.warn(`MPD is not available (${err.message}), continuing without the current song`);
+    return false;
+  }
+};
+
+module.exports = { connectMpd, getAvailableSong, getCurrentSong };

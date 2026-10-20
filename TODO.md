@@ -25,8 +25,6 @@ that resolves them. Feature specs live in `docs/`.
 
 ## Refactoring
 
-- [ ] **Don't require MPD for every command.** `cli.js` always connects to MPD, so `view <dir>` fails when
-      MPD is down. Connect only when no target is given or the command needs the current song.
 - [ ] **Make the notify daemon testable.** `notify-daemon.js` runs on require; split notification building
       and sending from the MPD loop so `sendNotification` can be unit tested.
 - [ ] **Unify validation behavior.** Schema validation only warns, while tag and view checks in

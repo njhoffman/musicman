@@ -54,6 +54,41 @@ describe('MPD Client', () => {
     });
   });
 
+  describe('connectMpd timeout', () => {
+    it('should reject and close the socket when MPD does not respond', async () => {
+      const clock = sinon.useFakeTimers();
+      mockMpdClient.socket = { destroy: sinon.stub() };
+      const connectPromise = mpdModule.connectMpd({ port: 6600, host: 'unreachable' }, { timeout: 100 });
+      clock.tick(100);
+
+      try {
+        await connectPromise;
+        expect.fail('Should have rejected');
+      } catch (err) {
+        expect(err.message).to.equal('timed out connecting to unreachable:6600');
+        expect(mockMpdClient.socket.destroy).to.have.been.calledOnce;
+      }
+    });
+  });
+
+  describe('getAvailableSong', () => {
+    it('should return the current song when MPD is available', async () => {
+      const mockSong = { file: 'test.mp3' };
+      mockMpdClient.sendCommandAsync.withArgs('currentsong').resolves(mockSong);
+      mockMpdClient.sendCommandAsync.withArgs('status').resolves({ state: 'play' });
+
+      const songPromise = mpdModule.getAvailableSong({ port: 6600, host: 'localhost' });
+      mockMpdClient.on.withArgs('ready').firstCall.args[1]();
+      expect(await songPromise).to.equal(mockSong);
+    });
+
+    it('should return false when MPD connection fails', async () => {
+      const songPromise = mpdModule.getAvailableSong({ port: 6600, host: 'localhost' });
+      mockMpdClient.on.withArgs('error').firstCall.args[1](new Error('connect ECONNREFUSED'));
+      expect(await songPromise).to.be.false;
+    });
+  });
+
   describe('getCurrentSong', () => {
     it('should return current song when playing', async () => {
       const mockSong = { file: 'test.mp3', artist: 'Test Artist' };
