@@ -7,8 +7,6 @@ that resolves them. Feature specs live in `docs/`.
 
 - [ ] **`pnpm lint` fails with 103 errors.** Since the `.js` rename it lints files again, but most errors are
       airbnb's `import/extensions` rejecting explicit `.js` requires. Fixed as part of the ESLint migration below.
-- [ ] **Progress output goes to stdout.** `metadata/read.js` writes ` ...N files left\r` with
-      `process.stdout.write`, which ends up in piped output. Write to stderr and only when it is a TTY.
 - [ ] **`term-size` spawns `resize`**, which prints `resize: can't open terminal /dev/tty` outside a TTY
       (visible in test output). Use `process.stdout.columns` with a fallback and drop the dependency.
 - [ ] **Playlist paths use string replace.** `commands/playlist.js` strips `mpd.baseDirectory` with

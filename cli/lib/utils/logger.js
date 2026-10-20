@@ -10,6 +10,19 @@ let settings = _.pick(defaultConfig.output, ['padding', 'verbosity']);
 // terminal columns left after the left padding added by consoleLog, unlimited when not a terminal
 const availableWidth = () => (process.stdout.columns || Infinity) - settings.padding;
 
+// single updating status line on stderr, only shown when stderr is a terminal
+const progress = message => {
+  if (process.stderr.isTTY) {
+    process.stderr.write(`\r\x1b[K${message}`);
+  }
+};
+
+const progressDone = () => {
+  if (process.stderr.isTTY) {
+    process.stderr.write('\r\x1b[K');
+  }
+};
+
 const configure = output => {
   settings = { ...settings, ..._.pick(output, ['padding', 'verbosity']) };
 };
@@ -61,5 +74,7 @@ module.exports = {
   availableWidth,
   configure,
   consoleLog,
+  progress,
+  progressDone,
   ...logger
 };

@@ -5,6 +5,7 @@ const mp3Duration = require('mp3-duration');
 const { flatten } = require('flat');
 const Promise = require('bluebird');
 const { readHeaderDuration } = require('./duration.js');
+const { progress, progressDone } = require('../utils/logger.js');
 
 const readSize = file =>
   new Promise((resolve, reject) => {
@@ -72,27 +73,31 @@ const readMetadataFull = file =>
     });
   });
 
+// read files with limited concurrency and return [file, result], reporting progress on stderr
+const readFiles = async (files, reader) => {
+  const fileList = [].concat(files);
+  let done = 0;
+  try {
+    return await Promise.map(
+      fileList,
+      async file => {
+        const result = await Promise.all([file, reader(file)]);
+        done += 1;
+        progress(`Reading ${done}/${fileList.length} files`);
+        return result;
+      },
+      { concurrency: 5 }
+    );
+  } finally {
+    progressDone();
+  }
+};
+
 // read metadata tags for files array and return [file, metadata]
-const getMetadata = async files =>
-  Promise.map(
-    [].concat(files),
-    async (file, i) => {
-      process.stdout.write(` ...${i} files left\r`);
-      return Promise.all([file, readMetadata(file)]);
-    },
-    { concurrency: 5 }
-  );
+const getMetadata = async files => readFiles(files, readMetadata);
 
 // read metadata tags, duration and size for files array
-const getMetadataFull = async files =>
-  Promise.map(
-    [].concat(files),
-    async (file, i) => {
-      process.stdout.write(` ...${i} files left\r`);
-      return Promise.all([file, readMetadataFull(file)]);
-    },
-    { concurrency: 5 }
-  );
+const getMetadataFull = async files => readFiles(files, readMetadataFull);
 
 const metakeysTransform = (metadata, config) =>
   _.mapKeys(metadata, (tagVal, tagKey) => {
