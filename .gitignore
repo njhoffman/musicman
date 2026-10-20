@@ -2,7 +2,7 @@
 
 # project dependencies
 node_modules
-data
+/data
 
 # local tooling
 .vectorcode

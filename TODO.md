@@ -63,10 +63,6 @@ that resolves them. Feature specs live in `docs/`.
 
 ## Testing
 
-- [ ] **Test fixtures are not in the repo.** `test/data/` is matched by the `data` entry in `.gitignore`, so the
-      sandbox MP3s, `filesMetadata.json`, and `testTags.js` exist only locally and tests cannot run from a fresh
-      clone. Track them (or generate them) and narrow the ignore rule.
-
 - [ ] Tests for `utils/logger.js` verbosity levels and padding.
 - [ ] Tests for `notify-daemon` notification arguments after the refactor above.
 
