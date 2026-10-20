@@ -1,8 +1,9 @@
 # TODO
 
 Tracks known issues, refactoring, and planned features. Check items off (`- [x]`) in the commit that
-resolves them; `.claude/scripts/todo-status` and `/todo` show open/done counts per section. Tag an item
-`(due YYYY-MM-DD)` to get a date and an OVERDUE flag. Feature specs live in `docs/`.
+resolves them; `/todo` and `/todo-pop` (from `~/.shell`) show open/done counts and pick items. Tag an item
+`(p1)` (high) or `(p3)` (low); untagged items are `p2` (normal). `(due YYYY-MM-DD)` adds a date and an
+OVERDUE flag. Feature specs live in `docs/`.
 
 ## Bugs
 
@@ -12,31 +13,31 @@ resolves them; `.claude/scripts/todo-status` and `/todo` show open/done counts p
       (visible in test output). Use `process.stdout.columns` with a fallback and drop the dependency.
 - [ ] **Playlist paths use string replace.** `commands/playlist.js` strips `mpd.baseDirectory` with
       `String.replace`, which matches anywhere in the path. Use `path.relative`.
-- [ ] **`edit` asks for confirmation before checking for zero matches**, and constructs the prompt even when
+- [ ] **`edit` asks for confirmation before checking for zero matches** (p3), and constructs the prompt even when
       it is not shown (`commands/edit.js`).
-- [ ] **`stats.filters` is never used.** The predefined filter sets in config ("All Songs > 4.0", ...) are
+- [ ] **`stats.filters` is never used.** (p3) The predefined filter sets in config ("All Songs > 4.0", ...) are
       validated but `commands/stats.js` does not compute them.
 - [ ] **Logging levels use different scales.** `output.verbosity` (comment says 1=error..6=trace, code treats
       0=error..4=trace, so the default 4 shows trace), `logger.file.level` (2=error..6=trace), and the unused
       `logger.stdout.level` (5=debug). Pick one scale and use level names in config.
-- [ ] **Logger ignores `logger.colors`.** The hex colors and `gui` styles in config are validated but never
+- [ ] **Logger ignores `logger.colors`.** (p3) The hex colors and `gui` styles in config are validated but never
       applied by `utils/logger.js`.
 
 ## Refactoring
 
-- [ ] **Make the notify daemon testable.** `notify-daemon.js` runs on require; split notification building
+- [ ] **Make the notify daemon testable.** (p3) `notify-daemon.js` runs on require; split notification building
       and sending from the MPD loop so `sendNotification` can be unit tested.
-- [ ] **Rename `seperators` to `separators`** in `views.table`, with a legacy-key error like the other
+- [ ] **Rename `seperators` to `separators`** (p3) in `views.table`, with a legacy-key error like the other
       migrated options.
-- [ ] **Replace `bluebird`** with native promises (`Promise.map` concurrency via a small helper).
-- [ ] **Replace `prompt-confirm`** (unmaintained since 2017) with `@inquirer/confirm`.
-- [ ] **Vendored MPD client.** `common/mpd/MpdClient` is a local copy; evaluate a maintained client
+- [ ] **Replace `bluebird`** (p3) with native promises (`Promise.map` concurrency via a small helper).
+- [ ] **Replace `prompt-confirm`** (p3) (unmaintained since 2017) with `@inquirer/confirm`.
+- [ ] **Vendored MPD client.** (p3) `common/mpd/MpdClient` is a local copy; evaluate a maintained client
       (e.g. `mpd-api`) instead of forking it.
-- [ ] **Move existing TODO comments here and remove them from code:** combine include/exclude filters (`metadata/filter.js`), memory overflow when
+- [ ] **Move existing TODO comments here and remove them from code:** (p3) combine include/exclude filters (`metadata/filter.js`), memory overflow when
       reading many files (`commands/common.js`), duration/size option for stats (`commands/stats.js`),
       zero-match handling in edit (`commands/edit.js`).
 
-- [ ] **`library.tagId` is not used.** Decided to stay on ID3v2.3 (all sampled files, beets `id3v23: true`,
+- [ ] **`library.tagId` is not used.** (p3) Decided to stay on ID3v2.3 (all sampled files, beets `id3v23: true`,
       and node-id3 all use v2.3); `year` now maps to `TYER`. `library.tagId` is set to `ID3v2.3` but nothing
       reads it. Either use it to pick v2.3/v2.4 frames for date tags or remove it. Revisit v2.4 only together
       with beets `id3v23: false` and a v2.4-capable writer.
@@ -50,26 +51,26 @@ resolves them; `.claude/scripts/todo-status` and `/todo` show open/done counts p
       config; replace with `@eslint/js` recommended, `eslint-plugin-n`, and `eslint-config-prettier`. Allow
       explicit `.js` extensions in requires. Drop `eslint-watch`, `babel-eslint`, and `eslint-plugin-babel`; remove the unused ESLint
       devDependencies from `common`.
-- [ ] **Test tooling:** mocha 12, chai 6, sinon 22, sinon-chai 4, prettier 3, nyc to c8. Clean up
+- [ ] **Test tooling:** (p3) mocha 12, chai 6, sinon 22, sinon-chai 4, prettier 3, nyc to c8. Clean up
       `.mocharc.yml` (it is the full example config with placeholder values).
-- [ ] **Release tooling:** `standard-version` is deprecated; switch to `commit-and-tag-version`.
-- [ ] **Commit hooks:** `husky` and `commitlint` are installed but not configured (no `.husky/`, no
+- [ ] **Release tooling:** (p3) `standard-version` is deprecated; switch to `commit-and-tag-version`.
+- [ ] **Commit hooks:** (p3) `husky` and `commitlint` are installed but not configured (no `.husky/`, no
       commitlint config). Either set them up or remove them. Decide between gitmoji and plain conventional
       commits; both configs are installed.
-- [ ] **`todos` script** points `leasot` at `.js` files and `server/`; update or remove.
-- [ ] **Versioning:** root is 1.4.x, `cli` is 1.2.0, `common` is 1.0.0. Decide whether packages are versioned
+- [ ] **`todos` script** (p3) points `leasot` at `.js` files and `server/`; update or remove.
+- [ ] **Versioning:** (p3) root is 1.4.x, `cli` is 1.2.0, `common` is 1.0.0. Decide whether packages are versioned
       independently or with the root.
 
 ## Testing
 
-- [ ] Tests for `utils/logger.js` verbosity levels and padding.
-- [ ] Tests for `notify-daemon` notification arguments after the refactor above.
+- [ ] (p3) Tests for `utils/logger.js` verbosity levels and padding.
+- [ ] (p3) Tests for `notify-daemon` notification arguments after the refactor above.
 
 ## Features
 
-- [ ] **Smarter terminal fitting** for the table view: shrink the widest columns instead of dropping the
+- [ ] **Smarter terminal fitting** (p3) for the table view: shrink the widest columns instead of dropping the
       rightmost ones.
-- [ ] Honor `views.list.headers.visible` (currently ignored) and implement `views.table.seperators.horizontal`
+- [ ] (p3) Honor `views.list.headers.visible` (currently ignored) and implement `views.table.seperators.horizontal`
       or remove it.
 
 ## Database (`docs/02-database.md`)
@@ -92,17 +93,17 @@ resolves them; `.claude/scripts/todo-status` and `/todo` show open/done counts p
 - [x] **Spotify credentials:** `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI` (or `_URL`)
       from the environment, falling back to `spotify.*` in the config; `sync --login` saves OAuth tokens to
       `$XDG_STATE_HOME/musicman/spotify-token.json` (mode 0600).
-- [ ] **Sync config:** `sync.uploadDirectory`, `sync.downloadDirectory`, `sync.spotdlCommand`.
-- [ ] **`sync` command and cache:** refresh a local cache of the mapped Spotify playlists and report how many
+- [ ] **Sync config:** (p1) `sync.uploadDirectory`, `sync.downloadDirectory`, `sync.spotdlCommand`.
+- [ ] **`sync` command and cache:** (p1) refresh a local cache of the mapped Spotify playlists and report how many
       songs would be pulled and pushed.
 - [ ] **Beets integration:** read paths from `~/.config/beets/config.yaml` and wrap the beets workflow
       (`Sorted/Unrated` to `Sorted/Rated` after rating and assigning a `grouping`).
-- [ ] **Spotify track ids:** use ids from the beets spotify plugin for `Rated` songs, look up the ones it
+- [ ] **Spotify track ids:** (p1) use ids from the beets spotify plugin for `Rated` songs, look up the ones it
       missed, and mark songs that are still unmatched.
-- [ ] **Spotify audio features:** populate acousticness, danceability, energy, instrumentalness, key,
+- [ ] **Spotify audio features:** (p3) populate acousticness, danceability, energy, instrumentalness, key,
       liveness, loudness, mode, speechiness, tempo, time_signature, valence, and other Spotify tags.
-- [ ] **Liked Songs:** add every local song rated 4.5 or higher to Liked Songs.
-- [ ] **Grouping playlists:** sync songs to the Spotify playlists mapped from `grouping` values in the doc.
+- [ ] **Liked Songs:** (p1) add every local song rated 4.5 or higher to Liked Songs.
+- [ ] **Grouping playlists:** (p1) sync songs to the Spotify playlists mapped from `grouping` values in the doc.
 - [ ] **`sync --push` export:** export songs missing from Spotify to `sync.uploadDirectory`, one subfolder per
       target playlist (hardlinks when possible), with a `README.md` checklist and printed summary. Verify first
       how Spotify desktop Local Files sources handle subfolders.
@@ -118,7 +119,7 @@ resolves them; `.claude/scripts/todo-status` and `/todo` show open/done counts p
 
 ## Housekeeping
 
-- [ ] Remove stale tracked files: `cli/test_output.txt`, `cli/test_output2.txt`, `cli/SESSION_SUMMARY.md`,
+- [ ] (p3) Remove stale tracked files: `cli/test_output.txt`, `cli/test_output2.txt`, `cli/SESSION_SUMMARY.md`,
       `cli/CONTEXT.md` (superseded by root `CONTEXT.md`).
-- [ ] Remove or update the untracked repo copy of `.musicmanrc.yml` (old config format).
-- [ ] Update the stale "Current Session Context" section in `cli/CLAUDE.md`.
+- [ ] (p3) Remove or update the untracked repo copy of `.musicmanrc.yml` (old config format).
+- [ ] (p3) Update the stale "Current Session Context" section in `cli/CLAUDE.md`.
