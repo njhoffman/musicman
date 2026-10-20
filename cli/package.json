@@ -46,7 +46,7 @@
   "dependencies": {
     "bluebird": "^3.7.2",
     "chalk": "^4.1.2",
-    "columnify": "git+https://github.com/njhoffman/columnify.git#nick",
+    "cli-table3": "^0.6.5",
     "diff": "^5.2.0",
     "flat": "^5.0.2",
     "forever": "^3.0.4",
@@ -58,6 +58,7 @@
     "pretty-error": "^3.0.4",
     "prompt-confirm": "2.0.4",
     "sqlite3": "^5.1.7",
+    "string-width": "^4.2.3",
     "term-size": "^2.2.1"
   },
   "version": "1.2.0"

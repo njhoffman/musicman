@@ -1,34 +1,37 @@
+const _ = require('lodash');
 const chalk = require('chalk');
 const diff = require('diff');
-const columnify = require('columnify');
+const { renderKeyValues } = require('./render.cjs');
 const termSize = require('term-size');
 
 const { consoleLog } = require('../utils/logger.cjs');
 
-const columnifyDifferences = output => {
-  const { NODE_ENV } = process.env;
-  const options = {
-    columns: ['key', 'value'],
-    showHeaders: false,
-    maxLineWidth: `${termSize().columns - 2}`,
-    truncate: true
-  };
-
-  // console.log('output', output);
-  if (NODE_ENV === 'test') {
-    return output;
+const diffColor = part => {
+  if (part.added) {
+    return 'green';
   }
+  return part.removed ? 'red' : 'grey';
+};
 
+const cleanDiffValue = value =>
+  value
+    .split('\n')
+    .map(line => line.replace(/,$/, '').replace(/"/g, ''))
+    .join('\n');
+
+// render key/value lines from plain diff parts, coloring each line after layout
+const formatDifferences = differences => {
   const keyRegEx = /([^:]+):(.*)$/;
-  const parsedOut = output.split('\n').map(line => {
-    if (!keyRegEx.test(line)) {
-      return false;
-    }
-    const [key, value] = line.match(keyRegEx).slice(1, 3);
-    return { key, value };
-  });
+  const lines = _.flatMap(differences, part =>
+    _.map(cleanDiffValue(part.value).split('\n'), text => ({ text, color: diffColor(part) }))
+  ).filter(({ text }) => keyRegEx.test(text));
 
-  return columnify(parsedOut, options)
+  const colorLine = (cell, rowIndex) => chalk[lines[rowIndex].color](cell);
+  return renderKeyValues(
+    _.map(lines, ({ text }) => text.match(keyRegEx).slice(1, 3)),
+    termSize().columns - 2,
+    { formatKey: colorLine, formatValue: colorLine }
+  )
     .split('\n')
     .map(line => `  ${line}`)
     .join('\n');
@@ -40,28 +43,14 @@ const outputDifferences = (orig, curr) => {
       ? diff.diffJson(orig[0], curr[0])
       : diff.diffJson(orig, curr);
 
-  let diffOut = '';
-  differences.forEach(part => {
-    const value = part.value
-      .split('\n')
-      .map(line => line.replace(/,$/, '').replace(/"/g, ''))
-      .join('\n');
+  const diffOut = _.map(differences, part => chalk[diffColor(part)](cleanDiffValue(part.value))).join('');
 
-    let color = 'grey';
-    if (part.added) {
-      color = 'green';
-    } else if (part.removed) {
-      color = 'red';
-    }
-    // process.stderr.write(`  ${chalk[color](part.value).trim()}`);
-    diffOut += `${chalk[color](value)}`;
-  });
+  const output =
+    diffOut.includes('\n') && process.env.NODE_ENV !== 'test'
+      ? formatDifferences(differences)
+      : diffOut;
 
-  if (diffOut.includes('\n')) {
-    diffOut = columnifyDifferences(diffOut);
-  }
-
-  return consoleLog(diffOut);
+  return consoleLog(output);
 };
 
-module.exports = { outputDifferences };
+module.exports = { formatDifferences, outputDifferences };

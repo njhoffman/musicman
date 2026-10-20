@@ -36,7 +36,7 @@ This is a Node.js CLI application for MP3 metadata management that integrates wi
 - **musicman-common**: Local dependency for shared configuration
 - **node-id3**: MP3 metadata reading/writing
 - **sqlite3**: Database operations
-- **columnify**: Table formatting (custom fork)
+- **cli-table3**: Column layout for table, list, and differences output via `lib/output/render.cjs` (cells are truncated before colors are applied)
 - **forever**: Daemon management
 
 ### Testing Setup

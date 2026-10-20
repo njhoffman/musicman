@@ -1,7 +1,7 @@
 const _ = require('lodash');
-const columnify = require('columnify');
 const chalk = require('chalk');
 const termSize = require('term-size');
+const { renderKeyValues } = require('./render.cjs');
 
 const parseList = (mItem, config) => {
   const splitMulti = false;
@@ -17,37 +17,29 @@ const parseList = (mItem, config) => {
   });
 };
 
-const columnifyList = (output, config) => {
-  const { NODE_ENV } = process.env;
+// render key/value lines for each file, separated by a blank line
+const formatList = (output, config) => {
   const { views: { list = {} } = {} } = config;
   const { headers = {} } = list;
-  const options = {
-    columns: ['key', 'value'],
-    showHeaders: false,
-    maxLineWidth: `${termSize().columns - 2}`,
-    truncate: true,
-    config: {
-      key: {
-        dataTransform: data => (headers.color ? chalk.hex(headers.color)(data) : data)
-      },
-      value: {
-        dataTransform: data => (list.color ? chalk.hex(list.color)(data) : data)
-      }
-    }
-  };
+  const formatKey = key => (headers.color ? chalk.hex(headers.color)(key) : key);
+  const formatValue = value => (list.color ? chalk.hex(list.color)(value) : value);
 
-  return NODE_ENV === 'test'
-    ? output
-    : columnify(output, options)
-        .split('\n')
-        .map(line => `  ${line}`)
-        .join('\n');
+  return _.map([].concat(output), item =>
+    renderKeyValues(
+      _.map(_.toPairs(item), ([key, value]) => [key, _.isNil(value) ? '' : String(value)]),
+      termSize().columns - 2,
+      { formatKey, formatValue }
+    )
+      .split('\n')
+      .map(line => `  ${line}`)
+      .join('\n')
+  ).join('\n\n');
 };
 
 const outputList = (metadata, config) => {
   const columns = _.map(metadata, mItem => parseList(mItem, config));
   const output = columns.length === 1 ? columns[0] : columns;
-  return columnifyList(output, config);
+  return process.env.NODE_ENV === 'test' ? output : formatList(output, config);
 };
 
-module.exports = { columnifyList, outputList };
+module.exports = { formatList, outputList };

@@ -1,5 +1,5 @@
 const { expect } = require('chai');
-const { outputList } = require('./list.cjs');
+const { formatList, outputList } = require('./list.cjs');
 
 describe('List Output', () => {
   const config = {
@@ -31,5 +31,17 @@ describe('List Output', () => {
   it('should skip view tags missing from file metadata', () => {
     const output = outputList([{ title: 'Title 1' }], config);
     expect(output).to.deep.equal({ title: 'Title 1' });
+  });
+
+  describe('formatList', () => {
+    it('should render indented key/value lines', () => {
+      const lines = formatList({ title: 'Title 1', rating: '4.5' }, config).split('\n');
+      expect(lines).to.deep.equal(['  title  Title 1', '  rating 4.5    ']);
+    });
+
+    it('should separate multiple files with a blank line', () => {
+      const lines = formatList([{ title: 'Title 1' }, { title: 'Title 2' }], config).split('\n');
+      expect(lines).to.deep.equal(['  title Title 1', '', '  title Title 2']);
+    });
   });
 });
