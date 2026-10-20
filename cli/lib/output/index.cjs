@@ -4,7 +4,7 @@ const { inspect } = require('util');
 
 const { consoleLog } = require('../utils/logger.cjs');
 const { outputTable } = require('./table.cjs');
-const { outputVertical } = require('./vertical.cjs');
+const { outputList } = require('./list.cjs');
 const { outputDifferences } = require('./differences.cjs');
 const { outputStats } = require('./stats.cjs');
 
@@ -32,8 +32,8 @@ const outputMetadata = ({ metadata, target, options, config, format }) => {
   let output;
   if (metadata && metadata.length === 0) {
     output = outputNotFound(filters, target);
-  } else if (format === 'vertical') {
-    output = outputVertical(metadata, config);
+  } else if (format === 'list') {
+    output = outputList(metadata, config);
   } else {
     output = outputTable(metadata, config);
   }

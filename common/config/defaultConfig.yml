@@ -49,23 +49,6 @@ output:
   verbosity: 4
   # Padding around output elements
   padding: 1
-  # Table output format settings
-  table:
-    headers:
-      # Whether to show column headers
-      visible: true
-      # Whether to capitalize header text
-      capitalize: false
-    seperators:
-      # Whether to show vertical separators between columns
-      vertical: false
-      # Whether to show horizontal separators between rows
-      horizontal: false
-  # Vertical output format settings
-  vertical:
-    headers:
-      # Whether to show field names in vertical output
-      visible: true
 
 # Statistics and filtering configuration
 stats:
@@ -91,16 +74,13 @@ tags:
 # Artist name (ID3v2 TPE1)
 - id: TPE1
   name: artist
-  tableOrder: 1
 # Song title (ID3v2 TIT2)
 - id: TIT2
   name: title
-  tableOrder: 2
   maxWidth: 30
 # Album name (ID3v2 TALB)
 - id: TALB
   name: album
-  tableOrder: 3
   maxWidth: 20
 # Genre (ID3v2 TCON)
 - id: TCON
@@ -121,38 +101,42 @@ library:
   - year
   - genre
   - album
+  - album_artist
   # ['popularity', 'volume', 'artist', 'title', 'year', 'genre', 'mood', 'copyright', 'album'],
 
-# View configurations for different display contexts
+# View configurations for each output format, tags are displayed in the order listed
+# and must be included in library.tags (rating is always available)
 views:
-  # Default view used by other views unless overridden
-  default:
-  - name: artist
-  - name: title
-  - name: album
-  - name: year
-  - name: genre
-  # Edit view for metadata editing operations
-  edit:
-  - name: artist
-  - name: title
-  - name: album
-  - name: year
-  - name: genre
-  - name: rating
-  # Playlist view for playlist generation and management
-  playlist:
-  - name: artist
-  - name: title
-  - name: album
-  - name: rating
-  # Statistics view for data analysis
-  stats:
-  - name: artist
-  - name: title
-  - name: album
-  - name: genre
-  - name: rating
+  # Table format, used when viewing multiple files
+  table:
+    headers:
+      # Whether to show column headers
+      visible: true
+      # Whether to capitalize header text
+      capitalize: false
+    seperators:
+      # Whether to show vertical separators between columns
+      vertical: false
+      # Whether to show horizontal separators between rows
+      horizontal: false
+    tags:
+    - name: rating
+    - name: artist
+    - name: title
+    - name: album
+  # List format, used when viewing a single file
+  list:
+    headers:
+      # Whether to show field names in list output
+      visible: true
+    tags:
+    - name: rating
+    - name: artist
+    - name: album_artist
+    - name: title
+    - name: album
+    - name: genre
+    - name: year
 
 # WebSocket server settings for real-time communication
 websocket:

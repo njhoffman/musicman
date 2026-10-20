@@ -3,9 +3,8 @@ const chalk = require('chalk');
 const columnify = require('columnify');
 
 const outputTable = (metadata, config) => {
-  // TODO: yuck, wait patiently for optional chaining
-  const { output: { table = {} } = {} } = config;
-  const { seperators = {}, headers = {} } = table;
+  const { views: { table = {} } = {} } = config;
+  const { seperators = {}, headers = {}, tags: viewTags = [] } = table;
 
   // TODO: have better default config loading
   const columnifyOptions = {
@@ -19,12 +18,11 @@ const outputTable = (metadata, config) => {
     }
   };
 
-  // always include rating column, place it first if not otherwise defined
-  const ratingColumn = { ...config.rating, name: 'rating', tableOrder: -1, align: 'center' };
-  // sorty and only include columns that have tableOrder property
-  const columns = _.sortBy(
-    [ratingColumn].concat(_.filter(config.tags, 'tableOrder')),
-    'tableOrder'
+  // columns in view order, view entries override attributes of the tag definition
+  const columns = _.map(viewTags, viewTag =>
+    viewTag.name === 'rating'
+      ? { ...config.rating, align: 'center', ...viewTag }
+      : { ..._.find(_.get(config, 'library.tags'), { name: viewTag.name }), ...viewTag }
   );
 
   // prepare columns configuration for columnify

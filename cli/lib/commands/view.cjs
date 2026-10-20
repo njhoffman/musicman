@@ -18,7 +18,7 @@ const viewCommand = async ({ target, options, config }) => {
     include.length > 0 ? _.pick(meta, include) : _.omit(meta, exclude)
   );
 
-  const format = metadata.length === 1 ? 'vertical' : 'table';
+  const format = metadata.length === 1 ? 'list' : 'table';
 
   outputMetadata({ target, metadata, config, format, options });
   return { metadata };

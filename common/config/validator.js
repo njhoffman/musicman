@@ -47,24 +47,7 @@ const configSchema = {
     type: 'object',
     properties: {
       verbosity: { type: 'number', min: 1, max: 6, required: false },
-      padding: { type: 'number', min: 0, required: false },
-      table: {
-        type: 'object',
-        properties: {
-          color: { type: 'string', required: false },
-          headers: { type: 'object', required: false },
-          seperators: { type: 'object', required: false }
-        },
-        required: false
-      },
-      vertical: {
-        type: 'object',
-        properties: {
-          color: { type: 'string', required: false },
-          headers: { type: 'object', required: false }
-        },
-        required: false
-      }
+      padding: { type: 'number', min: 0, required: false }
     }
   },
   stats: {
@@ -86,10 +69,25 @@ const configSchema = {
   views: {
     type: 'object',
     properties: {
-      default: { type: 'array', required: false },
-      edit: { type: 'array', required: false },
-      playlist: { type: 'array', required: false },
-      stats: { type: 'array', required: false }
+      table: {
+        type: 'object',
+        properties: {
+          color: { type: 'string', required: false },
+          headers: { type: 'object', required: false },
+          seperators: { type: 'object', required: false },
+          tags: { type: 'array', required: false }
+        },
+        required: false
+      },
+      list: {
+        type: 'object',
+        properties: {
+          color: { type: 'string', required: false },
+          headers: { type: 'object', required: false },
+          tags: { type: 'array', required: false }
+        },
+        required: false
+      }
     }
   },
   websocket: {
