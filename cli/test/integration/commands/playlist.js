@@ -119,6 +119,14 @@ describe('Playlist Command', () => {
         expect(fileContents[0]).to.not.contain(process.cwd());
         expect(/^test\/data\/sandbox/.test(fileContents[0])).to.be.true;
       });
+      it('Should write paths relative to a relative config.mpd.baseDirectory', async () => {
+        const relativeConfig = { ...config, mpd: { baseDirectory: 'test/data/sandbox' } };
+        await playlistFunc({ target: dirTarget, options, config: relativeConfig });
+        const fileContents = (await readFile(playlistPath)).trim().split('\n');
+        expect(fileContents).to.include('dir1/testFile01.mp3');
+        fileContents.forEach(line => expect(line).to.not.match(/^\/|\/\//));
+      });
+
       // it('Should throw an error if directory does not exist', async () => {});
       // it('Should throw an error if directory not writeable', async () => {});
       // it('Should prompt for confirmation if playlist will be overwritten', async () => {});

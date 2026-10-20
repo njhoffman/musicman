@@ -18,9 +18,9 @@ const playlistCommand = async ({ target, options, config }) => {
   }
 
   const filtered = await getFilteredFiles({ target, options, config });
-  const filteredPaths = _.map(_.unzip(filtered)[0], file =>
-    file.replace(config.mpd.baseDirectory, '').replace(/^\//, '')
-  );
+  // playlist entries are relative to the MPD music directory
+  const baseDirectory = path.resolve(config.mpd.baseDirectory);
+  const filteredPaths = _.map(_.unzip(filtered)[0], file => path.relative(baseDirectory, path.resolve(file)));
 
   const { outputDirectory, outputPath } = config.playlist;
   const playlistPath = options.switches.write ? options.switches.write : outputPath;

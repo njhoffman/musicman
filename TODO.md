@@ -9,9 +9,9 @@ OVERDUE flag. Feature specs live in `docs/`.
 
 - [ ] **`pnpm lint` fails with 103 errors.** Since the `.js` rename it lints files again, but most errors are
       airbnb's `import/extensions` rejecting explicit `.js` requires. Fixed as part of the ESLint migration below.
-- [ ] **`term-size` spawns `resize`**, which prints `resize: can't open terminal /dev/tty` outside a TTY
+- [x] **`term-size` spawns `resize`**, which prints `resize: can't open terminal /dev/tty` outside a TTY
       (visible in test output). Use `process.stdout.columns` with a fallback and drop the dependency.
-- [ ] **Playlist paths use string replace.** `commands/playlist.js` strips `mpd.baseDirectory` with
+- [x] **Playlist paths use string replace.** `commands/playlist.js` strips `mpd.baseDirectory` with
       `String.replace`, which matches anywhere in the path. Use `path.relative`.
 - [ ] **`edit` asks for confirmation before checking for zero matches** (p3), and constructs the prompt even when
       it is not shown (`commands/edit.js`).
