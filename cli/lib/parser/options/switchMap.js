@@ -41,6 +41,11 @@ module.exports = {
     alias: '-f',
     func: () => ({ files: true })
   },
+  backup: {
+    description: 'Back up the library database now',
+    alias: '-b',
+    func: () => ({ backup: true })
+  },
   update: {
     description: 'Update the database from the mpd base directory or the target directory',
     alias: '-u',

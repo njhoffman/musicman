@@ -60,7 +60,7 @@ const outputDbStats = stats => {
     ['frames', `${stats.frames}`],
     ['tag definitions', `${stats.tagDefinitions}`],
     ['last update', lastUpdate ? `${lastUpdate.at} (${formatUpdateCounts(lastUpdate)})` : 'never'],
-    ['last backup', lastBackup ? lastBackup.at : 'never']
+    ['last backup', lastBackup ? `${lastBackup.at} (${lastBackup.file})` : 'never']
   ];
   return consoleLog(section('Database', pairs));
 };

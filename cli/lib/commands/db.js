@@ -1,6 +1,12 @@
 const fs = require('fs');
 
-const { getMeta, openLibrary, updateDatabase } = require('../db/index.js');
+const {
+  backupDatabase,
+  backupIfDue,
+  getMeta,
+  openLibrary,
+  updateDatabase
+} = require('../db/index.js');
 const { formatProgress, outputDbStats, outputUpdateSummary } = require('../output/db.js');
 const logger = require('../utils/logger.js');
 
@@ -23,7 +29,19 @@ const getStats = (db, dbPath) => {
   };
 };
 
+const logBackup = backup => {
+  if (backup) {
+    logger.info(
+      `Backed up database to ${backup.file}${
+        backup.removed ? ` (removed ${backup.removed} old)` : ''
+      }`
+    );
+  }
+  return backup;
+};
+
 const runUpdate = async (db, { config, target }) => {
+  logBackup(backupIfDue(db, config));
   logger.info(`Updating database from ${target}`);
   const summary = await updateDatabase(db, {
     config,
@@ -52,6 +70,10 @@ const dbCommand = async ({ target, options, config }) => {
   }
 
   try {
+    if (options.switches.backup) {
+      const backup = logBackup(backupDatabase(db, config));
+      return { backup, stats: getStats(db, config.db.path) };
+    }
     if (options.switches.update) {
       const summary = await runUpdate(db, { config, target });
       return { summary, stats: getStats(db, config.db.path) };

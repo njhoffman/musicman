@@ -71,7 +71,8 @@ resolves them; `.claude/scripts/todo-status` and `/todo` show open/done counts p
 
 ## Database (`docs/02-database.md`)
 
-- [ ] **Backups:** back up the database to `db.backupDirectory` every `db.backupInterval`.
+- [x] **Backups:** back up the database to `db.backupDirectory` every `db.backupInterval` (before writes,
+      `db --backup` on demand, `db.backupCount` kept).
 - [ ] **`search` command:** field syntax as used here (`rating:5.0 title:"some title"`) and mpc style
       (`rating 5.0 title "some title"`); free text searches title and artist; exact matches on multi-value
       fields.

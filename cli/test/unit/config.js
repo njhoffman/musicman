@@ -389,6 +389,12 @@ describe('Config Tests', () => {
       expect(result.messages.join('\n')).to.include("db.backupInterval 'often' must be a number of");
     });
 
+    it('should require at least one backup to keep', () => {
+      const result = captureFatal(() => loadConfig({ db: { backupCount: 0 } }));
+      expect(result.exitCalled).to.be.true;
+      expect(result.messages.join('\n')).to.include('db.backupCount must be >= 1');
+    });
+
     it('should parse backup intervals', () => {
       const { parseInterval } = require('../../../common/config/validator.js');
       expect(parseInterval('1 day')).to.equal(24 * 60 * 60 * 1000);

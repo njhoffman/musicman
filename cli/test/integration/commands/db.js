@@ -19,7 +19,12 @@ describe('Db Command', () => {
     });
     config = {
       mpd: { baseDirectory: path.join(library, 'music') },
-      db: { path: path.join(library, 'db', 'musicman.sqlite') },
+      db: {
+        path: path.join(library, 'db', 'musicman.sqlite'),
+        backupDirectory: path.join(library, 'db', 'backups'),
+        backupInterval: '1 day',
+        backupCount: 7
+      },
       rating: { tag: 'POPM', max: 5 },
       library: {
         tags: [
@@ -60,6 +65,20 @@ describe('Db Command', () => {
     expect(summary).to.include({ added: 16, failed: 0 });
     expect(stats).to.include({ songs: 16 });
     expect(stats.lastUpdate).to.include({ added: 16 });
+  });
+
+  it('Should back up the database with the backup switch', async () => {
+    await dbFunc({ target: config.mpd.baseDirectory, options: options({ update: true }), config });
+    const { backup, stats } = await dbFunc({ target: config.mpd.baseDirectory, options: options({ backup: true }), config });
+    expect(fs.existsSync(backup.file)).to.be.true;
+    expect(path.dirname(backup.file)).to.equal(config.db.backupDirectory);
+    expect(stats.lastBackup).to.include({ file: backup.file });
+  });
+
+  it('Should back up before updating once songs exist and the interval has passed', async () => {
+    const update = () => dbFunc({ target: config.mpd.baseDirectory, options: options({ update: true }), config });
+    expect((await update()).stats.lastBackup).to.be.null;
+    expect((await update()).stats.lastBackup).to.not.be.null;
   });
 
   it('Should stop with an error when a stored custom field definition changed', async () => {

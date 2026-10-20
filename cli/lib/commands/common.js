@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const logger = require('../utils/logger.js');
-const { openLibrary, readStoredMetadata, updateDatabase } = require('../db/index.js');
+const { backupIfDue, openLibrary, readStoredMetadata, updateDatabase } = require('../db/index.js');
 const { getFiles } = require('../utils/files.js');
 const {
   getMetadata,
@@ -94,6 +94,10 @@ const updateLibraryFiles = async ({ files, options, config }) => {
   }
   const db = openLibraryOrExplain(config);
   try {
+    const backup = backupIfDue(db, config);
+    if (backup) {
+      logger.info(`Backed up database to ${backup.file}`);
+    }
     return await updateDatabase(db, { config, files, record: false });
   } finally {
     db.close();

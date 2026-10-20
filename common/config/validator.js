@@ -29,7 +29,8 @@ const configSchema = {
     properties: {
       path: { type: 'string', required: false },
       backupDirectory: { type: 'string', required: false },
-      backupInterval: { type: 'string', required: false }
+      backupInterval: { type: 'string', required: false },
+      backupCount: { type: 'number', min: 1, required: false }
     }
   },
   daemon: {

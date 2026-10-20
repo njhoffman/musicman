@@ -72,6 +72,11 @@ describe('Options assignment', () => {
       expect(test1.options.switches).to.deep.equal({});
     });
 
+    it('Should parse backup switch', () => {
+      expect(parser({ args: ['--backup'], config }).options.switches).to.include({ backup: true });
+      expect(parser({ args: ['-b'], config }).options.switches).to.include({ backup: true });
+    });
+
     it('Should parse update switch alias', () => {
       const test1 = parser({ args: ['-u'], config });
       expect(test1.options.switches).to.include({ update: true });
