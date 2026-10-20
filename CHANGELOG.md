@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.7.0](https://github.com/njhoffman/musicman/compare/v1.6.1...v1.7.0) (2026-10-20)
+
+
+### Features
+
+* add database config with defaults in the mpd base directory ([cab654e](https://github.com/njhoffman/musicman/commit/cab654e4f3dc9f034b387f264b5bca9b4062a408))
+* add sqlite library database with db and db --update commands ([487a9cb](https://github.com/njhoffman/musicman/commit/487a9cb8926e35382af3c51c7d9205b3482a480f))
+
+
+### Bug Fixes
+
+* parse playlist write switch and long form switches ([d7ef1da](https://github.com/njhoffman/musicman/commit/d7ef1da6490d92ade52add569249693fd069dd6b))
+* reject when reading duration or size fails in full metadata reads ([7a69888](https://github.com/njhoffman/musicman/commit/7a69888519e4abec2ca6ec9e4a096dd930980dd7))
+
 ### [1.6.1](https://github.com/njhoffman/musicman/compare/v1.6.0...v1.6.1) (2026-10-20)
 
 
