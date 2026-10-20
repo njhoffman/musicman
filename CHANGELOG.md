@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.12.0](https://github.com/njhoffman/musicman/compare/v1.11.0...v1.12.0) (2026-10-20)
+
+
+### Features
+
+* add sync config, Spotify tables, and beets Spotify id reader ([465e1f9](https://github.com/njhoffman/musicman/commit/465e1f95183092a7281a0c04236012e759764afc))
+* find Spotify track ids for songs with sync --match ([a5af6eb](https://github.com/njhoffman/musicman/commit/a5af6ebd3fd7a9675e012c39a20601a7d01ebdf4))
+* push Liked Songs and playlist changes with sync --push ([133926e](https://github.com/njhoffman/musicman/commit/133926ee9d7fef39126826d2746d77580b1b2d81))
+* refresh the Spotify playlist cache and report the sync plan ([781cfac](https://github.com/njhoffman/musicman/commit/781cfacb2d3ed9cb7473350067e8e8ffe330a775))
+
+
+### Bug Fixes
+
+* keep a successful Spotify login when the user lookup fails ([2e5273e](https://github.com/njhoffman/musicman/commit/2e5273ef89bbfa2571b20b5ecd73b82556146e65))
+
 ## [1.11.0](https://github.com/njhoffman/musicman/compare/v1.10.0...v1.11.0) (2026-10-20)
 
 
