@@ -19,11 +19,8 @@ OVERDUE flag. Feature specs live in `docs/`.
 - [x] **Logging levels use different scales.** `output.verbosity` (default `info`) and `logger.file.level`
       (default `debug`) now take level names (error, warn, info, debug, trace); the unused
       `logger.stdout.level` was removed.
-- [ ] **Logger ignores `logger.colors`.** (p3) The hex colors and `gui` styles in config are validated but never
-      applied by `utils/logger.js`.
-
-## Refactoring
-
+- [x] **Logger ignores `logger.colors`.** (p3) Terminal log lines now start with a level badge colored with
+      the level's `fg`, `bg`, and `gui`; the log file is unchanged.
 - [ ] **Make the notify daemon testable.** (p3) `notify-daemon.js` runs on require; split notification building
       and sending from the MPD loop so `sendNotification` can be unit tested.
 - [ ] **Rename `seperators` to `separators`** (p3) in `views.table`, with a legacy-key error like the other

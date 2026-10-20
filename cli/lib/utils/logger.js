@@ -2,6 +2,7 @@ const _ = require('lodash');
 const fs = require('fs');
 const path = require('path');
 const { inspect } = require('util');
+const chalk = require('chalk').default;
 
 const { defaultConfig } = require('musicman-common/config');
 const { logLevels } = require('musicman-common/config/validator');
@@ -11,6 +12,9 @@ const levelIndex = name => logLevels.indexOf(name);
 
 // log file written by log messages, set by configureLogFile
 let logFile = null;
+
+// level badge colors (logger.colors), defaults until configureColors is called with the loaded config
+let colors = _.get(defaultConfig, 'logger.colors', {});
 
 // output settings start from the defaults until configure is called with the loaded config
 let settings = _.pick(defaultConfig.output, ['padding', 'verbosity']);
@@ -101,10 +105,38 @@ const writeLogFile = (logLevel, message) => {
 // log file only, for detail that would flood the terminal (e.g. every file of a library update)
 const logToFile = (levelName, message) => writeLogFile(levelIndex(levelName), message);
 
+const configureColors = levelColors => {
+  colors = levelColors || {};
+};
+
+// level name colored with the level's fg, bg, and gui from logger.colors, padded after the color so
+// messages of every level start in the same column
+const badge = levelName => {
+  const { fg, bg, gui } = colors[levelName] || {};
+  let style = chalk;
+  if (fg) {
+    style = style.hex(fg);
+  }
+  if (bg) {
+    style = style.bgHex(bg);
+  }
+  if (['bold', 'italic', 'underline'].includes(gui)) {
+    style = style[gui];
+  }
+  return `${style(` ${levelName.toUpperCase()} `)}${' '.repeat(5 - levelName.length)}`;
+};
+
+// badge before the first line of text, after any leading blank lines
+const withBadge = (levelName, message) => {
+  const text = _.isString(message) ? message : inspect(message, inspectOptions());
+  const [, leading, rest] = text.match(/^(\n*)([\s\S]*)$/);
+  return `${leading}${badge(levelName)} ${rest}`;
+};
+
 const log = (logLevel, message) => {
   writeLogFile(logLevel, message);
   if (levelIndex(settings.verbosity) >= logLevel) {
-    return consoleLog(message);
+    return consoleLog(withBadge(logLevels[logLevel], message));
   }
   return message;
 };
@@ -114,6 +146,7 @@ const logger = _.fromPairs(logLevels.map(name => [name, log.bind(null, levelInde
 module.exports = {
   availableWidth,
   configure,
+  configureColors,
   configureLogFile,
   logToFile,
   consoleLog,

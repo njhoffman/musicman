@@ -114,11 +114,58 @@ describe('Logger', () => {
 
     it('should show messages up to the configured level name', () => {
       // shown messages come back padded by consoleLog, hidden ones come back unchanged
+      logger.configureColors({});
       logger.configure({ verbosity: 'info' });
-      expect(logger.info('shown')).to.equal(' shown');
+      expect(logger.info('shown')).to.equal('  INFO   shown');
       expect(logger.debug('hidden')).to.equal('hidden');
       logger.configure({ verbosity: 'trace' });
-      expect(logger.trace('shown')).to.equal(' shown');
+      expect(logger.trace('shown')).to.equal('  TRACE  shown');
+      logger.configureColors(require('musicman-common/config').defaultConfig.logger.colors);
+    });
+  });
+
+  describe('level badges', () => {
+    let originalLevel;
+    const chalk = require('chalk').default;
+
+    beforeEach(() => {
+      originalLevel = chalk.level;
+      chalk.level = 3;
+    });
+
+    afterEach(() => {
+      chalk.level = originalLevel;
+      logger.configureColors(require('musicman-common/config').defaultConfig.logger.colors);
+    });
+
+    it('should color the level badge with the configured fg, bg, and gui', () => {
+      logger.configureColors({ warn: { fg: '#FFFFFF', bg: '#B43C14', gui: 'bold' } });
+      const output = logger.warn('careful');
+      expect(output).to.equal(` ${chalk.hex('#FFFFFF').bgHex('#B43C14').bold(' WARN ')}  careful`);
+    });
+
+    it('should leave the badge uncolored for a level without colors', () => {
+      logger.configureColors({});
+      expect(logger.info('plain')).to.equal('  INFO   plain');
+      expect(logger.error('aligned')).to.equal('  ERROR  aligned');
+    });
+
+    it('should put the badge after leading blank lines', () => {
+      logger.configureColors({});
+      expect(logger.info('\nSummary')).to.equal(' \n  INFO   Summary');
+    });
+
+    it('should not add badges to the log file', () => {
+      const fs = require('fs');
+      const os = require('os');
+      const path = require('path');
+      const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-badge-'));
+      const file = path.join(directory, 'musicman.log');
+      logger.configureLogFile({ name: file, level: 'info' });
+      logger.info('message');
+      logger.configureLogFile();
+      expect(fs.readFileSync(file, 'utf8')).to.match(/Z INFO {2}message\n$/);
+      fs.rmSync(directory, { recursive: true, force: true });
     });
   });
 });

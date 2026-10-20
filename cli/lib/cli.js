@@ -10,6 +10,7 @@ const pe = new PrettyError();
 const config = loadConfig({ create: true });
 logger.configure(config.output);
 logger.configureLogFile(config.logger.file);
+logger.configureColors(config.logger.colors);
 
 const run = async args => {
   const currentSong = await getAvailableSong(config.mpd);
