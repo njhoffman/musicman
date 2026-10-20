@@ -14,6 +14,8 @@
 - **Song identity**: path relative to `mpd.baseDirectory` is the key. The MusicBrainz track id
   (`TXXX.MusicBrainz Release Track Id`, present on nearly all rated files) is stored too, so a file moved by
   beets is re-linked to its existing row (rating history, play data) instead of becoming a new song.
+  In the library 4,822 of 6,445 songs (75%) have this id; moved songs without it are removed and re-added,
+  which keeps their tags (they are in the file) but resets `added_at`.
 - **Incremental updates**: `db --update` skips files whose mtime and size match the stored values. A full
   first scan of ~6,400 files takes about 90s; later updates only read changed files.
 - **Concurrency**: WAL journal mode so the notify daemon and the cli can read and write at the same time.

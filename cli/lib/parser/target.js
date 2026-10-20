@@ -33,6 +33,11 @@ const getTarget = ({ args, currentSong, baseDirectory, command }) => {
 
     return target;
   }
+  // commands like db default to a target of their own, e.g. the whole library
+  if (command.defaultTarget) {
+    return command.defaultTarget(baseDirectory);
+  }
+
   // otherwise it is the current directory if not an edit command
   // (want to explicitly demand target argument for editing multiple files)
   return command.name !== 'edit' ? process.cwd() : false;

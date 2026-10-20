@@ -10,6 +10,12 @@ describe('Target assignment', () => {
   };
   const currentSong = { file: 'testDir/testSong.mp3' };
 
+  it('Should use the base directory for db command without a target argument', () => {
+    const test1 = parser({ args: ['db', '--update'], config });
+    expect(test1).to.include({ target: 'testBaseDir' });
+    expect(test1.command.name).to.equal('db');
+  });
+
   it('Should assign target if argument is a file or directory that exists', async () => {
     const test1 = parser({ args: [testFile], config, currentSong });
     const test2 = parser({ args: ['additional', testFile, 'args'], config });

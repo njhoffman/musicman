@@ -46,4 +46,4 @@ const countTags = (rawTagsList, config) => {
   );
 };
 
-module.exports = { countTags, populatedFrames };
+module.exports = { countTags, isPopulated, populatedFrames };

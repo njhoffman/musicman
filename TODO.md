@@ -70,19 +70,7 @@ that resolves them. Feature specs live in `docs/`.
 
 ## Database (`docs/02-database.md`)
 
-- [ ] **Database config:** `db.path` (`musicman.sqlite` in the directory of `mpd.baseDirectory`),
-      `db.backupDirectory` (`.musicman` subdirectory), `db.backupInterval` (1 day), with defaults and validation.
-- [ ] **Schema and migrations:** `songs`, `song_tags`, `tags`, `meta` tables as designed in the doc; schema
-      version in `PRAGMA user_version` with ordered migrations; WAL journal mode.
-- [ ] **Tag definitions import:** load tags.json and the config custom fields into `tags` on startup without
-      overwriting existing rows.
-- [ ] **Custom field definition changes are fatal:** a changed definition of a stored custom field stops the
-      program (from `docs/scratch.md`).
 - [ ] **Backups:** back up the database to `db.backupDirectory` every `db.backupInterval`.
-- [ ] **`db` command:** show database stats, last backup, and last update.
-- [ ] **`db --update`:** scan `mpd.baseDirectory` (or a target path, recursively), skip files with unchanged
-      mtime and size, re-link moved files by MusicBrainz track id; progress bar with percentage, files
-      processed, and entries updated; per-file `debug` log and colored `info` summary.
 - [ ] **Use the database in `stats`, `view`, and `edit`:** `edit` writes the file, then updates the row from
       the written file.
 - [ ] **`search` command:** field syntax as used here (`rating:5.0 title:"some title"`) and mpc style
@@ -90,7 +78,9 @@ that resolves them. Feature specs live in `docs/`.
       fields.
 - [ ] **`search --add` and `--play`:** append results to the playlist, or create a new playlist from the
       results and play it.
-- [ ] **Database tests and error handling,** including `db --update`.
+- [ ] **Log file:** the spec asks for a detailed `db --update` log; the logger only writes to stdout. Add a log
+      file (e.g. `logger.file` in config) and write per-file update actions there at `debug` level.
+- [ ] **Database tests and error handling** for backups, `search`, and the database-backed commands.
 
 ## Spotify sync (`docs/03-spotify-id.md`)
 
