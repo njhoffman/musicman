@@ -6,9 +6,14 @@ const parseSwitches = (optionList, config) => {
   const used = [];
 
   optionList.forEach((option, i) => {
-    const foundSwitch = _.get(switchMap, option) || _.find(switchMap, { alias: option });
+    // long form (--update) matches the switch name, short form (-u) matches the alias
+    const longName = /^--/.test(option) ? option.slice(2) : null;
+    const foundSwitch =
+      (longName && _.get(switchMap, longName)) ||
+      _.get(switchMap, option) ||
+      _.find(switchMap, { alias: option });
     if (foundSwitch) {
-      used.push(foundSwitch.alias, _.keys(foundSwitch)[0]);
+      used.push(option, foundSwitch.alias);
       _.merge(switches, foundSwitch.func(used, optionList, i));
     }
   });

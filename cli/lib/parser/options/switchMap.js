@@ -33,7 +33,12 @@ module.exports = {
     examples: ['-w party', '-w "Folder Name/Party Songs"'],
     func: (used, optionList, i) => {
       used.push(optionList[i + 1]);
-      return { exclude: optionList[i + 1] };
+      return { write: optionList[i + 1] };
     }
+  },
+  update: {
+    description: 'Update the database from the mpd base directory or the target directory',
+    alias: '-u',
+    func: () => ({ update: true })
   }
 };

@@ -50,6 +50,23 @@ describe('Options assignment', () => {
       expect(test2.options.switches).to.deep.include({ include: ['artist', 'title'] });
     });
 
+    it('Should parse playlist write switch correctly', () => {
+      const test1 = parser({ args: ['-w', 'party'], config });
+      expect(test1.options.switches).to.deep.equal({ write: 'party' });
+    });
+
+    it('Should parse long form switches by name', () => {
+      const test1 = parser({ args: ['--update'], config });
+      const test2 = parser({ args: ['--recursive'], config });
+      expect(test1.options.switches).to.include({ update: true });
+      expect(test2.options.switches).to.include({ recursive: true });
+    });
+
+    it('Should parse update switch alias', () => {
+      const test1 = parser({ args: ['-u'], config });
+      expect(test1.options.switches).to.include({ update: true });
+    });
+
     it('Should parse exclusion output fields switch correctly', () => {
       const test1 = parser({ args: ['-x', 'artist'], config });
       const test2 = parser({ args: ['-x', 'artist,title'], config });
