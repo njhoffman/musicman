@@ -1,0 +1,65 @@
+const apiUrl = 'https://api.spotify.com/v1';
+
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Spotify Web API client. Requests that are rate limited (429) or hit a server error (5xx) are
+ * retried, waiting Retry-After when Spotify sends it, otherwise backing off exponentially.
+ */
+const createClient = ({
+  getToken,
+  fetchImpl = fetch,
+  retries = 4,
+  sleep = wait,
+  baseDelayMs = 500
+}) => {
+  const request = async (method, url, body) => {
+    const fullUrl = url.startsWith('http') ? url : `${apiUrl}${url}`;
+    for (let attempt = 0; ; attempt += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      const token = await getToken();
+      // eslint-disable-next-line no-await-in-loop
+      const res = await fetchImpl(fullUrl, {
+        method,
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body)
+      });
+      if ((res.status === 429 || res.status >= 500) && attempt < retries) {
+        const retryAfter = Number(res.headers.get('retry-after'));
+        // eslint-disable-next-line no-await-in-loop
+        await sleep(retryAfter > 0 ? retryAfter * 1000 : baseDelayMs * 2 ** attempt);
+      } else {
+        // eslint-disable-next-line no-await-in-loop
+        const text = await res.text();
+        const json = text ? JSON.parse(text) : null;
+        if (!res.ok) {
+          const message =
+            (json && json.error && (json.error.message || json.error)) || (json && json.message);
+          const err = new Error(
+            `Spotify API ${method} ${url} failed (${res.status}): ${message || 'no details'}`
+          );
+          err.status = res.status;
+          throw err;
+        }
+        return json;
+      }
+    }
+  };
+
+  // every item of a paged endpoint, following next links
+  const paginate = async url => {
+    const items = [];
+    let next = url;
+    while (next) {
+      // eslint-disable-next-line no-await-in-loop
+      const page = await request('GET', next);
+      items.push(...page.items);
+      next = page.next;
+    }
+    return items;
+  };
+
+  return { request, get: url => request('GET', url), paginate };
+};
+
+module.exports = { createClient };

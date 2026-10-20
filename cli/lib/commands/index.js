@@ -4,6 +4,7 @@ const playlistCommand = require('./playlist.js');
 const statsCommand = require('./stats.js');
 const dbCommand = require('./db.js');
 const searchCommand = require('./search.js');
+const syncCommand = require('./sync.js');
 
 module.exports = [
   viewCommand,
@@ -11,5 +12,6 @@ module.exports = [
   playlistCommand,
   statsCommand,
   dbCommand,
-  searchCommand
+  searchCommand,
+  syncCommand
 ];

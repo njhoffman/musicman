@@ -51,6 +51,11 @@ module.exports = {
     alias: '-p',
     func: () => ({ play: true })
   },
+  login: {
+    description: 'Log in to Spotify for playlist sync',
+    alias: '-L',
+    func: () => ({ login: true })
+  },
   backup: {
     description: 'Back up the library database now',
     alias: '-b',

@@ -33,6 +33,14 @@ const configSchema = {
       backupCount: { type: 'number', min: 1, required: false }
     }
   },
+  spotify: {
+    type: 'object',
+    properties: {
+      clientId: { type: 'string', required: false },
+      clientSecret: { type: 'string', required: false },
+      redirectUri: { type: 'string', required: false }
+    }
+  },
   daemon: {
     type: 'object',
     properties: {

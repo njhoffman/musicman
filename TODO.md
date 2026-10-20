@@ -89,8 +89,9 @@ resolves them; `.claude/scripts/todo-status` and `/todo` show open/done counts p
 
 ## Spotify sync (`docs/03-spotify-id.md`)
 
-- [ ] **Spotify credentials:** read `SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET` from the environment, falling
-      back to `spotify.clientId`/`spotify.clientSecret` in the config; OAuth token storage outside the config.
+- [x] **Spotify credentials:** `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI` (or `_URL`)
+      from the environment, falling back to `spotify.*` in the config; `sync --login` saves OAuth tokens to
+      `$XDG_STATE_HOME/musicman/spotify-token.json` (mode 0600).
 - [ ] **Sync config:** `sync.uploadDirectory`, `sync.downloadDirectory`, `sync.spotdlCommand`.
 - [ ] **`sync` command and cache:** refresh a local cache of the mapped Spotify playlists and report how many
       songs would be pulled and pushed.
