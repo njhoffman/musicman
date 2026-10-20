@@ -100,8 +100,9 @@ OVERDUE flag. Feature specs live in `docs/`.
       songs would be pulled and pushed.
 - [ ] **Beets integration:** read paths from `~/.config/beets/config.yaml` and wrap the beets workflow
       (`Sorted/Unrated` to `Sorted/Rated` after rating and assigning a `grouping`).
-- [ ] **Spotify track ids:** (p1) use ids from the beets spotify plugin for `Rated` songs, look up the ones it
-      missed, and mark songs that are still unmatched.
+- [x] **Spotify track ids:** (p1) `sync --match` (`--dry-run` to preview): beets ids, then ISRC, then scored
+      artist/title search; confident matches written as `TXXX.spotify_track_id`, probable ones listed by
+      `sync --review`, misses rechecked after 30 days.
 - [ ] **Spotify audio features:** (p3) populate acousticness, danceability, energy, instrumentalness, key,
       liveness, loudness, mode, speechiness, tempo, time_signature, valence, and other Spotify tags.
 - [ ] **Liked Songs:** (p1) add every local song rated 4.5 or higher to Liked Songs.

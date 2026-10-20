@@ -51,6 +51,21 @@ module.exports = {
     alias: '-p',
     func: () => ({ play: true })
   },
+  match: {
+    description: 'Find Spotify track ids for songs that belong in Liked Songs or a mapped playlist',
+    alias: '-m',
+    func: () => ({ match: true })
+  },
+  review: {
+    description: 'List probable Spotify matches waiting for review',
+    alias: '-R',
+    func: () => ({ review: true })
+  },
+  'dry-run': {
+    description: 'Show what would change without writing files, the database, or Spotify',
+    alias: '-n',
+    func: () => ({ dryRun: true })
+  },
   login: {
     description: 'Log in to Spotify for playlist sync',
     alias: '-L',

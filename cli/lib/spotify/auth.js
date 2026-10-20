@@ -59,6 +59,21 @@ const exchangeCode = (credentials, code, options) =>
 const appToken = async (credentials, options) =>
   (await requestToken(credentials, { grant_type: 'client_credentials' }, options)).access_token;
 
+// app token getter that reuses the token until it is about to expire
+const appTokenGetter = (credentials, { fetchImpl, now = Date.now } = {}) => {
+  let cached = null;
+  return async () => {
+    if (!cached || cached.expires_at - expiryMarginMs <= now()) {
+      cached = await requestToken(
+        credentials,
+        { grant_type: 'client_credentials' },
+        { fetchImpl, now }
+      );
+    }
+    return cached.access_token;
+  };
+};
+
 const readTokens = file => (fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null);
 
 const writeTokens = (file, tokens) => {
@@ -95,6 +110,7 @@ const userAccessToken = async ({ credentials, file, fetchImpl, now = Date.now })
 
 module.exports = {
   appToken,
+  appTokenGetter,
   authorizeUrl,
   exchangeCode,
   readTokens,

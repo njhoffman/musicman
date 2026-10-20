@@ -1,9 +1,15 @@
 const _ = require('lodash');
+const fs = require('fs');
 
 const { createClient } = require('../spotify/api.js');
-const { readTokens, userAccessToken } = require('../spotify/auth.js');
+const { appTokenGetter, readTokens, userAccessToken } = require('../spotify/auth.js');
 const { getCredentials, missingCredentials, tokenPath } = require('../spotify/credentials.js');
 const { login } = require('../spotify/login.js');
+const { readBeetsSpotifyIds } = require('../spotify/beets.js');
+const { matchSongs, reviewItems, spotifyIdFrame } = require('../sync/match.js');
+const { songTargets } = require('../sync/targets.js');
+const { openLibrary } = require('../db/index.js');
+const { getFilteredFiles } = require('./common.js');
 const logger = require('../utils/logger.js');
 
 const credentialSource = (env, name) => (env[name] ? 'environment' : 'config');
@@ -48,6 +54,97 @@ const showStatus = async ({ credentials, file, fetchImpl, env }) => {
   return { loggedIn: true, user: me.id };
 };
 
+const formatDuration = seconds =>
+  seconds ? `${Math.floor(seconds / 60)}:${`${Math.round(seconds % 60)}`.padStart(2, '0')}` : '?';
+
+// the library database is required for sync, songs and their Spotify ids are read from it
+const openSyncLibrary = config => {
+  if (!fs.existsSync(config.db.path)) {
+    throw new Error(`No library database at ${config.db.path}, run: musicman db --update`);
+  }
+  return openLibrary(config);
+};
+
+const librarySongs = async config =>
+  getFilteredFiles({
+    target: config.mpd.baseDirectory,
+    options: { switches: { recursive: true } },
+    config
+  });
+
+const runMatch = async ({ credentials, file, fetchImpl, config, dryRun }) => {
+  const db = openSyncLibrary(config);
+  try {
+    const songs = songTargets(await librarySongs(config), config);
+    const summary = await matchSongs({
+      db,
+      config,
+      songs,
+      // lookups need no user, the app token avoids the user-read-private scope a market would need
+      client: createClient({ getToken: appTokenGetter(credentials, { fetchImpl }), fetchImpl }),
+      beetsIds: readBeetsSpotifyIds(config.sync.beetsConfig),
+      dryRun,
+      onProgress: ({ done, total, match, review, missing }) =>
+        logger.progress(
+          `Matching ${done}/${total} songs: ${match} matched, ${review} to review, ${missing} not found`
+        ),
+      onSong: (status, { file: songFile }, result) =>
+        logger.logToFile(
+          status === 'failed' ? 'warn' : 'debug',
+          `${status.padEnd(7)} ${songFile}${result.candidate ? ` -> ${result.candidate.id}` : ''}${
+            result.error ? `: ${result.error}` : ''
+          }`
+        )
+    });
+    logger.progressDone();
+    const { bySource } = summary;
+    logger.info(
+      [
+        `Spotify ids ${dryRun ? '(dry run, nothing written)' : ''}`.trim(),
+        `  songs for Liked Songs or playlists: ${summary.targets}`,
+        `  already tagged: ${summary.tagged}, recently checked: ${summary.cached}`,
+        `  not in database: ${summary.notInDatabase} (run musicman db --update)`,
+        `  matched: ${summary.match} (beets ${bySource.beets}, isrc ${bySource.isrc}, search ${bySource.search})`,
+        `  to review: ${summary.review} (musicman sync --review)`,
+        `  not found: ${summary.missing}, failed: ${summary.failed}`
+      ].join('\n')
+    );
+    return { summary };
+  } finally {
+    db.close();
+  }
+};
+
+const runReview = ({ config }) => {
+  const db = openSyncLibrary(config);
+  try {
+    const items = reviewItems(db, config);
+    // edit assigns tags by their library.tags name
+    const tagName = _.get(_.find(config.library.tags, { id: spotifyIdFrame }), 'name');
+    const accept = (songFile, id) =>
+      tagName
+        ? `  accept: musicman edit "${songFile}" ${tagName}=${id}`
+        : `  accept: add a ${spotifyIdFrame} tag to library.tags, then edit it to ${id}`;
+    if (items.length === 0) {
+      logger.info('No Spotify matches waiting for review');
+    }
+    items.forEach(({ file: songFile, path: songPath, duration, candidate }) =>
+      logger.info(
+        [
+          `${songPath} (${formatDuration(duration)})`,
+          `  Spotify: ${candidate.artists} - ${candidate.name} [${
+            candidate.album
+          }] (${formatDuration(candidate.durationMs / 1000)})`,
+          accept(songFile, candidate.id)
+        ].join('\n')
+      )
+    );
+    return { review: items };
+  } finally {
+    db.close();
+  }
+};
+
 // sync: Spotify status; sync --login: log in to Spotify
 const syncCommand = async ({
   options,
@@ -65,8 +162,21 @@ const syncCommand = async ({
     return false;
   }
   try {
-    if (_.get(options, 'switches.login')) {
+    const switches = _.get(options, 'switches', {});
+    if (switches.login) {
       return await runLogin({ credentials, file, fetchImpl, open });
+    }
+    if (switches.match) {
+      return await runMatch({
+        credentials,
+        file,
+        fetchImpl,
+        config,
+        dryRun: Boolean(switches.dryRun)
+      });
+    }
+    if (switches.review) {
+      return runReview({ config });
     }
     return await showStatus({ credentials, file, fetchImpl, env });
   } catch (err) {
