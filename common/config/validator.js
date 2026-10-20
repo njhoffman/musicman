@@ -24,6 +24,14 @@ const configSchema = {
       baseDirectory: { type: 'string', required: false }
     }
   },
+  db: {
+    type: 'object',
+    properties: {
+      path: { type: 'string', required: false },
+      backupDirectory: { type: 'string', required: false },
+      backupInterval: { type: 'string', required: false }
+    }
+  },
   daemon: {
     type: 'object',
     properties: {
@@ -194,6 +202,17 @@ const configSchema = {
   }
 };
 
+const intervalUnits = { minute: 60 * 1000, hour: 60 * 60 * 1000, day: 24 * 60 * 60 * 1000 };
+intervalUnits.week = 7 * intervalUnits.day;
+
+/**
+ * Parses an interval like '1 day' or '12 hours' into milliseconds, null when invalid
+ */
+function parseInterval(interval) {
+  const match = `${interval}`.trim().match(/^(\d+)\s*(minute|hour|day|week)s?$/i);
+  return match ? Number(match[1]) * intervalUnits[match[2].toLowerCase()] : null;
+}
+
 // options moved into views, reported as errors with where they moved to
 const legacyOptions = {
   'output.table': 'moved to views.table',
@@ -279,6 +298,13 @@ function validateConfig(config) {
     }
   });
 
+  const backupInterval = _.get(config, 'db.backupInterval');
+  if (_.isString(backupInterval) && parseInterval(backupInterval) === null) {
+    result.errors.push(
+      `db.backupInterval '${backupInterval}' must be a number of minutes, hours, days, or weeks (e.g. '1 day')`
+    );
+  }
+
   if (_.some(config.tags, tag => _.has(tag, 'tableOrder'))) {
     result.errors.push('tags[].tableOrder is no longer supported (column order is set by views.<format>.tags)');
   }
@@ -362,6 +388,7 @@ function readUserConfig(userConfigPath = getUserConfigPath()) {
 }
 
 module.exports = {
+  parseInterval,
   validateConfig,
   validateLibrary,
   readUserConfig,

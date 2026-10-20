@@ -1,5 +1,6 @@
 const _ = require('lodash');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const yaml = require('js-yaml');
 const globalTags = require('./tags.json');
@@ -51,6 +52,16 @@ const buildConfig = ({
     { version: pkgVersion, env: process.env.NODE_ENV },
     replaceArrays
   );
+
+  // database files default to the music library directory
+  const expandHome = file => (file && file.startsWith('~/') ? path.join(os.homedir(), file.slice(2)) : file);
+  const baseDirectory = _.get(config, 'mpd.baseDirectory');
+  const libraryFile = name => (baseDirectory ? path.join(baseDirectory, name) : null);
+  config.db = {
+    ...config.db,
+    path: expandHome(_.get(config, 'db.path')) || libraryFile('musicman.sqlite'),
+    backupDirectory: expandHome(_.get(config, 'db.backupDirectory')) || libraryFile('.musicman')
+  };
 
   const { tags, missing } = resolveLibraryTags(config);
   config.library.tags = tags;

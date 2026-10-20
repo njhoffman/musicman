@@ -366,6 +366,38 @@ describe('Config Tests', () => {
       expect(result.exitCalled).to.be.false;
     });
 
+    it('should default database files to the mpd base directory', () => {
+      const { loadConfig: loadRealConfig } = require('../../../common/config/index.js');
+      const config = loadRealConfig({ userConfig: { mpd: { baseDirectory: '/music' } } });
+      expect(config.db.path).to.equal('/music/musicman.sqlite');
+      expect(config.db.backupDirectory).to.equal('/music/.musicman');
+      expect(config.db.backupInterval).to.equal('1 day');
+    });
+
+    it('should expand ~ in configured database paths', () => {
+      const { loadConfig: loadRealConfig } = require('../../../common/config/index.js');
+      const config = loadRealConfig({
+        userConfig: { db: { path: '~/music.sqlite', backupDirectory: '/backups' } }
+      });
+      expect(config.db.path).to.equal(path.join(os.homedir(), 'music.sqlite'));
+      expect(config.db.backupDirectory).to.equal('/backups');
+    });
+
+    it('should treat an invalid backup interval as a fatal error', () => {
+      const result = captureFatal(() => loadConfig({ db: { backupInterval: 'often' } }));
+      expect(result.exitCalled).to.be.true;
+      expect(result.messages.join('\n')).to.include("db.backupInterval 'often' must be a number of");
+    });
+
+    it('should parse backup intervals', () => {
+      const { parseInterval } = require('../../../common/config/validator.js');
+      expect(parseInterval('1 day')).to.equal(24 * 60 * 60 * 1000);
+      expect(parseInterval('12 hours')).to.equal(12 * 60 * 60 * 1000);
+      expect(parseInterval('30 minutes')).to.equal(30 * 60 * 1000);
+      expect(parseInterval('2 weeks')).to.equal(14 * 24 * 60 * 60 * 1000);
+      expect(parseInterval('soon')).to.be.null;
+    });
+
     it('should merge configs with proper precedence', () => {
       expect(configModule.rating.tag).to.equal('POPM');
       expect(configModule.rating.email).to.equal('Default');

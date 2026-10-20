@@ -18,6 +18,15 @@ mpd:
   # Base directory where music files are stored on MPD server
   baseDirectory: "/Music/Sorted"
 
+# Library database settings
+db:
+  # Database file, defaults to musicman.sqlite in mpd.baseDirectory
+  path:
+  # Directory for database backups, defaults to .musicman in mpd.baseDirectory
+  backupDirectory:
+  # How often to back up the database: a number of minutes, hours, days, or weeks
+  backupInterval: 1 day
+
 # Notification daemon settings for desktop notifications
 daemon:
   # Display duration for notifications in milliseconds
