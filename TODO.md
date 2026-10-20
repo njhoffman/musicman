@@ -7,8 +7,7 @@ OVERDUE flag. Feature specs live in `docs/`.
 
 ## Bugs
 
-- [ ] **`pnpm lint` fails with 103 errors.** Since the `.js` rename it lints files again, but most errors are
-      airbnb's `import/extensions` rejecting explicit `.js` requires. Fixed as part of the ESLint migration below.
+- [x] **`pnpm lint` fails with 103 errors.** Fixed by the ESLint migration.
 - [x] **`term-size` spawns `resize`**, which prints `resize: can't open terminal /dev/tty` outside a TTY
       (visible in test output). Use `process.stdout.columns` with a fallback and drop the dependency.
 - [x] **Playlist paths use string replace.** `commands/playlist.js` strips `mpd.baseDirectory` with
@@ -47,11 +46,11 @@ OVERDUE flag. Feature specs live in `docs/`.
 
 ## Tooling
 
-- [ ] **ESLint migration:** ESLint 7 to 9/10 flat config. `eslint-config-airbnb-base` does not support flat
-      config; replace with `@eslint/js` recommended, `eslint-plugin-n`, and `eslint-config-prettier`. Allow
-      explicit `.js` extensions in requires. Drop `eslint-watch`, `babel-eslint`, and `eslint-plugin-babel`; remove the unused ESLint
-      devDependencies from `common`.
-- [ ] **Test tooling:** (p3) mocha 12, chai 6, sinon 22, sinon-chai 4, prettier 3, nyc to c8. Clean up
+- [x] **ESLint migration:** ESLint 10 flat config (`eslint.config.js` at the root) with `@eslint/js`
+      recommended, `eslint-plugin-n`, and `eslint-config-prettier`; Prettier 3 runs separately
+      (`pnpm format`, `pnpm format:check`); airbnb, babel, eslint-watch, and the unused `common` ESLint
+      dependencies removed.
+- [ ] **Test tooling:** (p3) mocha 12, chai 6, sinon 22, sinon-chai 4, nyc to c8. Clean up
       `.mocharc.yml` (it is the full example config with placeholder values).
 - [ ] **Release tooling:** (p3) `standard-version` is deprecated; switch to `commit-and-tag-version`.
 - [ ] **Commit hooks:** (p3) `husky` and `commitlint` are installed but not configured (no `.husky/`, no

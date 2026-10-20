@@ -154,7 +154,7 @@ describe('Spotify', () => {
       expect(await userAccessToken({ credentials, file, fetchImpl, now: () => 0 })).to.equal('new');
       const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
       expect(saved).to.include({ access_token: 'new', refresh_token: 'r' });
-      // eslint-disable-next-line no-bitwise
+
       expect(fs.statSync(file).mode & 0o777).to.equal(0o600);
     });
   });

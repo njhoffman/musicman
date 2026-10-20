@@ -10,7 +10,7 @@ const unitDir = path.join(os.homedir(), '.config/systemd/user');
 const unitPath = path.join(unitDir, serviceName);
 const daemonPath = path.resolve(__dirname, '../lib/notify-daemon.js');
 
-/* eslint-disable no-console */
+
 
 // use the node binary running this script, systemd user services do not inherit shell PATH
 const unit = `[Unit]

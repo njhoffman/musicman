@@ -11,10 +11,6 @@ const config = loadConfig({ create: true });
 logger.configure(config.output);
 logger.configureLogFile(config.logger.file);
 
-const usage = args => {
-  // logger.info('USAGE', args);
-};
-
 const run = async args => {
   const currentSong = await getAvailableSong(config.mpd);
   const { command, target, options } = commandParser({ args, currentSong, config });
@@ -33,7 +29,7 @@ const run = async args => {
 
 run(process.argv.slice(2));
 
-/* eslint-disable no-console */
+
 process.on('unhandledRejection', err => {
   logger.error(`Unhandled Rejection ${err.name}: ${err.message}\n`, pe.render(err));
   // console.error(err);

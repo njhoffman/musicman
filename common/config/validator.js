@@ -415,7 +415,7 @@ function readUserConfig(userConfigPath = getUserConfigPath()) {
   try {
     return yaml.load(fs.readFileSync(userConfigPath, 'utf8')) || {};
   } catch (error) {
-    throw new Error(`Failed to parse user config file ${userConfigPath}: ${error.message}`);
+    throw new Error(`Failed to parse user config file ${userConfigPath}: ${error.message}`, { cause: error });
   }
 }
 

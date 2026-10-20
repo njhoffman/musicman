@@ -109,6 +109,7 @@ describe('Table Output', () => {
       views: { table: { ...config.views.table, color: '#FF0000' } }
     };
     const output = outputTable(metadata, viewConfig);
+    // eslint-disable-next-line no-control-regex
     expect(output).to.match(/\u001b\[/);
     expect(stripAnsi(output).split('\n')[2]).to.include('A Much Long…');
   });

@@ -10,7 +10,7 @@ describe('Integration Tests', () => {
     resetSandbox();
   });
 
-  /* eslint-disable global-require */
+
   require('./unit/config.js');
   require('./integration/commands/view.js');
   require('./integration/commands/edit.js');
@@ -18,7 +18,7 @@ describe('Integration Tests', () => {
   require('./integration/commands/stats.js');
   require('./integration/commands/db.js');
   require('./integration/commands/search.js');
-  /* eslint-enable global-require */
+
 
   after(() => logTime && console.log(`\n    Finished in ${new Date().getTime() - startTime}ms.`));
 });

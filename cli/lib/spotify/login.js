@@ -13,7 +13,7 @@ const openBrowser = url => {
     const child = spawn('xdg-open', [url], { detached: true, stdio: 'ignore' });
     child.on('error', () => {});
     child.unref();
-  } catch (err) {
+  } catch {
     // the printed url is the fallback
   }
 };

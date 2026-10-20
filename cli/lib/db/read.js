@@ -12,7 +12,7 @@ const toRawValue = (frameId, value) => {
   }
   try {
     return JSON.parse(value);
-  } catch (err) {
+  } catch {
     return value;
   }
 };

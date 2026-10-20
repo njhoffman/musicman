@@ -133,6 +133,7 @@ describe('Db Command', () => {
       await update();
       const lines = output =>
         output
+          // eslint-disable-next-line no-control-regex
           .replace(/\u001b\[[0-9;]*m/g, '')
           .split('\n')
           .map(line => line.trim());

@@ -101,7 +101,7 @@ describe('Playlist Command', () => {
     });
 
     it('Should output playlist with list of matching songs', async () => {
-      const results = await playlistFunc({ target: dirTarget, options, config });
+      await playlistFunc({ target: dirTarget, options, config });
       const fileContents = await readFile(playlistPath);
       expect(fileContents).to.be.a.string;
       expect(fileContents.trim().split('\n').length).to.equal(16);

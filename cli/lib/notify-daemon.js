@@ -67,7 +67,7 @@ const run = async args => {
 
 run(process.argv.slice(2));
 
-/* eslint-disable no-console */
+
 process.on('unhandledRejection', err => {
   logger.error(`Unhandled Rejection ${err.name}: ${err.message}\n`, pe.render(err));
   // console.error(err);
@@ -79,4 +79,4 @@ process.on('uncaughtException', err => {
   // console.error(err);
   process.exit(1);
 });
-/* eslint-enable no-console */
+
