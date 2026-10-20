@@ -23,21 +23,20 @@ const editCommand = async ({ target, options, config }) => {
 
   const filtered = await getFilteredFiles({ target, options, config });
 
-  const prompt = new Confirm({
-    message: `You are about to apply changes to ${filtered.length} files, proceed?`
-  });
+  if (filtered.length === 0) {
+    logger.info('No files matched, nothing to edit');
+    return false;
+  }
 
+  // editing several files at once asks first
   if (filtered.length > 1 && !isTest) {
-    const verifyEdit = await prompt.run();
-    if (!verifyEdit) {
+    const prompt = new Confirm({
+      message: `You are about to apply changes to ${filtered.length} files, proceed?`
+    });
+    if (!(await prompt.run())) {
       logger.info(`Declined to modify ${filtered.length} files`);
       return false;
     }
-  }
-
-  // TODO: handle this better
-  if (filtered.length === 0) {
-    return false;
   }
 
   // assign new metadata fields, map to Id3 tag names and save

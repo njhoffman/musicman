@@ -12,8 +12,8 @@ OVERDUE flag. Feature specs live in `docs/`.
       (visible in test output). Use `process.stdout.columns` with a fallback and drop the dependency.
 - [x] **Playlist paths use string replace.** `commands/playlist.js` strips `mpd.baseDirectory` with
       `String.replace`, which matches anywhere in the path. Use `path.relative`.
-- [ ] **`edit` asks for confirmation before checking for zero matches** (p3), and constructs the prompt even when
-      it is not shown (`commands/edit.js`).
+- [x] **`edit` asks for confirmation before checking for zero matches** (p3): zero matches now report and
+      return before a prompt is built; the prompt is only created when editing several files.
 - [ ] **`stats.filters` is never used.** (p3) The predefined filter sets in config ("All Songs > 4.0", ...) are
       validated but `commands/stats.js` does not compute them.
 - [x] **Logging levels use different scales.** `output.verbosity` (default `info`) and `logger.file.level`

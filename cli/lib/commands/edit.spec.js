@@ -184,6 +184,36 @@ describe('Edit Command', () => {
       expect(saveMetadataStub.called).to.be.false;
     });
 
+    it('should not ask for confirmation when no files match', async () => {
+      delete require.cache[require.resolve('./edit.js')];
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
+      const editCommandNonTest = proxyquire('./edit.js', {
+        './common.js': { getFilteredFiles: getFilteredFilesStub, saveMetadata: saveMetadataStub },
+        '../utils/files.js': { checkExists: checkExistsStub },
+        '../output/index.js': { outputDifferences: outputStub },
+        'prompt-confirm': function (options) {
+          this.run = confirmStub;
+          return this;
+        }
+      });
+      checkExistsStub.returns(true);
+      getFilteredFilesStub.resolves([]);
+
+      try {
+        const result = await editCommandNonTest.func({
+          target: '/path/dir',
+          options: mockOptions,
+          config: mockConfig
+        });
+        expect(result).to.be.false;
+        expect(confirmStub.called).to.be.false;
+      } finally {
+        process.env.NODE_ENV = originalEnv;
+        delete require.cache[require.resolve('./edit.js')];
+      }
+    });
+
     it('should display differences after successful edit', async () => {
       checkExistsStub.returns(true);
       const mockFiles = [['file1.mp3', { artist: 'Old Artist' }]];
