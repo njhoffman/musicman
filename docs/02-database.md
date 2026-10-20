@@ -36,8 +36,9 @@
 
 - ~~Track the test fixtures in `cli/test/data` so database tests run from a fresh clone.~~ Done.
 - ~~Write progress output to stderr, only when it is a TTY, so it does not mix with command output.~~ Done.
-- Move tag, view, and legacy-key validation into `validator.js` with a single fatal/warning policy before
-  adding the custom field definition check.
+- ~~Move tag, view, and legacy-key validation into `validator.js` with a single fatal/warning policy before
+  adding the custom field definition check.~~ Done: errors are fatal and all reported together, unknown
+  options are warnings.
 
 ### Database initialization
 

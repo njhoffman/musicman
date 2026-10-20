@@ -245,8 +245,9 @@ describe('Config Tests', () => {
         loadConfig({ output: { table: { color: '#FFFFFF' }, vertical: { color: '#FFFFFF' } } })
       );
       expect(result.exitCalled).to.be.true;
-      expect(result.messages[0]).to.include('output.table (moved to views.table)');
-      expect(result.messages[0]).to.include('output.vertical (moved to views.list)');
+      const output = result.messages.join('\n');
+      expect(output).to.include('output.table is no longer supported (moved to views.table)');
+      expect(output).to.include('output.vertical is no longer supported (moved to views.list)');
     });
 
     it('should throw fatal error for outdated tags[].tableOrder option', () => {
@@ -318,7 +319,7 @@ describe('Config Tests', () => {
 
     it('should warn about validation issues in the loaded user config', () => {
       loadConfig({ unknownOption: true });
-      expect(console.warn).to.have.been.calledWithMatch('1 configuration validation issues');
+      expect(console.warn).to.have.been.calledWithMatch('1 configuration warnings');
       expect(console.warn).to.have.been.calledWithMatch('unknownOption is not a valid configuration option');
     });
 
@@ -326,6 +327,43 @@ describe('Config Tests', () => {
       const { loadConfig: loadRealConfig } = require('../../../common/config/index.js');
       const config = loadRealConfig({ userConfig: {} });
       expect(config.library.tags.find(tag => tag.name === 'year').id).to.equal('TYER');
+    });
+
+    it('should not exit for unknown options', () => {
+      const result = captureFatal(() => loadConfig({ unknownOption: true }));
+      expect(result.exitCalled).to.be.false;
+    });
+
+    it('should treat wrong types and out of range values as fatal errors', () => {
+      const result = captureFatal(() => loadConfig({ mpd: { port: 'abc' }, output: { verbosity: 9 } }));
+      expect(result.exitCalled).to.be.true;
+      const output = result.messages.join('\n');
+      expect(output).to.include('mpd.port must be a number');
+      expect(output).to.include('output.verbosity must be <= 6');
+    });
+
+    it('should report every error before exiting', () => {
+      const result = captureFatal(() =>
+        loadConfig({ mpd: { port: 'abc' }, library: { tags: ['artist', 'nonexistent_tag'] } })
+      );
+      const fatalMessages = result.messages.filter(msg => msg.startsWith('Fatal error:'));
+      expect(fatalMessages).to.include('Fatal error: mpd.port must be a number');
+      expect(fatalMessages).to.include(
+        "Fatal error: Tag 'nonexistent_tag' defined in library.tags but not found in user tags or global tags.json"
+      );
+    });
+
+    it('should return errors and warnings from checkConfig without exiting', () => {
+      const result = captureFatal(() => {
+        const { checkConfig } = loadConfigModule([{ id: 'TPE1', name: 'artist' }]);
+        const checked = checkConfig({
+          userConfig: { unknownOption: true, library: { tags: ['artist', 'nonexistent_tag'] } },
+          defaultConfig: mockDefaultConfig
+        });
+        expect(checked.warnings).to.deep.equal(['unknownOption is not a valid configuration option']);
+        expect(checked.errors[0]).to.include("Tag 'nonexistent_tag' defined in library.tags");
+      });
+      expect(result.exitCalled).to.be.false;
     });
 
     it('should merge configs with proper precedence', () => {

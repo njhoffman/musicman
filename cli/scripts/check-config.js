@@ -1,19 +1,22 @@
 #!/usr/bin/env node
 
-const { validateUserConfig, getUserConfigPath } = require('musicman-common/config/validator');
+const { checkConfig } = require('musicman-common/config');
+const { getUserConfigPath } = require('musicman-common/config/validator');
 
 console.log('Checking musicman configuration...');
 
 try {
-  const errors = validateUserConfig();
+  const { errors, warnings } = checkConfig();
   const configPath = getUserConfigPath();
-  
+
+  warnings.forEach(warning => console.log(`  warning: ${warning}`));
+  errors.forEach(error => console.log(`  error: ${error}`));
+
   if (errors.length === 0) {
-    console.log('✓ Configuration is valid');
+    console.log(`✓ Configuration is valid${warnings.length > 0 ? ` (${warnings.length} warnings)` : ''}`);
     console.log(`Config file: ${configPath}`);
   } else {
-    console.log(`✗ Found ${errors.length} configuration issues:`);
-    errors.forEach(error => console.log(`  - ${error}`));
+    console.log(`✗ Found ${errors.length} configuration errors`);
     console.log(`Config file: ${configPath}`);
     process.exit(1);
   }

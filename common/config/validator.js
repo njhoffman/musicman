@@ -194,77 +194,134 @@ const configSchema = {
   }
 };
 
+// options moved into views, reported as errors with where they moved to
+const legacyOptions = {
+  'output.table': 'moved to views.table',
+  'output.vertical': 'moved to views.list'
+};
+
 /**
- * Validates a value against a schema definition
+ * Validates a value against a schema definition.
+ * Wrong types and values are errors, unknown options are warnings.
  */
 function validateValue(value, schema, path = '') {
-  const errors = [];
+  const result = { errors: [], warnings: [] };
 
   if (schema.required && (value === undefined || value === null)) {
-    errors.push(`${path} is required`);
-    return errors;
+    result.errors.push(`${path} is required`);
+    return result;
   }
 
   if (value === undefined || value === null) {
-    return errors;
+    return result;
   }
 
   // Type validation
   if (schema.type === 'string' && typeof value !== 'string') {
-    errors.push(`${path} must be a string`);
+    result.errors.push(`${path} must be a string`);
   } else if (schema.type === 'number' && typeof value !== 'number') {
-    errors.push(`${path} must be a number`);
+    result.errors.push(`${path} must be a number`);
   } else if (schema.type === 'boolean' && typeof value !== 'boolean') {
-    errors.push(`${path} must be a boolean`);
+    result.errors.push(`${path} must be a boolean`);
   } else if (schema.type === 'array' && !Array.isArray(value)) {
-    errors.push(`${path} must be an array`);
+    result.errors.push(`${path} must be an array`);
   } else if (schema.type === 'object' && (typeof value !== 'object' || Array.isArray(value))) {
-    errors.push(`${path} must be an object`);
+    result.errors.push(`${path} must be an object`);
   }
 
   // Range validation for numbers
   if (schema.type === 'number' && typeof value === 'number') {
     if (schema.min !== undefined && value < schema.min) {
-      errors.push(`${path} must be >= ${schema.min}`);
+      result.errors.push(`${path} must be >= ${schema.min}`);
     }
     if (schema.max !== undefined && value > schema.max) {
-      errors.push(`${path} must be <= ${schema.max}`);
+      result.errors.push(`${path} must be <= ${schema.max}`);
     }
   }
 
   // Enum validation
   if (schema.enum && !schema.enum.includes(value)) {
-    errors.push(`${path} must be one of: ${schema.enum.join(', ')}`);
+    result.errors.push(`${path} must be one of: ${schema.enum.join(', ')}`);
   }
 
   // Object property validation
   if (schema.type === 'object' && schema.properties && typeof value === 'object') {
     Object.keys(value).forEach(key => {
-      if (!schema.properties[key]) {
-        errors.push(`${path}.${key} is not a valid configuration option`);
+      const keyPath = `${path}.${key}`;
+      if (legacyOptions[keyPath]) {
+        result.errors.push(`${keyPath} is no longer supported (${legacyOptions[keyPath]})`);
+      } else if (!schema.properties[key]) {
+        result.warnings.push(`${keyPath} is not a valid configuration option`);
       } else {
-        const nestedErrors = validateValue(value[key], schema.properties[key], `${path}.${key}`);
-        errors.push(...nestedErrors);
+        const nested = validateValue(value[key], schema.properties[key], keyPath);
+        result.errors.push(...nested.errors);
+        result.warnings.push(...nested.warnings);
       }
     });
   }
 
-  return errors;
+  return result;
 }
 
 /**
- * Validates the entire config object
+ * Validates a user config object against the schema, returns { errors, warnings }
  */
 function validateConfig(config) {
-  const errors = [];
+  const result = { errors: [], warnings: [] };
 
   Object.keys(config).forEach(key => {
     if (!configSchema[key]) {
-      errors.push(`${key} is not a valid configuration option`);
+      result.warnings.push(`${key} is not a valid configuration option`);
     } else {
-      const fieldErrors = validateValue(config[key], configSchema[key], key);
-      errors.push(...fieldErrors);
+      const field = validateValue(config[key], configSchema[key], key);
+      result.errors.push(...field.errors);
+      result.warnings.push(...field.warnings);
     }
+  });
+
+  if (_.some(config.tags, tag => _.has(tag, 'tableOrder'))) {
+    result.errors.push('tags[].tableOrder is no longer supported (column order is set by views.<format>.tags)');
+  }
+
+  return result;
+}
+
+/**
+ * Validates library.tags and views of the merged config, returns errors.
+ * `missingTags` are library.tags names not found in the user tags or tags.json.
+ */
+function validateLibrary(config, missingTags = []) {
+  const errors = _.map(
+    missingTags,
+    name => `Tag '${name}' defined in library.tags but not found in user tags or global tags.json`
+  );
+  const libraryTags = _.get(config, 'library.tags', []);
+
+  // Library tags are read and written as strings, so only text and custom text frames are supported
+  const isTextFrame = id => /^T(?!XXX$)[A-Z0-9]{3}$/.test(id) || /^TXXX\..+/.test(id);
+  _.each(libraryTags, ({ name, id }) => {
+    if (!isTextFrame(id)) {
+      errors.push(
+        `Tag '${name}' in library.tags uses frame '${id}', only text (T***) and custom (TXXX.*) frames are supported`
+      );
+    }
+  });
+
+  // Each frame can only map to one tag name
+  _.each(_.groupBy(libraryTags, 'id'), (tags, id) => {
+    if (tags.length > 1) {
+      errors.push(`Tags '${_.map(tags, 'name').join("', '")}' in library.tags share frame '${id}'`);
+    }
+  });
+
+  // Views can only display library tags, plus rating which is configured separately
+  const viewableTags = ['rating'].concat(_.map(libraryTags, 'name'));
+  _.each(config.views, (view, viewName) => {
+    _.each(view.tags, ({ name }) => {
+      if (!viewableTags.includes(name)) {
+        errors.push(`Tag '${name}' defined in views.${viewName}.tags but not found in library.tags`);
+      }
+    });
   });
 
   return errors;
@@ -304,16 +361,9 @@ function readUserConfig(userConfigPath = getUserConfigPath()) {
   }
 }
 
-/**
- * Validates user config file
- */
-function validateUserConfig(userConfigPath = getUserConfigPath()) {
-  return validateConfig(readUserConfig(userConfigPath));
-}
-
 module.exports = {
   validateConfig,
-  validateUserConfig,
+  validateLibrary,
   readUserConfig,
   ensureUserConfig,
   getUserConfigPath,

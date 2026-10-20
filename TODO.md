@@ -22,9 +22,6 @@ that resolves them. Feature specs live in `docs/`.
 
 - [ ] **Make the notify daemon testable.** `notify-daemon.js` runs on require; split notification building
       and sending from the MPD loop so `sendNotification` can be unit tested.
-- [ ] **Unify validation behavior.** Schema validation only warns, while tag and view checks in
-      `common/config/index.js` are fatal. Pick one policy and move the tag/view/legacy checks into
-      `validator.js`.
 - [ ] **Rename `seperators` to `separators`** in `views.table`, with a legacy-key error like the other
       migrated options.
 - [ ] **Replace `bluebird`** with native promises (`Promise.map` concurrency via a small helper).
