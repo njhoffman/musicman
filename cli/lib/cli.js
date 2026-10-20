@@ -28,8 +28,6 @@ const run = async args => {
     options: { ...options, commandName: command.name },
     config
   });
-
-  process.exit(0);
 };
 
 run(process.argv.slice(2));

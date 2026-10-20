@@ -35,12 +35,18 @@ const getCurrentSong = async mpdClient => {
 
 // current song if MPD is reachable, otherwise false so commands with explicit targets still work
 const getAvailableSong = async (mpdConfig, options) => {
+  let mpdClient;
   try {
-    const mpdClient = await connectMpd(mpdConfig, options);
+    mpdClient = await connectMpd(mpdConfig, options);
     return await getCurrentSong(mpdClient);
   } catch (err) {
     logger.warn(`MPD is not available (${err.message}), continuing without the current song`);
     return false;
+  } finally {
+    // close the connection so the process can exit once output is flushed
+    if (mpdClient && mpdClient.socket) {
+      mpdClient.socket.destroy();
+    }
   }
 };
 

@@ -82,6 +82,17 @@ describe('MPD Client', () => {
       expect(await songPromise).to.equal(mockSong);
     });
 
+    it('should close the connection after reading the current song', async () => {
+      mockMpdClient.socket = { destroy: sinon.stub() };
+      mockMpdClient.sendCommandAsync.withArgs('currentsong').resolves({ file: 'test.mp3' });
+      mockMpdClient.sendCommandAsync.withArgs('status').resolves({ state: 'play' });
+
+      const songPromise = mpdModule.getAvailableSong({ port: 6600, host: 'localhost' });
+      mockMpdClient.on.withArgs('ready').firstCall.args[1]();
+      await songPromise;
+      expect(mockMpdClient.socket.destroy).to.have.been.calledOnce;
+    });
+
     it('should return false when MPD connection fails', async () => {
       const songPromise = mpdModule.getAvailableSong({ port: 6600, host: 'localhost' });
       mockMpdClient.on.withArgs('error').firstCall.args[1](new Error('connect ECONNREFUSED'));
