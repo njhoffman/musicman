@@ -322,6 +322,12 @@ describe('Config Tests', () => {
       expect(console.warn).to.have.been.calledWithMatch('unknownOption is not a valid configuration option');
     });
 
+    it('should map year to the ID3v2.3 TYER frame by default', () => {
+      const { loadConfig: loadRealConfig } = require('../../../common/config/index.js');
+      const config = loadRealConfig({ userConfig: {} });
+      expect(config.library.tags.find(tag => tag.name === 'year').id).to.equal('TYER');
+    });
+
     it('should merge configs with proper precedence', () => {
       expect(configModule.rating.tag).to.equal('POPM');
       expect(configModule.rating.email).to.equal('Default');

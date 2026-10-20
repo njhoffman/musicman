@@ -15,10 +15,6 @@ that resolves them. Feature specs live in `docs/`.
       `String.replace`, which matches anywhere in the path. Use `path.relative`.
 - [ ] **`edit` asks for confirmation before checking for zero matches**, and constructs the prompt even when
       it is not shown (`commands/edit.js`).
-- [ ] **`year` is mapped to a frame the library does not use.** `year` is `TDRL` (ID3v2.4 release time), but
-      files carry the year in `TYER`/`TORY` (ID3v2.3); `stats` shows `TYER` on 99% of a 951-file sample and
-      `TDRL` on none, so `year` is always empty and `edit year=...` writes a v2.4 frame into a v2.3 tag. Map
-      `year` to the frame chosen in the ID3 version decision below.
 - [ ] **`stats.filters` is never used.** The predefined filter sets in config ("All Songs > 4.0", ...) are
       validated but `commands/stats.js` does not compute them.
 - [ ] **Logger ignores `logger.colors`.** The hex colors and `gui` styles in config are validated but never
@@ -41,16 +37,10 @@ that resolves them. Feature specs live in `docs/`.
       reading many files (`commands/common.js`), duration/size option for stats (`commands/stats.js`),
       zero-match handling in edit (`commands/edit.js`).
 
-- [ ] **Decide between ID3v2.3 and ID3v2.4 frames.** Findings so far:
-      - Every sampled file (2000 of 6437 in `Sorted/Rated`) is ID3v2.3.
-      - beets is configured with `id3v23: true`, so imports keep writing v2.3.
-      - `node-id3` always writes v2.3 tags and lets v2.4 frames (e.g. `TDRL`, `TDRC`, `TDOR`) be written into
-        them, which other readers may ignore.
-      - `library.tagId: ID3v2.4` in `defaultConfig.yml` is validated but not used anywhere.
-
-      Options: stay on v2.3 and map tags to v2.3 frames (`TYER`, `TORY`, `TDAT`), matching beets and node-id3;
-      or move to v2.4 (`TDRC`, `TDOR`), which needs beets `id3v23: false`, a writer that supports v2.4 tags,
-      and a migration of existing files. Either way, make `library.tagId` drive the frame mapping or remove it.
+- [ ] **`library.tagId` is not used.** Decided to stay on ID3v2.3 (all sampled files, beets `id3v23: true`,
+      and node-id3 all use v2.3); `year` now maps to `TYER`. `library.tagId` is set to `ID3v2.3` but nothing
+      reads it. Either use it to pick v2.3/v2.4 frames for date tags or remove it. Revisit v2.4 only together
+      with beets `id3v23: false` and a v2.4-capable writer.
 - [ ] **Clean up duplicate TXXX fields.** `stats` shows case and spelling variants of the same field
       (`Comment`/`COMMENT`, `ALBUMARTISTS`/`ALBUM_ARTISTS`, `ARTISTS`/`Artists`) from different taggers.
       Decide which to keep and consolidate them, possibly through beets.
