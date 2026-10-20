@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.9.0](https://github.com/njhoffman/musicman/compare/v1.8.0...v1.9.0) (2026-10-20)
+
+
+### Features
+
+* add search command with --add and --play ([f7b2d67](https://github.com/njhoffman/musicman/commit/f7b2d679baa3965956c269b0426b0be17be8155a))
+* back up the library database before writes and with db --backup ([dc4a945](https://github.com/njhoffman/musicman/commit/dc4a945b2f8674790b3a5269ccdb3efab30f2254))
+
+
+### Bug Fixes
+
+* escape backslashes in MPD arguments and add command lists ([a6a22d5](https://github.com/njhoffman/musicman/commit/a6a22d5e990afc9f697fed9d6432282b82d4162a))
+
 ## [1.8.0](https://github.com/njhoffman/musicman/compare/v1.7.0...v1.8.0) (2026-10-20)
 
 
