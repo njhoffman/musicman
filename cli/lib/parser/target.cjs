@@ -21,6 +21,7 @@ const getTarget = ({ args, currentSong, baseDirectory, command }) => {
   // if song playing and is a view/edit command, set song path as target
   if (currentSong && /edit|view/.test(command.name)) {
     const target = path.join(baseDirectory, currentSong.file);
+
     const msgOut = `Using currently playing song:  ${chalk.blue(
       target
         .split('/')
@@ -28,6 +29,8 @@ const getTarget = ({ args, currentSong, baseDirectory, command }) => {
         .slice(0, columns - 21)
     )}`;
     logger.info(msgOut);
+    logger.debug(`mid3v2 "${target}"`);
+
     return target;
   }
   // otherwise it is the current directory if not an edit command

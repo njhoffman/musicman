@@ -3,3 +3,7 @@
 # project dependencies
 node_modules
 data
+
+# local tooling
+.vectorcode
+install.sh

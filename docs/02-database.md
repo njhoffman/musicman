@@ -8,13 +8,10 @@
 ### Database initialization
 
 - On startup, if it doesn't exist, create a new sqlite database with the following tables:
-    - songs
+  - songs
 - Import the tags.json data into the database under a 'tags' table, and add all defined custom
 fields (in my local config) to that table.
-
-When these fields are saved to songs and their database component, they shoul
-  - id: TXXX.PrimaryGenre
-    name: primary
+- take special care not to overwrite existing tags
 
 ### Database command
 
@@ -28,4 +25,8 @@ When these fields are saved to songs and their database component, they shoul
     output summary with `info` level to log and to stdout with colors and pretty formatting.
 
 - Update the `stats`, `view`, and `edit` command to use the database instead of the mpd base directory.
+- add a 'search' command
+  - specific fields can be searched by how this project uses them (rating:5.0, title:"some title") or how mpc does it
+    (r(rating 5.0 title "some title")
+  - if no fields are specified, take a search string as an argument for title and artist
 - Add appropriate tests and error handling for the database commands, including the `--update` switch.
