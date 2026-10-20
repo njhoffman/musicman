@@ -106,8 +106,11 @@ OVERDUE flag. Feature specs live in `docs/`.
       `sync --review`, misses rechecked after 30 days.
 - [ ] **Spotify audio features:** (p3) populate acousticness, danceability, energy, instrumentalness, key,
       liveness, loudness, mode, speechiness, tempo, time_signature, valence, and other Spotify tags.
-- [ ] **Liked Songs:** (p1) add every local song rated 4.5 or higher to Liked Songs.
-- [ ] **Grouping playlists:** (p1) sync songs to the Spotify playlists mapped from `grouping` values in the doc.
+- [x] **Liked Songs:** (p1) `sync --push` saves every song rated at least `sync.likedRating` that has a
+      Spotify id; `--prune` removes liked tracks whose song is now rated lower.
+- [x] **Grouping playlists:** (p1) `sync --push` adds songs matching each `sync.playlists` filter to its
+      playlist; `--prune` removes tracks whose song no longer matches. Playlist add/remove use the
+      `/items` endpoints with a `/tracks` fallback, not yet verified against a real playlist.
 - [ ] **`sync --push` export:** export songs missing from Spotify to `sync.uploadDirectory`, one subfolder per
       target playlist (hardlinks when possible), with a `README.md` checklist and printed summary. Verify first
       how Spotify desktop Local Files sources handle subfolders.

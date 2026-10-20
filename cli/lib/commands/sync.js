@@ -1,6 +1,7 @@
 const _ = require('lodash');
 const fs = require('fs');
 
+const Confirm = require('prompt-confirm');
 const { createClient } = require('../spotify/api.js');
 const { appTokenGetter, readTokens, userAccessToken } = require('../spotify/auth.js');
 const { getCredentials, missingCredentials, tokenPath } = require('../spotify/credentials.js');
@@ -10,8 +11,9 @@ const { matchSongs, reviewItems, spotifyIdFrame } = require('../sync/match.js');
 const { playlistTargets, songTargets } = require('../sync/targets.js');
 const { refreshCache } = require('../sync/cache.js');
 const { syncPlan } = require('../sync/plan.js');
+const { pushPlan } = require('../sync/push.js');
 const { renderColumns } = require('../output/render.js');
-const { openLibrary } = require('../db/index.js');
+const { backupIfDue, openLibrary } = require('../db/index.js');
 const { getFilteredFiles } = require('./common.js');
 const logger = require('../utils/logger.js');
 
@@ -58,7 +60,50 @@ const showStatus = async ({ credentials, file, fetchImpl, env }) => {
 };
 
 // refresh the cache of Liked Songs and mapped playlists, then report what sync would change
-const runPlan = async ({ client, config }) => {
+const confirmPrompt = message => new Confirm({ message }).run();
+
+// apply the plan after confirming, then refresh the cache of the targets that changed
+const runPush = async ({ db, client, config, plan, prune, dryRun, confirm }) => {
+  const total = key => _.sumBy(plan, target => target[key].length);
+  const adds = total('add');
+  const removes = prune ? total('prune') : 0;
+  if (adds + removes === 0) {
+    logger.info('Nothing to push');
+    return [];
+  }
+  const message = `Add ${adds} tracks${
+    prune ? ` and remove ${removes} tracks` : ''
+  } across Liked Songs and playlists?`;
+  if (dryRun) {
+    logger.info(`Dry run: would ${message.charAt(0).toLowerCase()}${message.slice(1, -1)}`);
+    return [];
+  }
+  if (!(await confirm(message))) {
+    logger.info('Push cancelled');
+    return [];
+  }
+  const results = await pushPlan(client, plan, {
+    prune,
+    onTarget: ({ name, added, removed }) =>
+      (added || removed) &&
+      logger.info(`${name}: added ${added}${prune ? `, removed ${removed}` : ''}`)
+  });
+  const changed = _.map(
+    _.filter(results, ({ added, removed }) => added || removed),
+    'id'
+  );
+  await refreshCache(db, client, _.without(changed, 'liked'));
+  return results;
+};
+
+const runPlan = async ({
+  client,
+  config,
+  push = false,
+  prune = false,
+  dryRun = false,
+  confirm = confirmPrompt
+}) => {
   const db = openSyncLibrary(config);
   try {
     const playlistIds = _.map(playlistTargets(config), 'id');
@@ -89,7 +134,10 @@ const runPlan = async ({ client, config }) => {
       `To add: ${total('add')}, without a Spotify id: ${total('noId')} (sync --match), ` +
         `to prune: ${total('prune')}, to pull: ${total('pull')}`
     );
-    return { plan };
+    const pushed = push
+      ? await runPush({ db, client, config, plan, prune, dryRun, confirm })
+      : undefined;
+    return { plan, pushed };
   } finally {
     db.close();
   }
@@ -116,6 +164,10 @@ const librarySongs = async config =>
 const runMatch = async ({ credentials, file, fetchImpl, config, dryRun }) => {
   const db = openSyncLibrary(config);
   try {
+    const backup = dryRun ? null : backupIfDue(db, config);
+    if (backup) {
+      logger.info(`Backed up database to ${backup.file}`);
+    }
     const songs = songTargets(await librarySongs(config), config);
     const summary = await matchSongs({
       db,
@@ -192,6 +244,7 @@ const syncCommand = async ({
   config,
   fetchImpl,
   open,
+  confirm,
   env = process.env,
   file = tokenPath(env)
 }) => {
@@ -223,8 +276,15 @@ const syncCommand = async ({
     if (!status.loggedIn) {
       return status;
     }
-    const { plan } = await runPlan({ client: status.client, config });
-    return { ..._.omit(status, 'client'), plan };
+    const { plan, pushed } = await runPlan({
+      client: status.client,
+      config,
+      push: Boolean(switches.push),
+      prune: Boolean(switches.prune),
+      dryRun: Boolean(switches.dryRun),
+      confirm
+    });
+    return { ..._.omit(status, 'client'), plan, pushed };
   } catch (err) {
     logger.error(err.message);
     process.exitCode = 1;

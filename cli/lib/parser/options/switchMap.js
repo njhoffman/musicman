@@ -66,6 +66,16 @@ module.exports = {
     alias: '-n',
     func: () => ({ dryRun: true })
   },
+  push: {
+    description: 'Add songs to Spotify Liked Songs and mapped playlists',
+    alias: '-P',
+    func: () => ({ push: true })
+  },
+  prune: {
+    description: 'With --push, also remove tracks whose song no longer belongs in the playlist',
+    alias: '-X',
+    func: () => ({ prune: true })
+  },
   login: {
     description: 'Log in to Spotify for playlist sync',
     alias: '-L',

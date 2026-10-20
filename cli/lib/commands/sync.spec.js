@@ -109,4 +109,83 @@ describe('Sync Command', () => {
     expect(process.exitCode).to.not.equal(1);
     expect(fs.existsSync(file)).to.be.true;
   });
+
+  describe('push', () => {
+    let config;
+    let requests;
+    let fetchImpl;
+
+    beforeEach(() => {
+      writeTokens(file, {
+        access_token: 'a',
+        refresh_token: 'r',
+        expires_at: Date.now() + 3600 * 1000
+      });
+      const library = path.join(directory, 'music');
+      fs.mkdirSync(library);
+      config = {
+        mpd: { baseDirectory: library },
+        db: {
+          path: path.join(directory, 'musicman.sqlite'),
+          backupDirectory: path.join(directory, 'backups')
+        },
+        library: { tags: [] },
+        tags: [],
+        sync: { likedRating: 4.5, playlists: [] }
+      };
+      // one stored song rated 5 with a Spotify id that is not in Liked Songs yet
+      const db = require('../db/index.js').openLibrary(config);
+      fs.writeFileSync(path.join(library, 'a.mp3'), '');
+      const stat = fs.statSync(path.join(library, 'a.mp3'));
+      const { lastInsertRowid } = db
+        .prepare('INSERT INTO songs (path, mtime, size, rating) VALUES (?, ?, ?, 5)')
+        .run('a.mp3', Math.floor(stat.mtimeMs), stat.size);
+      db.prepare(
+        "INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, 'POPM', '{\"rating\":255}')"
+      ).run(lastInsertRowid);
+      db.prepare(
+        "INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, 'TXXX.spotify_track_id', 'track-a')"
+      ).run(lastInsertRowid);
+      db.close();
+      config.rating = { tag: 'POPM', max: 5 };
+
+      requests = [];
+      fetchImpl = async (url, { method }) => {
+        requests.push([method, url]);
+        const bodies = {
+          'https://api.spotify.com/v1/me': { id: 'user1' },
+          'https://api.spotify.com/v1/me/tracks?limit=50': { items: [], next: null }
+        };
+        return {
+          ok: true,
+          status: method === 'PUT' ? 204 : 200,
+          headers: { get: () => null },
+          text: async () => (method === 'PUT' ? '' : JSON.stringify(bodies[url]))
+        };
+      };
+    });
+
+    const push = (switches, confirm) =>
+      syncFunc({
+        options: { switches: { push: true, ...switches } },
+        config,
+        env,
+        file,
+        fetchImpl,
+        confirm
+      });
+    const writes = () => requests.filter(([method]) => method !== 'GET');
+
+    it('should add songs to Liked Songs after confirming', async () => {
+      const result = await push({}, async () => true);
+      expect(result.plan[0].add.map(song => song.trackId)).to.deep.equal(['track-a']);
+      expect(writes()).to.deep.equal([['PUT', 'https://api.spotify.com/v1/me/tracks']]);
+    });
+
+    it('should not write to Spotify when the push is declined or a dry run', async () => {
+      await push({}, async () => false);
+      await push({ dryRun: true }, async () => true);
+      expect(writes()).to.be.empty;
+    });
+  });
 });
