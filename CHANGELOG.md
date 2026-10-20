@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.6.1](https://github.com/njhoffman/musicman/compare/v1.6.0...v1.6.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* write file reading progress to stderr only in a terminal ([33a708e](https://github.com/njhoffman/musicman/commit/33a708e479e764d2ca736649668856b4b2b2218a))
+
 ## [1.6.0](https://github.com/njhoffman/musicman/compare/v1.5.0...v1.6.0) (2026-10-20)
 
 
