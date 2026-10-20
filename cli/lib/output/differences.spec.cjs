@@ -1,5 +1,5 @@
 const { expect } = require('chai');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 const { formatDifferences } = require('./differences.cjs');
 
 // eslint-disable-next-line no-control-regex

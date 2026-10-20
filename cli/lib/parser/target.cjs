@@ -1,7 +1,7 @@
 const _ = require('lodash');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 const path = require('path');
-const termSize = require('term-size');
+const termSize = require('term-size').default;
 
 const { checkExists } = require('../utils/files.cjs');
 const logger = require('../utils/logger.cjs');

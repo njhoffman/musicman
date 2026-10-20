@@ -2,7 +2,7 @@ const _ = require('lodash');
 const fs = require('fs');
 const NodeId3 = require('node-id3');
 const mp3Duration = require('mp3-duration');
-const flatten = require('flat');
+const { flatten } = require('flat');
 const Promise = require('bluebird');
 
 const readSize = file =>

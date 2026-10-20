@@ -1,5 +1,5 @@
 const _ = require('lodash');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 const { renderColumns } = require('./render.cjs');
 
 const outputTable = (metadata, config) => {

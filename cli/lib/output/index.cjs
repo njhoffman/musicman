@@ -1,5 +1,5 @@
 const _ = require('lodash');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 const { inspect } = require('util');
 
 const { consoleLog } = require('../utils/logger.cjs');

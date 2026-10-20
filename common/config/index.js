@@ -15,7 +15,8 @@ const fatal = message => {
 initializeConfig();
 
 // You can also search and load synchronously.
-const explorerSync = cosmiconfigSync(pkgName);
+// search upwards from the current directory to home, then the global config directory
+const explorerSync = cosmiconfigSync(pkgName, { searchStrategy: 'global' });
 const { config = {}, filepath } = explorerSync.search() || {};
 
 const { config: defaultConfig, filepath: fp } = explorerSync.load(path.resolve(__dirname, 'defaultConfig.yml'));

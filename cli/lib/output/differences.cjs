@@ -1,8 +1,8 @@
 const _ = require('lodash');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 const diff = require('diff');
 const { renderKeyValues } = require('./render.cjs');
-const termSize = require('term-size');
+const termSize = require('term-size').default;
 
 const { consoleLog } = require('../utils/logger.cjs');
 

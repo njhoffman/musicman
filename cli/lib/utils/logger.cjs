@@ -1,6 +1,6 @@
 const _ = require('lodash');
 const { inspect } = require('util');
-const termSize = require('term-size');
+const termSize = require('term-size').default;
 
 const config = require('musicman-common/config');
 

@@ -1,5 +1,5 @@
 const _ = require('lodash');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 
 const maxLen = (arr, maxLenStatic) => {
   return maxLenStatic || arr.reduce((a, b) => (a.length > b.length ? a : b)).length;

@@ -1,6 +1,6 @@
 const _ = require('lodash');
-const chalk = require('chalk');
-const termSize = require('term-size');
+const chalk = require('chalk').default;
+const termSize = require('term-size').default;
 const { renderKeyValues } = require('./render.cjs');
 
 const parseList = (mItem, config) => {

@@ -1,4 +1,4 @@
-const glob = require('glob');
+const { escape, globSync } = require('glob');
 const { statSync } = require('fs');
 
 const checkExists = target => {
@@ -16,12 +16,9 @@ const getFiles = (dir, options = { ext: 'mp3', recursive: false }) => {
   if (exists && exists.isFile()) {
     return [dir];
   } else if (exists && exists.isDirectory()) {
-    const globPath = (recursive ? `${dir}/**/*.${ext}` : `${dir}/*.${ext}`)
-      .replace('[', '\\[')
-      .replace(']', '\\]');
-
-    const files = glob.sync(globPath);
-    return files;
+    const globPath = recursive ? `${escape(dir)}/**/*.${ext}` : `${escape(dir)}/*.${ext}`;
+    // glob no longer sorts results, keep files in path order
+    return globSync(globPath).sort();
   }
   return null;
 };

@@ -1,5 +1,5 @@
 const { expect } = require('chai');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 const { outputTable } = require('./table.cjs');
 
 // eslint-disable-next-line no-control-regex
