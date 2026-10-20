@@ -4,15 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-- **Start CLI**: `npm start` or `node lib/cli.cjs`
-- **Development mode**: `npm run dev` (uses nodemon for auto-restart)
-- **Run tests**: `npm test` (uses Mocha)
-- **Test with coverage**: `npm run test:coverage` (uses nyc)
-- **Test watch mode**: `npm run test:watch`
-- **Lint code**: `npm run lint` (ESLint)
-- **Fix lint issues**: `npm run lint:fix`
-- **Lint watch mode**: `npm run lint:watch`
-- **Check config**: `npm run config:check` (validates configuration)
+- **Start CLI**: `pnpm start` or `node lib/cli.cjs`
+- **Development mode**: `pnpm dev` (uses nodemon for auto-restart)
+- **Run tests**: `pnpm test` (uses Mocha)
+- **Test with coverage**: `pnpm test:coverage` (uses nyc)
+- **Test watch mode**: `pnpm test:watch`
+- **Lint code**: `pnpm lint` (ESLint)
+- **Fix lint issues**: `pnpm lint:fix`
+- **Lint watch mode**: `pnpm lint:watch`
+- **Check config**: `pnpm config:check` (validates configuration)
 
 ## Architecture Overview
 
@@ -37,7 +37,7 @@ This is a Node.js CLI application for MP3 metadata management that integrates wi
 - **node-id3**: MP3 metadata reading/writing
 - **sqlite3**: Database operations
 - **cli-table3**: Column layout for table, list, and differences output via `lib/output/render.cjs` (cells are truncated before colors are applied)
-- **forever**: Daemon management
+- **Notify daemon**: `lib/notify-daemon.cjs` runs as a systemd user service (`pnpm daemon:install`, then `systemctl --user enable --now musicman-notify`)
 
 ### Testing Setup
 

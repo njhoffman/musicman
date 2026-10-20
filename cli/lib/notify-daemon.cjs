@@ -1,11 +1,11 @@
 const path = require('path');
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 const PrettyError = require('pretty-error');
 
 const config = require('musicman-common/config');
-const logger = require('./utils/logger');
-const { getCurrentSong, connectMpd } = require('./clients/mpd');
-const { getMetadata, parseMetadata } = require('./metadata');
+const logger = require('./utils/logger.cjs');
+const { getCurrentSong, connectMpd } = require('./clients/mpd.cjs');
+const { getMetadata, parseMetadata } = require('./metadata/read.cjs');
 
 const pe = new PrettyError();
 
@@ -36,7 +36,12 @@ const sendNotification = song => {
   ];
   logger.debug(msg.join('\n\t'));
 
-  exec(`${bin} ${args.join(' ')} "${title}" "${details.join('\n')}"`);
+  // pass arguments directly so song metadata is never interpreted by a shell
+  execFile(bin, [...args.filter(Boolean), title, details.filter(Boolean).join('\n')], err => {
+    if (err) {
+      logger.error(`Failed to send notification: ${err.message}`);
+    }
+  });
 };
 
 const run = async args => {
