@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.10.0](https://github.com/njhoffman/musicman/compare/v1.9.0...v1.10.0) (2026-10-20)
+
+
+### Features
+
+* write log messages to a log file ([060aed7](https://github.com/njhoffman/musicman/commit/060aed7553fb6fad6c63188c3aad803a9ab07741))
+
+
+### Bug Fixes
+
+* match songs without a multi value field for empty filters ([8dc192e](https://github.com/njhoffman/musicman/commit/8dc192e0a60aa16a7921d904151916d10af14d37))
+
 ## [1.9.0](https://github.com/njhoffman/musicman/compare/v1.8.0...v1.9.0) (2026-10-20)
 
 
