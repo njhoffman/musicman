@@ -9,6 +9,11 @@ const logger = require('../utils/logger.js');
 const { columns } = termSize();
 
 const getTarget = ({ args, currentSong, baseDirectory, command }) => {
+  // commands that never take a path target (search) always use their default target
+  if (command.targetArgs === false) {
+    return command.defaultTarget(baseDirectory);
+  }
+
   const argTarget = _.find(args, arg => {
     return checkExists(arg) ? arg : false;
   });

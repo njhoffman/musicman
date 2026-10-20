@@ -73,14 +73,16 @@ resolves them; `.claude/scripts/todo-status` and `/todo` show open/done counts p
 
 - [x] **Backups:** back up the database to `db.backupDirectory` every `db.backupInterval` (before writes,
       `db --backup` on demand, `db.backupCount` kept).
-- [ ] **`search` command:** field syntax as used here (`rating:5.0 title:"some title"`) and mpc style
+- [x] **`search` command:** field syntax as used here (`rating:5.0 title:"some title"`) and mpc style
       (`rating 5.0 title "some title"`); free text searches title and artist; exact matches on multi-value
       fields.
-- [ ] **`search --add` and `--play`:** append results to the playlist, or create a new playlist from the
+- [x] **`search --add` and `--play`:** append results to the playlist, or create a new playlist from the
       results and play it.
+- [ ] **Faster `search`:** it filters every song in JavaScript (about 3s for 6,445 songs); query `song_tags`
+      directly for field filters and free text, keeping the same matching rules.
 - [ ] **Log file:** the spec asks for a detailed `db --update` log; the logger only writes to stdout. Add a log
       file (e.g. `logger.file` in config) and write per-file update actions there at `debug` level.
-- [ ] **Database tests and error handling** for backups, `search`, and the database-backed commands.
+- [x] **Database tests and error handling** for backups, `search`, and the database-backed commands.
 
 ## Spotify sync (`docs/03-spotify-id.md`)
 

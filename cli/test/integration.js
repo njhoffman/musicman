@@ -17,6 +17,7 @@ describe('Integration Tests', () => {
   require('./integration/commands/playlist.js');
   require('./integration/commands/stats.js');
   require('./integration/commands/db.js');
+  require('./integration/commands/search.js');
   /* eslint-enable global-require */
 
   after(() => logTime && console.log(`\n    Finished in ${new Date().getTime() - startTime}ms.`));

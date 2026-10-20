@@ -7,7 +7,8 @@ const getOptions = (optionList, config, commandName) => {
   const filters = parseFilters(remaining, config, commandName);
   const assignments = parseAssignments(remaining, config, commandName);
 
-  return { switches, filters, assignments };
+  // non-switch arguments, for commands that parse their own terms (search)
+  return { switches, filters, assignments, terms: remaining };
 };
 
 module.exports = getOptions;

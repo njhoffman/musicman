@@ -3,5 +3,13 @@ const editCommand = require('./edit.js');
 const playlistCommand = require('./playlist.js');
 const statsCommand = require('./stats.js');
 const dbCommand = require('./db.js');
+const searchCommand = require('./search.js');
 
-module.exports = [viewCommand, editCommand, playlistCommand, statsCommand, dbCommand];
+module.exports = [
+  viewCommand,
+  editCommand,
+  playlistCommand,
+  statsCommand,
+  dbCommand,
+  searchCommand
+];

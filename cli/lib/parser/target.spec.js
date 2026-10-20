@@ -10,6 +10,18 @@ describe('Target assignment', () => {
   };
   const currentSong = { file: 'testDir/testSong.mp3' };
 
+  it('Should ignore path arguments for search', () => {
+    const test1 = parser({ args: ['search', 'test/data/sandbox', 'doors'], config });
+    expect(test1).to.include({ target: 'testBaseDir' });
+    expect(test1.options.terms).to.deep.equal(['test/data/sandbox', 'doors']);
+  });
+
+  it('Should remove the command word and a relative target from the options', () => {
+    const test1 = parser({ args: ['view', 'test/data/sandbox', 'artist:A'], config });
+    expect(test1.target).to.equal(path.resolve('test/data/sandbox'));
+    expect(test1.options.terms).to.deep.equal(['artist:A']);
+  });
+
   it('Should use the base directory for db command without a target argument', () => {
     const test1 = parser({ args: ['db', '--update'], config });
     expect(test1).to.include({ target: 'testBaseDir' });

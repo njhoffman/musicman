@@ -41,6 +41,16 @@ module.exports = {
     alias: '-f',
     func: () => ({ files: true })
   },
+  add: {
+    description: 'Add search results to the MPD queue',
+    alias: '-a',
+    func: () => ({ add: true })
+  },
+  play: {
+    description: 'Replace the MPD queue with search results and play them',
+    alias: '-p',
+    func: () => ({ play: true })
+  },
   backup: {
     description: 'Back up the library database now',
     alias: '-b',

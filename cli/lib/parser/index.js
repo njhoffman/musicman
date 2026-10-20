@@ -1,3 +1,4 @@
+const path = require('path');
 const getCommand = require('./command.js');
 const getTarget = require('./target.js');
 const getOptions = require('./options.js');
@@ -11,7 +12,10 @@ const parser = ({ args, currentSong, config }) => {
   const command = getCommand(args, currentSong);
   const target = getTarget({ args, currentSong, baseDirectory, command });
 
-  const remainingArgs = args.filter(arg => arg !== target && arg !== command);
+  // drop the command word and the target argument (given relative or absolute) from the options
+  const remainingArgs = args.filter(
+    (arg, i) => !(i === 0 && arg === command.name) && path.resolve(arg) !== target
+  );
   const options = getOptions(remainingArgs, config, command.name);
   return { target, command, options };
 };
