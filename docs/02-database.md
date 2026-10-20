@@ -5,10 +5,45 @@
   - `db.backupDirectory` defaults to directory of `mpd.baseDirectory` and subdir of `.musicman`
   - `db.backupInterval` defaults to `1 day`
 
+### Design decisions (agreed 2026-10-20)
+
+- **Driver**: Node's built-in `node:sqlite` (`DatabaseSync`), no native dependency.
+- **Files are the source of truth**: the database is an index of the mp3 files. `db --update` reads files
+  into the database; `edit` writes the file first, then updates the database row from the file it wrote.
+  Tags changed outside musicman (beets, other taggers) are picked up by the next `db --update`.
+- **Song identity**: path relative to `mpd.baseDirectory` is the key. The MusicBrainz track id
+  (`TXXX.MusicBrainz Release Track Id`, present on nearly all rated files) is stored too, so a file moved by
+  beets is re-linked to its existing row (rating history, play data) instead of becoming a new song.
+- **Incremental updates**: `db --update` skips files whose mtime and size match the stored values. A full
+  first scan of ~6,400 files takes about 90s; later updates only read changed files.
+- **Concurrency**: WAL journal mode so the notify daemon and the cli can read and write at the same time.
+- **Migrations**: schema version stored in `PRAGMA user_version`, migrations applied in order on open.
+
+### Schema
+
+- `songs`: `id`, `path` (unique, relative), `mb_track_id`, `mtime`, `size`, `duration`, `rating`,
+  `added_at`, `updated_at`.
+- `song_tags`: `song_id`, `frame_id`, `value`. One row per populated frame, including every custom TXXX
+  field (`TXXX.<description>`), not just `library.tags`, so `stats` accounting and `search` work on any
+  field. Multi value fields (`multi: true`, e.g. context, mood) get one row per value so `search mood:Happy`
+  is an exact match instead of a substring match.
+- `tags`: tag definitions (`frame_id`, `name`, `multi`, `source` = `tags.json` or `config`). Imported from
+  tags.json and the user config on startup without overwriting existing rows; a changed definition of an
+  existing custom field is a fatal error (see `scratch.md`).
+- `meta`: key/value for last update, last backup, and scan totals shown by `db`.
+
+### Prerequisites
+
+- Track the test fixtures in `cli/test/data` so database tests run from a fresh clone.
+- Write progress output to stderr, only when it is a TTY, so it does not mix with command output.
+- Move tag, view, and legacy-key validation into `validator.js` with a single fatal/warning policy before
+  adding the custom field definition check.
+
 ### Database initialization
 
 - On startup, if it doesn't exist, create a new sqlite database with the following tables:
   - songs
+  - any other tables that make sense adding?
 - Import the tags.json data into the database under a 'tags' table, and add all defined custom
 fields (in my local config) to that table.
 - take special care not to overwrite existing tags
@@ -30,5 +65,5 @@ fields (in my local config) to that table.
     (r(rating 5.0 title "some title")
   - if no fields are specified, take a search string as an argument for title and artist
   - if --add switch, append to playlist
-  - if --play switch, create a new playlist with the results and play it
+  - if --play switch, create a new playlist with the results and play the new playlist right away
 - Add appropriate tests and error handling for the database commands, including the `--update` switch.

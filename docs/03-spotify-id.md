@@ -16,8 +16,7 @@
 - all local songs rating 4.5 and above should be added to 'Liked Songs' playlist in spotify
 - if song exists in spotify, but not locally, download it, assign the tags you can
   - we will use 'beet import --singletons' to move it into 'Sorted/Unrated/_Singles' folder
-  - I will then manually rate it and add other tags, then
-  import it into the Rated folder (it's never a full album download so always treated a single)
+  - I will then manually rate it and add other tags, then import it into the Rated folder (it's never a full album download so always treated a single)
 - spotify playlist items will be cached locally, 'sync' command without arguments will refresh the cache and output the
   number of songs that will be pulled from spotify and pushed to spotify
 - 'sync --pull' will confirm with the user to 'download # of songs'
