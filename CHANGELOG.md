@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.13.0](https://github.com/njhoffman/musicman/compare/v1.12.0...v1.13.0) (2026-10-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* numeric output.verbosity and logger.file.level values are
+no longer accepted; use a level name.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Bug Fixes
+
+* use log level names for output.verbosity and logger.file.level ([f85c3d6](https://github.com/njhoffman/musicman/commit/f85c3d661fdbf70bdda10322995c0c07a7a898cf))
+* use process.stdout.columns instead of term-size ([6cc0c5a](https://github.com/njhoffman/musicman/commit/6cc0c5a0acc5756f8cfe3043ac2f9b565df7e12d))
+* write playlist paths relative to the MPD music directory ([26525ab](https://github.com/njhoffman/musicman/commit/26525ab53f0e2c5661c2866bb384bf3af6649a9c))
+
 ## [1.12.0](https://github.com/njhoffman/musicman/compare/v1.11.0...v1.12.0) (2026-10-20)
 
 
