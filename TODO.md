@@ -63,17 +63,58 @@ that resolves them. Feature specs live in `docs/`.
 
 ## Features
 
-- [ ] **Database** (`docs/02-database.md`): sqlite library database, `db --update`, `stats`/`view`/`edit`
-      reading from the database, `search` command with `--add` and `--play`. Use Node's built-in
-      `node:sqlite` (`DatabaseSync`), no native sqlite dependency.
-- [ ] **Spotify sync** (`docs/03-spotify-id.md`): `sync`, `sync --pull`, `sync --push`, beets integration,
-      playlist mapping from `grouping`.
-- [ ] **Custom field definition changes** should be fatal once the database stores them (from
-      `docs/scratch.md`).
 - [ ] **Smarter terminal fitting** for the table view: shrink the widest columns instead of dropping the
       rightmost ones.
 - [ ] Honor `views.list.headers.visible` (currently ignored) and implement `views.table.seperators.horizontal`
       or remove it.
+
+## Database (`docs/02-database.md`)
+
+- [ ] **Database config:** `db.path` (`musicman.sqlite` in the directory of `mpd.baseDirectory`),
+      `db.backupDirectory` (`.musicman` subdirectory), `db.backupInterval` (1 day), with defaults and validation.
+- [ ] **Schema and migrations:** `songs`, `song_tags`, `tags`, `meta` tables as designed in the doc; schema
+      version in `PRAGMA user_version` with ordered migrations; WAL journal mode.
+- [ ] **Tag definitions import:** load tags.json and the config custom fields into `tags` on startup without
+      overwriting existing rows.
+- [ ] **Custom field definition changes are fatal:** a changed definition of a stored custom field stops the
+      program (from `docs/scratch.md`).
+- [ ] **Backups:** back up the database to `db.backupDirectory` every `db.backupInterval`.
+- [ ] **`db` command:** show database stats, last backup, and last update.
+- [ ] **`db --update`:** scan `mpd.baseDirectory` (or a target path, recursively), skip files with unchanged
+      mtime and size, re-link moved files by MusicBrainz track id; progress bar with percentage, files
+      processed, and entries updated; per-file `debug` log and colored `info` summary.
+- [ ] **Use the database in `stats`, `view`, and `edit`:** `edit` writes the file, then updates the row from
+      the written file.
+- [ ] **`search` command:** field syntax as used here (`rating:5.0 title:"some title"`) and mpc style
+      (`rating 5.0 title "some title"`); free text searches title and artist; exact matches on multi-value
+      fields.
+- [ ] **`search --add` and `--play`:** append results to the playlist, or create a new playlist from the
+      results and play it.
+- [ ] **Database tests and error handling,** including `db --update`.
+
+## Spotify sync (`docs/03-spotify-id.md`)
+
+- [ ] **Open question, uploading:** the Spotify Web API cannot upload audio; local files only reach Spotify
+      through the desktop app and cannot be added to playlists through the API. Decide what "push" means for
+      songs not on Spotify (e.g. report them only).
+- [ ] **Open question, downloading:** the Spotify API does not provide audio downloads (DRM); tools like spotDL
+      fetch audio from YouTube instead, with their own terms of service concerns. Decide the source for `--pull`.
+- [ ] **Spotify API authentication:** OAuth app credentials and token storage for playlist read/write.
+- [ ] **`sync` command and cache:** refresh a local cache of the mapped Spotify playlists and report how many
+      songs would be pulled and pushed.
+- [ ] **Beets integration:** read paths from `~/.config/beets/config.yaml` and wrap the beets workflow
+      (`Sorted/Unrated` to `Sorted/Rated` after rating and assigning a `grouping`).
+- [ ] **Spotify track ids:** use ids from the beets spotify plugin for `Rated` songs, look up the ones it
+      missed, and mark songs that are still unmatched.
+- [ ] **Spotify audio features:** populate acousticness, danceability, energy, instrumentalness, key,
+      liveness, loudness, mode, speechiness, tempo, time_signature, valence, and other Spotify tags.
+- [ ] **Liked Songs:** add every local song rated 4.5 or higher to Liked Songs.
+- [ ] **Grouping playlists:** sync songs to the Spotify playlists mapped from `grouping` values in the doc.
+- [ ] **`sync --pull`:** confirm the count, download Spotify-only songs with a progress bar that can be
+      cancelled and resumed, tag them with available and playlist tags, and `beet import --singletons` them
+      into `Sorted/Unrated/_Singles`.
+- [ ] **`sync --push`:** confirm upload and per-playlist counts, then push with a progress bar that can be
+      cancelled and resumed, listing each song uploaded or added to a playlist.
 
 ## Housekeeping
 
