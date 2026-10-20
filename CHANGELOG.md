@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.11.0](https://github.com/njhoffman/musicman/compare/v1.10.0...v1.11.0) (2026-10-20)
+
+
+### Features
+
+* add Spotify login and API client for sync ([62e7040](https://github.com/njhoffman/musicman/commit/62e7040aa953dcd092795a164365a2b166ad4074))
+
 ## [1.10.0](https://github.com/njhoffman/musicman/compare/v1.9.0...v1.10.0) (2026-10-20)
 
 
