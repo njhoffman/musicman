@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.17.0](https://github.com/njhoffman/musicman/compare/v1.16.0...v1.17.0) (2026-10-21)
+
+
+### Features
+
+* sync playlist changes made on Spotify back into tags ([1a7bf37](https://github.com/njhoffman/musicman/commit/1a7bf37bc477875ce6aca105d5a93704b42bdf11))
+
 ## [1.16.0](https://github.com/njhoffman/musicman/compare/v1.15.0...v1.16.0) (2026-10-21)
 
 
