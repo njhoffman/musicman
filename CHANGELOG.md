@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.21.0](https://github.com/njhoffman/musicman/compare/v1.20.0...v1.21.0) (2026-10-21)
+
+
+### Features
+
+* publish a local build of every commit for the musicman alias ([8b217fa](https://github.com/njhoffman/musicman/commit/8b217facddaac3b384826920746fb8e902a4dc68))
+
 ## [1.20.0](https://github.com/njhoffman/musicman/compare/v1.19.0...v1.20.0) (2026-10-21)
 
 
