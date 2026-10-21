@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.18.0](https://github.com/njhoffman/musicman/compare/v1.17.0...v1.18.0) (2026-10-21)
+
+
+### Features
+
+* add sync --backup and save Spotify lists before every push ([ffe6e04](https://github.com/njhoffman/musicman/commit/ffe6e04689536bdba9e97d32731546f792a07c33))
+* back up the database automatically once a week ([a319005](https://github.com/njhoffman/musicman/commit/a31900547b6eb010257b17a1d3037c7097a28407))
+
+
+### Bug Fixes
+
+* keep ID3 frames node-id3 cannot read when writing tags ([8415ecf](https://github.com/njhoffman/musicman/commit/8415ecfa314976e4175186c41b8b26841988f0f2))
+* write tags to files with an empty UFID frame and cap search query length ([c1abdac](https://github.com/njhoffman/musicman/commit/c1abdac3ff9d6dfc7486c0c90d39a729175430a3))
+
 ## [1.17.0](https://github.com/njhoffman/musicman/compare/v1.16.0...v1.17.0) (2026-10-21)
 
 
