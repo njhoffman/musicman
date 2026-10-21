@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.19.0](https://github.com/njhoffman/musicman/compare/v1.18.0...v1.19.0) (2026-10-21)
+
+
+### Features
+
+* limit sync to songs matching sync.scope and add sync --backup --force ([620a11a](https://github.com/njhoffman/musicman/commit/620a11aa5269a65e5b8b5388db0ebe0a702a4e93))
+
 ## [1.18.0](https://github.com/njhoffman/musicman/compare/v1.17.0...v1.18.0) (2026-10-21)
 
 
