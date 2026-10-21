@@ -3,6 +3,7 @@ const NodeId3 = require('node-id3');
 const { unflatten } = require('flat');
 
 const logger = require('../utils/logger.js');
+const { appendFrames, readTagBuffer, walkFrames } = require('../check/frames.js');
 
 const toRating = (newRating, ratingMax) => Math.round((newRating * 255) / ratingMax);
 
@@ -77,7 +78,7 @@ const mergeAssignments = (meta, assignments) => {
  * every update of such a file fails. Those files are first written without UFID frames, then updated
  * with them given back with empty identifiers, which keeps the frames as they were.
  */
-const updateTags = (tags, file) => {
+const updateNodeId3 = (tags, file) => {
   const { raw = {} } = NodeId3.read(file) || {};
   const ufid = [].concat(raw.UFID || []);
   if (!_.some(ufid, ({ identifier }) => identifier === undefined)) {
@@ -94,6 +95,35 @@ const updateTags = (tags, file) => {
     },
     file
   );
+};
+
+/**
+ * Tags written to a file with node-id3, keeping the frames node-id3 does not understand and would drop
+ * when it rewrites the tag (e.g. TCMP, IPLS, TSOC): their original bytes are appended to the new tag.
+ * Returns true, or the Error node-id3 returned.
+ */
+const updateTags = (tags, file) => {
+  const original = readTagBuffer(file);
+  const frames = walkFrames(original) || [];
+  const known = new Set(_.keys(_.get(NodeId3.read(original || Buffer.alloc(0)), 'raw', {})));
+  const unknown = _.filter(frames, ({ id }) => !known.has(id));
+  const result = updateNodeId3(tags, file);
+  if (result instanceof Error || unknown.length === 0) {
+    return result;
+  }
+  // node-id3 writes ID3v2.3, so frames of an ID3v2.3 tag are copied as they are
+  if (
+    original[3] !== 3 ||
+    !appendFrames(
+      file,
+      _.map(unknown, ({ start, end }) => original.subarray(start, end))
+    )
+  ) {
+    return new Error(
+      `tags were written, but ${_.uniq(_.map(unknown, 'id')).join(', ')} could not be kept`
+    );
+  }
+  return result;
 };
 
 const writeFile = ([file, id3Tags]) => {

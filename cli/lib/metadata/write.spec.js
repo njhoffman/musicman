@@ -9,7 +9,12 @@ describe('Metadata Write', () => {
   beforeEach(() => {
     nodeId3Stub = { update: sinon.stub().returns(true), read: sinon.stub().returns({ raw: {} }) };
     writeModule = proxyquire('./write.js', {
-      'node-id3': nodeId3Stub
+      'node-id3': nodeId3Stub,
+      '../check/frames.js': {
+        readTagBuffer: () => null,
+        walkFrames: () => null,
+        appendFrames: () => true
+      }
     });
   });
 
@@ -158,6 +163,44 @@ describe('Metadata Write', () => {
       ]);
       expect(Object.keys(after)).to.include.members(Object.keys(before));
       expect(after.POPM).to.deep.equal(before.POPM);
+    });
+
+    // ID3v2.3 text frame: id, size, flags, then ISO-8859-1 encoding and the text
+    const textFrame = (id, text) => {
+      const body = Buffer.concat([Buffer.from([0]), Buffer.from(text, 'latin1')]);
+      const size = Buffer.alloc(4);
+      size.writeUInt32BE(body.length);
+      return Buffer.concat([Buffer.from(id, 'latin1'), size, Buffer.alloc(2), body]);
+    };
+
+    it('should keep frames node-id3 does not understand when it rewrites the tag', () => {
+      const {
+        appendFrames,
+        listFrameIds,
+        readTagBuffer,
+        walkFrames
+      } = require('../check/frames.js');
+      const tcmp = textFrame('TCMP', '1');
+      const tsoc = textFrame('TSOC', 'Waters, Roger');
+      expect(appendFrames(file, [tcmp, tsoc])).to.be.true;
+      const audio = fs.readFileSync(file).subarray(readTagBuffer(file).length);
+      // node-id3 alone drops them
+      const copy = path.join(directory, 'copy.mp3');
+      fs.copyFileSync(file, copy);
+      NodeId3.update({ TIT1: 'x' }, copy);
+      expect(listFrameIds(readTagBuffer(copy))).to.not.include('TCMP');
+
+      expect(updateTags({ TIT1: 'Grouping' }, file)).to.be.true;
+      expect(updateTags({ userDefinedText: [{ description: 'sp_track_id', value: 'id' }] }, file))
+        .to.be.true;
+      const tag = readTagBuffer(file);
+      const frames = walkFrames(tag);
+      const bytes = id =>
+        frames.filter(frame => frame.id === id).map(({ start, end }) => tag.subarray(start, end));
+      expect(bytes('TCMP')).to.deep.equal([tcmp]);
+      expect(bytes('TSOC')).to.deep.equal([tsoc]);
+      expect(NodeId3.read(file).raw.TIT1).to.equal('Grouping');
+      expect(fs.readFileSync(file).subarray(tag.length).equals(audio)).to.be.true;
     });
 
     it('should update other files with node-id3 directly', () => {
