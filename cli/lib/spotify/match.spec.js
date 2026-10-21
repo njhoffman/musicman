@@ -56,13 +56,41 @@ describe('Spotify Matching', () => {
       expect(rateCandidate(song, track('Strange Days', ['Someone Else'], 186))).to.be.null;
     });
 
-    it('should trust ISRC matches within 5 seconds and review the rest', () => {
-      expect(rateCandidate(song, track('Anything', ['Anyone'], 190), { isrc: true })).to.equal(
-        'match'
-      );
-      expect(rateCandidate(song, track('Anything', ['Anyone'], 240), { isrc: true })).to.equal(
+    it('should trust ISRC matches with the same title within 5 seconds and review the rest', () => {
+      expect(
+        rateCandidate(song, track(`${song.title} - 2011 Remaster`, ['Anyone'], 190), { isrc: true })
+      ).to.equal('match');
+      expect(rateCandidate(song, track(song.title, ['Anyone'], 240), { isrc: true })).to.equal(
         'review'
       );
+      // an ISRC shared by another version (Happy Home and Happy Home II)
+      expect(
+        rateCandidate(song, track(`${song.title} II`, ['Anyone'], 190), { isrc: true })
+      ).to.equal('review');
+    });
+
+    it('should review a candidate whose suffix names another mix, edit, or version', () => {
+      const rise = { artist: 'Miura Keys', title: 'Rise (Miura Keys Campfire mix)', duration: 300 };
+      expect(
+        rateCandidate(rise, track('Rise [Mix Cut] - Crom & Thanh Dub Mix', ['Miura Keys'], 300))
+      ).to.equal('review');
+      const stp = { artist: 'Stone Temple Pilots', title: 'Interstate Love Song', duration: 194 };
+      expect(
+        rateCandidate(
+          stp,
+          track(
+            'Interstate Love Song (Early Version) - 2019 Remaster',
+            ['Stone Temple Pilots'],
+            195
+          )
+        )
+      ).to.equal('review');
+      expect(
+        rateCandidate(
+          stp,
+          track('Interstate Love Song - 2019 Remaster', ['Stone Temple Pilots'], 195)
+        )
+      ).to.equal('match');
     });
   });
 

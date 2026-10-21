@@ -153,9 +153,13 @@ OVERDUE flag. Feature specs live in `docs/`.
       Also report ratings off the half step scale (e.g. Hollerado - Got to Loose is 2.8) and text that looks
       garbled by a wrong encoding (its copyright reads `20･･－－－0`). `lib/check/frames.js` (raw frame parsing)
       is done.
-- [ ] **Stricter Spotify version matching:** (p2) [bug] "mix" and "version" are noise words, so a different remix
-      or an "Early Version" can match; differing parenthetical or suffix text should send a match to review, and
-      existing matches whose titles differ should be rechecked.
+- [x] **Stricter Spotify version matching:** (p2) [bug] matches (search and ISRC) need the same title words and the
+      same words in removed suffixes (Campfire mix vs Dub Mix, Early Version, Radio Edit, Happy Home II), otherwise
+      they go to review.
+- [ ] **Recheck existing matches and review with accept and reject:** (p1) [feature] 100 matches from before the
+      stricter rule fail it (45 rated 4.5+ and pushed on 2026-10-21). `sync --match --recheck` should move them to
+      review without unlinking them; `sync --review` should accept (keep) or reject a match. A rejected track must be
+      pruned from the playlists it was pushed to, not offered as a download, and the song looked up again.
 
 ## Housekeeping
 

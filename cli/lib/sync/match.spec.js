@@ -84,7 +84,7 @@ describe('Spotify Id Matching', () => {
       'isrc:ISRC0001': [
         track(
           'isrc-id',
-          'Whatever',
+          meta('testFile02.mp3').title,
           'Anyone',
           db.prepare('SELECT duration FROM songs WHERE path = ?').get('testFile02.mp3').duration
         )

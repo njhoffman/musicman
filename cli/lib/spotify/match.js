@@ -10,6 +10,7 @@ const noiseWords = [
   'mix',
   'edit',
   'feat\\.?',
+  'featuring',
   'ft\\.?',
   'with',
   'explicit',
@@ -32,6 +33,7 @@ const plain = text =>
     .toLowerCase()
     .replace(/&/g, ' and ')
     .replace(/[^a-z0-9 ]+/g, ' ')
+    .replace(/\b0+(\d)/g, '$1')
     .replace(/^the /, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -43,11 +45,87 @@ const stripTitleNoise = title => {
   const strip = segment => !versionMarker.test(segment) && noiseMarker.test(segment);
   text = text.replace(/\s*[([]([^)\]]*)[)\]]/g, (whole, inner) => (strip(inner) ? '' : whole));
   text = text.replace(/\s+-\s+([^-]+)$/, (whole, suffix) => (strip(suffix) ? '' : whole));
-  text = text.replace(/\s+(?:feat\.?|ft\.?|featuring)\s+[^()[\]-]*/i, '');
+  // an inline feature runs to the next bracket or " - " suffix, names can have hyphens (Topley-Bird)
+  text = text.replace(/\s+(?:feat\.?|ft\.?|featuring)\s+.*?(?=\s*[([]|\s+-\s+|$)/i, '');
   return text.trim();
 };
 
 const normalizeTitle = title => plain(stripTitleNoise(title));
+
+// words of stripped suffixes that do not tell recordings apart; the others (Campfire, Dub, Early, Radio)
+// name a different mix, edit, or version
+const neutralWords = new Set([
+  'remaster',
+  'remastered',
+  'remasters',
+  'digital',
+  'digitally',
+  'version',
+  'mix',
+  'edit',
+  'explicit',
+  'clean',
+  'mono',
+  'stereo',
+  'single',
+  'bonus',
+  'track',
+  'deluxe',
+  'edition',
+  'expanded',
+  'anniversary',
+  'original',
+  'album',
+  'lp',
+  'a',
+  'an',
+  'and',
+  'of',
+  'from',
+  'the',
+  'to',
+  'in',
+  'on'
+]);
+
+/**
+ * Words of the suffixes stripTitleNoise removes that could name a different recording, sorted: [] for
+ * "Junkhead (2022 Remaster)" or "Song (feat. X)", ['early'] for "Song (Early Version) - 2019 Remaster",
+ * ['campfire', 'keys', 'miura'] for "Rise (Miura Keys Campfire mix)".
+ */
+const titleDescriptors = title => {
+  const stripped = segment => !versionMarker.test(segment) && noiseMarker.test(segment);
+  const segments = [];
+  const rest = `${title || ''}`.replace(/\s*[([]([^)\]]*)[)\]]/g, (whole, inner) => {
+    if (stripped(inner)) {
+      segments.push(inner);
+      return '';
+    }
+    return whole;
+  });
+  const suffix = rest.match(/\s+-\s+([^-]+)$/);
+  if (suffix && stripped(suffix[1])) {
+    segments.push(suffix[1]);
+  }
+  return _.uniq(
+    _.flatMap(
+      _.reject(segments, segment => /^\s*(feat\.?|ft\.?|featuring|with)\b/i.test(segment)),
+      segment => plain(segment).split(' ')
+    ).filter(word => word && !neutralWords.has(word) && !/^\d+$/.test(word))
+  ).sort();
+};
+
+// title words that tell recordings apart: no neutral words or years, which kept suffixes can also have
+// (Buck-Wild Remix/Remastered 2009, Original Demo Version)
+const titleWords = title =>
+  normalizeTitle(title)
+    .split(' ')
+    .filter(word => word && !neutralWords.has(word) && !/^(19|20)\d\d$/.test(word));
+
+// the same title once noise is removed, and the same words in the removed suffixes
+const sameTitle = (localTitle, spotifyTitle) =>
+  _.isEqual(titleWords(localTitle), titleWords(spotifyTitle)) &&
+  _.isEqual(titleDescriptors(localTitle), titleDescriptors(spotifyTitle));
 
 // version markers in a title, so a studio track never matches its live or remix version
 const versions = title =>
@@ -83,8 +161,9 @@ const candidateOf = track => ({
 const rateCandidate = (song, track, { isrc = false } = {}) => {
   const durationDiff =
     song.duration && track.duration_ms ? Math.abs(song.duration - track.duration_ms / 1000) : 0;
+  // an ISRC can be shared by versions with different titles (Happy Home, Happy Home II)
   if (isrc) {
-    return durationDiff <= 5 ? 'match' : 'review';
+    return durationDiff <= 5 && sameTitle(song.title, track.name) ? 'match' : 'review';
   }
   if (
     !_.isEqual(versions(song.title), versions(track.name)) ||
@@ -94,11 +173,15 @@ const rateCandidate = (song, track, { isrc = false } = {}) => {
   }
   const local = normalizeTitle(song.title);
   const spotify = normalizeTitle(track.name);
-  if (local === spotify) {
+  if (sameTitle(song.title, track.name)) {
     if (durationDiff <= 3) {
       return 'match';
     }
     // same title and artist but a different edit or version length, worth a look
+    return durationDiff <= 60 ? 'review' : null;
+  }
+  // the same base title with differently named suffixes (Campfire mix, Dub Mix) is another version
+  if (local === spotify) {
     return durationDiff <= 60 ? 'review' : null;
   }
   const similar =
@@ -154,6 +237,8 @@ const looseQuery = song => `${plain(queryTitle(song.title))} ${plain(queryArtist
 
 module.exports = {
   bestCandidate,
+  sameTitle,
+  titleDescriptors,
   candidateOf,
   looseQuery,
   normalizeTitle,
