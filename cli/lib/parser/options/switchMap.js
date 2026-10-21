@@ -76,6 +76,11 @@ module.exports = {
     alias: '-F',
     func: () => ({ refresh: true })
   },
+  verbose: {
+    description: 'With --match, list every field written, filled, and kept under each song',
+    alias: '-v',
+    func: () => ({ verbose: true })
+  },
   review: {
     description: 'List probable Spotify matches waiting for review',
     alias: '-R',

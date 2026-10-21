@@ -10,6 +10,17 @@ const formatClock = seconds => {
   return `${minutes}:${`${total % 60}`.padStart(2, '0')}`;
 };
 
+// a long wait like 4h 33m, or 12m, or 40s
+const formatWait = seconds => {
+  const total = Math.ceil(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  return minutes > 0 ? `${minutes}m` : `${total}s`;
+};
+
 /**
  * Colored progress bar for the footer status line, e.g.
  * "Matching ━━━━━━──── 60% 6/10 songs  2.0/s  ETA 0:02  <detail>". Rate and ETA are left out until
@@ -58,4 +69,4 @@ const coloredCounts = items =>
     .map(([count, word, color]) => `${chalk.hex(color)('●')} ${count} ${word}`)
     .join('  ');
 
-module.exports = { coloredCounts, formatClock, progressBar };
+module.exports = { coloredCounts, formatClock, formatWait, progressBar };

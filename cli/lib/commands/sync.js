@@ -15,7 +15,7 @@ const { syncPlan } = require('../sync/plan.js');
 const { pushPlan } = require('../sync/push.js');
 const { buildManifest, writeManifest } = require('../sync/pull.js');
 const { renderColumns } = require('../output/render.js');
-const { progressBar } = require('../output/progress.js');
+const { formatWait, progressBar } = require('../output/progress.js');
 const { formatSongResult, formatUnassigned, matchCounts } = require('../output/sync.js');
 const { dim, emitFormatted } = require('../output/emit.js');
 const { outputFormat } = require('../output/formats.js');
@@ -212,7 +212,7 @@ const librarySongs = async config =>
     config
   });
 
-const runMatch = async ({ credentials, file, fetchImpl, config, dryRun, refresh }) => {
+const runMatch = async ({ credentials, file, fetchImpl, config, dryRun, refresh, verbose }) => {
   const db = openSyncLibrary(config);
   try {
     const backup = dryRun ? null : backupIfDue(db, config);
@@ -226,7 +226,15 @@ const runMatch = async ({ credentials, file, fetchImpl, config, dryRun, refresh 
       config,
       songs,
       // lookups need no user, the app token avoids the user-read-private scope a market would need
-      client: createClient({ getToken: appTokenGetter(credentials, { fetchImpl }), fetchImpl }),
+      client: createClient({
+        getToken: appTokenGetter(credentials, { fetchImpl }),
+        fetchImpl,
+        requestsPerSecond: _.get(config, 'spotify.requestsPerSecond'),
+        onWait: (seconds, reason) =>
+          logger.progress(
+            chalk.hex('#DDCC44')(`Spotify ${reason}, retrying in ${Math.ceil(seconds)}s`)
+          )
+      }),
       beetsIds: readBeetsSpotifyIds(config.sync.beetsConfig),
       dryRun,
       refresh,
@@ -242,7 +250,9 @@ const runMatch = async ({ credentials, file, fetchImpl, config, dryRun, refresh 
           })
         ),
       onSong: (status, item, result) =>
-        logger[status === 'failed' ? 'warn' : 'info'](formatSongResult(status, item, result))
+        logger[status === 'failed' ? 'warn' : 'info'](
+          formatSongResult(status, item, result, { verbose, dryRun })
+        )
     });
     logger.progressDone();
     const { bySource } = summary;
@@ -255,9 +265,22 @@ const runMatch = async ({ credentials, file, fetchImpl, config, dryRun, refresh 
         `  matched: ${summary.match} (beets ${bySource.beets}, isrc ${bySource.isrc}, search ${bySource.search})`,
         `  fields refreshed: ${summary.refresh}`,
         `  to review: ${summary.review} (musicman sync --review)`,
-        `  not found: ${summary.missing}, failed: ${summary.failed}`
+        `  not found: ${summary.missing}, failed: ${summary.failed}${
+          summary.skipped ? `, not looked up (rate limit): ${summary.skipped}` : ''
+        }`
       ].join('\n')
     );
+    if (summary.rateLimited) {
+      const retryAt = new Date(Date.now() + summary.rateLimited.retryAfter * 1000);
+      logger.warn(
+        `Spotify rate limit reached, it lifts in ${formatWait(summary.rateLimited.retryAfter)} ` +
+          `(around ${retryAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}). ` +
+          `${summary.skipped} songs were not looked up${
+            dryRun ? '' : ', the matches so far are saved'
+          }; run sync --match again then.`
+      );
+      process.exitCode = 1;
+    }
     if (!_.isEmpty(summary.unassigned)) {
       logger.warn(
         `Spotify returned fields that are not written, add them to spotify.fields or spotify.ignore:\n${formatUnassigned(
@@ -352,7 +375,8 @@ const syncCommand = async ({
         fetchImpl,
         config,
         dryRun: Boolean(switches.dryRun),
-        refresh: Boolean(switches.refresh)
+        refresh: Boolean(switches.refresh),
+        verbose: Boolean(switches.verbose)
       });
     }
     if (switches.review) {
@@ -386,11 +410,12 @@ module.exports = {
   name: 'sync',
   description: 'Sync Liked Songs and playlists with Spotify; without switches, show the plan',
   usage:
-    'musicman sync [--login | --match [--refresh] | --review | --push [--prune] | --pull] [--dry-run]',
+    'musicman sync [--login | --match [--refresh] [--verbose] | --review | --push [--prune] | --pull] [--dry-run]',
   switches: [
     'login',
     'match',
     'refresh',
+    'verbose',
     'review',
     'push',
     'prune',

@@ -295,6 +295,29 @@ describe('Spotify Id Matching', () => {
     expect(db.prepare('SELECT COUNT(*) AS n FROM spotify_matches').get().n).to.equal(0);
   });
 
+  it('should stop at a long rate limit and skip the songs not looked up yet', async () => {
+    const limited = Object.assign(new Error('rate limited'), {
+      rateLimited: true,
+      retryAfter: 900
+    });
+    const songsSeen = [];
+    const client = {
+      get: async () => {
+        throw limited;
+      }
+    };
+    const summary = await matchSongs({
+      db,
+      config,
+      client,
+      songs: songs(['testFile01.mp3', 'testFile02.mp3', 'testFile03.mp3']),
+      onSong: status => songsSeen.push(status)
+    });
+    expect(summary).to.include({ failed: 0, skipped: 3 });
+    expect(summary.rateLimited).to.deep.equal({ retryAfter: 900 });
+    expect(songsSeen).to.be.empty;
+  });
+
   it('should count lookup errors as failed and keep going', async () => {
     const client = {
       get: async () => {

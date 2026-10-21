@@ -64,11 +64,39 @@ const wrapPairs = (label, pairs, indent) => {
   );
 };
 
+// subtle counts of what was written to a song: custom fields, standard tags filled, and tags kept
+const writeCounts = writes =>
+  [
+    chalk.hex('#55AA77')(`+${writes.custom.length} fields`),
+    writes.filled.length > 0 && chalk.hex('#5599BB')(`~${writes.filled.length} filled`),
+    writes.kept.length > 0 && chalk.hex('#777788')(`=${writes.kept.length} kept`)
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+// field lines under a song for --verbose: custom fields written, standard tags filled, and kept
+const writeLines = (writes, indent) => [
+  ...wrapPairs(
+    'fields',
+    _.map(writes.custom, ({ name, value }) => `${key(name)}=${cut(`${value}`)}`),
+    indent
+  ),
+  ...(writes.filled.length > 0
+    ? wrapPairs(
+        'filled',
+        _.map(writes.filled, ({ name, value }) => `${key(name)}=${cut(`${value}`)}`),
+        indent
+      )
+    : []),
+  ...(writes.kept.length > 0 ? wrapPairs('kept', _.map(writes.kept, 'name'), indent) : [])
+];
+
 /**
- * Lines for one song of sync --match: status, source, the local song and the Spotify track it was
- * matched to, then the custom fields written, the standard tags filled, and the ones kept.
+ * Output for one song of sync --match: status (marked dry in a dry run), source, the local song, the
+ * Spotify track it was matched to, and counts of the fields written, filled, and kept. verbose adds a
+ * line per kind with every field and value.
  */
-const formatSongResult = (status, item, result = {}) => {
+const formatSongResult = (status, item, result = {}, { verbose = false, dryRun = false } = {}) => {
   const color = chalk.hex(statusColors[status] || '#BBBBBB');
   const track = result.track || null;
   const target = trackLabel(track) || candidateLabel(result.candidate);
@@ -76,39 +104,23 @@ const formatSongResult = (status, item, result = {}) => {
     item.song,
     track ? track.duration_ms : _.get(result, 'candidate.durationMs')
   );
+  const { writes } = result;
+  const indent = '  ';
   const head = [
-    color(status.toUpperCase().padEnd(7)),
+    color(status.toUpperCase().padEnd(7)) + (dryRun ? chalk.hex('#777788').italic(' dry') : ''),
     dim((result.source || '').padEnd(6)),
     songLabel(item),
     target && `${dim('->')} ${target}`,
-    diff && dim(`(${diff})`)
+    diff && dim(`(${diff})`),
+    writes && !verbose && writeCounts(writes),
+    result.error && !verbose && chalk.hex(statusColors.failed)(result.error)
   ]
     .filter(Boolean)
     .join(' ');
-  const indent = '  ';
-  const lines = [head];
-  const { writes } = result;
-  if (writes) {
-    lines.push(
-      ...wrapPairs(
-        'fields',
-        _.map(writes.custom, ({ name, value }) => `${key(name)}=${cut(`${value}`)}`),
-        indent
-      )
-    );
-    if (writes.filled.length > 0) {
-      lines.push(
-        ...wrapPairs(
-          'filled',
-          _.map(writes.filled, ({ name, value }) => `${key(name)}=${cut(`${value}`)}`),
-          indent
-        )
-      );
-    }
-    if (writes.kept.length > 0) {
-      lines.push(...wrapPairs('kept', _.map(writes.kept, 'name'), indent));
-    }
+  if (!verbose) {
+    return head;
   }
+  const lines = [head, ...(writes ? writeLines(writes, indent) : [])];
   if (result.error) {
     lines.push(`${indent}${dim('error'.padEnd(8))}${result.error}`);
   }

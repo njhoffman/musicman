@@ -97,7 +97,8 @@ const writeFields = (file, { custom, filled }) =>
  *
  * onSong(status, item, result) is called once per looked up or refreshed song with status match,
  * review, missing, refresh, or failed, and result.writes ({ custom, filled, kept }) when fields were
- * assigned.
+ * assigned. A Spotify rate limit too long to wait for stops the run: the songs not looked up yet are
+ * counted as skipped and rateLimited.retryAfter (seconds) is returned.
  */
 const matchSongs = async ({
   db,
@@ -131,7 +132,8 @@ const matchSongs = async ({
     review: 0,
     missing: 0,
     refresh: 0,
-    failed: 0
+    failed: 0,
+    skipped: 0
   };
   const bySource = { beets: 0, isrc: 0, search: 0 };
   const unassigned = {};
@@ -187,7 +189,13 @@ const matchSongs = async ({
 
   const found = [];
   const written = [];
+  // a long rate limit stops the lookups, the songs after it are skipped
+  let rateLimit = null;
   for (const chunk of _.chunk(items, chunkSize)) {
+    if (rateLimit) {
+      counts.skipped += chunk.length;
+      continue;
+    }
     // songs with an id are only refreshed, the others are looked up first
     const looked = await Promise.map(
       chunk,
@@ -195,12 +203,19 @@ const matchSongs = async ({
         if (item.trackId) {
           return { item, status: 'refresh', candidate: { id: item.trackId } };
         }
+        if (rateLimit) {
+          return { item, status: 'skipped' };
+        }
         try {
           return {
             item,
             ...(await lookup({ client, song: item.song, beetsId: beetsIds.get(item.file) }))
           };
         } catch (err) {
+          if (err.rateLimited) {
+            rateLimit = rateLimit || err;
+            return { item, status: 'skipped' };
+          }
           return { item, status: 'failed', error: err.message };
         }
       },
@@ -217,10 +232,17 @@ const matchSongs = async ({
       details = await fetchDetails(client, _.map(withFields, 'candidate.id'), config, known);
     } catch (err) {
       detailsError = err.message;
+      if (err.rateLimited) {
+        rateLimit = rateLimit || err;
+      }
     }
 
     _.each(looked, result => {
       const { item, status } = result;
+      if (status === 'skipped') {
+        counts.skipped += 1;
+        return;
+      }
       if (status === 'failed') {
         finish('failed', item, result);
         return;
@@ -293,6 +315,7 @@ const matchSongs = async ({
     bySource,
     unassigned,
     dryRun,
+    rateLimited: rateLimit ? { retryAfter: rateLimit.retryAfter } : null,
     results: _.map(found, item => _.omit(item, ['track']))
   };
 };

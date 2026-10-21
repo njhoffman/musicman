@@ -55,6 +55,7 @@ const configSchema = {
       clientSecret: { type: 'string', required: false },
       redirectUri: { type: 'string', required: false },
       refreshDays: { type: 'number', min: 1, required: false },
+      requestsPerSecond: { type: 'number', min: 0, required: false },
       fields: { type: 'array', required: false },
       ignore: { type: 'array', required: false }
     }
