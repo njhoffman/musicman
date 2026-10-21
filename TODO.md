@@ -135,6 +135,25 @@ OVERDUE flag. Feature specs live in `docs/`.
       updates the database.
 - [ ] **Verify `sync --pull`, `pnpm download`, and `sync --import` end to end** (p2) [test] on a real manifest once
       the Spotify rate limit lifts; only the beets step was checked against real beets (2026-10-21).
+- [ ] **`import` command wrapping beets:** (p2) [feature] one command for newly downloaded files, reading the beets
+      config (paths, import settings) so it tags and renames like beets would:
+      - tell full albums from singles (album import vs `-s` singletons) and import each the right way
+      - for spotDL downloads, add the tags of every playlist the track is in (a song in several playlists gets all
+        their tags, multi value fields collect every value) plus all the `spotify.fields`
+      - files that did not come from Spotify go through the `sync --match` lookup (beets id, ISRC, search) first
+      - supersedes `sync --import`, which only handles manifest downloads as singletons
+- [ ] **`sync --backup`:** (p1) [feature] mirror the library files to a backup location (`/mnt/nfs/Music` now).
+      Before changing anything, list the files to copy, update, and delete and confirm; deletions are opt-in and
+      listed separately. Refuse to overwrite a backup file whose tag has frames the library copy lacks (how the
+      frames lost on 2026-10-21 were recovered) and report those instead.
+- [ ] **`check` command:** (p2) [feature] report, and with `--fix` repair (recorded for `check --undo <run>`): files
+      that cannot be read or rewritten, frames node-id3 cannot keep, database drift, duplicate songs, custom tag
+      names that differ only by case or punctuation (renamed to a `check.names` list seeded with beets names),
+      custom tags duplicating standard frames, the leftover `spotify_track_id` frames, and multi value formatting.
+      `lib/check/frames.js` (raw frame parsing) is done.
+- [ ] **Stricter Spotify version matching:** (p2) [bug] "mix" and "version" are noise words, so a different remix
+      or an "Early Version" can match; differing parenthetical or suffix text should send a match to review, and
+      existing matches whose titles differ should be rechecked.
 
 ## Housekeeping
 
