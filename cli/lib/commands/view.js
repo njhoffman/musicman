@@ -4,7 +4,7 @@ const { emitFormatted, songColumns, songOneline, songRecords } = require('../out
 const { outputFormat } = require('../output/formats.js');
 const { previewCommand } = require('../output/fzf.js');
 const { checkExists } = require('../utils/files.js');
-const { getFilteredFiles } = require('./common.js');
+const { getFilteredFiles, libraryScanOptions } = require('./common.js');
 
 const viewCommand = async ({ target, options, config }) => {
   const exists = checkExists(target);
@@ -14,7 +14,7 @@ const viewCommand = async ({ target, options, config }) => {
 
   const { exclude = [], include = [] } = options.switches;
 
-  const filtered = await getFilteredFiles({ target, options, config });
+  const filtered = await getFilteredFiles({ target, options: libraryScanOptions(options), config });
 
   // filter files, include/exclude metadata fields defined by switches
   const metadata = _.map(filtered, ([file, meta]) =>
@@ -46,5 +46,7 @@ module.exports = {
   description: 'Show tags of files: a table for several files, a list for one',
   usage: 'musicman [view] [target] [field:value ...]',
   switches: ['recursive', 'norecursive', 'include', 'exclude', 'files', 'format', 'fzf'],
-  func: viewCommand
+  func: viewCommand,
+  // without a target (and no song playing) the whole library is shown
+  defaultTarget: baseDirectory => baseDirectory
 };

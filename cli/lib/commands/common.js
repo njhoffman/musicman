@@ -131,8 +131,22 @@ const getFilteredFiles = async (
   return filters ? _.filter(parsedFiles, filterFiles(filters)) : parsedFiles;
 };
 
+/**
+ * Options for scanning a command's target: without a target argument (the target is the command's
+ * default, the whole library) the scan is recursive unless --norecursive was given.
+ */
+const libraryScanOptions = options => {
+  const recursive = _.get(
+    options,
+    'switches.recursive',
+    _.get(options, 'targetGiven') === false ? true : undefined
+  );
+  return { ...options, switches: { ..._.get(options, 'switches'), recursive } };
+};
+
 module.exports = {
   assignMetadata,
+  libraryScanOptions,
   getFilteredFiles,
   parseFileMetadata,
   saveMetadata,

@@ -51,11 +51,12 @@ describe('Integration Tests', () => {
       expect(parser({ args: ['artist:TestArtist'], config }).options.targetGiven).to.be.false;
     });
 
-    it('should default to current directory when no target specified', () => {
+    it('should default to the library base directory when no target is specified', () => {
       const args = ['artist:TestArtist'];
       const parsed = parser({ args, config });
 
-      expect(parsed.target).to.equal(process.cwd());
+      expect(parsed.target).to.equal(config.mpd.baseDirectory);
+      expect(parsed.options.targetGiven).to.be.false;
     });
   });
 

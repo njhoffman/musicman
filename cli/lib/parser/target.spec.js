@@ -40,9 +40,9 @@ describe('Target assignment', () => {
     expect(test1).to.include({ target: `${config.mpd.baseDirectory}/${currentSong.file}` });
   });
 
-  it('Should assign target to current directory if no song playing and last argument is not a valid target', () => {
+  it('Should assign the library base directory if no song playing and no argument is a valid target', () => {
     const test1 = parser({ args: ['some', 'args', 'notvalidtarget'], config });
-    expect(test1).to.include({ target: process.cwd() });
+    expect(test1).to.include({ target: config.mpd.baseDirectory });
   });
 
   it('Should resolve relative target path to absolute path ', () => {

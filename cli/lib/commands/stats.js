@@ -1,6 +1,6 @@
 const _ = require('lodash');
 
-const { getFilteredFiles } = require('./common.js');
+const { getFilteredFiles, libraryScanOptions } = require('./common.js');
 const { countTags } = require('../metadata/tags.js');
 const { outputStats } = require('../output/index.js');
 const { emitFormatted } = require('../output/emit.js');
@@ -52,18 +52,15 @@ const statsCommand = async ({ options, config, target }) => {
   const { multiFields } = config.stats;
 
   // without a target argument the whole library is scanned, recursively unless --norecursive
-  const recursive = _.get(
-    options,
-    'switches.recursive',
-    options.targetGiven === false ? true : undefined
-  );
+  const scanOptions = libraryScanOptions(options);
+  const { recursive } = scanOptions.switches;
   logger.info(
     `Scanning ${target || baseDirectory}${recursive ? ' recursively' : ''} for mp3 files`
   );
   // TODO: add option to include duration and size
   const allFiles = await getFilteredFiles({
     target: target || baseDirectory,
-    options: { ...options, switches: { ..._.get(options, 'switches'), recursive } },
+    options: scanOptions,
     config,
     fullMetadata: true,
     withRaw: true
