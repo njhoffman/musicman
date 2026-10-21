@@ -723,5 +723,6 @@ module.exports = {
   func: syncCommand,
   archive: ({ review }) => !review,
   defaultTarget,
-  targetArgs: false
+  targetArgs: false,
+  terms: false
 };

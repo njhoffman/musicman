@@ -75,5 +75,6 @@ module.exports = {
   func: sortCommand,
   archive: true,
   defaultTarget,
-  targetArgs: false
+  targetArgs: false,
+  terms: false
 };

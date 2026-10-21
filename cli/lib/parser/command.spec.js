@@ -24,6 +24,20 @@ describe('Command assignment', () => {
     );
   });
 
+  it('Should reject words that commands taking only switches do not use', () => {
+    expect(() => parser({ args: ['sync', 'push'], config })).to.throw(
+      "musicman sync does not take 'push', did you mean --push?"
+    );
+    expect(() => parser({ args: ['sync', '-push'], config })).to.throw('did you mean --push?');
+    expect(() => parser({ args: ['sort', 'now'], config })).to.throw(
+      "musicman sort does not take 'now', it takes only switches: --dry-run"
+    );
+    expect(parser({ args: ['sync', '--push', '-n'], config }).options.switches).to.deep.equal({
+      push: true,
+      dryRun: true
+    });
+  });
+
   it('Should still take an existing path or an explicit view as the first argument', () => {
     expect(parser({ args: ['lib'], config }).command).to.include({ name: 'view' });
     expect(parser({ args: ['view', 'artist:Doors'], config }).command).to.include({ name: 'view' });

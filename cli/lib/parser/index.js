@@ -46,6 +46,15 @@ const parser = ({ args, currentSong, config }) => {
   // whether an argument named the target, or it is the command's default (or the playing song)
   const targetGiven = remainingArgs.length < args.length - (args[0] === command.name ? 1 : 0);
   const options = { ...getOptions(remainingArgs, config, command.name), targetGiven };
+  // commands that take only switches reject other words, e.g. sync push for sync --push
+  if (command.terms === false && options.terms.length > 0) {
+    const [word] = options.terms;
+    const name = word.replace(/^-+/, '');
+    const hint = (command.switches || []).includes(name)
+      ? `did you mean --${name}?`
+      : `it takes only switches: ${_.map(command.switches, s => `--${s}`).join(' ')}`;
+    throw new Error(`musicman ${command.name} does not take '${word}', ${hint}`);
+  }
   return { target, command, options };
 };
 
