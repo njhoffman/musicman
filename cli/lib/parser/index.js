@@ -16,7 +16,9 @@ const parser = ({ args, currentSong, config }) => {
   const remainingArgs = args.filter(
     (arg, i) => !(i === 0 && arg === command.name) && path.resolve(arg) !== target
   );
-  const options = getOptions(remainingArgs, config, command.name);
+  // whether an argument named the target, or it is the command's default (or the playing song)
+  const targetGiven = remainingArgs.length < args.length - (args[0] === command.name ? 1 : 0);
+  const options = { ...getOptions(remainingArgs, config, command.name), targetGiven };
   return { target, command, options };
 };
 

@@ -51,11 +51,19 @@ const statsCommand = async ({ options, config, target }) => {
   const { baseDirectory } = config.mpd;
   const { multiFields } = config.stats;
 
-  logger.info(`Scanning ${target || baseDirectory} for mp3 files`);
+  // without a target argument the whole library is scanned, recursively unless --norecursive
+  const recursive = _.get(
+    options,
+    'switches.recursive',
+    options.targetGiven === false ? true : undefined
+  );
+  logger.info(
+    `Scanning ${target || baseDirectory}${recursive ? ' recursively' : ''} for mp3 files`
+  );
   // TODO: add option to include duration and size
   const allFiles = await getFilteredFiles({
     target: target || baseDirectory,
-    options,
+    options: { ...options, switches: { ..._.get(options, 'switches'), recursive } },
     config,
     fullMetadata: true,
     withRaw: true
@@ -98,5 +106,6 @@ module.exports = {
   description: 'Count values, ratings, and populated tags across files',
   usage: 'musicman stats [target] [field:value ...]',
   switches: ['recursive', 'norecursive', 'files', 'format', 'fzf'],
-  func: statsCommand
+  func: statsCommand,
+  defaultTarget: baseDirectory => baseDirectory
 };

@@ -102,4 +102,29 @@ describe('Stats Command', () => {
     expect(artistRow.split(/\s+/)).to.deep.equal(['artist', `${total}`, '100%', 'TPE1']);
     expect(tagRows.some(line => line.startsWith('mood '))).to.be.true;
   });
+  describe('target', () => {
+    const fileCount = async scanOptions => {
+      const output = stripAnsi(
+        await statsFunc({ target: dirTarget, options: { ...options, ...scanOptions }, config })
+      );
+      return Number(output.match(/Tags \((\d+) files\)/)[1]);
+    };
+
+    it('Should scan the default target recursively when no target was given', async () => {
+      expect(await fileCount({ targetGiven: false })).to.equal(16);
+    });
+
+    it('Should not recurse into a given target without --recursive', async () => {
+      expect(await fileCount({ targetGiven: true })).to.equal(10);
+      expect(await fileCount({ targetGiven: true, switches: { recursive: true } })).to.equal(16);
+    });
+
+    it('Should honor --norecursive without a target', async () => {
+      expect(await fileCount({ targetGiven: false, switches: { recursive: false } })).to.equal(10);
+    });
+
+    it('Should default to the mpd base directory', () => {
+      expect(require('../../../lib/commands/stats.js').defaultTarget('/music')).to.equal('/music');
+    });
+  });
 });

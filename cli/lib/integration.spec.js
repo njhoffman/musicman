@@ -43,6 +43,14 @@ describe('Integration Tests', () => {
       });
     });
 
+    it('should tell commands whether a target argument was given', () => {
+      const existing = path.join(process.cwd(), 'test/data');
+      expect(parser({ args: ['stats'], config }).options.targetGiven).to.be.false;
+      expect(parser({ args: ['stats', existing], config }).options.targetGiven).to.be.true;
+      expect(parser({ args: ['stats', existing], config }).target).to.equal(existing);
+      expect(parser({ args: ['artist:TestArtist'], config }).options.targetGiven).to.be.false;
+    });
+
     it('should default to current directory when no target specified', () => {
       const args = ['artist:TestArtist'];
       const parsed = parser({ args, config });
