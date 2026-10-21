@@ -35,6 +35,7 @@ const syncedTracks = db =>
  *   spotifyRemoved: belongs by its tags, is not in the target, and was in sync before (removed on Spotify)
  *   inSync: track ids in the target that belong there
  * and noId (songs that belong without a Spotify id) and pull (tracks in the target not in the library).
+ * Songs marked outOfScope (outside sync.scope) are in none of these.
  */
 const syncPlan = (db, config, songs) => {
   const ids = localSpotifyIds(db, config);
@@ -50,6 +51,8 @@ const syncPlan = (db, config, songs) => {
     const remoteIds = new Set(_.compact(_.map(remote, 'track_id')));
     const before = synced[id] || new Set();
     const members = _.filter(songs, ({ targets }) => targets.includes(id));
+    // songs outside sync.scope are left alone wherever they are on Spotify
+    const ignored = new Set(_.map(_.filter(songs, 'outOfScope'), 'file'));
     const memberFiles = new Set(_.map(members, 'file'));
 
     const withId = _.map(
@@ -61,7 +64,7 @@ const syncPlan = (db, config, songs) => {
     const extra = _.map(
       _.filter(remote, ({ track_id: trackId }) => {
         const file = trackId && songByTrack.get(trackId);
-        return file && !memberFiles.has(file);
+        return file && !memberFiles.has(file) && !ignored.has(file);
       }),
       track => ({ ...track, file: songByTrack.get(track.track_id) })
     );

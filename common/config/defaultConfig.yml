@@ -104,6 +104,9 @@ spotify:
 sync:
   # Songs rated at least this are added to Spotify Liked Songs
   likedRating: 4.5
+  # Only songs matching this filter (view/search syntax, e.g. rating:4.5 or picks:Nick) take part in sync;
+  # the others are never matched, pushed, pruned, tagged from Spotify, or downloaded. Empty syncs every song.
+  scope:
   # Spotify playlists to keep in sync: songs matching filter (view/search syntax) belong in playlist
   #   - filter: grouping:AlternativeMetal.Artists
   #     playlist: https://open.spotify.com/playlist/5MUDXMSHkjbA2CIYXjj1Vz

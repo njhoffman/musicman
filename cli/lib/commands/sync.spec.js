@@ -110,6 +110,62 @@ describe('Sync Command', () => {
     expect(fs.existsSync(file)).to.be.true;
   });
 
+  describe('backup', () => {
+    let config;
+    let library;
+    let backup;
+
+    beforeEach(() => {
+      library = path.join(directory, 'Sorted');
+      backup = path.join(directory, 'backup');
+      const songPath = 'Rated/song.mp3';
+      const { appendFrames } = require('../check/frames.js');
+      [library, backup].forEach(root => {
+        fs.mkdirSync(path.join(root, 'Rated'), { recursive: true });
+        fs.copyFileSync(
+          path.join(process.cwd(), 'test/data/source/dir1/testFile01.mp3'),
+          path.join(root, songPath)
+        );
+      });
+      // the backup copy has a frame the library copy lost, and the library copy is newer
+      appendFrames(path.join(backup, songPath), [
+        Buffer.concat([
+          Buffer.from('TDAT'),
+          Buffer.from([0, 0, 0, 5, 0, 0, 0]),
+          Buffer.from('2403')
+        ])
+      ]);
+      fs.utimesSync(path.join(library, songPath), new Date(), new Date());
+      config = { mpd: { baseDirectory: library }, backup: { directory: backup, exclude: [] } };
+    });
+
+    const backupRun = switches =>
+      syncFunc({
+        options: { switches: { backup: true, ...switches } },
+        config,
+        env,
+        file,
+        confirm: async () => true
+      });
+
+    it('should hold back a file whose backup copy has frames the library copy lacks', async () => {
+      const { backup: result } = await backupRun({});
+      expect(result.plan.counts).to.include({ held: 1, update: 0 });
+      expect(result.applied).to.be.null;
+    });
+
+    it('should take the library version of held files with --force', async () => {
+      const { backup: result } = await backupRun({ force: true });
+      expect(result.plan.counts).to.include({ held: 0, update: 1 });
+      expect(result.applied).to.include({ updated: 1 });
+      expect(
+        fs
+          .readFileSync(path.join(backup, 'Rated/song.mp3'))
+          .equals(fs.readFileSync(path.join(library, 'Rated/song.mp3')))
+      ).to.be.true;
+    });
+  });
+
   describe('push', () => {
     let config;
     let requests;

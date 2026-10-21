@@ -229,6 +229,10 @@ const outputPlan = (plan, { config, switches }) => {
     );
   }
   const total = key => _.sumBy(plan, target => target[key].length);
+  const scope = _.get(config, 'sync.scope');
+  if (scope) {
+    logger.info(`Only songs matching sync.scope (${scope}) are synced`);
+  }
   logger.info(
     `To add: ${total('add')}, without a Spotify id: ${total('noId')} (sync --match), ` +
       `to prune: ${total('prune')}, changed on Spotify: +${total('spotifyAdded')} -${total(
@@ -475,7 +479,7 @@ const listBackupFiles = (label, entries, color, describe = entry => entry.path) 
 };
 
 // mirror the library files to backup.directory after showing and confirming the changes
-const runBackup = async ({ config, dryRun, confirm }) => {
+const runBackup = async ({ config, dryRun, force = false, confirm }) => {
   const directory = _.get(config, 'backup.directory');
   if (!directory) {
     throw new Error('Set backup.directory in the config to the folder to back up to');
@@ -485,7 +489,19 @@ const runBackup = async ({ config, dryRun, confirm }) => {
   }
   const source = path.resolve(config.mpd.baseDirectory);
   logger.info(`Comparing ${source} with ${directory}`);
-  const plan = backupPlan({ source, directory, exclude: _.get(config, 'backup.exclude', []) });
+  const planned = backupPlan({ source, directory, exclude: _.get(config, 'backup.exclude', []) });
+  // --force takes the library version of held files too
+  const plan = force
+    ? { ...planned, update: [...planned.update, ...planned.held], held: [] }
+    : planned;
+  if (force && planned.held.length > 0) {
+    listBackupFiles(
+      'FORCE',
+      planned.held,
+      '#DDCC44',
+      entry => `${entry.path} (backup loses ${entry.frames.join(', ')})`
+    );
+  }
   if (plan.layoutHint) {
     const { folder, names } = plan.layoutHint;
     logger.error(
@@ -642,6 +658,7 @@ const syncCommand = async ({
       return await runBackup({
         config,
         dryRun: Boolean(switches.dryRun),
+        force: Boolean(switches.force),
         confirm: confirm || confirmPrompt
       });
     }
@@ -686,7 +703,7 @@ module.exports = {
   name: 'sync',
   description: 'Sync Liked Songs and playlists with Spotify; without switches, show the plan',
   usage:
-    'musicman sync [--login | --match [--refresh] [--verbose] | --review | --push [--prune] | --pull | --import | --backup] [--dry-run]',
+    'musicman sync [--login | --match [--refresh] [--verbose] | --review | --push [--prune] | --pull | --import | --backup [--force]] [--dry-run]',
   switches: [
     'login',
     'match',
@@ -698,6 +715,7 @@ module.exports = {
     'pull',
     'import',
     'backup',
+    'force',
     'dry-run',
     'format',
     'fzf'

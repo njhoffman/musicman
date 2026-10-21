@@ -109,6 +109,12 @@ module.exports = {
     alias: '-I',
     func: () => ({ import: true })
   },
+  force: {
+    description:
+      'With --backup, also update backup files held back because their copy has frames the library copy lacks',
+    alias: '-O',
+    func: () => ({ force: true })
+  },
   prune: {
     description:
       'With --push, also remove tracks whose tags changed locally so they no longer belong (never changes made on Spotify)',

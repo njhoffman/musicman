@@ -1,7 +1,7 @@
 # Spotify sync runbook
 
 How to keep the library and Spotify in step with the commands that exist today, what each direction covers,
-and what is still planned. Design background is in `03-spotify-id.md`. Last updated 2026-10-21 (two-way playlist changes).
+and what is still planned. Design background is in `03-spotify-id.md`. Last updated 2026-10-21 (scope, backups, playlist snapshots).
 
 ## What syncs today
 
@@ -16,6 +16,12 @@ and what is still planned. Design background is in `03-spotify-id.md`. Last upda
 
 Every run that changes something is archived; `musicman logs` lists runs and `musicman logs latest` shows the
 last one.
+
+## Scope
+
+`sync.scope` (a filter in view/search syntax) limits sync to some songs; the config sets `rating:4.5`. Songs
+outside it are never matched, pushed, pruned, tagged from Spotify, or downloaded, wherever they are on
+Spotify. Leave it empty to sync every song.
 
 ## Before the first run
 
@@ -55,6 +61,9 @@ musicman sync                     # refreshes the Spotify cache and shows the pl
 musicman sync --push --dry-run    # what would be added
 musicman sync --push              # adds after a confirmation
 ```
+
+- Before changing anything, every push saves Liked Songs and the mapped playlists as they were to
+  `.musicman/spotify/<time>.json` in the music directory (backed up by `sync --backup`).
 
 - `--prune` also removes tracks whose tags changed locally so they no longer belong. It never removes a
   track added on Spotify; those are pulled into tags instead (see the two-way section).
@@ -124,6 +133,17 @@ Files (from `03-spotify-id.md`; TODO items `sync --push export` and `Verify push
 Open question to check first: whether every subfolder must be added as its own Local Files source and can be
 toggled on its own. Local files only play on other devices on the same network that have the playlist
 downloaded.
+
+## Backing up the library files
+
+```sh
+musicman sync --backup --dry-run  # what would be copied, updated, held back, and moved aside
+musicman sync --backup            # mirrors mpd.baseDirectory to backup.directory after a confirmation
+```
+
+- Files only in the backup are moved to `<backup>/.musicman-removed/<date>/`, never deleted.
+- A file is held back when its backup copy has tag frames with data that the library copy lacks (this is how
+  frames lost on 2026-10-21 were found and restored); `--force` takes the library version anyway.
 
 ## When something goes wrong
 

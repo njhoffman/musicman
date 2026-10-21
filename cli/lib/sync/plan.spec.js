@@ -147,6 +147,18 @@ describe('Sync Cache and Plan', () => {
       expect(ids(liked.add, 'trackId')).to.deep.equal(['tb']);
     });
 
+    it('should leave songs outside sync.scope alone where they are on Spotify', () => {
+      synced(['ta', 'tc']);
+      const scoped = songs.map(song =>
+        song.file === '/music/c.mp3' ? { ...song, outOfScope: true } : song
+      );
+      const [liked] = syncPlan(db, config, scoped);
+      // c is on Spotify and was in sync, but outside the scope it is neither pruned nor pulled
+      expect(liked.prune).to.be.empty;
+      expect(liked.spotifyAdded).to.be.empty;
+      expect(ids(liked.pull, 'track_id')).to.deep.equal(['elsewhere']);
+    });
+
     it('should record the agreed tracks and keep unresolved changes as they were', () => {
       const stored = () =>
         ids(db.prepare('SELECT track_id FROM spotify_synced ORDER BY track_id').all(), 'track_id');

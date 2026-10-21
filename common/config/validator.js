@@ -42,6 +42,7 @@ const configSchema = {
     type: 'object',
     properties: {
       likedRating: { type: 'number', min: 0, required: false },
+      scope: { type: 'string', required: false },
       playlists: { type: 'array', required: false },
       uploadDirectory: { type: 'string', required: false },
       downloadDirectory: { type: 'string', required: false },

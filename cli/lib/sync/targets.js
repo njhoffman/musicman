@@ -7,22 +7,37 @@ const parseFilters = require('../parser/options/filters.js');
 // Liked Songs is kept like a playlist under this id
 const likedId = 'liked';
 
+// filter function for [file, metadata] from view/search filter syntax, e.g. grouping:IndieRock.Artists
+const filterMatcher = (filter, config) =>
+  filterFiles(parseFilters(filter.split(/\s+(?=~?[\w]+:)/), config, 'sync'));
+
 // playlist targets from sync.playlists, each with a filter function for [file, metadata]
 const playlistTargets = config =>
   _.map(_.get(config, 'sync.playlists', []), ({ filter, playlist }) => ({
     id: parsePlaylistId(playlist),
     filter,
-    matches: filterFiles(parseFilters(filter.split(/\s+(?=~?[\w]+:)/), config, 'sync'))
+    matches: filterMatcher(filter, config)
   }));
+
+// whether a song takes part in sync at all: songs matching sync.scope, every song without one
+const scopeMatcher = config => {
+  const scope = `${_.get(config, 'sync.scope') || ''}`.trim();
+  return scope ? filterMatcher(scope, config) : () => true;
+};
 
 /**
  * The Spotify targets (Liked Songs and mapped playlists) each song belongs in, for [file, metadata]
- * pairs. Songs rated at least sync.likedRating belong in Liked Songs.
+ * pairs. Songs rated at least sync.likedRating belong in Liked Songs. Songs outside sync.scope belong
+ * nowhere and are marked outOfScope, so sync leaves them alone in both directions.
  */
 const songTargets = (songs, config) => {
   const likedRating = _.get(config, 'sync.likedRating', 4.5);
   const playlists = playlistTargets(config);
+  const inScope = scopeMatcher(config);
   return _.map(songs, ([file, meta]) => {
+    if (!inScope([file, meta])) {
+      return { file, meta, targets: [], outOfScope: true };
+    }
     const targets = _.map(
       _.filter(playlists, ({ matches }) => matches([file, meta])),
       'id'
@@ -34,4 +49,4 @@ const songTargets = (songs, config) => {
   });
 };
 
-module.exports = { likedId, playlistTargets, songTargets };
+module.exports = { likedId, playlistTargets, scopeMatcher, songTargets };
