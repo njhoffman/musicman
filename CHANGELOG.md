@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.21.2](https://github.com/njhoffman/musicman/compare/v1.21.1...v1.21.2) (2026-10-21)
+
+
+### Bug Fixes
+
+* reject words sync and sort do not take instead of ignoring them ([33c2d07](https://github.com/njhoffman/musicman/commit/33c2d07e4495584cf213e305703cb07141851ae2))
+
 ### [1.21.1](https://github.com/njhoffman/musicman/compare/v1.21.0...v1.21.1) (2026-10-21)
 
 
