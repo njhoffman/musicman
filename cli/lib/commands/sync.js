@@ -16,7 +16,7 @@ const { pushPlan } = require('../sync/push.js');
 const { buildManifest, writeManifest } = require('../sync/pull.js');
 const { renderColumns } = require('../output/render.js');
 const { progressBar } = require('../output/progress.js');
-const { formatSongResult, formatUnassigned } = require('../output/sync.js');
+const { formatSongResult, formatUnassigned, matchCounts } = require('../output/sync.js');
 const { dim, emitFormatted } = require('../output/emit.js');
 const { outputFormat } = require('../output/formats.js');
 const { previewCommand } = require('../output/fzf.js');
@@ -230,13 +230,15 @@ const runMatch = async ({ credentials, file, fetchImpl, config, dryRun, refresh 
       beetsIds: readBeetsSpotifyIds(config.sync.beetsConfig),
       dryRun,
       refresh,
-      onProgress: ({ done, total, match, refresh: refreshed, review, missing, failed }) =>
+      onProgress: ({ done, total, ...counts }) =>
         logger.progress(
           progressBar({
             done,
             total,
             startedAt,
-            detail: `${match} matched, ${refreshed} refreshed, ${review} review, ${missing} missing, ${failed} failed`
+            label: 'Matching',
+            unit: 'songs',
+            detail: matchCounts(counts)
           })
         ),
       onSong: (status, item, result) =>

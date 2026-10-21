@@ -33,7 +33,9 @@ const formatProgress = ({ done, total, added, updated, moved }, startedAt) =>
     done,
     total,
     startedAt,
-    detail: `files, ${added + updated + moved} entries updated`
+    label: 'Updating',
+    unit: 'files',
+    detail: chalk.hex('#888899')(`${added + updated + moved} entries updated`)
   });
 
 const outputUpdateSummary = summary =>

@@ -2,6 +2,7 @@ const _ = require('lodash');
 const chalk = require('chalk').default;
 
 const { availableWidth, stripAnsi } = require('../utils/logger.js');
+const { coloredCounts } = require('./progress.js');
 
 const statusColors = {
   match: '#55CC55',
@@ -121,4 +122,14 @@ const formatUnassigned = unassigned =>
     ([fieldPath, count]) => `  ${fieldPath} (${count} ${count === 1 ? 'song' : 'songs'})`
   ).join('\n');
 
-module.exports = { durationDiff, formatSongResult, formatUnassigned };
+// counts for the sync --match status line, in the colors of the per-song statuses
+const matchCounts = ({ match, refresh, review, missing, failed }) =>
+  coloredCounts([
+    [match, 'matched', statusColors.match],
+    [refresh, 'refreshed', statusColors.refresh],
+    [review, 'review', statusColors.review],
+    [missing, 'missing', statusColors.missing],
+    [failed, 'failed', statusColors.failed]
+  ]);
+
+module.exports = { durationDiff, formatSongResult, formatUnassigned, matchCounts, statusColors };

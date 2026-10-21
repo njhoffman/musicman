@@ -72,7 +72,7 @@ describe('Logger', () => {
       expect(consoleLog.args.map(([text]) => text)).to.deep.equal([' matched song.mp3', ' after']);
     });
 
-    it('should cut the status line to the terminal width without colors', () => {
+    it('should cut the status line to the terminal width and keep its colors', () => {
       process.stderr.isTTY = true;
       const originalColumns = process.stderr.columns;
       process.stderr.columns = 10;
@@ -82,7 +82,7 @@ describe('Logger', () => {
       } finally {
         process.stderr.columns = originalColumns;
       }
-      expect(write.firstCall.args[0]).to.equal('\r\x1b[K012345678');
+      expect(write.firstCall.args[0]).to.equal('\r\x1b[K\u001b[31m012345678\u001b[0m');
     });
 
     it('should not write anything when stderr is not a terminal', () => {

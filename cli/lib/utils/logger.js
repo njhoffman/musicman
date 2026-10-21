@@ -29,13 +29,36 @@ const stripAnsi = text => text.replace(/\u001b\[[0-9;]*m/g, '');
 // status line kept as a footer below log output, null when there is none
 let footer = null;
 
+// text cut to width visible characters, keeping its colors and resetting them at the cut
+const truncateAnsi = (text, width) => {
+  // eslint-disable-next-line no-control-regex
+  const escape = /\u001b\[[0-9;]*m/y;
+  let visible = 0;
+  let output = '';
+  for (let i = 0; i < text.length;) {
+    escape.lastIndex = i;
+    const match = escape.exec(text);
+    if (match) {
+      output += match[0];
+      i += match[0].length;
+    } else if (visible < width) {
+      output += text[i];
+      visible += 1;
+      i += 1;
+    } else {
+      break;
+    }
+  }
+  return `${output}\u001b[0m`;
+};
+
 // footer cut to the terminal width, a wrapped footer could not be redrawn in place
 const fitFooter = message => {
   const columns = process.stderr.columns || Infinity;
   if (stripAnsi(message).length < columns) {
     return message;
   }
-  return stripAnsi(message).slice(0, columns - 1);
+  return truncateAnsi(message, columns - 1);
 };
 
 const drawFooter = () => {
@@ -192,6 +215,7 @@ module.exports = {
   configureRunLog,
   logToFile,
   stripAnsi,
+  truncateAnsi,
   consoleLog,
   progress,
   progressDone,
