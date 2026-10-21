@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.16.0](https://github.com/njhoffman/musicman/compare/v1.15.0...v1.16.0) (2026-10-21)
+
+
+### Features
+
+* add the spotDL download script and sync --import ([35112b0](https://github.com/njhoffman/musicman/commit/35112b09995a659629855cbc48a45a27214e5f3a))
+* cache sync --match lookups in dry runs and save results per chunk ([98c9fbd](https://github.com/njhoffman/musicman/commit/98c9fbd8fbb27a1150624c7977177c3daefe9333))
+* color the sync --match and db --update status lines ([faa9081](https://github.com/njhoffman/musicman/commit/faa908154c815c9f900ce8a4f8a7088fa01b45bb))
+* scan the whole library recursively with stats when no target is given ([affe0bb](https://github.com/njhoffman/musicman/commit/affe0bb853aa648c4180825c09f4b5d6c6f27068))
+* stop sync --match at long Spotify rate limits and add --verbose ([a071485](https://github.com/njhoffman/musicman/commit/a071485796bb8f9ddcc0b8ff89c13faea5317749))
+
+
+### Bug Fixes
+
+* archive runs stopped by a closed terminal as interrupted ([f357bc0](https://github.com/njhoffman/musicman/commit/f357bc06d033b31169da2d1c3d325c0011dce43d))
+* pace the Spotify playlist refresh and push requests like the lookups ([eaed0e1](https://github.com/njhoffman/musicman/commit/eaed0e1ee843b9e23d59d0bc3a190ce37e6ff689))
+
 ## [1.15.0](https://github.com/njhoffman/musicman/compare/v1.14.0...v1.15.0) (2026-10-21)
 
 
