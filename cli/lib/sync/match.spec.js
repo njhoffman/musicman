@@ -280,7 +280,7 @@ describe('Spotify Id Matching', () => {
     });
   });
 
-  it('should not write files or the database in a dry run', async () => {
+  it('should cache lookups but not write files or song tags in a dry run', async () => {
     const before = fs.statSync(file('testFile01.mp3')).mtimeMs;
     const summary = await matchSongs({
       db,
@@ -292,7 +292,35 @@ describe('Spotify Id Matching', () => {
     });
     expect(summary).to.include({ match: 1, dryRun: true });
     expect(fs.statSync(file('testFile01.mp3')).mtimeMs).to.equal(before);
-    expect(db.prepare('SELECT COUNT(*) AS n FROM spotify_matches').get().n).to.equal(0);
+    expect(db.prepare('SELECT status, track_id, source FROM spotify_matches').all()).to.deep.equal([
+      { status: 'match', track_id: 'beets-id', source: 'beets' }
+    ]);
+    expect(
+      db.prepare("SELECT COUNT(*) AS n FROM song_tags WHERE frame_id = 'TXXX.sp_track_id'").get().n
+    ).to.equal(0);
+  });
+
+  it('should write a match cached by a dry run without searching again', async () => {
+    const searched = meta('testFile03.mp3');
+    const row = db.prepare('SELECT duration FROM songs WHERE path = ?').get('testFile03.mp3');
+    const answers = {
+      [`track:"${searched.title}" artist:"${searched.artist}"`]: [
+        track('search-id', searched.title, searched.artist, row.duration)
+      ]
+    };
+    await matchSongs({
+      db,
+      config,
+      client: fakeClient(answers),
+      songs: songs(['testFile03.mp3']),
+      dryRun: true
+    });
+    const client = fakeClient({}, { 'search-id': track('search-id', 'T', 'A', 1) });
+    const summary = await matchSongs({ db, config, client, songs: songs(['testFile03.mp3']) });
+    expect(summary).to.include({ match: 1, reused: 1 });
+    expect(summary.bySource).to.include({ search: 1 });
+    expect(client.queries).to.deep.equal(['/tracks?ids=search-id']);
+    expect(spotifyId('testFile03.mp3')).to.equal('search-id');
   });
 
   it('should stop at a long rate limit and skip the songs not looked up yet', async () => {

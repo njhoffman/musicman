@@ -87,7 +87,8 @@ module.exports = {
     func: () => ({ review: true })
   },
   'dry-run': {
-    description: 'Show what would change without writing files, the database, or Spotify',
+    description:
+      'Show what would change without writing files or Spotify (sync --match still caches its lookups)',
     alias: '-n',
     func: () => ({ dryRun: true })
   },

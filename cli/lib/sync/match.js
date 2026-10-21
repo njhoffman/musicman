@@ -93,7 +93,9 @@ const writeFields = (file, { custom, filled }) =>
  * one yet, and writes the spotify.fields of matched songs. Confident matches get TXXX.sp_track_id and
  * their fields; probable matches are kept for review; misses are remembered for recheckDays. Songs
  * that already have an id get their fields again when they were never fetched, are older than
- * refreshDays, or refresh is set. With dryRun nothing is written to files or the database.
+ * refreshDays, or refresh is set. Lookup results are cached in spotify_matches, also in a dry run, so a
+ * cached match is not searched for again; dryRun writes nothing else (no files, no song tags). Results
+ * are saved after every chunk of songs, so an interrupted run keeps what it did.
  *
  * onSong(status, item, result) is called once per looked up or refreshed song with status match,
  * review, missing, refresh, or failed, and result.writes ({ custom, filled, kept }) when fields were
@@ -118,7 +120,7 @@ const matchSongs = async ({
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
   const selectSong = db.prepare('SELECT id, duration FROM songs WHERE path = ?');
   const selectMatch = db.prepare(
-    'SELECT status, checked_at FROM spotify_matches WHERE song_id = ?'
+    'SELECT status, track_id, source, checked_at FROM spotify_matches WHERE song_id = ?'
   );
   const recheckBefore = daysAgo(now, recheckDays);
   const refreshBefore = daysAgo(now, refreshDays);
@@ -133,7 +135,8 @@ const matchSongs = async ({
     missing: 0,
     refresh: 0,
     failed: 0,
-    skipped: 0
+    skipped: 0,
+    reused: 0
   };
   const bySource = { beets: 0, isrc: 0, search: 0 };
   const unassigned = {};
@@ -165,6 +168,16 @@ const matchSongs = async ({
       return;
     }
     const cached = selectMatch.get(row.id);
+    // a match found before (e.g. by a dry run) is used without searching again
+    if (cached && cached.status === 'match' && cached.track_id) {
+      items.push({
+        file,
+        songId: row.id,
+        song,
+        cachedMatch: { id: cached.track_id, source: cached.source }
+      });
+      return;
+    }
     if (
       cached &&
       cached.status !== 'match' &&
@@ -188,7 +201,12 @@ const matchSongs = async ({
   };
 
   const found = [];
-  const written = [];
+  const upsert = db.prepare(
+    `INSERT INTO spotify_matches (song_id, status, track_id, source, candidate, checked_at)
+     VALUES (?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT (song_id) DO UPDATE SET status = excluded.status, track_id = excluded.track_id,
+       source = excluded.source, candidate = excluded.candidate, checked_at = excluded.checked_at`
+  );
   // a long rate limit stops the lookups, the songs after it are skipped
   let rateLimit = null;
   for (const chunk of _.chunk(items, chunkSize)) {
@@ -202,6 +220,15 @@ const matchSongs = async ({
       async item => {
         if (item.trackId) {
           return { item, status: 'refresh', candidate: { id: item.trackId } };
+        }
+        if (item.cachedMatch) {
+          counts.reused += 1;
+          return {
+            item,
+            status: 'match',
+            source: item.cachedMatch.source,
+            candidate: { id: item.cachedMatch.id }
+          };
         }
         if (rateLimit) {
           return { item, status: 'skipped' };
@@ -237,6 +264,8 @@ const matchSongs = async ({
       }
     }
 
+    const written = [];
+    const chunkFound = [];
     _.each(looked, result => {
       const { item, status } = result;
       if (status === 'skipped') {
@@ -248,7 +277,7 @@ const matchSongs = async ({
         return;
       }
       if (status !== 'refresh') {
-        found.push({ ...item, ...result });
+        chunkFound.push({ ...item, ...result });
       }
       if (!['match', 'refresh'].includes(status)) {
         finish(status, item, result);
@@ -285,20 +314,10 @@ const matchSongs = async ({
       }
       finish(status, item, { ...result, track: objects.track, writes });
     });
-  }
 
-  if (!dryRun) {
-    if (written.length > 0) {
-      await updateDatabase(db, { config, files: written, record: false });
-    }
-    const upsert = db.prepare(
-      `INSERT INTO spotify_matches (song_id, status, track_id, source, candidate, checked_at)
-       VALUES (?, ?, ?, ?, ?, datetime('now'))
-       ON CONFLICT (song_id) DO UPDATE SET status = excluded.status, track_id = excluded.track_id,
-         source = excluded.source, candidate = excluded.candidate, checked_at = excluded.checked_at`
-    );
+    // saved per chunk: the lookup cache always, the song tags only when files were written
     transaction(db, () =>
-      found.forEach(({ songId, status, source, candidate }) =>
+      chunkFound.forEach(({ songId, status, source, candidate }) =>
         upsert.run(
           songId,
           status,
@@ -308,6 +327,10 @@ const matchSongs = async ({
         )
       )
     );
+    found.push(...chunkFound);
+    if (written.length > 0) {
+      await updateDatabase(db, { config, files: written, record: false });
+    }
   }
 
   return {

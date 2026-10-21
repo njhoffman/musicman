@@ -258,11 +258,12 @@ const runMatch = async ({ credentials, file, fetchImpl, config, dryRun, refresh,
     const { bySource } = summary;
     logger.info(
       [
-        `Spotify ids ${dryRun ? '(dry run, nothing written)' : ''}`.trim(),
+        `Spotify ids ${dryRun ? '(dry run, only the lookups were cached)' : ''}`.trim(),
         `  songs for Liked Songs or playlists: ${summary.targets}`,
         `  already tagged: ${summary.tagged}, recently checked: ${summary.cached}`,
         `  not in database: ${summary.notInDatabase} (run musicman db --update)`,
-        `  matched: ${summary.match} (beets ${bySource.beets}, isrc ${bySource.isrc}, search ${bySource.search})`,
+        `  matched: ${summary.match} (beets ${bySource.beets}, isrc ${bySource.isrc}, search ${bySource.search}` +
+          `${summary.reused ? `; ${summary.reused} from earlier lookups` : ''})`,
         `  fields refreshed: ${summary.refresh}`,
         `  to review: ${summary.review} (musicman sync --review)`,
         `  not found: ${summary.missing}, failed: ${summary.failed}${
