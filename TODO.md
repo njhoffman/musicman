@@ -70,6 +70,18 @@ OVERDUE flag. Feature specs live in `docs/`.
       rightmost ones.
 - [ ] (p3) [feature] Honor `views.list.headers.visible` (currently ignored) and implement `views.table.seperators.horizontal`
       or remove it.
+- [ ] **Divider above the status line:** (p3) [feature] draw a dim full width rule above the footer progress line so it
+      stands apart from the log lines scrolling above it (redrawn with the footer, cut to the terminal width).
+- [ ] **Fetch missing artwork for singles:** (p2) [feature] find songs tagged as singles without an embedded cover (no
+      APIC frame) and embed one: the Spotify album image (from `sp_album_id`) first, then beets fetchart sources. Report
+      what was found and from where; `--dry-run` to preview. Decide whether this is its own command or part of `check
+      --fix`.
+- [ ] **Generate artwork when none can be found:** (p3) [feature] for singles still without a cover, generate one (e.g.
+      artist and title over a color derived from the grouping), clearly marked as generated so a real cover can replace
+      it later.
+- [ ] **Revisit running spotDL from musicman:** (p3) [feature] downloads run as a separate script (`pnpm download`)
+      because they are long, resumable, and against YouTube's terms. Decide whether the planned `download` command
+      should start spotDL itself; if it does, keep it resumable and keep the manifest as the record of what to fetch.
 
 ## Database (`docs/02-database.md`)
 
@@ -164,6 +176,21 @@ OVERDUE flag. Feature specs live in `docs/`.
       stricter rule fail it (45 rated 4.5+ and pushed on 2026-10-21). `sync --match --recheck` should move them to
       review without unlinking them; `sync --review` should accept (keep) or reject a match. A rejected track must be
       pruned from the playlists it was pushed to, not offered as a download, and the song looked up again.
+- [ ] **Guess the grouping of downloads:** (p2) [feature] for each track handed to spotDL, guess its grouping (genre) from
+      the library: groupings of the same artist's songs first, then songs whose Spotify artist genres overlap. Record the
+      guess (and why) in the manifest and download into a folder named after it, but never write it to the grouping
+      tag, whose presence marks a song as organized and rated.
+- [ ] **Assign the guessed grouping once a song is rated:** (p2) [feature] check whether beets can route imports into
+      `Unrated` by the absence of a rating instead of the absence of a grouping (a path query on a rating field, e.g.
+      through the types or mpdstats plugin). If it can, write the guessed grouping on import and let the rating decide
+      the folder; otherwise keep the guess out of the tag.
+- [ ] **`download` command:** (p2) [feature] search Spotify for artists and albums, pick results (fzf), add them to the
+      manifest, fetch them with spotDL (see "Revisit running spotDL from musicman"), and import them (the beets wrapping
+      `import` command), with the grouping guess above.
+- [ ] **`download --missing`:** (p2) [feature] scan the library for albums of wanted artists that are not in it and suggest
+      them. An artist with their own folder (`.../Artists/<artist>/`) means their full catalogue is wanted. Cache the
+      Spotify discographies so the check is quick, and say at the start of the command how much is missing, e.g.
+      "notice: 28 albums across 15 artists are not imported yet".
 
 ## Housekeeping
 
