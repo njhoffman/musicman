@@ -39,5 +39,6 @@ module.exports = {
   description: 'Write the files matching filters to an MPD playlist',
   usage: 'musicman playlist [target] [field:value ...] [-w name]',
   switches: ['recursive', 'norecursive', 'write', 'files'],
-  func: playlistCommand
+  func: playlistCommand,
+  archive: true
 };

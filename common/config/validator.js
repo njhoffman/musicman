@@ -212,6 +212,15 @@ const configSchema = {
           level: { type: 'string', enum: logLevels, required: false }
         },
         required: false
+      },
+      archive: {
+        type: 'object',
+        properties: {
+          directory: { type: 'string', required: false },
+          level: { type: 'string', enum: logLevels, required: false },
+          keep: { type: 'number', min: 1, required: false }
+        },
+        required: false
       }
     },
     required: false

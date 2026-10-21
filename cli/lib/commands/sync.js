@@ -322,6 +322,7 @@ module.exports = {
   usage: 'musicman sync [--login | --match | --review | --push [--prune] | --pull] [--dry-run]',
   switches: ['login', 'match', 'review', 'push', 'prune', 'pull', 'dry-run'],
   func: syncCommand,
+  archive: ({ review }) => !review,
   defaultTarget,
   targetArgs: false
 };

@@ -3,6 +3,7 @@ const chalk = require('chalk').default;
 const logger = require('../utils/logger.js');
 
 const { availableWidth, consoleLog } = logger;
+const { progressBar } = require('./progress.js');
 const { renderKeyValues } = require('./render.js');
 
 const title = text => chalk.hex('#8888FF')(text);
@@ -27,13 +28,13 @@ const formatUpdateCounts = ({ target, added, updated, moved, removed }) =>
 const formatDuration = seconds => `${Math.round(seconds / 60)} min`;
 
 // progress bar line for db --update
-const formatProgress = ({ done, total, added, updated, moved }, width = 30) => {
-  const ratio = total > 0 ? done / total : 1;
-  const filled = Math.round(ratio * width);
-  return `[${'#'.repeat(filled)}${'-'.repeat(width - filled)}] ${Math.floor(
-    ratio * 100
-  )}% ${done}/${total} files, ${added + updated + moved} entries updated`;
-};
+const formatProgress = ({ done, total, added, updated, moved }, startedAt) =>
+  progressBar({
+    done,
+    total,
+    startedAt,
+    detail: `files, ${added + updated + moved} entries updated`
+  });
 
 const outputUpdateSummary = summary =>
   logger.info(

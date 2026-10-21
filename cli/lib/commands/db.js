@@ -43,10 +43,11 @@ const logBackup = backup => {
 const runUpdate = async (db, { config, target }) => {
   logBackup(backupIfDue(db, config));
   logger.info(`Updating database from ${target}`);
+  const startedAt = new Date();
   const summary = await updateDatabase(db, {
     config,
     target,
-    onProgress: progress => logger.progress(formatProgress(progress)),
+    onProgress: progress => logger.progress(formatProgress(progress, startedAt)),
     onFile: (action, file, detail) =>
       action === 'failed'
         ? logger.warn(`failed  ${file}: ${detail}`)
@@ -98,5 +99,6 @@ module.exports = {
   usage: 'musicman db [--update [target]] [--backup]',
   switches: ['update', 'backup'],
   func: dbCommand,
+  archive: ({ update, backup }) => update || backup,
   defaultTarget
 };

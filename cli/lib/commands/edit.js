@@ -62,5 +62,6 @@ module.exports = {
   description: 'Write field=value assignments, or a rating number, to files',
   usage: 'musicman [edit] [target] field=value ... | musicman 4.5',
   switches: ['recursive', 'norecursive', 'files'],
-  func: editCommand
+  func: editCommand,
+  archive: true
 };

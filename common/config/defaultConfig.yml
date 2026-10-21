@@ -226,3 +226,12 @@ logger:
     name: musicman.log
     # Most detailed level written to the log file: error, warn, info, debug, or trace
     level: debug
+  # Archive of runs of commands that change something (edit, playlist, sort, db --update or --backup,
+  # sync except --review): one <run id>.log and <run id>.json report each, viewed with musicman logs
+  archive:
+    # Directory for archived runs, defaults to $XDG_STATE_HOME/musicman/logs
+    directory:
+    # Most detailed level written to the run log: error, warn, info, debug, or trace
+    level: debug
+    # Number of runs kept for each command, older runs are deleted
+    keep: 200

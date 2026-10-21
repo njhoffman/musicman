@@ -70,6 +70,11 @@ const buildConfig = ({
     config.logger.file.name = path.isAbsolute(logFileName) ? logFileName : libraryFile(logFileName);
   }
 
+  const archiveDirectory = expandHome(_.get(config, 'logger.archive.directory'));
+  if (archiveDirectory) {
+    config.logger.archive.directory = archiveDirectory;
+  }
+
   const { tags, missing } = resolveLibraryTags(config);
   config.library.tags = tags;
   errors.push(...validateLibrary(config, missing));

@@ -49,6 +49,42 @@ describe('Logger', () => {
       expect(write.secondCall.args[0]).to.equal('\r\x1b[K');
     });
 
+    it('should keep the status line below messages logged while it is shown', () => {
+      process.stderr.isTTY = true;
+      const { NODE_ENV } = process.env;
+      const consoleLog = sinon.stub(console, 'log');
+      try {
+        process.env.NODE_ENV = 'development';
+        logger.progress('Matching 1/2 songs');
+        logger.consoleLog('matched song.mp3');
+        logger.progressDone();
+        logger.consoleLog('after');
+      } finally {
+        process.env.NODE_ENV = NODE_ENV;
+        consoleLog.restore();
+      }
+      expect(write.args.map(([text]) => text)).to.deep.equal([
+        '\r\x1b[KMatching 1/2 songs',
+        '\r\x1b[K',
+        '\r\x1b[KMatching 1/2 songs',
+        '\r\x1b[K'
+      ]);
+      expect(consoleLog.args.map(([text]) => text)).to.deep.equal([' matched song.mp3', ' after']);
+    });
+
+    it('should cut the status line to the terminal width without colors', () => {
+      process.stderr.isTTY = true;
+      const originalColumns = process.stderr.columns;
+      process.stderr.columns = 10;
+      try {
+        logger.progress('\u001b[31m0123456789abc\u001b[39m');
+        logger.progressDone();
+      } finally {
+        process.stderr.columns = originalColumns;
+      }
+      expect(write.firstCall.args[0]).to.equal('\r\x1b[K012345678');
+    });
+
     it('should not write anything when stderr is not a terminal', () => {
       process.stderr.isTTY = false;
       logger.progress('Reading 1/2 files');
@@ -98,6 +134,21 @@ describe('Logger', () => {
       logger.configureLogFile({ name: logFile, level: 'debug' });
       expect(logger.logToFile('debug', 'added song.mp3')).to.be.undefined;
       expect(lines()[0]).to.match(/ DEBUG added song.mp3$/);
+    });
+
+    it('should also write messages to the run log at its own level', () => {
+      const runLog = path.join(directory, 'runs', 'run.log');
+      logger.configureLogFile({ name: logFile, level: 'info' });
+      logger.configureRunLog({ name: runLog, level: 'debug' });
+      logger.info('both');
+      logger.debug('run only');
+      logger.configureRunLog();
+      logger.info('main only');
+      expect(lines()).to.have.length(2);
+      expect(lines()[1]).to.match(/ INFO {2}main only$/);
+      const runLines = fs.readFileSync(runLog, 'utf8').trim().split('\n');
+      expect(runLines).to.have.length(2);
+      expect(runLines[1]).to.match(/ DEBUG run only$/);
     });
 
     it('should not write anything without a log file', () => {

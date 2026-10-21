@@ -73,6 +73,7 @@ module.exports = {
   usage: 'musicman sort [--dry-run]',
   switches: ['dry-run'],
   func: sortCommand,
+  archive: true,
   defaultTarget,
   targetArgs: false
 };

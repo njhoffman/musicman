@@ -5,6 +5,7 @@ const commandParser = require('./parser/index.js');
 const { getAvailableSong } = require('./clients/mpd.js');
 const { helpOutput } = require('./help.js');
 const logger = require('./utils/logger.js');
+const { archives, finishRun, startRun } = require('./utils/runs.js');
 const { version } = require('../../package.json');
 
 const pe = new PrettyError();
@@ -29,11 +30,26 @@ const run = async args => {
     throw new Error('No target specified, see musicman --help');
   }
 
-  await command.func({
-    target,
-    options: { ...options, commandName: command.name },
-    config
-  });
+  const run = archives(command, options.switches)
+    ? startRun({ command: command.name, args, config })
+    : null;
+  let result;
+  let error;
+  try {
+    result = await command.func({
+      target,
+      options: { ...options, commandName: command.name },
+      config
+    });
+  } catch (err) {
+    error = err;
+    logger.logToFile('error', err.stack || err.message);
+    throw err;
+  } finally {
+    if (run) {
+      finishRun(run, { config, result, error, exitCode: process.exitCode || 0 });
+    }
+  }
 };
 
 run(process.argv.slice(2));

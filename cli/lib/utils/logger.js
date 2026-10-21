@@ -10,8 +10,9 @@ const { logLevels } = require('musicman-common/config/validator');
 // position of a level name in logLevels (error, warn, info, debug, trace), higher is more detailed
 const levelIndex = name => logLevels.indexOf(name);
 
-// log file written by log messages, set by configureLogFile
-let logFile = null;
+// log files written by log messages: the appended main log (configureLogFile) and the log of the
+// current run (configureRunLog)
+const logFiles = { main: null, run: null };
 
 // level badge colors (logger.colors), defaults until configureColors is called with the loaded config
 let colors = _.get(defaultConfig, 'logger.colors', {});
@@ -22,10 +23,39 @@ let settings = _.pick(defaultConfig.output, ['padding', 'verbosity']);
 // terminal columns left after the left padding added by consoleLog, unlimited when not a terminal
 const availableWidth = () => (process.stdout.columns || Infinity) - settings.padding;
 
-// single updating status line on stderr, only shown when stderr is a terminal
+// eslint-disable-next-line no-control-regex
+const stripAnsi = text => text.replace(/\u001b\[[0-9;]*m/g, '');
+
+// status line kept as a footer below log output, null when there is none
+let footer = null;
+
+// footer cut to the terminal width, a wrapped footer could not be redrawn in place
+const fitFooter = message => {
+  const columns = process.stderr.columns || Infinity;
+  if (stripAnsi(message).length < columns) {
+    return message;
+  }
+  return stripAnsi(message).slice(0, columns - 1);
+};
+
+const drawFooter = () => {
+  if (footer !== null) {
+    process.stderr.write(`\r\x1b[K${fitFooter(footer)}`);
+  }
+};
+
+const clearFooter = () => {
+  if (footer !== null) {
+    process.stderr.write('\r\x1b[K');
+  }
+};
+
+// single updating status line on stderr, only shown when stderr is a terminal; log messages are
+// printed above it so it stays on the last line
 const progress = message => {
   if (process.stderr.isTTY) {
-    process.stderr.write(`\r\x1b[K${message}`);
+    footer = message;
+    drawFooter();
   }
 };
 
@@ -33,26 +63,32 @@ const progressDone = () => {
   if (process.stderr.isTTY) {
     process.stderr.write('\r\x1b[K');
   }
+  footer = null;
 };
 
 const configure = output => {
   settings = { ...settings, ..._.pick(output, ['padding', 'verbosity']) };
 };
 
+const openLogFile = (slot, { name, level = 'debug' } = {}) => {
+  if (logFiles[slot]) {
+    fs.closeSync(logFiles[slot].fd);
+    logFiles[slot] = null;
+  }
+  if (name) {
+    fs.mkdirSync(path.dirname(name), { recursive: true });
+    logFiles[slot] = { fd: fs.openSync(name, 'a'), level: levelIndex(level) };
+  }
+};
+
 /**
  * Appends log messages up to level (a logLevels name) to file, without colors and with a timestamp and
  * level. Called with no file to stop writing.
  */
-const configureLogFile = ({ name, level = 'debug' } = {}) => {
-  if (logFile) {
-    fs.closeSync(logFile.fd);
-    logFile = null;
-  }
-  if (name) {
-    fs.mkdirSync(path.dirname(name), { recursive: true });
-    logFile = { fd: fs.openSync(name, 'a'), level: levelIndex(level) };
-  }
-};
+const configureLogFile = options => openLogFile('main', options);
+
+// same as configureLogFile for the log archived with the current run, written alongside the main log
+const configureRunLog = options => openLogFile('run', options);
 
 // objects are wrapped at the terminal width, or 80 columns when not a terminal
 const inspectOptions = () => ({
@@ -80,17 +116,17 @@ const consoleLog = message => {
   }
 
   if (NODE_ENV !== 'test' && !NODE_TEST_LOG) {
+    clearFooter();
     console.log(parsed);
+    drawFooter();
   }
   return parsed;
 };
 /* eslint-enable no-console */
 
-// eslint-disable-next-line no-control-regex
-const stripAnsi = text => text.replace(/\u001b\[[0-9;]*m/g, '');
-
 const writeLogFile = (logLevel, message) => {
-  if (!logFile || logLevel > logFile.level) {
+  const files = _.filter(_.values(logFiles), file => file && logLevel <= file.level);
+  if (files.length === 0) {
     return;
   }
   const text = _.isString(message)
@@ -99,7 +135,7 @@ const writeLogFile = (logLevel, message) => {
   const line = `${new Date().toISOString()} ${logLevels[logLevel]
     .toUpperCase()
     .padEnd(5)} ${stripAnsi(text)}\n`;
-  fs.writeSync(logFile.fd, line);
+  files.forEach(file => fs.writeSync(file.fd, line));
 };
 
 // log file only, for detail that would flood the terminal (e.g. every file of a library update)
@@ -148,7 +184,9 @@ module.exports = {
   configure,
   configureColors,
   configureLogFile,
+  configureRunLog,
   logToFile,
+  stripAnsi,
   consoleLog,
   progress,
   progressDone,
