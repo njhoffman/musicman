@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.20.0](https://github.com/njhoffman/musicman/compare/v1.19.0...v1.20.0) (2026-10-21)
+
+
+### Features
+
+* view and playlist use the whole library when no directory is given ([d851d4a](https://github.com/njhoffman/musicman/commit/d851d4a0171dc0798d04cd870603a3c417eec117))
+
 ## [1.19.0](https://github.com/njhoffman/musicman/compare/v1.18.0...v1.19.0) (2026-10-21)
 
 
