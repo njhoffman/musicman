@@ -14,30 +14,30 @@ OVERDUE flag. Feature specs live in `docs/`.
       `String.replace`, which matches anywhere in the path. Use `path.relative`.
 - [x] **`edit` asks for confirmation before checking for zero matches** (p3): zero matches now report and
       return before a prompt is built; the prompt is only created when editing several files.
-- [ ] **`stats.filters` is never used.** (p3) The predefined filter sets in config ("All Songs > 4.0", ...) are
+- [ ] **`stats.filters` is never used.** (p3) [bug] The predefined filter sets in config ("All Songs > 4.0", ...) are
       validated but `commands/stats.js` does not compute them.
 - [x] **Logging levels use different scales.** `output.verbosity` (default `info`) and `logger.file.level`
       (default `debug`) now take level names (error, warn, info, debug, trace); the unused
       `logger.stdout.level` was removed.
 - [x] **Logger ignores `logger.colors`.** (p3) Terminal log lines now start with a level badge colored with
       the level's `fg`, `bg`, and `gui`; the log file is unchanged.
-- [ ] **Make the notify daemon testable.** (p3) `notify-daemon.js` runs on require; split notification building
+- [ ] **Make the notify daemon testable.** (p3) [refactor] `notify-daemon.js` runs on require; split notification building
       and sending from the MPD loop so `sendNotification` can be unit tested.
-- [ ] **Rename `seperators` to `separators`** (p3) in `views.table`, with a legacy-key error like the other
+- [ ] **Rename `seperators` to `separators`** (p3) [refactor] in `views.table`, with a legacy-key error like the other
       migrated options.
-- [ ] **Replace `bluebird`** (p3) with native promises (`Promise.map` concurrency via a small helper).
-- [ ] **Replace `prompt-confirm`** (p3) (unmaintained since 2017) with `@inquirer/confirm`.
-- [ ] **Vendored MPD client.** (p3) `common/mpd/MpdClient` is a local copy; evaluate a maintained client
+- [ ] **Replace `bluebird`** (p3) [refactor] with native promises (`Promise.map` concurrency via a small helper).
+- [ ] **Replace `prompt-confirm`** (p3) [refactor] (unmaintained since 2017) with `@inquirer/confirm`.
+- [ ] **Vendored MPD client.** (p3) [refactor] `common/mpd/MpdClient` is a local copy; evaluate a maintained client
       (e.g. `mpd-api`) instead of forking it.
-- [ ] **Move existing TODO comments here and remove them from code:** (p3) combine include/exclude filters (`metadata/filter.js`), memory overflow when
+- [ ] **Move existing TODO comments here and remove them from code:** (p3) [chore] combine include/exclude filters (`metadata/filter.js`), memory overflow when
       reading many files (`commands/common.js`), duration/size option for stats (`commands/stats.js`),
       zero-match handling in edit (`commands/edit.js`).
 
-- [ ] **`library.tagId` is not used.** (p3) Decided to stay on ID3v2.3 (all sampled files, beets `id3v23: true`,
+- [ ] **`library.tagId` is not used.** (p3) [chore] Decided to stay on ID3v2.3 (all sampled files, beets `id3v23: true`,
       and node-id3 all use v2.3); `year` now maps to `TYER`. `library.tagId` is set to `ID3v2.3` but nothing
       reads it. Either use it to pick v2.3/v2.4 frames for date tags or remove it. Revisit v2.4 only together
       with beets `id3v23: false` and a v2.4-capable writer.
-- [ ] **Clean up duplicate TXXX fields.** `stats` shows case and spelling variants of the same field
+- [ ] **Clean up duplicate TXXX fields.** (p2) [chore] `stats` shows case and spelling variants of the same field
       (`Comment`/`COMMENT`, `ALBUMARTISTS`/`ALBUM_ARTISTS`, `ARTISTS`/`Artists`) from different taggers.
       Decide which to keep and consolidate them, possibly through beets.
 
@@ -47,28 +47,28 @@ OVERDUE flag. Feature specs live in `docs/`.
       recommended, `eslint-plugin-n`, and `eslint-config-prettier`; Prettier 3 runs separately
       (`pnpm format`, `pnpm format:check`); airbnb, babel, eslint-watch, and the unused `common` ESLint
       dependencies removed.
-- [ ] **Test tooling:** (p3) mocha 12, chai 6, sinon 22, sinon-chai 4, nyc to c8. Clean up
+- [ ] **Test tooling:** (p3) [chore] mocha 12, chai 6, sinon 22, sinon-chai 4, nyc to c8. Clean up
       `.mocharc.yml` (it is the full example config with placeholder values).
-- [ ] **Release tooling:** (p3) `standard-version` is deprecated; switch to `commit-and-tag-version`.
-- [ ] **Commit hooks:** (p3) `husky` and `commitlint` are installed but not configured (no `.husky/`, no
+- [ ] **Release tooling:** (p3) [chore] `standard-version` is deprecated; switch to `commit-and-tag-version`.
+- [ ] **Commit hooks:** (p3) [chore] `husky` and `commitlint` are installed but not configured (no `.husky/`, no
       commitlint config). Either set them up or remove them. Decide between gitmoji and plain conventional
       commits; both configs are installed.
-- [ ] **`todos` script** (p3) points `leasot` at `.js` files and `server/`; update or remove.
-- [ ] **`cli/package.json` version is stale.** (p3) It says 1.2.0 while releases bump only the root
+- [ ] **`todos` script** (p3) [chore] points `leasot` at `.js` files and `server/`; update or remove.
+- [ ] **`cli/package.json` version is stale.** (p3) [chore] It says 1.2.0 while releases bump only the root
       `package.json` (1.13.0, shown by `musicman --version`). Remove the field or have releases bump it.
-- [ ] **Versioning:** (p3) root is 1.4.x, `cli` is 1.2.0, `common` is 1.0.0. Decide whether packages are versioned
+- [ ] **Versioning:** (p3) [chore] root is 1.4.x, `cli` is 1.2.0, `common` is 1.0.0. Decide whether packages are versioned
       independently or with the root.
 
 ## Testing
 
-- [ ] (p3) Tests for `utils/logger.js` verbosity levels and padding.
-- [ ] (p3) Tests for `notify-daemon` notification arguments after the refactor above.
+- [ ] (p3) [test] Tests for `utils/logger.js` verbosity levels and padding.
+- [ ] (p3) [test] Tests for `notify-daemon` notification arguments after the refactor above.
 
 ## Features
 
-- [ ] **Smarter terminal fitting** (p3) for the table view: shrink the widest columns instead of dropping the
+- [ ] **Smarter terminal fitting** (p3) [feature] for the table view: shrink the widest columns instead of dropping the
       rightmost ones.
-- [ ] (p3) Honor `views.list.headers.visible` (currently ignored) and implement `views.table.seperators.horizontal`
+- [ ] (p3) [feature] Honor `views.list.headers.visible` (currently ignored) and implement `views.table.seperators.horizontal`
       or remove it.
 
 ## Database (`docs/02-database.md`)
@@ -114,22 +114,22 @@ OVERDUE flag. Feature specs live in `docs/`.
 - [x] **Grouping playlists:** (p1) `sync --push` adds songs matching each `sync.playlists` filter to its
       playlist; `--prune` removes tracks whose song no longer matches. Playlist add/remove use the
       `/items` endpoints with a `/tracks` fallback, not yet verified against a real playlist.
-- [ ] **`sync --push` export:** export songs missing from Spotify to `sync.uploadDirectory`, one subfolder per
+- [ ] **`sync --push` export:** (p2) [feature] export songs missing from Spotify to `sync.uploadDirectory`, one subfolder per
       target playlist (hardlinks when possible), with a `README.md` checklist and printed summary. Verify first
       how Spotify desktop Local Files sources handle subfolders.
-- [ ] **Verify pushed local files:** on `sync`, read local tracks in the mapped playlists, report songs still
+- [ ] **Verify pushed local files:** (p2) [feature] on `sync`, read local tracks in the mapped playlists, report songs still
       missing, and remove completed ones from the export directory.
 - [x] **`sync --pull` manifest:** writes `manifest.json` to `sync.downloadDirectory` with each Spotify-only
       track's URL, its targets, and the tags those targets' filters imply (`--dry-run` to preview).
-- [ ] **spotDL download script:** download the manifest with spotDL using `{track-id}` in the output template;
+- [ ] **spotDL download script:** (p2) [feature] download the manifest with spotDL using `{track-id}` in the output template;
       reruns skip existing files.
-- [ ] **`sync --import`:** match downloads to the manifest by track id, write the Spotify id and playlist tags,
+- [ ] **`sync --import`:** (p2) [feature] match downloads to the manifest by track id, write the Spotify id and playlist tags,
       `beet import -s -q --quiet-fallback=asis -l <log>` into `Sorted/Unrated/_Singles`, report untaggable files,
       update the database.
 
 ## Housekeeping
 
-- [ ] (p3) Remove stale tracked files: `cli/test_output.txt`, `cli/test_output2.txt`, `cli/SESSION_SUMMARY.md`,
+- [ ] (p3) [chore] Remove stale tracked files: `cli/test_output.txt`, `cli/test_output2.txt`, `cli/SESSION_SUMMARY.md`,
       `cli/CONTEXT.md` (superseded by root `CONTEXT.md`).
-- [ ] (p3) Remove or update the untracked repo copy of `.musicmanrc.yml` (old config format).
-- [ ] (p3) Update the stale "Current Session Context" section in `cli/CLAUDE.md`.
+- [ ] (p3) [chore] Remove or update the untracked repo copy of `.musicmanrc.yml` (old config format).
+- [ ] (p3) [docs] Update the stale "Current Session Context" section in `cli/CLAUDE.md`.
