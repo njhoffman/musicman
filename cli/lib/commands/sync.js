@@ -1,26 +1,30 @@
 const _ = require('lodash');
 const chalk = require('chalk').default;
 const fs = require('fs');
+const path = require('path');
 
 const Confirm = require('prompt-confirm');
 const { createClient } = require('../spotify/api.js');
 const { appTokenGetter, readTokens, userAccessToken } = require('../spotify/auth.js');
 const { getCredentials, missingCredentials, tokenPath } = require('../spotify/credentials.js');
 const { login } = require('../spotify/login.js');
-const { readBeetsSpotifyIds } = require('../spotify/beets.js');
+const { readBeetsConfig, readBeetsSpotifyIds } = require('../spotify/beets.js');
 const { matchSongs, reviewItems, spotifyIdFrame } = require('../sync/match.js');
 const { playlistTargets, songTargets } = require('../sync/targets.js');
 const { refreshCache } = require('../sync/cache.js');
 const { syncPlan } = require('../sync/plan.js');
 const { pushPlan } = require('../sync/push.js');
 const { buildManifest, writeManifest } = require('../sync/pull.js');
+const { downloadedFiles, manifestPath, readManifest } = require('../sync/download.js');
+const { importDownloads } = require('../sync/import.js');
+const { unsortedFolder } = require('../beets/sort.js');
 const { renderColumns } = require('../output/render.js');
 const { formatWait, progressBar } = require('../output/progress.js');
 const { formatSongResult, formatUnassigned, matchCounts } = require('../output/sync.js');
 const { dim, emitFormatted } = require('../output/emit.js');
 const { outputFormat } = require('../output/formats.js');
 const { previewCommand } = require('../output/fzf.js');
-const { backupIfDue, openLibrary } = require('../db/index.js');
+const { backupIfDue, openLibrary, updateDatabase } = require('../db/index.js');
 const { getFilteredFiles } = require('./common.js');
 const logger = require('../utils/logger.js');
 
@@ -295,6 +299,93 @@ const runMatch = async ({ credentials, file, fetchImpl, config, dryRun, refresh,
   }
 };
 
+// tag downloads from the manifest with their Spotify fields and playlist tags, then import with beets
+const runImport = async ({ credentials, fetchImpl, config, dryRun, confirm }) => {
+  const manifest = readManifest(config);
+  if (!manifest) {
+    throw new Error(`No manifest at ${manifestPath(config)}, run: musicman sync --pull`);
+  }
+  const beets = readBeetsConfig(config.sync.beetsConfig);
+  if (!beets) {
+    throw new Error(`No beets config at ${config.sync.beetsConfig} (sync.beetsConfig)`);
+  }
+  const files = downloadedFiles(config);
+  if (files.length === 0) {
+    logger.info(`No downloads in ${config.sync.downloadDirectory}, run: pnpm download`);
+    return { import: null };
+  }
+  const message = `Tag and import ${files.length} downloads with beets into ${unsortedFolder(
+    beets
+  )}/?`;
+  if (!dryRun && !(await confirm(message))) {
+    logger.info('Import cancelled');
+    return { import: null };
+  }
+  const db = dryRun ? null : openSyncLibrary(config);
+  try {
+    const beetsLog = path.join(config.sync.downloadDirectory, 'beets-import.log');
+    if (!dryRun) {
+      fs.rmSync(beetsLog, { force: true });
+    }
+    const label = (status, color) =>
+      chalk.hex(color)(status.padEnd(7)) + (dryRun ? chalk.hex('#777788').italic(' dry') : '');
+    const summary = await importDownloads({
+      config,
+      client: createClient({
+        getToken: appTokenGetter(credentials, { fetchImpl }),
+        fetchImpl,
+        requestsPerSecond: _.get(config, 'spotify.requestsPerSecond')
+      }),
+      manifest,
+      files,
+      beetsLog,
+      dryRun,
+      onFile: (status, item, detail) =>
+        status === 'unknown'
+          ? logger.warn(`${label('SKIP', '#DD7744')} ${path.basename(item.file)}: ${detail}`)
+          : logger.info(
+              [
+                label('TAG', '#55CC55'),
+                `${item.entry.artists} - ${item.entry.name}`,
+                chalk.hex('#55AA77')(`+${detail.custom.length} fields`),
+                detail.filled.length > 0 && chalk.hex('#5599BB')(`~${detail.filled.length} filled`),
+                dim(_.map(detail.playlist, ({ name, value }) => `${name}:${value}`).join(' '))
+              ]
+                .filter(Boolean)
+                .join(' ')
+            )
+    });
+    if (summary.detailsError) {
+      logger.warn(
+        `Spotify fields could not be fetched (${summary.detailsError}), the downloads got their ids ` +
+          'and playlist tags; sync --match fills the fields later'
+      );
+    }
+    if (!dryRun) {
+      writeManifest(config, manifest);
+      const update = await updateDatabase(db, {
+        config,
+        target: path.join(config.mpd.baseDirectory, unsortedFolder(beets))
+      });
+      logger.info(`Database: ${update.added} added, ${update.updated} updated`);
+    }
+    logger.info(
+      [
+        `Import ${dryRun ? '(dry run, nothing written)' : ''}`.trim(),
+        `  downloads tagged: ${summary.tagged}, imported by beets: ${summary.imported}`,
+        `  without a MusicBrainz match (imported as is): ${summary.asis.length}`,
+        `  skipped by beets: ${summary.skipped.length}, not in the manifest: ${summary.unknown.length}`
+      ].join('\n')
+    );
+    _.each(summary.skipped, file => logger.warn(`beets skipped ${file}`));
+    return { import: summary };
+  } finally {
+    if (db) {
+      db.close();
+    }
+  }
+};
+
 const runReview = ({ config, switches = {} }) => {
   const db = openSyncLibrary(config);
   try {
@@ -380,6 +471,15 @@ const syncCommand = async ({
         verbose: Boolean(switches.verbose)
       });
     }
+    if (switches.import) {
+      return await runImport({
+        credentials,
+        fetchImpl,
+        config,
+        dryRun: Boolean(switches.dryRun),
+        confirm: confirm || confirmPrompt
+      });
+    }
     if (switches.review) {
       return runReview({ config, switches });
     }
@@ -411,7 +511,7 @@ module.exports = {
   name: 'sync',
   description: 'Sync Liked Songs and playlists with Spotify; without switches, show the plan',
   usage:
-    'musicman sync [--login | --match [--refresh] [--verbose] | --review | --push [--prune] | --pull] [--dry-run]',
+    'musicman sync [--login | --match [--refresh] [--verbose] | --review | --push [--prune] | --pull | --import] [--dry-run]',
   switches: [
     'login',
     'match',
@@ -421,6 +521,7 @@ module.exports = {
     'push',
     'prune',
     'pull',
+    'import',
     'dry-run',
     'format',
     'fzf'

@@ -102,6 +102,12 @@ module.exports = {
     alias: '-d',
     func: () => ({ pull: true })
   },
+  import: {
+    description:
+      'Tag the downloads of the sync --pull manifest with their Spotify fields and playlist tags, then import them with beets',
+    alias: '-I',
+    func: () => ({ import: true })
+  },
   prune: {
     description: 'With --push, also remove tracks whose song no longer belongs in the playlist',
     alias: '-X',

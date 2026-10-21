@@ -121,11 +121,14 @@ OVERDUE flag. Feature specs live in `docs/`.
       missing, and remove completed ones from the export directory.
 - [x] **`sync --pull` manifest:** writes `manifest.json` to `sync.downloadDirectory` with each Spotify-only
       track's URL, its targets, and the tags those targets' filters imply (`--dry-run` to preview).
-- [ ] **spotDL download script:** (p2) [feature] download the manifest with spotDL using `{track-id}` in the output template;
-      reruns skip existing files.
-- [ ] **`sync --import`:** (p2) [feature] match downloads to the manifest by track id, write the Spotify id and playlist tags,
-      `beet import -s -q --quiet-fallback=asis -l <log>` into `Sorted/Unrated/_Singles`, report untaggable files,
-      update the database.
+- [x] **spotDL download script:** (p2) [feature] `pnpm download` (in `cli/`) downloads the manifest with spotDL using
+      `{track-id}` in the output template; reruns skip downloaded and imported tracks.
+- [x] **`sync --import`:** (p2) [feature] matches downloads to the manifest by track id, writes the Spotify fields,
+      empty standard tags, and playlist tags, runs `beet import -s -q --quiet-fallback=asis -l <log>` into
+      `Sorted/Unrated/_Singles`, reports files imported as is or skipped, marks them imported in the manifest, and
+      updates the database.
+- [ ] **Verify `sync --pull`, `pnpm download`, and `sync --import` end to end** (p2) [test] on a real manifest once
+      the Spotify rate limit lifts; only the beets step was checked against real beets (2026-10-21).
 
 ## Housekeeping
 
