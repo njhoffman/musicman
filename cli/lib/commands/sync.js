@@ -30,10 +30,15 @@ const logger = require('../utils/logger.js');
 
 const credentialSource = (env, name) => (env[name] ? 'environment' : 'config');
 
-const userClient = ({ credentials, file, fetchImpl }) =>
-  createClient({ getToken: () => userAccessToken({ credentials, file, fetchImpl }), fetchImpl });
+// requests for the user (playlists, Liked Songs), paced like the lookups so a push is not rate limited
+const userClient = ({ credentials, file, fetchImpl, config }) =>
+  createClient({
+    getToken: () => userAccessToken({ credentials, file, fetchImpl }),
+    fetchImpl,
+    requestsPerSecond: _.get(config, 'spotify.requestsPerSecond')
+  });
 
-const runLogin = async ({ credentials, file, fetchImpl, open }) => {
+const runLogin = async ({ credentials, file, fetchImpl, open, config }) => {
   await login({
     credentials,
     file,
@@ -43,7 +48,7 @@ const runLogin = async ({ credentials, file, fetchImpl, open }) => {
   });
   // the login is complete once the token is saved, looking up the user is only informational
   try {
-    const me = await userClient({ credentials, file, fetchImpl }).get('/me');
+    const me = await userClient({ credentials, file, fetchImpl, config }).get('/me');
     logger.info(`Logged in to Spotify as ${me.display_name || me.id}, token saved to ${file}`);
     return { user: me.id };
   } catch (err) {
@@ -54,7 +59,7 @@ const runLogin = async ({ credentials, file, fetchImpl, open }) => {
   }
 };
 
-const showStatus = async ({ credentials, file, fetchImpl, env }) => {
+const showStatus = async ({ credentials, file, fetchImpl, env, config }) => {
   logger.info(
     `Spotify app: client id from ${credentialSource(env, 'SPOTIFY_CLIENT_ID')}, redirect ${
       credentials.redirectUri
@@ -64,7 +69,7 @@ const showStatus = async ({ credentials, file, fetchImpl, env }) => {
     logger.info('Not logged in, run: musicman sync --login');
     return { loggedIn: false };
   }
-  const client = userClient({ credentials, file, fetchImpl });
+  const client = userClient({ credentials, file, fetchImpl, config });
   const me = await client.get('/me');
   logger.info(`Logged in as ${me.display_name || me.id}`);
   return { loggedIn: true, user: me.id, client };
@@ -458,7 +463,7 @@ const syncCommand = async ({
   try {
     const switches = _.get(options, 'switches', {});
     if (switches.login) {
-      return await runLogin({ credentials, file, fetchImpl, open });
+      return await runLogin({ credentials, file, fetchImpl, open, config });
     }
     if (switches.match) {
       return await runMatch({
@@ -483,7 +488,7 @@ const syncCommand = async ({
     if (switches.review) {
       return runReview({ config, switches });
     }
-    const status = await showStatus({ credentials, file, fetchImpl, env });
+    const status = await showStatus({ credentials, file, fetchImpl, env, config });
     if (!status.loggedIn) {
       return status;
     }
