@@ -56,6 +56,11 @@ module.exports = {
     alias: '-m',
     func: () => ({ match: true })
   },
+  refresh: {
+    description: 'With --match, fetch the Spotify fields of every matched song again',
+    alias: '-F',
+    func: () => ({ refresh: true })
+  },
   review: {
     description: 'List probable Spotify matches waiting for review',
     alias: '-R',

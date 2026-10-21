@@ -35,6 +35,17 @@ const run = async args => {
     : null;
   let result;
   let error;
+  // a run stopped with ctrl-c or a signal is still archived, as interrupted
+  const interrupt = signal => {
+    logger.progressDone();
+    logger.logToFile('warn', `Interrupted by ${signal}`);
+    finishRun(run, { config, interrupted: true, exitCode: 130 });
+    process.exit(130);
+  };
+  if (run) {
+    process.once('SIGINT', interrupt);
+    process.once('SIGTERM', interrupt);
+  }
   try {
     result = await command.func({
       target,
@@ -47,6 +58,8 @@ const run = async args => {
     throw err;
   } finally {
     if (run) {
+      process.removeListener('SIGINT', interrupt);
+      process.removeListener('SIGTERM', interrupt);
       finishRun(run, { config, result, error, exitCode: process.exitCode || 0 });
     }
   }

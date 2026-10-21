@@ -24,6 +24,22 @@ const resolveLibraryTags = (config) => {
   };
 };
 
+// frames written to every matched song, besides the spotify.fields mapping
+const spotifyFrames = [{ name: 'sp_track_id' }, { name: 'sp_fetched_at' }];
+
+// Spotify fields are tags named like their TXXX.<name> frame and always in library.tags, unless the
+// user config already defines a tag with that name
+const registerSpotifyTags = (config) => {
+  const spotifyTags = _.map(spotifyFrames.concat(_.get(config, 'spotify.fields') || []), ({ name, multi }) => ({
+    id: `TXXX.${name}`,
+    name,
+    ...(multi ? { multi: true } : {})
+  }));
+  const defined = new Set(_.map(config.tags, 'name'));
+  config.tags = (config.tags || []).concat(_.reject(spotifyTags, ({ name }) => defined.has(name)));
+  config.library.tags = _.uniq((config.library.tags || []).concat(_.map(spotifyTags, 'name')));
+};
+
 // merged config with all validation errors and warnings, nothing is reported or exited here
 const buildConfig = ({
   userConfigPath = getUserConfigPath(),
@@ -75,6 +91,7 @@ const buildConfig = ({
     config.logger.archive.directory = archiveDirectory;
   }
 
+  registerSpotifyTags(config);
   const { tags, missing } = resolveLibraryTags(config);
   config.library.tags = tags;
   errors.push(...validateLibrary(config, missing));

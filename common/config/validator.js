@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 const os = require('os');
+const globalTags = require('./tags.json');
 
 // Use console for logging since common doesn't have logger
 
@@ -52,7 +53,10 @@ const configSchema = {
     properties: {
       clientId: { type: 'string', required: false },
       clientSecret: { type: 'string', required: false },
-      redirectUri: { type: 'string', required: false }
+      redirectUri: { type: 'string', required: false },
+      refreshDays: { type: 'number', min: 1, required: false },
+      fields: { type: 'array', required: false },
+      ignore: { type: 'array', required: false }
     }
   },
   daemon: {
@@ -346,6 +350,19 @@ function validateConfig(config) {
     }
   });
 
+  const reservedFields = ['sp_track_id', 'sp_fetched_at'];
+  _.each(_.get(config, 'spotify.fields', []), (field, i) => {
+    if (!_.isPlainObject(field) || !_.isString(field.path) || !_.isString(field.name)) {
+      result.errors.push(`spotify.fields[${i}] must have a path and a name`);
+    } else if (!/^(track|album|artist)\./.test(field.path)) {
+      result.errors.push(`spotify.fields[${i}].path '${field.path}' must start with track., album., or artist.`);
+    } else if (!/^[\w-]+$/.test(field.name)) {
+      result.errors.push(`spotify.fields[${i}].name '${field.name}' can only contain letters, digits, _ and -`);
+    } else if (reservedFields.includes(field.name)) {
+      result.errors.push(`spotify.fields[${i}].name '${field.name}' is always written and cannot be mapped`);
+    }
+  });
+
   if (_.some(config.tags, (tag) => _.has(tag, 'tableOrder'))) {
     result.errors.push('tags[].tableOrder is no longer supported (column order is set by views.<format>.tags)');
   }
@@ -378,6 +395,20 @@ function validateLibrary(config, missingTags = []) {
   _.each(_.groupBy(libraryTags, 'id'), (tags, id) => {
     if (tags.length > 1) {
       errors.push(`Tags '${_.map(tags, 'name').join("', '")}' in library.tags share frame '${id}'`);
+    }
+  });
+
+  // Spotify fallbacks fill standard tags, custom fields are written by the mapping itself
+  const knownTags = _.uniqBy((config.tags || []).concat(globalTags), 'name');
+  _.each(_.get(config, 'spotify.fields', []), ({ name, fallback }) => {
+    if (!fallback) {
+      return;
+    }
+    const tag = _.find(knownTags, { name: fallback });
+    if (!tag) {
+      errors.push(`Fallback '${fallback}' of Spotify field '${name}' is not a tag in tags or tags.json`);
+    } else if (/^TXXX\./.test(tag.id)) {
+      errors.push(`Fallback '${fallback}' of Spotify field '${name}' must be a standard tag, not ${tag.id}`);
     }
   });
 

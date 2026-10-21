@@ -101,10 +101,14 @@ OVERDUE flag. Feature specs live in `docs/`.
       folder (from its default path) with a grouping that has a beets path rule, runs `beet update -m` for
       songs beets has and `beet import -s -q -A` for the others, then updates the database.
 - [x] **Spotify track ids:** (p1) `sync --match` (`--dry-run` to preview): beets ids, then ISRC, then scored
-      artist/title search; confident matches written as `TXXX.spotify_track_id`, probable ones listed by
+      artist/title search; confident matches written as `TXXX.sp_track_id`, probable ones listed by
       `sync --review`, misses rechecked after 30 days.
-- [ ] **Spotify audio features:** (p3) populate acousticness, danceability, energy, instrumentalness, key,
-      liveness, loudness, mode, speechiness, tempo, time_signature, valence, and other Spotify tags.
+- [x] **Spotify fields:** (p2) [feature] `sync --match` writes the `spotify.fields` mapping (track, album, and
+      artist fields) as `TXXX.sp_*` tags, fills empty standard tags from fallbacks, refreshes them after
+      `spotify.refreshDays` (or with `--refresh`), and reports response paths that are not mapped or ignored.
+- [ ] **Spotify audio features:** (p3) [feature] populate acousticness, danceability, energy, instrumentalness,
+      key, liveness, loudness, mode, speechiness, tempo, time_signature, valence. Blocked: `/audio-features`
+      and `/audio-analysis` return 403 for this app (checked 2026-10-20); needs another source.
 - [x] **Liked Songs:** (p1) `sync --push` saves every song rated at least `sync.likedRating` that has a
       Spotify id; `--prune` removes liked tracks whose song is now rated lower.
 - [x] **Grouping playlists:** (p1) `sync --push` adds songs matching each `sync.playlists` filter to its

@@ -78,7 +78,7 @@ describe('Sync Cache and Plan', () => {
     beforeEach(() => {
       const insertSong = db.prepare('INSERT INTO songs (path, mtime, size) VALUES (?, 1, 1)');
       const tag = db.prepare(
-        "INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, 'TXXX.spotify_track_id', ?)"
+        "INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, 'TXXX.sp_track_id', ?)"
       );
       [
         ['a.mp3', 'ta'],

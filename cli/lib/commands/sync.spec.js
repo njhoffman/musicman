@@ -144,7 +144,7 @@ describe('Sync Command', () => {
         "INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, 'POPM', '{\"rating\":255}')"
       ).run(lastInsertRowid);
       db.prepare(
-        "INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, 'TXXX.spotify_track_id', 'track-a')"
+        "INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, 'TXXX.sp_track_id', 'track-a')"
       ).run(lastInsertRowid);
       db.close();
       config.rating = { tag: 'POPM', max: 5 };

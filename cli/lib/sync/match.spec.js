@@ -1,3 +1,4 @@
+const _ = require('lodash');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -17,7 +18,7 @@ describe('Spotify Id Matching', () => {
   const songs = names => names.map(name => ({ file: file(name), meta: {}, targets: ['liked'] }));
   const spotifyId = name =>
     (NodeId3.read(file(name)).raw.TXXX || [])
-      .filter(t => t.description === 'spotify_track_id')
+      .filter(t => t.description === 'sp_track_id')
       .map(t => t.value)[0];
   const track = (id, name, artist, seconds) => ({
     id,
@@ -27,12 +28,18 @@ describe('Spotify Id Matching', () => {
     duration_ms: seconds * 1000
   });
 
-  // fake Web API client answering searches from a table of query -> tracks
-  const fakeClient = answers => {
+  // fake Web API client answering searches from a table of query -> tracks, and track, album, and
+  // artist batches from a table of id -> object
+  const fakeClient = (answers, objects = {}) => {
     const queries = [];
     return {
       queries,
       get: async url => {
+        const batch = url.match(/^\/(tracks|albums|artists)\?ids=(.*)$/);
+        if (batch) {
+          queries.push(url);
+          return { [batch[1]]: batch[2].split(',').map(id => objects[id] || null) };
+        }
         const query = new URL(`https://x${url}`).searchParams.get('q');
         queries.push(query);
         return { tracks: { items: answers[query] || [] } };
@@ -102,7 +109,7 @@ describe('Spotify Id Matching', () => {
     const stored = db
       .prepare(
         `SELECT value FROM song_tags t JOIN songs s ON s.id = t.song_id
-         WHERE s.path = ? AND t.frame_id = 'TXXX.spotify_track_id'`
+         WHERE s.path = ? AND t.frame_id = 'TXXX.sp_track_id'`
       )
       .get('testFile03.mp3');
     expect(stored.value).to.equal('search-id');
@@ -145,7 +152,12 @@ describe('Spotify Id Matching', () => {
 
   it('should skip songs that already have a Spotify id or no targets', async () => {
     NodeId3.update(
-      { userDefinedText: [{ description: 'spotify_track_id', value: 'existing' }] },
+      {
+        userDefinedText: [
+          { description: 'sp_track_id', value: 'existing' },
+          { description: 'sp_fetched_at', value: new Date().toISOString() }
+        ]
+      },
       file('testFile01.mp3')
     );
     await updateDatabase(db, { config, target: library });
@@ -158,6 +170,114 @@ describe('Spotify Id Matching', () => {
     });
     expect(summary).to.include({ targets: 1, tagged: 1 });
     expect(client.queries).to.be.empty;
+  });
+
+  describe('Spotify fields', () => {
+    const custom = name =>
+      Object.fromEntries(
+        (NodeId3.read(file(name)).raw.TXXX || []).map(t => [t.description, t.value])
+      );
+    const fullTrack = {
+      id: 'beets-id',
+      name: 'Spotify Title',
+      popularity: 61,
+      artists: [{ id: 'artist-1', name: 'Spotify Artist' }],
+      album: { id: 'album-1', name: 'Spotify Album' },
+      external_ids: { isrc: 'USABC0000001' }
+    };
+    const now = new Date('2026-10-20T10:00:00Z');
+
+    beforeEach(async () => {
+      config.tags = [{ id: 'TSRC', name: 'isrc_code' }];
+      config.spotify = {
+        fields: [
+          { path: 'track.name', name: 'sp_title', fallback: 'title' },
+          { path: 'track.popularity', name: 'sp_popularity' },
+          { path: 'track.external_ids.isrc', name: 'sp_isrc', fallback: 'isrc_code' },
+          { path: 'artist.genres[]', name: 'sp_genres', multi: true }
+        ],
+        ignore: ['album', 'artists', 'artist.id']
+      };
+    });
+
+    it('should write mapped fields and fill only empty standard tags', async () => {
+      const results = [];
+      const before = meta('testFile01.mp3');
+      const summary = await matchSongs({
+        db,
+        config,
+        client: fakeClient(
+          {},
+          { 'beets-id': fullTrack, 'artist-1': { id: 'artist-1', genres: ['rock'], popularity: 3 } }
+        ),
+        songs: songs(['testFile01.mp3']),
+        beetsIds: new Map([[file('testFile01.mp3'), 'beets-id']]),
+        now,
+        onSong: (status, item, result) => results.push([status, result.writes])
+      });
+      expect(custom('testFile01.mp3')).to.include({
+        sp_track_id: 'beets-id',
+        sp_fetched_at: '2026-10-20T10:00:00.000Z',
+        sp_title: 'Spotify Title',
+        sp_popularity: '61',
+        sp_isrc: 'USABC0000001',
+        sp_genres: 'rock'
+      });
+      // the title is kept, the empty ISRC is filled
+      expect(meta('testFile01.mp3').title).to.equal(before.title);
+      expect(NodeId3.read(file('testFile01.mp3')).raw.TSRC).to.equal('USABC0000001');
+      const [[status, writes]] = results;
+      expect(status).to.equal('match');
+      expect(_.map(writes.filled, 'name')).to.deep.equal(['isrc_code']);
+      expect(_.map(writes.kept, 'name')).to.deep.equal(['title']);
+      expect(summary.unassigned).to.deep.equal({ 'artist.popularity': 1 });
+    });
+
+    it('should refresh fields that were never fetched or are older than refreshDays', async () => {
+      const tag = (name, fetchedAt) =>
+        NodeId3.update(
+          {
+            userDefinedText: [
+              { description: 'sp_track_id', value: 'beets-id' },
+              ...(fetchedAt ? [{ description: 'sp_fetched_at', value: fetchedAt }] : [])
+            ]
+          },
+          file(name)
+        );
+      tag('testFile01.mp3', null);
+      tag('testFile02.mp3', '2026-09-01T00:00:00.000Z');
+      tag('testFile03.mp3', '2026-10-15T00:00:00.000Z');
+      await updateDatabase(db, { config, target: library });
+      const run = refresh =>
+        matchSongs({
+          db,
+          config,
+          client: fakeClient({}, { 'beets-id': fullTrack }),
+          songs: songs(['testFile01.mp3', 'testFile02.mp3', 'testFile03.mp3']),
+          now,
+          refresh,
+          dryRun: true
+        });
+      expect(await run(false)).to.include({ refresh: 2, tagged: 1, match: 0 });
+      expect(await run(true)).to.include({ refresh: 3, tagged: 0 });
+    });
+
+    it('should write the id alone when the track details cannot be fetched', async () => {
+      const results = [];
+      const summary = await matchSongs({
+        db,
+        config,
+        client: fakeClient({}, {}),
+        songs: songs(['testFile01.mp3']),
+        beetsIds: new Map([[file('testFile01.mp3'), 'beets-id']]),
+        onSong: (status, item, result) => results.push(result.error)
+      });
+      expect(summary).to.include({ match: 1 });
+      expect(
+        _.pickBy(custom('testFile01.mp3'), (value, key) => key.startsWith('sp_'))
+      ).to.deep.equal({ sp_track_id: 'beets-id' });
+      expect(results).to.deep.equal(['track beets-id not found on Spotify']);
+    });
   });
 
   it('should not write files or the database in a dry run', async () => {

@@ -107,7 +107,8 @@ const rateCandidate = (song, track, { isrc = false } = {}) => {
 };
 
 /**
- * Best of the candidate tracks for a song: { status: 'match' | 'review' | 'missing', candidate }.
+ * Best of the candidate tracks for a song: { status: 'match' | 'review' | 'missing', candidate, track }
+ * with the full Web API track when one qualifies.
  * Matches beat review candidates; ties go to the closest duration.
  */
 const bestCandidate = (song, tracks, options) => {
@@ -124,7 +125,7 @@ const bestCandidate = (song, tracks, options) => {
   );
   const best = _.sortBy(rated, [({ status }) => (status === 'match' ? 0 : 1), 'diff'])[0];
   return best
-    ? { status: best.status, candidate: candidateOf(best.track) }
+    ? { status: best.status, candidate: candidateOf(best.track), track: best.track }
     : { status: 'missing', candidate: null };
 };
 
@@ -146,6 +147,7 @@ const looseQuery = song =>
 
 module.exports = {
   bestCandidate,
+  candidateOf,
   looseQuery,
   normalizeTitle,
   primaryArtist,

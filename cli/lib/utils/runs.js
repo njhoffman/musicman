@@ -73,17 +73,19 @@ const pruneRuns = (directory, command, keep) => {
     .sort()
     .reverse();
   const removed = ids.slice(keep);
-  removed.forEach(id =>
-    _.each(runFiles(directory, id), file => fs.rmSync(file, { force: true }))
-  );
+  removed.forEach(id => _.each(runFiles(directory, id), file => fs.rmSync(file, { force: true })));
   return removed;
 };
 
 /**
- * Finishes an archived run: writes <id>.json with the command result (or error), stops the run log,
+ * Finishes an archived run: writes <id>.json with the command result (or error, or interrupted when
+ * stopped by a signal), stops the run log,
  * and removes the command's runs beyond logger.archive.keep.
  */
-const finishRun = (run, { config, result, error, exitCode = 0, now = new Date() }) => {
+const finishRun = (
+  run,
+  { config, result, error, exitCode = 0, interrupted = false, now = new Date() }
+) => {
   const report = {
     id: run.id,
     command: run.command,
@@ -91,7 +93,7 @@ const finishRun = (run, { config, result, error, exitCode = 0, now = new Date() 
     startedAt: run.startedAt.toISOString(),
     finishedAt: now.toISOString(),
     seconds: (now - run.startedAt) / 1000,
-    status: error || exitCode ? 'failed' : 'ok',
+    status: (interrupted && 'interrupted') || (error || exitCode ? 'failed' : 'ok'),
     exitCode: error && !exitCode ? 1 : exitCode,
     error: error ? error.message : undefined,
     result: serializable(result)

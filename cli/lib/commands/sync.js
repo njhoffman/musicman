@@ -14,6 +14,8 @@ const { syncPlan } = require('../sync/plan.js');
 const { pushPlan } = require('../sync/push.js');
 const { buildManifest, writeManifest } = require('../sync/pull.js');
 const { renderColumns } = require('../output/render.js');
+const { progressBar } = require('../output/progress.js');
+const { formatSongResult, formatUnassigned } = require('../output/sync.js');
 const { backupIfDue, openLibrary } = require('../db/index.js');
 const { getFilteredFiles } = require('./common.js');
 const logger = require('../utils/logger.js');
@@ -182,7 +184,7 @@ const librarySongs = async config =>
     config
   });
 
-const runMatch = async ({ credentials, file, fetchImpl, config, dryRun }) => {
+const runMatch = async ({ credentials, file, fetchImpl, config, dryRun, refresh }) => {
   const db = openSyncLibrary(config);
   try {
     const backup = dryRun ? null : backupIfDue(db, config);
@@ -190,6 +192,7 @@ const runMatch = async ({ credentials, file, fetchImpl, config, dryRun }) => {
       logger.info(`Backed up database to ${backup.file}`);
     }
     const songs = songTargets(await librarySongs(config), config);
+    const startedAt = new Date();
     const summary = await matchSongs({
       db,
       config,
@@ -198,17 +201,18 @@ const runMatch = async ({ credentials, file, fetchImpl, config, dryRun }) => {
       client: createClient({ getToken: appTokenGetter(credentials, { fetchImpl }), fetchImpl }),
       beetsIds: readBeetsSpotifyIds(config.sync.beetsConfig),
       dryRun,
-      onProgress: ({ done, total, match, review, missing }) =>
+      refresh,
+      onProgress: ({ done, total, match, refresh: refreshed, review, missing, failed }) =>
         logger.progress(
-          `Matching ${done}/${total} songs: ${match} matched, ${review} to review, ${missing} not found`
+          progressBar({
+            done,
+            total,
+            startedAt,
+            detail: `${match} matched, ${refreshed} refreshed, ${review} review, ${missing} missing, ${failed} failed`
+          })
         ),
-      onSong: (status, { file: songFile }, result) =>
-        logger.logToFile(
-          status === 'failed' ? 'warn' : 'debug',
-          `${status.padEnd(7)} ${songFile}${result.candidate ? ` -> ${result.candidate.id}` : ''}${
-            result.error ? `: ${result.error}` : ''
-          }`
-        )
+      onSong: (status, item, result) =>
+        logger[status === 'failed' ? 'warn' : 'info'](formatSongResult(status, item, result))
     });
     logger.progressDone();
     const { bySource } = summary;
@@ -219,10 +223,18 @@ const runMatch = async ({ credentials, file, fetchImpl, config, dryRun }) => {
         `  already tagged: ${summary.tagged}, recently checked: ${summary.cached}`,
         `  not in database: ${summary.notInDatabase} (run musicman db --update)`,
         `  matched: ${summary.match} (beets ${bySource.beets}, isrc ${bySource.isrc}, search ${bySource.search})`,
+        `  fields refreshed: ${summary.refresh}`,
         `  to review: ${summary.review} (musicman sync --review)`,
         `  not found: ${summary.missing}, failed: ${summary.failed}`
       ].join('\n')
     );
+    if (!_.isEmpty(summary.unassigned)) {
+      logger.warn(
+        `Spotify returned fields that are not written, add them to spotify.fields or spotify.ignore:\n${formatUnassigned(
+          summary.unassigned
+        )}`
+      );
+    }
     return { summary };
   } finally {
     db.close();
@@ -287,7 +299,8 @@ const syncCommand = async ({
         file,
         fetchImpl,
         config,
-        dryRun: Boolean(switches.dryRun)
+        dryRun: Boolean(switches.dryRun),
+        refresh: Boolean(switches.refresh)
       });
     }
     if (switches.review) {
@@ -319,8 +332,9 @@ const defaultTarget = baseDirectory => baseDirectory;
 module.exports = {
   name: 'sync',
   description: 'Sync Liked Songs and playlists with Spotify; without switches, show the plan',
-  usage: 'musicman sync [--login | --match | --review | --push [--prune] | --pull] [--dry-run]',
-  switches: ['login', 'match', 'review', 'push', 'prune', 'pull', 'dry-run'],
+  usage:
+    'musicman sync [--login | --match [--refresh] | --review | --push [--prune] | --pull] [--dry-run]',
+  switches: ['login', 'match', 'refresh', 'review', 'push', 'prune', 'pull', 'dry-run'],
   func: syncCommand,
   archive: ({ review }) => !review,
   defaultTarget,

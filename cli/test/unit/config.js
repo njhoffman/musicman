@@ -1,3 +1,4 @@
+const _ = require('lodash');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -112,7 +113,8 @@ describe('Config Tests', () => {
   describe('Library Tags Configuration', () => {
     it('should map library.tags to tag objects from user config first', () => {
       expect(configModule.library.tags).to.be.an('array');
-      expect(configModule.library.tags).to.have.length(7);
+      // the user config's 7 tags and the 2 Spotify frames every matched song gets
+      expect(configModule.library.tags).to.have.length(9);
 
       // Check that custom tags are included
       const tagNames = configModule.library.tags.map(tag => tag.name);
@@ -124,7 +126,13 @@ describe('Config Tests', () => {
 
     it('should fallback to global tags when tag not found in user config', () => {
       const config = loadConfig({}, { library: { tags: ['artist', 'title', 'album'] } });
-      expect(config.library.tags.map(t => t.name)).to.deep.equal(['artist', 'title', 'album']);
+      expect(config.library.tags.map(t => t.name)).to.deep.equal([
+        'artist',
+        'title',
+        'album',
+        'sp_track_id',
+        'sp_fetched_at'
+      ]);
     });
 
     it('should throw fatal error for undefined tags', () => {
@@ -189,6 +197,103 @@ describe('Config Tests', () => {
     });
   });
 
+  describe('Spotify Fields Configuration', () => {
+    const withFields = (fields, extra = {}) => ({
+      library: { tags: ['artist'] },
+      views: { table: { tags: [{ name: 'artist' }] }, list: { tags: [{ name: 'artist' }] } },
+      spotify: { fields },
+      ...extra
+    });
+
+    it('should register mapped fields as TXXX tags in library.tags', () => {
+      const config = loadConfig(
+        withFields([
+          { path: 'track.popularity', name: 'sp_popularity' },
+          { path: 'artist.genres[]', name: 'sp_genres', multi: true }
+        ])
+      );
+      expect(config.library.tags).to.deep.equal([
+        { id: 'TPE1', name: 'artist' },
+        { id: 'TXXX.sp_track_id', name: 'sp_track_id' },
+        { id: 'TXXX.sp_fetched_at', name: 'sp_fetched_at' },
+        { id: 'TXXX.sp_popularity', name: 'sp_popularity' },
+        { id: 'TXXX.sp_genres', name: 'sp_genres', multi: true }
+      ]);
+    });
+
+    it('should keep a user tag definition with the same name as a field', () => {
+      const config = loadConfig(
+        withFields([{ path: 'track.popularity', name: 'sp_popularity' }], {
+          tags: [{ id: 'TXXX.sp_popularity', name: 'sp_popularity', maxWidth: 4 }]
+        })
+      );
+      expect(_.find(config.library.tags, { name: 'sp_popularity' })).to.deep.equal({
+        id: 'TXXX.sp_popularity',
+        name: 'sp_popularity',
+        maxWidth: 4
+      });
+    });
+
+    it('should let views show mapped fields', () => {
+      const result = captureFatal(() =>
+        loadConfig(
+          withFields([{ path: 'track.popularity', name: 'sp_popularity' }], {
+            views: {
+              table: { tags: [{ name: 'sp_popularity' }, { name: 'sp_track_id' }] },
+              list: { tags: [{ name: 'artist' }] }
+            }
+          })
+        )
+      );
+      expect(result.exitCalled).to.be.false;
+    });
+
+    it('should reject fields without a path and name, an unknown source, or a reserved name', () => {
+      const result = captureFatal(() =>
+        loadConfig(
+          withFields([
+            { path: 'track.popularity' },
+            { path: 'playlist.name', name: 'sp_playlist' },
+            { path: 'track.name', name: 'sp title' },
+            { path: 'track.id', name: 'sp_track_id' }
+          ])
+        )
+      );
+      expect(result.exitCalled).to.be.true;
+      expect(result.messages.slice(0, 4)).to.deep.equal([
+        'Fatal error: spotify.fields[0] must have a path and a name',
+        "Fatal error: spotify.fields[1].path 'playlist.name' must start with track., album., or artist.",
+        "Fatal error: spotify.fields[2].name 'sp title' can only contain letters, digits, _ and -",
+        "Fatal error: spotify.fields[3].name 'sp_track_id' is always written and cannot be mapped"
+      ]);
+    });
+
+    it('should reject fallbacks that are unknown or custom tags', () => {
+      const result = captureFatal(() =>
+        loadConfig(
+          withFields(
+            [
+              { path: 'track.name', name: 'sp_title', fallback: 'nonexistent' },
+              { path: 'track.album.name', name: 'sp_album', fallback: 'context' }
+            ],
+            { tags: [{ id: 'TXXX.Context', name: 'context' }] }
+          )
+        )
+      );
+      expect(result.exitCalled).to.be.true;
+      expect(result.messages.slice(0, 2)).to.deep.equal([
+        "Fatal error: Fallback 'nonexistent' of Spotify field 'sp_title' is not a tag in tags or tags.json",
+        "Fatal error: Fallback 'context' of Spotify field 'sp_album' must be a standard tag, not TXXX.Context"
+      ]);
+    });
+
+    it('should validate the default mapping', () => {
+      const { defaultConfig } = require('musicman-common/config');
+      const { validateConfig } = require('../../../common/config/validator.js');
+      expect(validateConfig(defaultConfig).errors).to.deep.equal([]);
+    });
+  });
+
   describe('Views Configuration', () => {
     it('should have table and list views with tags', () => {
       expect(configModule.views).to.have.all.keys('table', 'list');
@@ -215,7 +320,11 @@ describe('Config Tests', () => {
         library: { tags: ['artist'] },
         views: { table: { tags: [{ name: 'artist' }] }, list: { tags: [{ name: 'artist' }] } }
       });
-      expect(config.library.tags.map(t => t.name)).to.deep.equal(['artist']);
+      expect(config.library.tags.map(t => t.name)).to.deep.equal([
+        'artist',
+        'sp_track_id',
+        'sp_fetched_at'
+      ]);
       expect(config.views.list.tags).to.deep.equal([{ name: 'artist' }]);
     });
 

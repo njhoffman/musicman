@@ -1,3 +1,5 @@
+const _ = require('lodash');
+
 const apiUrl = 'https://api.spotify.com/v1';
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -31,8 +33,11 @@ const createClient = ({
         const text = await res.text();
         const json = text ? JSON.parse(text) : null;
         if (!res.ok) {
+          const error = json && json.error;
+          // errors come as { error: { status, message } }, { error: 'code' }, or { message }
           const message =
-            (json && json.error && (json.error.message || json.error)) || (json && json.message);
+            (_.isPlainObject(error) ? error.message || JSON.stringify(error) : error) ||
+            (json && json.message);
           const err = new Error(
             `Spotify API ${method} ${url} failed (${res.status}): ${message || 'no details'}`
           );

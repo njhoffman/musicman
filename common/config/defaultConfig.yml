@@ -36,6 +36,65 @@ spotify:
   clientSecret:
   # Must match a redirect URI registered for the app
   redirectUri: http://127.0.0.1:6659/callback
+  # Days before the Spotify fields of matched songs (popularity changes) are fetched again
+  refreshDays: 30
+  # Spotify fields written to matched songs as custom TXXX.<name> frames, besides TXXX.sp_track_id and
+  # TXXX.sp_fetched_at. Each is also a tag with that name, added to library.tags. path starts with
+  # track, album (the track's full album), or artist (the track's first artist); [] collects every item
+  # of an array. multi stores one value per item, otherwise items are joined with separator (', ').
+  # fallback is a tag that gets the value only when the song has none, existing standard tags are never
+  # overwritten.
+  fields:
+  - { path: 'track.name', name: sp_title, fallback: title }
+  - { path: 'track.artists[].name', name: sp_artist, fallback: artist }
+  - { path: 'track.artists[].id', name: sp_artist_id, multi: true }
+  - { path: 'track.album.name', name: sp_album, fallback: album }
+  - { path: 'track.album.id', name: sp_album_id }
+  - { path: 'track.album.artists[].name', name: sp_album_artist, fallback: album_artist }
+  - { path: 'track.album.artists[].id', name: sp_album_artist_id, multi: true }
+  - { path: 'track.album.album_type', name: sp_album_type }
+  - { path: 'track.album.release_date', name: sp_release_date, fallback: year }
+  - { path: 'track.album.total_tracks', name: sp_total_tracks }
+  - { path: 'track.track_number', name: sp_track_number, fallback: track }
+  - { path: 'track.disc_number', name: sp_disc_number, fallback: disc }
+  - { path: 'track.duration_ms', name: sp_duration_ms }
+  - { path: 'track.explicit', name: sp_explicit }
+  - { path: 'track.popularity', name: sp_popularity }
+  - { path: 'track.external_ids.isrc', name: sp_isrc, fallback: isrc_code }
+  - { path: 'album.label', name: sp_label, fallback: publisher }
+  - { path: 'album.external_ids.upc', name: sp_upc }
+  - { path: 'album.copyrights[].text', name: sp_copyright, fallback: copyright, separator: '; ' }
+  - { path: 'album.popularity', name: sp_album_popularity }
+  - { path: 'album.genres[]', name: sp_album_genres, multi: true }
+  - { path: 'artist.genres[]', name: sp_genres, multi: true }
+  - { path: 'artist.popularity', name: sp_artist_popularity }
+  - { path: 'artist.followers.total', name: sp_artist_followers }
+  # Spotify response paths that are not written and not reported as unassigned. Entries with a dot are
+  # paths (and everything under them), others are keys ignored at any depth.
+  ignore:
+  - available_markets
+  - external_urls
+  - href
+  - images
+  - is_local
+  - is_playable
+  - preview_url
+  - release_date_precision
+  - restrictions
+  - linked_from
+  - type
+  - uri
+  - album.album_type
+  - album.artists
+  - album.copyrights[].type
+  - album.id
+  - album.name
+  - album.release_date
+  - album.total_tracks
+  - album.tracks
+  - artist.followers.href
+  - artist.id
+  - artist.name
 
 # Spotify sync settings
 sync:

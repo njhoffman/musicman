@@ -4,14 +4,7 @@ const path = require('path');
 const { expect } = require('chai');
 
 const logger = require('./logger.js');
-const {
-  archives,
-  finishRun,
-  listRuns,
-  pruneRuns,
-  runsDirectory,
-  startRun
-} = require('./runs.js');
+const { archives, finishRun, listRuns, pruneRuns, runsDirectory, startRun } = require('./runs.js');
 
 describe('Run archive', () => {
   let directory;
@@ -91,6 +84,14 @@ describe('Run archive', () => {
       expect(finishRun(exited, { config, exitCode: 2 })).to.include({
         status: 'failed',
         exitCode: 2
+      });
+    });
+
+    it('should mark a run stopped by a signal as interrupted', () => {
+      const run = startRun({ command: 'sync', args: [], config, now: startedAt });
+      expect(finishRun(run, { config, interrupted: true, exitCode: 130 })).to.include({
+        status: 'interrupted',
+        exitCode: 130
       });
     });
 
