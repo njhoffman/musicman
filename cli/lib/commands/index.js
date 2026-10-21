@@ -6,6 +6,7 @@ const dbCommand = require('./db.js');
 const searchCommand = require('./search.js');
 const syncCommand = require('./sync.js');
 const sortCommand = require('./sort.js');
+const logsCommand = require('./logs.js');
 
 module.exports = [
   viewCommand,
@@ -15,5 +16,6 @@ module.exports = [
   dbCommand,
   searchCommand,
   syncCommand,
-  sortCommand
+  sortCommand,
+  logsCommand
 ];
