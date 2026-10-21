@@ -26,6 +26,7 @@ describe('Database', () => {
         'spotify_matches',
         'spotify_playlist_tracks',
         'spotify_playlists',
+        'spotify_synced',
         'tags'
       ]);
       expect(db.prepare('PRAGMA user_version').get().user_version).to.equal(migrations.length);

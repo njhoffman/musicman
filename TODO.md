@@ -114,11 +114,10 @@ OVERDUE flag. Feature specs live in `docs/`.
 - [x] **Grouping playlists:** (p1) `sync --push` adds songs matching each `sync.playlists` filter to its
       playlist; `--prune` removes tracks whose song no longer matches. Playlist add/remove use the
       `/items` endpoints with a `/tracks` fallback, not yet verified against a real playlist.
-- [ ] **Pull Spotify-side changes to songs already in the library:** (p1) [feature] store each target's
-      membership after a push or pull, diff Spotify, the last synced state, and the local tags three ways, add or
-      remove multi value filter tags (context, picks) for changes made on Spotify, list grouping and Liked Songs
-      changes for a manual decision, and limit `--prune` to local changes. Until then `--prune` undoes playlist
-      changes made in the Spotify app (`docs/06-spotify-sync-runbook.md`).
+- [x] **Pull Spotify-side changes to songs already in the library:** (p1) [feature] every sync that is not a dry
+      run stores what each target and the tags agree on (`spotify_synced`); the plan compares Spotify, that state,
+      and the tags three ways. `sync --pull` adds or removes multi value filter tags (context, picks) for changes
+      made on Spotify and lists Liked Songs and grouping changes to decide; `--prune` only removes local changes.
 - [ ] **Verify `sync --push` against Spotify** (p2) [test] the first push to Liked Songs and a playlist (the
       `/items` endpoints and their `/tracks` fallback).
 - [ ] **`sync --push` export:** (p2) [feature] export songs missing from Spotify to `sync.uploadDirectory`, one subfolder per

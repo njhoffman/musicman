@@ -98,7 +98,8 @@ module.exports = {
     func: () => ({ push: true })
   },
   pull: {
-    description: 'Write a download manifest of Spotify tracks that are not in the library',
+    description:
+      'Write a download manifest of Spotify tracks that are not in the library, and tag songs added to or removed from playlists on Spotify',
     alias: '-d',
     func: () => ({ pull: true })
   },
@@ -109,7 +110,8 @@ module.exports = {
     func: () => ({ import: true })
   },
   prune: {
-    description: 'With --push, also remove tracks whose song no longer belongs in the playlist',
+    description:
+      'With --push, also remove tracks whose tags changed locally so they no longer belong (never changes made on Spotify)',
     alias: '-X',
     func: () => ({ prune: true })
   },

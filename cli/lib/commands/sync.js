@@ -12,7 +12,8 @@ const { readBeetsConfig, readBeetsSpotifyIds } = require('../spotify/beets.js');
 const { matchSongs, reviewItems, spotifyIdFrame } = require('../sync/match.js');
 const { playlistTargets, songTargets } = require('../sync/targets.js');
 const { refreshCache } = require('../sync/cache.js');
-const { syncPlan } = require('../sync/plan.js');
+const { recordSynced, syncPlan } = require('../sync/plan.js');
+const { membershipChanges } = require('../sync/membership.js');
 const { pushPlan } = require('../sync/push.js');
 const { buildManifest, writeManifest } = require('../sync/pull.js');
 const { downloadedFiles, manifestPath, readManifest } = require('../sync/download.js');
@@ -25,7 +26,12 @@ const { dim, emitFormatted } = require('../output/emit.js');
 const { outputFormat } = require('../output/formats.js');
 const { previewCommand } = require('../output/fzf.js');
 const { backupIfDue, openLibrary, updateDatabase } = require('../db/index.js');
-const { getFilteredFiles } = require('./common.js');
+const {
+  assignMetadata,
+  getFilteredFiles,
+  saveMetadata,
+  updateLibraryFiles
+} = require('./common.js');
 const logger = require('../utils/logger.js');
 
 const credentialSource = (env, name) => (env[name] ? 'environment' : 'config');
@@ -112,8 +118,59 @@ const runPush = async ({ db, client, config, plan, prune, dryRun, confirm }) => 
   return results;
 };
 
-// write the download manifest for tracks that are only on Spotify
-const runPull = ({ config, plan, dryRun }) => {
+// apply the playlist changes made on Spotify to songs in the library as tag changes
+const pullMembership = async ({ config, plan, dryRun, confirm }) => {
+  const { assignments, decide } = membershipChanges(plan, config);
+  const files = _.keys(assignments);
+  _.each(assignments, (fields, file) =>
+    logger.info(
+      `${chalk.hex('#55BBDD')('TAG    ')}${dryRun ? chalk.hex('#777788').italic(' dry ') : ' '}${chalk.hex(
+        '#55AA77'
+      )(
+        _.map(fields, (values, field) => values.map(value => `${field}:${value}`).join(' ')).join(
+          ' '
+        )
+      )} ${dim(path.relative(config.mpd.baseDirectory, file))}`
+    )
+  );
+  _.each(decide, ({ file, label, target, change }) =>
+    logger.warn(
+      `${chalk.hex('#DDCC44')('DECIDE ')} ${change} ${change === 'added' ? 'to' : 'from'} ${target} on Spotify: ${
+        file ? path.relative(config.mpd.baseDirectory, file) : label
+      }`
+    )
+  );
+  if (decide.length > 0) {
+    logger.info(
+      'Changes to Liked Songs and grouping playlists are not turned into tags: change the rating or ' +
+        'grouping (musicman edit), or undo the change on Spotify; until then they stay listed here'
+    );
+  }
+  if (files.length === 0 || dryRun) {
+    return { assignments, decide, tagged: 0 };
+  }
+  if (
+    !(await confirm(
+      `Apply the playlist changes made on Spotify to the tags of ${files.length} songs?`
+    ))
+  ) {
+    logger.info('Tag changes cancelled');
+    return { assignments, decide, tagged: 0 };
+  }
+  const songs = await getFilteredFiles({ options: {}, config }, files);
+  saveMetadata(
+    _.map(songs, ([file, meta]) => assignMetadata(assignments[file])([file, meta])),
+    config
+  );
+  await updateLibraryFiles({ files, options: {}, config });
+  logger.info(`Tagged ${files.length} songs from their Spotify playlists`);
+  return { assignments, decide, tagged: files.length };
+};
+
+// write the download manifest for tracks that are only on Spotify, and pull the playlist changes made
+// on Spotify into tags
+const runPull = async ({ config, plan, dryRun, confirm }) => {
+  const membership = await pullMembership({ config, plan, dryRun, confirm });
   const manifest = buildManifest(plan, config);
   const withoutIds = _.sumBy(plan, target => target.noId.length);
   if (withoutIds > 0) {
@@ -123,11 +180,56 @@ const runPull = ({ config, plan, dryRun }) => {
   }
   if (dryRun) {
     logger.info(`Dry run: would write ${manifest.tracks.length} tracks to the download manifest`);
-    return { manifest };
+    return { manifest, membership };
   }
   const file = writeManifest(config, manifest);
   logger.info(`Wrote ${manifest.tracks.length} tracks to download to ${file}`);
-  return { manifest, file };
+  return { manifest, file, membership };
+};
+
+const planColumns = [
+  ['target', 'Target', target => target.name],
+  ['spotify', 'Spotify', target => target.remote],
+  ['local', 'Local', target => target.local],
+  ['add', 'Add', target => target.add.length],
+  ['noId', 'No id', target => target.noId.length],
+  ['prune', 'Prune', target => target.prune.length],
+  ['spotifyAdded', '+Spotify', target => target.spotifyAdded.length],
+  ['spotifyRemoved', '-Spotify', target => target.spotifyRemoved.length],
+  ['pull', 'Pull', target => target.pull.length]
+];
+
+const outputPlan = (plan, { config, switches }) => {
+  if (outputFormat(switches) !== 'default') {
+    emitFormatted({
+      switches,
+      config,
+      title: 'musicman sync plan',
+      records: _.map(plan, target =>
+        _.fromPairs(_.map(planColumns, ([key, , value]) => [key, value(target)]))
+      ),
+      columns: _.map(planColumns, 0),
+      oneline: record =>
+        `${record.target}\t${chalk.bold(record.target)} ${dim(
+          `spotify ${record.spotify}, local ${record.local}`
+        )} add ${record.add}, no id ${record.noId}, prune ${record.prune}, spotify +${
+          record.spotifyAdded
+        } -${record.spotifyRemoved}, pull ${record.pull}`
+    });
+  } else {
+    const rows = _.map(plan, target => _.map(planColumns, ([, , value]) => String(value(target))));
+    const columns = [{ maxWidth: 40 }, ...Array(planColumns.length - 1).fill({ align: 'right' })];
+    logger.info(
+      `\n${renderColumns({ head: _.map(planColumns, 1), rows, columns, splitter: '  ' })}`
+    );
+  }
+  const total = key => _.sumBy(plan, target => target[key].length);
+  logger.info(
+    `To add: ${total('add')}, without a Spotify id: ${total('noId')} (sync --match), ` +
+      `to prune: ${total('prune')}, changed on Spotify: +${total('spotifyAdded')} -${total(
+        'spotifyRemoved'
+      )} (sync --pull), to pull: ${total('pull')}`
+  );
 };
 
 const runPlan = async ({
@@ -151,52 +253,15 @@ const runPlan = async ({
     });
     logger.progressDone();
     const plan = syncPlan(db, config, songTargets(await librarySongs(config), config));
-    if (outputFormat(switches) !== 'default') {
-      emitFormatted({
-        switches,
-        config,
-        title: 'musicman sync plan',
-        records: _.map(plan, target => ({
-          target: target.name,
-          spotify: target.remote,
-          local: target.local,
-          add: target.add.length,
-          noId: target.noId.length,
-          prune: target.prune.length,
-          pull: target.pull.length
-        })),
-        columns: ['target', 'spotify', 'local', 'add', 'noId', 'prune', 'pull'],
-        oneline: record =>
-          `${record.target}\t${chalk.bold(record.target)} ${dim(
-            `spotify ${record.spotify}, local ${record.local}`
-          )} add ${record.add}, no id ${record.noId}, prune ${record.prune}, pull ${record.pull}`
-      });
-    }
-    const rows = _.map(plan, target =>
-      [
-        target.name,
-        target.remote,
-        target.local,
-        target.add.length,
-        target.noId.length,
-        target.prune.length,
-        target.pull.length
-      ].map(String)
-    );
-    const head = ['Target', 'Spotify', 'Local', 'Add', 'No id', 'Prune', 'Pull'];
-    const columns = [{ maxWidth: 40 }, ...Array(6).fill({ align: 'right' })];
-    if (outputFormat(switches) === 'default') {
-      logger.info(`\n${renderColumns({ head, rows, columns, splitter: '  ' })}`);
-    }
-    const total = key => _.sumBy(plan, target => target[key].length);
-    logger.info(
-      `To add: ${total('add')}, without a Spotify id: ${total('noId')} (sync --match), ` +
-        `to prune: ${total('prune')}, to pull: ${total('pull')}`
-    );
+    outputPlan(plan, { config, switches });
     const pushed = push
       ? await runPush({ db, client, config, plan, prune, dryRun, confirm })
       : undefined;
-    const pulled = pull ? runPull({ config, plan, dryRun }) : undefined;
+    const pulled = pull ? await runPull({ config, plan, dryRun, confirm }) : undefined;
+    // what Spotify and the tags agree on now is the state the next sync compares with
+    if (!dryRun) {
+      recordSynced(db, syncPlan(db, config, songTargets(await librarySongs(config), config)));
+    }
     return { plan, pushed, pulled };
   } finally {
     db.close();

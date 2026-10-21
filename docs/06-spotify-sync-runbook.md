@@ -1,7 +1,7 @@
 # Spotify sync runbook
 
 How to keep the library and Spotify in step with the commands that exist today, what each direction covers,
-and what is still planned. Design background is in `03-spotify-id.md`. Last updated 2026-10-21.
+and what is still planned. Design background is in `03-spotify-id.md`. Last updated 2026-10-21 (two-way playlist changes).
 
 ## What syncs today
 
@@ -12,7 +12,7 @@ and what is still planned. Design background is in `03-spotify-id.md`. Last upda
 | Local to Spotify | Songs matching a `sync.playlists` filter into that playlist | `sync --push` | Built, not yet run against Spotify |
 | Local to Spotify | Songs that are not on Spotify (Local Files) | export for the desktop app | **Planned**, see below |
 | Spotify to local | Tracks in Liked Songs or a mapped playlist that are not in the library | `sync --pull`, `pnpm download`, `sync --import` | Built, beets step checked; full run pending |
-| Spotify to local | Playlist or Liked changes made on Spotify to songs you already have | none | **Gap**, see below; do not use `--prune` until it is closed |
+| Spotify to local | Playlist or Liked changes made on Spotify to songs you already have | `sync --pull` | Built: multi value playlists become tags, others are listed to decide |
 
 Every run that changes something is archived; `musicman logs` lists runs and `musicman logs latest` shows the
 last one.
@@ -56,7 +56,8 @@ musicman sync --push --dry-run    # what would be added
 musicman sync --push              # adds after a confirmation
 ```
 
-- Adds only; `--prune` (remove tracks whose song no longer belongs) is **not safe yet**, see the gap below.
+- `--prune` also removes tracks whose tags changed locally so they no longer belong. It never removes a
+  track added on Spotify; those are pulled into tags instead (see the two-way section).
 - The plan's `No id` column counts songs that belong in a target but have no Spotify id: unmatched, in
   review, or not on Spotify (the Local Files case).
 - The playlist add endpoints have not been verified against a real playlist yet; check the first push in the
@@ -82,24 +83,31 @@ musicman sync --import            # tags, imports with beets into Unrated/_Singl
 - Afterwards rate the songs in `Unrated/_Singles` and run `musicman sort` to move them into `Rated`.
 - spotDL downloads audio from YouTube, which is against YouTube's terms of service.
 
-## Gap: changes made on Spotify to songs you already have
+## Two-way: changes made on Spotify to songs you already have
 
-The plan compares Spotify with what the local tags say, and nothing records what was in sync last time. So
-when you add a song you already have to a playlist (or like it) in the Spotify app, sync cannot tell that
-apart from a song whose local tag was removed:
+After every sync that is not a dry run, musicman stores which tracks each target and the local tags agreed
+on (`spotify_synced`). The next sync compares Spotify, that state, and the tags:
 
-- `sync --push` ignores it (the track stays on Spotify, the local tags do not change).
-- `sync --push --prune` removes it from the playlist again, undoing the change made on Spotify.
+| On Spotify | Tags say it belongs | In sync last time | Meaning | Handled by |
+|---|---|---|---|---|
+| no | yes | no | new locally | `--push` adds it (`Add`) |
+| yes | no | yes | tags changed locally | `--push --prune` removes it (`Prune`) |
+| yes | no | no | added on Spotify | `--pull` adds the tag (`+Spotify`) |
+| no | yes | yes | removed on Spotify | `--pull` removes the tag; push does not re-add it (`-Spotify`) |
 
-Plan to close it:
+```sh
+musicman sync --pull --dry-run    # TAG lines: the tag changes; DECIDE lines: changes to decide yourself
+musicman sync --pull              # applies the tag changes after a confirmation, and writes the manifest
+```
 
-1. After every push and pull, store the membership of each target as the last synced state.
-2. Compare three ways: in Spotify but not in the last state is a change made on Spotify; in the last state
-   but no longer in the local tags is a change made locally (safe to prune).
-3. Pull Spotify changes into tags where the filter can be inverted: multi value fields (`context:Study`,
-   `picks:Hot`) are added or removed. Single value fields (`grouping:...`, which also decides the folder) and
-   Liked Songs (no rating can be inferred) are listed for a manual decision instead of guessed.
-4. Only then allow `--prune`, and only for local changes.
+- Only playlists whose filter is one value of a multi value field (`context:Study`, `picks:Hot`) turn into
+  tag changes. Liked Songs (no rating can be inferred) and grouping playlists (grouping also decides the
+  folder) are listed as `DECIDE`: change the rating or grouping with `musicman edit`, or undo the change on
+  Spotify. They stay listed, and are neither pushed back nor pruned, until the two sides agree.
+- **First sync:** nothing is stored yet, so every track of a song you have that is on Spotify but not in its
+  tags counts as added on Spotify. Run `sync --pull --dry-run` first and read the `TAG` lines; undo any on
+  Spotify you do not want before running `sync --pull`.
+- Songs that get a Spotify id later (`sync --match`) join the comparison from the next sync.
 
 ## Planned: local songs that are not on Spotify
 

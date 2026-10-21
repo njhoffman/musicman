@@ -235,6 +235,69 @@ describe('Sync Command', () => {
       });
     });
 
+    describe('last synced state', () => {
+      const likedWith = trackIds => {
+        const baseFetch = fetchImpl;
+        fetchImpl = async (url, request) =>
+          url === 'https://api.spotify.com/v1/me/tracks?limit=50'
+            ? {
+                ok: true,
+                status: 200,
+                headers: { get: () => null },
+                text: async () =>
+                  JSON.stringify({
+                    items: trackIds.map(id => ({
+                      added_at: 'x',
+                      track: { id, name: id, artists: [{ name: 'A' }], album: { name: 'B' } }
+                    })),
+                    next: null
+                  })
+              }
+            : baseFetch(url, request);
+      };
+      const run = switches =>
+        syncFunc({
+          options: { switches },
+          config,
+          env,
+          file,
+          fetchImpl,
+          confirm: async () => true
+        });
+      const stored = () => {
+        const db = require('../db/index.js').openLibrary(config);
+        try {
+          return db.prepare('SELECT playlist_id, track_id FROM spotify_synced').all();
+        } finally {
+          db.close();
+        }
+      };
+
+      it('should record what Spotify and the tags agree on, but not in a dry run', async () => {
+        likedWith(['track-a']);
+        await run({ dryRun: true });
+        expect(stored()).to.be.empty;
+        await run({});
+        expect(stored()).to.deep.equal([{ playlist_id: 'liked', track_id: 'track-a' }]);
+      });
+
+      it('should not add back a song removed from Liked Songs on Spotify, and list it to decide', async () => {
+        config.sync.downloadDirectory = path.join(directory, 'download');
+        likedWith(['track-a']);
+        await run({});
+        likedWith([]);
+        const result = await run({ push: true, pull: true });
+        expect(result.plan[0].add).to.be.empty;
+        expect(result.plan[0].spotifyRemoved.map(song => song.trackId)).to.deep.equal(['track-a']);
+        expect(writes()).to.be.empty;
+        expect(
+          result.pulled.membership.decide.map(({ target, change }) => [target, change])
+        ).to.deep.equal([['Liked Songs', 'removed']]);
+        // still undecided, so still remembered as in sync before
+        expect(stored()).to.deep.equal([{ playlist_id: 'liked', track_id: 'track-a' }]);
+      });
+    });
+
     it('should not write to Spotify when the push is declined or a dry run', async () => {
       await push({}, async () => false);
       await push({ dryRun: true }, async () => true);

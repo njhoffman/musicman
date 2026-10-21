@@ -3,7 +3,7 @@ const { expect } = require('chai');
 
 const { openDatabase } = require('../db/database.js');
 const { refreshCache, toRow } = require('./cache.js');
-const { syncPlan } = require('./plan.js');
+const { recordSynced, syncPlan, syncedTracks } = require('./plan.js');
 
 describe('Sync Cache and Plan', () => {
   let db;
@@ -84,7 +84,8 @@ describe('Sync Cache and Plan', () => {
         ['a.mp3', 'ta'],
         ['b.mp3', 'tb'],
         ['c.mp3', 'tc'],
-        ['d.mp3', null]
+        ['d.mp3', null],
+        ['e.mp3', 'te']
       ].forEach(([file, trackId]) => {
         const { lastInsertRowid } = insertSong.run(file);
         if (trackId) {
@@ -101,21 +102,62 @@ describe('Sync Cache and Plan', () => {
       remote.run(null, 1);
     });
 
-    it('should report songs to add, without ids, to prune, and to pull', () => {
-      const songs = [
-        { file: '/music/a.mp3', targets: ['liked'] },
-        { file: '/music/b.mp3', targets: ['liked'] },
-        { file: '/music/c.mp3', targets: [] },
-        { file: '/music/d.mp3', targets: ['liked'] }
-      ];
+    const songs = [
+      { file: '/music/a.mp3', targets: ['liked'] },
+      { file: '/music/b.mp3', targets: ['liked'] },
+      { file: '/music/c.mp3', targets: [] },
+      { file: '/music/d.mp3', targets: ['liked'] },
+      { file: '/music/e.mp3', targets: ['liked'] }
+    ];
+    const synced = trackIds => {
+      const insert = db.prepare(
+        "INSERT INTO spotify_synced (playlist_id, track_id) VALUES ('liked', ?)"
+      );
+      trackIds.forEach(trackId => insert.run(trackId));
+    };
+    const ids = (list, key) => list.map(item => item[key]);
+
+    it('should report songs to add, without ids, and to pull', () => {
       const [liked] = syncPlan(db, config, songs);
-      expect(liked).to.include({ name: 'Liked Songs', remote: 4, local: 3 });
+      expect(liked).to.include({ name: 'Liked Songs', remote: 4, local: 4 });
       expect(liked.add.map(song => [song.file, song.trackId])).to.deep.equal([
-        ['/music/b.mp3', 'tb']
+        ['/music/b.mp3', 'tb'],
+        ['/music/e.mp3', 'te']
       ]);
-      expect(liked.noId.map(song => song.file)).to.deep.equal(['/music/d.mp3']);
-      expect(liked.prune.map(track => track.track_id)).to.deep.equal(['tc']);
-      expect(liked.pull.map(track => track.track_id)).to.deep.equal(['elsewhere']);
+      expect(ids(liked.noId, 'file')).to.deep.equal(['/music/d.mp3']);
+      expect(ids(liked.pull, 'track_id')).to.deep.equal(['elsewhere']);
+      expect(liked.inSync).to.deep.equal(['ta']);
+    });
+
+    it('should treat tracks only on Spotify as added there when they were never in sync', () => {
+      const [liked] = syncPlan(db, config, songs);
+      expect(liked.prune).to.be.empty;
+      expect(liked.spotifyAdded.map(track => [track.track_id, track.file])).to.deep.equal([
+        ['tc', '/music/c.mp3']
+      ]);
+    });
+
+    it('should tell local changes from changes made on Spotify by the last synced state', () => {
+      synced(['ta', 'tc', 'te']);
+      const [liked] = syncPlan(db, config, songs);
+      // c was in sync and its tags changed locally: prune; e was in sync and was removed on Spotify
+      expect(ids(liked.prune, 'track_id')).to.deep.equal(['tc']);
+      expect(liked.spotifyAdded).to.be.empty;
+      expect(ids(liked.spotifyRemoved, 'trackId')).to.deep.equal(['te']);
+      expect(ids(liked.add, 'trackId')).to.deep.equal(['tb']);
+    });
+
+    it('should record the agreed tracks and keep unresolved changes as they were', () => {
+      const stored = () =>
+        ids(db.prepare('SELECT track_id FROM spotify_synced ORDER BY track_id').all(), 'track_id');
+      recordSynced(db, syncPlan(db, config, songs));
+      // only ta is agreed on; tb (add) and tc (added on Spotify) stay out until resolved
+      expect(stored()).to.deep.equal(['ta']);
+
+      synced(['tc', 'te']);
+      recordSynced(db, syncPlan(db, config, songs));
+      expect(stored()).to.deep.equal(['ta', 'tc', 'te']);
+      expect(syncedTracks(db).liked).to.be.an.instanceOf(Set);
     });
   });
 });
