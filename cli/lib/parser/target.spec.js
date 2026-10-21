@@ -30,7 +30,7 @@ describe('Target assignment', () => {
 
   it('Should assign target if argument is a file or directory that exists', async () => {
     const test1 = parser({ args: [testFile], config, currentSong });
-    const test2 = parser({ args: ['additional', testFile, 'args'], config });
+    const test2 = parser({ args: ['view', 'additional', testFile, 'args'], config });
     expect(test1).to.include({ target: testFile });
     expect(test2).to.include({ target: testFile });
   });
@@ -41,7 +41,7 @@ describe('Target assignment', () => {
   });
 
   it('Should assign the library base directory if no song playing and no argument is a valid target', () => {
-    const test1 = parser({ args: ['some', 'args', 'notvalidtarget'], config });
+    const test1 = parser({ args: ['view', 'some', 'args', 'notvalidtarget'], config });
     expect(test1).to.include({ target: config.mpd.baseDirectory });
   });
 

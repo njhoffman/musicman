@@ -31,7 +31,16 @@ const run = async args => {
   logger.configureColors(config.logger.colors);
 
   const currentSong = await getAvailableSong(config.mpd);
-  const { command, target, options } = commandParser({ args, currentSong, config });
+  let parsed;
+  try {
+    parsed = commandParser({ args, currentSong, config });
+  } catch (err) {
+    // mistakes on the command line are reported plainly, without a stack trace
+    logger.error(err.message);
+    process.exitCode = 1;
+    return;
+  }
+  const { command, target, options } = parsed;
 
   if (!target) {
     throw new Error('No target specified, see musicman --help');

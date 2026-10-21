@@ -7,11 +7,26 @@ describe('Command assignment', () => {
   };
   const currentSong = { file: 'testDir/testSong.mp3' };
 
-  it('Should default to view command if no matching arguments provided', () => {
-    const test1 = parser({ args: [], config });
-    const test2 = parser({ args: ['no', 'matching', 'command'], config });
-    expect(test1.command).to.include({ name: 'view' });
-    expect(test2.command).to.include({ name: 'view' });
+  it('Should default to view command if no arguments are provided', () => {
+    expect(parser({ args: [], config }).command).to.include({ name: 'view' });
+    expect(parser({ args: ['artist:Doors'], config }).command).to.include({ name: 'view' });
+  });
+
+  it('Should reject a first word that is not a command or a path, suggesting commands with that switch', () => {
+    expect(() => parser({ args: ['push'], config })).to.throw(
+      "Unknown command 'push', did you mean musicman sync --push? (musicman --help)"
+    );
+    expect(() => parser({ args: ['backup'], config })).to.throw(
+      'did you mean musicman db --backup or musicman sync --backup?'
+    );
+    expect(() => parser({ args: ['no', 'matching', 'command'], config })).to.throw(
+      "Unknown command 'no', commands are view, edit"
+    );
+  });
+
+  it('Should still take an existing path or an explicit view as the first argument', () => {
+    expect(parser({ args: ['lib'], config }).command).to.include({ name: 'view' });
+    expect(parser({ args: ['view', 'artist:Doors'], config }).command).to.include({ name: 'view' });
   });
 
   it('Should edit command if first argument is a rating number current song playing', () => {
@@ -34,7 +49,7 @@ describe('Command assignment', () => {
   });
 
   it('Should return view command if any args contain filter (:) and none with (=) operators', () => {
-    const test1 = parser({ args: ['any', 'other', 'field:value', 'args'], config });
+    const test1 = parser({ args: ['view', 'any', 'other', 'field:value', 'args'], config });
     expect(test1.command).to.include({ name: 'view' });
   });
 });

@@ -150,7 +150,9 @@ OVERDUE flag. Feature specs live in `docs/`.
       that cannot be read or rewritten, frames node-id3 cannot keep, database drift, duplicate songs, custom tag
       names that differ only by case or punctuation (renamed to a `check.names` list seeded with beets names),
       custom tags duplicating standard frames, the leftover `spotify_track_id` frames, and multi value formatting.
-      `lib/check/frames.js` (raw frame parsing) is done.
+      Also report ratings off the half step scale (e.g. Hollerado - Got to Loose is 2.8) and text that looks
+      garbled by a wrong encoding (its copyright reads `20･･－－－0`). `lib/check/frames.js` (raw frame parsing)
+      is done.
 - [ ] **Stricter Spotify version matching:** (p2) [bug] "mix" and "version" are noise words, so a different remix
       or an "Early Version" can match; differing parenthetical or suffix text should send a match to review, and
       existing matches whose titles differ should be rechecked.

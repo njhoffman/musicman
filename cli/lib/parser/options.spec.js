@@ -68,7 +68,7 @@ describe('Options assignment', () => {
     });
 
     it('Should not treat bare words named like switches as switches', () => {
-      const test1 = parser({ args: ['files', 'recursive'], config });
+      const test1 = parser({ args: ['view', 'files', 'recursive'], config });
       expect(test1.options.switches).to.deep.equal({});
     });
 
