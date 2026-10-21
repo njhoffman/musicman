@@ -54,7 +54,7 @@ const backupDatabase = (db, config, now = new Date()) => {
  * Returns the backup record, or null when no backup was due.
  */
 const backupIfDue = (db, config, now = new Date()) => {
-  const interval = parseInterval(_.get(config, 'db.backupInterval', '1 day'));
+  const interval = parseInterval(_.get(config, 'db.backupInterval', '1 week'));
   const lastBackup = getMeta(db, 'lastBackup');
   const { songs } = db.prepare('SELECT COUNT(*) AS songs FROM songs').get();
   // nothing worth backing up yet, or the last backup is recent enough
@@ -64,4 +64,21 @@ const backupIfDue = (db, config, now = new Date()) => {
   return backupDatabase(db, config, now);
 };
 
-module.exports = { backupDatabase, backupIfDue, listBackups };
+/**
+ * Backs up the library database before a command that changes something, when db.autoBackup is on (the
+ * default) and db.backupInterval has passed. Does nothing without a database yet. Returns the backup
+ * record or null.
+ */
+const autoBackup = (config, { open, now = new Date() } = {}) => {
+  if (_.get(config, 'db.autoBackup') === false || !fs.existsSync(_.get(config, 'db.path', ''))) {
+    return null;
+  }
+  const db = open(config);
+  try {
+    return backupIfDue(db, config, now);
+  } finally {
+    db.close();
+  }
+};
+
+module.exports = { autoBackup, backupDatabase, backupIfDue, listBackups };

@@ -1,0 +1,118 @@
+{
+  "project": "cli",
+  "created": "2025-11-08",
+  "language": "nodejs",
+  "preferences": {
+    "testing": {
+      "framework": "mocha",
+      "focus": "unit_and_integration_tests",
+      "helper_pattern": "test/helpers or __tests__/helpers",
+      "async_pattern": "async/await or done() callback",
+      "setup_pattern": "beforeEach/afterEach hooks",
+      "output": {
+        "style": "categorized_files",
+        "command": "npm test",
+        "structure": "logs/test-run-{timestamp}/",
+        "files": {
+          "1": "test-results.txt - Full test output",
+          "2": "coverage-report.txt - Coverage information",
+          "3": "environment-info.txt - Node version and dependencies"
+        }
+      },
+      "test_count": 0,
+      "jest": {
+        "commands": {
+          "run_all": "npm test or jest",
+          "run_verbose": "jest --verbose",
+          "run_with_coverage": "jest --coverage",
+          "run_watch": "jest --watch",
+          "run_specific": "jest path/to/test.js",
+          "update_snapshots": "jest -u"
+        },
+        "config": "jest.config.js or package.json"
+      },
+      "mocha": {
+        "commands": {
+          "run_all": "mocha",
+          "run_verbose": "mocha --reporter spec",
+          "run_with_coverage": "nyc mocha",
+          "run_watch": "mocha --watch",
+          "run_specific": "mocha path/to/test.js"
+        },
+        "config": ".mocharc.json or mocha.opts",
+        "assertion": "chai or assert"
+      },
+      "vitest": {
+        "commands": {
+          "run_all": "vitest run",
+          "run_verbose": "vitest --reporter=verbose",
+          "run_with_coverage": "vitest --coverage",
+          "run_watch": "vitest",
+          "run_specific": "vitest path/to/test.js"
+        },
+        "config": "vitest.config.js"
+      }
+    },
+    "documentation": {
+      "format": "markdown + JSDoc",
+      "sections": ["Installation", "Usage", "API", "Examples", "Contributing"],
+      "include": {
+        "examples": true,
+        "api_docs": true,
+        "jsdoc": true
+      }
+    },
+    "scripts": {
+      "test": "npm test",
+      "test_verbose": "npm test -- --verbose",
+      "coverage": "npm test -- --coverage",
+      "lint": "eslint . or npm run lint",
+      "format": "prettier --write . or npm run format",
+      "type_check": "tsc --noEmit (if TypeScript)"
+    },
+    "workflow": {
+      "new_feature": [
+        "Write tests first",
+        "Implement feature",
+        "Run tests with coverage",
+        "Run linter and formatter",
+        "Update documentation",
+        "Update CHANGELOG.md"
+      ],
+      "bug_fix": [
+        "Write failing test",
+        "Fix bug",
+        "Verify with npm test",
+        "Check coverage",
+        "Document in CHANGELOG"
+      ]
+    },
+    "code_style": {
+      "javascript": {
+        "formatter": "prettier",
+        "linter": "eslint",
+        "config": ".eslintrc.json and .prettierrc",
+        "style_guide": "Airbnb or Standard"
+      },
+      "typescript": {
+        "formatter": "prettier",
+        "linter": "eslint with @typescript-eslint",
+        "type_checker": "tsc",
+        "config": "tsconfig.json"
+      }
+    },
+    "dependencies": {
+      "testing_frameworks": "jest, mocha, vitest",
+      "assertion_libs": "jest (built-in), chai, expect",
+      "coverage": "jest (built-in), nyc, c8",
+      "mocking": "jest (built-in), sinon",
+      "management": "npm, yarn, or pnpm"
+    }
+  },
+  "reusable_patterns": {
+    "mocking": "jest.mock() or sinon",
+    "async_tests": "async/await in test functions",
+    "setup_teardown": "beforeEach/afterEach hooks",
+    "test_suites": "describe() blocks for organization"
+  }
+}

@@ -1,12 +1,6 @@
 const fs = require('fs');
 
-const {
-  backupDatabase,
-  backupIfDue,
-  getMeta,
-  openLibrary,
-  updateDatabase
-} = require('../db/index.js');
+const { backupDatabase, getMeta, openLibrary, updateDatabase } = require('../db/index.js');
 const { formatProgress, outputDbStats, outputUpdateSummary } = require('../output/db.js');
 const logger = require('../utils/logger.js');
 
@@ -41,7 +35,6 @@ const logBackup = backup => {
 };
 
 const runUpdate = async (db, { config, target }) => {
-  logBackup(backupIfDue(db, config));
   logger.info(`Updating database from ${target}`);
   const startedAt = new Date();
   const summary = await updateDatabase(db, {

@@ -5,7 +5,7 @@ const { DatabaseSync } = require('node:sqlite');
 const { expect } = require('chai');
 
 const { getMeta, openDatabase } = require('./database.js');
-const { backupDatabase, backupIfDue, listBackups } = require('./backup.js');
+const { autoBackup, backupDatabase, backupIfDue, listBackups } = require('./backup.js');
 
 describe('Database Backup', () => {
   let db;
@@ -78,5 +78,34 @@ describe('Database Backup', () => {
     backupDatabase(db, config, now);
     expect(backupIfDue(db, config, new Date(now.getTime() + day - 1000))).to.be.null;
     expect(backupIfDue(db, config, new Date(now.getTime() + day))).to.not.be.null;
+  });
+  it('should default to backing up once a week', () => {
+    addSong('a.mp3');
+    const now = new Date('2026-10-20T00:00:00Z');
+    const weekly = { db: { ...config.db, backupInterval: undefined } };
+    backupDatabase(db, weekly, now);
+    expect(backupIfDue(db, weekly, new Date(now.getTime() + 6 * day))).to.be.null;
+    expect(backupIfDue(db, weekly, new Date(now.getTime() + 7 * day))).to.not.be.null;
+  });
+
+  describe('autoBackup', () => {
+    const open = () => openDatabase(path.join(directory, 'musicman.sqlite'));
+
+    beforeEach(() => {
+      config.db.path = path.join(directory, 'musicman.sqlite');
+      addSong('a.mp3');
+    });
+
+    it('should back up when due, and not again within the interval', () => {
+      const now = new Date('2026-10-20T00:00:00Z');
+      expect(autoBackup(config, { open, now })).to.include({ removed: 0 });
+      expect(autoBackup(config, { open, now: new Date(now.getTime() + 1000) })).to.be.null;
+    });
+
+    it('should do nothing when turned off or without a database', () => {
+      expect(autoBackup({ db: { ...config.db, autoBackup: false } }, { open })).to.be.null;
+      const missing = { db: { ...config.db, path: path.join(directory, 'none.sqlite') } };
+      expect(autoBackup(missing, { open })).to.be.null;
+    });
   });
 });

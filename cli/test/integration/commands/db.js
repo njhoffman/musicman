@@ -79,13 +79,6 @@ describe('Db Command', () => {
     expect(stats.lastBackup).to.include({ file: backup.file });
   });
 
-  it('Should back up before updating once songs exist and the interval has passed', async () => {
-    const update = () =>
-      dbFunc({ target: config.mpd.baseDirectory, options: options({ update: true }), config });
-    expect((await update()).stats.lastBackup).to.be.null;
-    expect((await update()).stats.lastBackup).to.not.be.null;
-  });
-
   it('Should stop with an error when a stored custom field definition changed', async () => {
     await dbFunc({ target: config.mpd.baseDirectory, options: options({}), config });
     const changedConfig = { ...config, tags: [{ id: 'TXXX.Mood', name: 'mood' }] };

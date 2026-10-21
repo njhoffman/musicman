@@ -24,8 +24,10 @@ db:
   path:
   # Directory for database backups, defaults to .musicman in mpd.baseDirectory
   backupDirectory:
+  # Back up the database before commands that change something, once per backupInterval
+  autoBackup: true
   # How often to back up the database: a number of minutes, hours, days, or weeks
-  backupInterval: 1 day
+  backupInterval: 1 week
   # Number of backups to keep, older backups are deleted
   backupCount: 7
 

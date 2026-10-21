@@ -488,7 +488,8 @@ describe('Config Tests', () => {
       const config = loadRealConfig({ userConfig: { mpd: { baseDirectory: '/music' } } });
       expect(config.db.path).to.equal('/music/musicman.sqlite');
       expect(config.db.backupDirectory).to.equal('/music/.musicman');
-      expect(config.db.backupInterval).to.equal('1 day');
+      expect(config.db.backupInterval).to.equal('1 week');
+      expect(config.db.autoBackup).to.be.true;
     });
 
     it('should resolve a relative log file name in the mpd base directory', () => {

@@ -25,7 +25,7 @@ const { formatSongResult, formatUnassigned, matchCounts } = require('../output/s
 const { dim, emitFormatted } = require('../output/emit.js');
 const { outputFormat } = require('../output/formats.js');
 const { previewCommand } = require('../output/fzf.js');
-const { backupIfDue, openLibrary, updateDatabase } = require('../db/index.js');
+const { openLibrary, updateDatabase } = require('../db/index.js');
 const {
   assignMetadata,
   getFilteredFiles,
@@ -289,10 +289,6 @@ const librarySongs = async config =>
 const runMatch = async ({ credentials, file, fetchImpl, config, dryRun, refresh, verbose }) => {
   const db = openSyncLibrary(config);
   try {
-    const backup = dryRun ? null : backupIfDue(db, config);
-    if (backup) {
-      logger.info(`Backed up database to ${backup.file}`);
-    }
     const songs = songTargets(await librarySongs(config), config);
     const startedAt = new Date();
     const summary = await matchSongs({

@@ -8,6 +8,7 @@ const parseSwitches = require('./parser/options/switches.js');
 const { outputFormat } = require('./output/formats.js');
 const logger = require('./utils/logger.js');
 const { archives, finishRun, startRun } = require('./utils/runs.js');
+const { autoBackup } = require('./db/index.js');
 const { version } = require('../../package.json');
 
 const pe = new PrettyError();
@@ -39,6 +40,13 @@ const run = async args => {
   const run = archives(command, options.switches)
     ? startRun({ command: command.name, args, config })
     : null;
+  // commands that change something back up the database first, once per db.backupInterval
+  if (run) {
+    const backup = autoBackup(config);
+    if (backup) {
+      logger.info(`Backed up database to ${backup.file}`);
+    }
+  }
   let result;
   let error;
   // a run stopped with ctrl-c, a signal, or a closed terminal is still archived, as interrupted
