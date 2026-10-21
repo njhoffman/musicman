@@ -19,8 +19,10 @@ const columns = rows => {
 
 const switchRows = names =>
   _.map(names, name => {
-    const { alias, description } = switchMap[name] || globalSwitches[name];
-    return [`--${name}, ${alias}`, description];
+    const { alias, description, value } = switchMap[name] || globalSwitches[name];
+    return value
+      ? [`--${name}=<${value}>, ${alias} <${value}>`, description]
+      : [`--${name}, ${alias}`, description];
   });
 
 // overview of every command and switch

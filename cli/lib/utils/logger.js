@@ -66,8 +66,9 @@ const progressDone = () => {
   footer = null;
 };
 
+// stream is stdout, or stderr when stdout carries data (--format csv, json, ...)
 const configure = output => {
-  settings = { ...settings, ..._.pick(output, ['padding', 'verbosity']) };
+  settings = { ...settings, ..._.pick(output, ['padding', 'verbosity', 'stream']) };
 };
 
 const openLogFile = (slot, { name, level = 'debug' } = {}) => {
@@ -117,7 +118,11 @@ const consoleLog = message => {
 
   if (NODE_ENV !== 'test' && !NODE_TEST_LOG) {
     clearFooter();
-    console.log(parsed);
+    if (settings.stream === 'stderr') {
+      console.error(parsed);
+    } else {
+      console.log(parsed);
+    }
     drawFooter();
   }
   return parsed;

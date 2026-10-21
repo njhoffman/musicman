@@ -3,6 +3,9 @@ const _ = require('lodash');
 const { getFilteredFiles } = require('./common.js');
 const { countTags } = require('../metadata/tags.js');
 const { outputStats } = require('../output/index.js');
+const { emitFormatted } = require('../output/emit.js');
+const { outputFormat } = require('../output/formats.js');
+const { statsOneline, statsSections } = require('../output/stats.js');
 const logger = require('../utils/logger.js');
 
 const calculateMultifield = (multiField, allFiles) => {
@@ -77,6 +80,16 @@ const statsCommand = async ({ options, config, target }) => {
 
   const stats = { fields, tags, total: allFiles.length, ...ratingsOutput, ...sizesOutput };
 
+  if (outputFormat(options.switches) !== 'default') {
+    const { selected } = emitFormatted({
+      switches: options.switches,
+      config,
+      title: `musicman stats ${target || baseDirectory}`,
+      sections: statsSections(stats),
+      oneline: statsOneline
+    });
+    return { stats, selected };
+  }
   return outputStats({ target, stats, config, options });
 };
 
@@ -84,6 +97,6 @@ module.exports = {
   name: 'stats',
   description: 'Count values, ratings, and populated tags across files',
   usage: 'musicman stats [target] [field:value ...]',
-  switches: ['recursive', 'norecursive', 'files'],
+  switches: ['recursive', 'norecursive', 'files', 'format', 'fzf'],
   func: statsCommand
 };

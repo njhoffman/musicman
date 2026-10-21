@@ -62,4 +62,46 @@ const outputStats = ({ stats, config }) => {
   return consoleLog(output);
 };
 
-module.exports = { outputStats };
+// stats as record sections for --format: value counts per field, ratings, overall totals, and tags
+const statsSections = stats => {
+  const { genre, grouping, ...multiFields } = stats.fields;
+  const counts = (heading, values) => ({
+    heading,
+    columns: ['value', 'count'],
+    records: _.map(_.sortBy(_.keys(values)), value => ({ value, count: values[value] }))
+  });
+  return [
+    counts('Genres', genre),
+    counts('Groupings', grouping),
+    ..._.map(multiFields, (values, field) => counts(_.upperFirst(field), values)),
+    counts('Ratings', stats.ratings),
+    {
+      heading: 'Overall',
+      columns: ['value', 'count'],
+      records: [
+        { value: 'tracks_rated', count: stats.rated },
+        { value: 'tracks_unrated', count: stats.unrated },
+        { value: 'total_duration_min', count: Math.round(stats.duration / 60) },
+        { value: 'total_size_mb', count: Math.round(stats.size / 1024) }
+      ]
+    },
+    {
+      heading: 'Tags',
+      columns: ['value', 'id', 'count', 'percent'],
+      records: _.map(stats.tags, ({ name, id, count }) => ({
+        value: name,
+        id,
+        count,
+        percent: formatPercent(count, stats.total)
+      }))
+    }
+  ];
+};
+
+// section:value<TAB>section value count, for fzf
+const statsOneline = record =>
+  `${record.section}:${record.value}\t${chalk.hex('#8888FF')(record.section.padEnd(10))} ${
+    record.value
+  } ${chalk.hex('#888899')(record.count)}`;
+
+module.exports = { outputStats, statsOneline, statsSections };

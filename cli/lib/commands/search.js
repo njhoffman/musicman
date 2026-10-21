@@ -5,6 +5,9 @@ const { getFilteredFiles } = require('./common.js');
 const { queueSongs } = require('../clients/mpd.js');
 const { matchingPaths } = require('../db/search.js');
 const { outputMetadata } = require('../output/index.js');
+const { emitFormatted, songColumns, songOneline, songRecords } = require('../output/emit.js');
+const { outputFormat } = require('../output/formats.js');
+const { previewCommand } = require('../output/fzf.js');
 const parseFilters = require('../parser/options/filters.js');
 const logger = require('../utils/logger.js');
 
@@ -72,25 +75,41 @@ const searchCommand = async ({ target, options, config }) => {
     return { results };
   }
 
-  outputMetadata({
-    target,
-    metadata: _.map(results, 1),
-    config,
-    options,
-    format: results.length === 1 ? 'list' : 'table'
-  });
+  let selected;
+  if (outputFormat(options.switches) === 'default') {
+    outputMetadata({
+      target,
+      metadata: _.map(results, 1),
+      config,
+      options,
+      format: results.length === 1 ? 'list' : 'table'
+    });
+  } else {
+    const columns = songColumns(config, options.switches);
+    ({ selected } = emitFormatted({
+      switches: options.switches,
+      config,
+      title: `musicman search ${terms.join(' ')}`,
+      records: songRecords(results, columns),
+      columns: ['path', ...columns],
+      oneline: songOneline(config),
+      preview: previewCommand('view')
+    }));
+  }
   logger.info(`${results.length} ${results.length === 1 ? 'song' : 'songs'} found`);
 
   const { add, play } = options.switches;
+  // with --fzf only the picked songs are queued
+  const toQueue = selected ? _.filter(results, ([file]) => selected.includes(file)) : results;
   let queued = 0;
-  if (add || play) {
+  if ((add || play) && toQueue.length > 0) {
     const baseDirectory = path.resolve(config.mpd.baseDirectory);
-    const songPaths = _.map(results, ([file]) => path.relative(baseDirectory, file));
+    const songPaths = _.map(toQueue, ([file]) => path.relative(baseDirectory, file));
     queued = await queueSongs(config.mpd, songPaths, { replace: Boolean(play) });
     const songs = `${queued} ${queued === 1 ? 'song' : 'songs'}`;
     logger.info(play ? `Playing ${songs}` : `Added ${songs} to the queue`);
   }
-  return { results, queued };
+  return { results, queued, selected };
 };
 
 // searches always cover the whole library, arguments are never path targets
@@ -99,8 +118,9 @@ const defaultTarget = baseDirectory => baseDirectory;
 module.exports = {
   name: 'search',
   description: 'Search the whole library by field:value, mpc style pairs, or free text',
-  usage: 'musicman search [field:value | field value | text ...] [--add | --play]',
-  switches: ['add', 'play', 'files'],
+  usage:
+    'musicman search [field:value | field value | text ...] [--add | --play] [--format=<format> | --fzf]',
+  switches: ['add', 'play', 'files', 'format', 'fzf'],
   func: searchCommand,
   defaultTarget,
   targetArgs: false,

@@ -36,6 +36,21 @@ module.exports = {
       return { write: optionList[i + 1] };
     }
   },
+  format: {
+    description: 'Output format: default, oneline (colored, one line per item), csv, json, or html',
+    alias: '-o',
+    value: 'format',
+    examples: ['--format=csv', '-o json', '--format oneline'],
+    func: (used, optionList, i) => {
+      used.push(optionList[i + 1]);
+      return { format: optionList[i + 1] };
+    }
+  },
+  fzf: {
+    description: 'Pick from the oneline output with fzf and print the picked keys (paths, run ids)',
+    alias: '-z',
+    func: () => ({ fzf: true })
+  },
   files: {
     description: 'Read tags from the files instead of the library database',
     alias: '-f',

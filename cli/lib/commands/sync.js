@@ -1,4 +1,5 @@
 const _ = require('lodash');
+const chalk = require('chalk').default;
 const fs = require('fs');
 
 const Confirm = require('prompt-confirm');
@@ -16,6 +17,9 @@ const { buildManifest, writeManifest } = require('../sync/pull.js');
 const { renderColumns } = require('../output/render.js');
 const { progressBar } = require('../output/progress.js');
 const { formatSongResult, formatUnassigned } = require('../output/sync.js');
+const { dim, emitFormatted } = require('../output/emit.js');
+const { outputFormat } = require('../output/formats.js');
+const { previewCommand } = require('../output/fzf.js');
 const { backupIfDue, openLibrary } = require('../db/index.js');
 const { getFilteredFiles } = require('./common.js');
 const logger = require('../utils/logger.js');
@@ -124,7 +128,8 @@ const runPlan = async ({
   pull = false,
   prune = false,
   dryRun = false,
-  confirm = confirmPrompt
+  confirm = confirmPrompt,
+  switches = {}
 }) => {
   const db = openSyncLibrary(config);
   try {
@@ -137,6 +142,27 @@ const runPlan = async ({
     });
     logger.progressDone();
     const plan = syncPlan(db, config, songTargets(await librarySongs(config), config));
+    if (outputFormat(switches) !== 'default') {
+      emitFormatted({
+        switches,
+        config,
+        title: 'musicman sync plan',
+        records: _.map(plan, target => ({
+          target: target.name,
+          spotify: target.remote,
+          local: target.local,
+          add: target.add.length,
+          noId: target.noId.length,
+          prune: target.prune.length,
+          pull: target.pull.length
+        })),
+        columns: ['target', 'spotify', 'local', 'add', 'noId', 'prune', 'pull'],
+        oneline: record =>
+          `${record.target}\t${chalk.bold(record.target)} ${dim(
+            `spotify ${record.spotify}, local ${record.local}`
+          )} add ${record.add}, no id ${record.noId}, prune ${record.prune}, pull ${record.pull}`
+      });
+    }
     const rows = _.map(plan, target =>
       [
         target.name,
@@ -150,7 +176,9 @@ const runPlan = async ({
     );
     const head = ['Target', 'Spotify', 'Local', 'Add', 'No id', 'Prune', 'Pull'];
     const columns = [{ maxWidth: 40 }, ...Array(6).fill({ align: 'right' })];
-    logger.info(`\n${renderColumns({ head, rows, columns, splitter: '  ' })}`);
+    if (outputFormat(switches) === 'default') {
+      logger.info(`\n${renderColumns({ head, rows, columns, splitter: '  ' })}`);
+    }
     const total = key => _.sumBy(plan, target => target[key].length);
     logger.info(
       `To add: ${total('add')}, without a Spotify id: ${total('noId')} (sync --match), ` +
@@ -241,10 +269,32 @@ const runMatch = async ({ credentials, file, fetchImpl, config, dryRun, refresh 
   }
 };
 
-const runReview = ({ config }) => {
+const runReview = ({ config, switches = {} }) => {
   const db = openSyncLibrary(config);
   try {
     const items = reviewItems(db, config);
+    if (outputFormat(switches) !== 'default') {
+      const { selected } = emitFormatted({
+        switches,
+        config,
+        title: 'musicman sync review',
+        records: _.map(items, ({ file: songFile, duration, candidate }) => ({
+          path: songFile,
+          duration,
+          spotifyId: candidate.id,
+          spotifyArtists: candidate.artists,
+          spotifyName: candidate.name,
+          spotifyAlbum: candidate.album,
+          spotifyDuration: candidate.durationMs / 1000
+        })),
+        oneline: record =>
+          `${record.path}\t${record.path} ${dim('->')} ${record.spotifyArtists} - ${
+            record.spotifyName
+          } ${dim(`[${record.spotifyAlbum}] ${formatDuration(record.duration)} vs ${formatDuration(record.spotifyDuration)}`)}`,
+        preview: previewCommand('view')
+      });
+      return { review: items, selected };
+    }
     // edit assigns tags by their library.tags name
     const tagName = _.get(_.find(config.library.tags, { id: spotifyIdFrame }), 'name');
     const accept = (songFile, id) =>
@@ -304,7 +354,7 @@ const syncCommand = async ({
       });
     }
     if (switches.review) {
-      return runReview({ config });
+      return runReview({ config, switches });
     }
     const status = await showStatus({ credentials, file, fetchImpl, env });
     if (!status.loggedIn) {
@@ -317,7 +367,8 @@ const syncCommand = async ({
       pull: Boolean(switches.pull),
       prune: Boolean(switches.prune),
       dryRun: Boolean(switches.dryRun),
-      confirm
+      confirm,
+      switches
     });
     return { ..._.omit(status, 'client'), plan, pushed, pulled };
   } catch (err) {
@@ -334,7 +385,18 @@ module.exports = {
   description: 'Sync Liked Songs and playlists with Spotify; without switches, show the plan',
   usage:
     'musicman sync [--login | --match [--refresh] | --review | --push [--prune] | --pull] [--dry-run]',
-  switches: ['login', 'match', 'refresh', 'review', 'push', 'prune', 'pull', 'dry-run'],
+  switches: [
+    'login',
+    'match',
+    'refresh',
+    'review',
+    'push',
+    'prune',
+    'pull',
+    'dry-run',
+    'format',
+    'fzf'
+  ],
   func: syncCommand,
   archive: ({ review }) => !review,
   defaultTarget,

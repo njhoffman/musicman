@@ -1,5 +1,5 @@
 const { expect } = require('chai');
-const { outputStats } = require('./stats.js');
+const { outputStats, statsOneline, statsSections } = require('./stats.js');
 
 // eslint-disable-next-line no-control-regex
 const stripAnsi = str => str.replace(/\u001b\[[0-9;]*m/g, '');
@@ -84,5 +84,27 @@ describe('Stats Output', () => {
     expect(output).to.include('tracks_rated 3');
     expect(output).to.include('total_duration 10 min');
     expect(output).to.include('total_size 2 MB');
+  });
+  it('should give record sections for --format, one per field and for totals and tags', () => {
+    const sections = statsSections(stats);
+    expect(sections.map(({ heading }) => heading)).to.deep.equal([
+      'Genres',
+      'Groupings',
+      'Mood',
+      'Picks',
+      'Ratings',
+      'Overall',
+      'Tags'
+    ]);
+    expect(sections[2].records).to.deep.equal([
+      { value: 'Happy', count: 3 },
+      { value: 'Sad', count: 1 }
+    ]);
+    expect(sections[5].records[2]).to.deep.equal({ value: 'total_duration_min', count: 10 });
+  });
+
+  it('should key stats oneline lines by section and value', () => {
+    const line = stripAnsi(statsOneline({ section: 'Mood', value: 'Sad', count: 1 }));
+    expect(line).to.equal('Mood:Sad\tMood       Sad 1');
   });
 });

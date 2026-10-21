@@ -24,8 +24,10 @@ describe('Help and Version', () => {
     commands.forEach(({ name, description }) =>
       expect(help).to.include(`${name}`).and.include(description)
     );
-    Object.entries(switchMap).forEach(([name, { alias }]) =>
-      expect(help).to.include(`--${name}, ${alias}`)
+    Object.entries(switchMap).forEach(([name, { alias, value }]) =>
+      expect(help).to.include(
+        value ? `--${name}=<${value}>, ${alias} <${value}>` : `--${name}, ${alias}`
+      )
     );
     expect(help).to.include('--help, -h').and.include('--version, -V');
   });
