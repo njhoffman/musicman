@@ -121,7 +121,8 @@ module.exports = {
     func: () => ({ login: true })
   },
   backup: {
-    description: 'Back up the library database now',
+    description:
+      'db: back up the library database now; sync: mirror the library files to backup.directory after confirming',
     alias: '-b',
     func: () => ({ backup: true })
   },

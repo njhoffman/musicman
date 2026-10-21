@@ -61,6 +61,13 @@ const configSchema = {
       ignore: { type: 'array', required: false }
     }
   },
+  backup: {
+    type: 'object',
+    properties: {
+      directory: { type: 'string', required: false },
+      exclude: { type: 'array', required: false }
+    }
+  },
   daemon: {
     type: 'object',
     properties: {

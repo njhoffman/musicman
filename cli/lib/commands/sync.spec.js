@@ -176,10 +176,18 @@ describe('Sync Command', () => {
       });
     const writes = () => requests.filter(([method]) => method !== 'GET');
 
-    it('should add songs to Liked Songs after confirming', async () => {
+    it('should save Liked Songs and playlists, then add songs to Liked Songs after confirming', async () => {
       const result = await push({}, async () => true);
       expect(result.plan[0].add.map(song => song.trackId)).to.deep.equal(['track-a']);
       expect(writes()).to.deep.equal([['PUT', 'https://api.spotify.com/v1/me/tracks']]);
+      const snapshots = fs.readdirSync(path.join(directory, 'backups', 'spotify'));
+      expect(snapshots).to.have.length(1);
+      const saved = JSON.parse(
+        fs.readFileSync(path.join(directory, 'backups', 'spotify', snapshots[0]), 'utf8')
+      );
+      expect(saved.targets.map(({ id, tracks }) => [id, tracks.length])).to.deep.equal([
+        ['liked', 0]
+      ]);
     });
 
     it('should write a download manifest of Liked Songs tracks that are not in the library', async () => {

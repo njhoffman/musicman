@@ -86,6 +86,11 @@ const buildConfig = ({
     config.logger.file.name = path.isAbsolute(logFileName) ? logFileName : libraryFile(logFileName);
   }
 
+  const backupDirectory = expandHome(_.get(config, 'backup.directory'));
+  if (backupDirectory) {
+    config.backup.directory = backupDirectory;
+  }
+
   const archiveDirectory = expandHome(_.get(config, 'logger.archive.directory'));
   if (archiveDirectory) {
     config.logger.archive.directory = archiveDirectory;

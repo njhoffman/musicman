@@ -18,6 +18,8 @@ const { pushPlan } = require('../sync/push.js');
 const { buildManifest, writeManifest } = require('../sync/pull.js');
 const { downloadedFiles, manifestPath, readManifest } = require('../sync/download.js');
 const { importDownloads } = require('../sync/import.js');
+const { applyBackup, backupPlan, removedFolder } = require('../sync/backup.js');
+const { saveSnapshot } = require('../sync/snapshot.js');
 const { unsortedFolder } = require('../beets/sort.js');
 const { renderColumns } = require('../output/render.js');
 const { formatWait, progressBar } = require('../output/progress.js');
@@ -104,6 +106,9 @@ const runPush = async ({ db, client, config, plan, prune, dryRun, confirm }) => 
     logger.info('Push cancelled');
     return [];
   }
+  // what Spotify had before the push, to restore from if a push goes wrong
+  const snapshot = await saveSnapshot(client, config);
+  logger.info(`Saved Liked Songs and playlists as they were to ${snapshot.file}`);
   const results = await pushPlan(client, plan, {
     prune,
     onTarget: ({ name, added, removed }) =>
@@ -452,6 +457,102 @@ const runImport = async ({ credentials, fetchImpl, config, dryRun, confirm }) =>
   }
 };
 
+const formatSize = bytes =>
+  bytes >= 1024 ** 3
+    ? `${(bytes / 1024 ** 3).toFixed(1)} GB`
+    : `${Math.max(1, Math.round(bytes / 1024 ** 2))} MB`;
+
+// a few files of a backup plan category on the terminal, every one in the log
+const listBackupFiles = (label, entries, color, describe = entry => entry.path) => {
+  _.each(entries, entry => logger.logToFile('info', `${label} ${describe(entry)}`));
+  const shown = _.take(entries, 15);
+  _.each(shown, entry => logger.info(`${chalk.hex(color)(label.padEnd(7))} ${describe(entry)}`));
+  if (entries.length > shown.length) {
+    logger.info(
+      dim(`        ... and ${entries.length - shown.length} more (musicman logs latest)`)
+    );
+  }
+};
+
+// mirror the library files to backup.directory after showing and confirming the changes
+const runBackup = async ({ config, dryRun, confirm }) => {
+  const directory = _.get(config, 'backup.directory');
+  if (!directory) {
+    throw new Error('Set backup.directory in the config to the folder to back up to');
+  }
+  if (!fs.existsSync(directory)) {
+    throw new Error(`Backup directory ${directory} does not exist (is the share mounted?)`);
+  }
+  const source = path.resolve(config.mpd.baseDirectory);
+  logger.info(`Comparing ${source} with ${directory}`);
+  const plan = backupPlan({ source, directory, exclude: _.get(config, 'backup.exclude', []) });
+  if (plan.layoutHint) {
+    const { folder, names } = plan.layoutHint;
+    logger.error(
+      `${directory} looks like a backup of ${folder}/ alone (it has ${names.join(', ')}), not of the whole ` +
+        `library. Move those folders into ${path.join(directory, folder)} first, so they are compared ` +
+        'with their library copies instead of being copied again.'
+    );
+    process.exitCode = 1;
+    return { backup: { plan: _.omit(plan, ['copy', 'update', 'remove']), applied: null } };
+  }
+  listBackupFiles('COPY', plan.copy, '#55CC55');
+  listBackupFiles('UPDATE', plan.update, '#55BBDD');
+  listBackupFiles(
+    'HOLD',
+    plan.held,
+    '#DDCC44',
+    entry => `${entry.path} (backup has ${entry.frames.join(', ')})`
+  );
+  listBackupFiles('MOVE', plan.remove, '#DD7744');
+  const size = entries => formatSize(_.sumBy(entries, 'size'));
+  logger.info(
+    [
+      `Backup to ${directory}${dryRun ? ' (dry run, nothing changed)' : ''}`,
+      `  copy (new): ${plan.copy.length} (${size(plan.copy)})`,
+      `  update (changed): ${plan.update.length} (${size(plan.update)})`,
+      `  unchanged: ${plan.unchanged}`,
+      `  held back, the backup copy has frames the library copy lacks: ${plan.held.length}`,
+      `  only in the backup, moved to ${removedFolder}/: ${plan.remove.length}`
+    ].join('\n')
+  );
+  const changes = plan.copy.length + plan.update.length + plan.remove.length;
+  const summary = {
+    ..._.omit(plan, ['copy', 'update', 'remove', 'held']),
+    counts: _.mapValues(_.pick(plan, ['copy', 'update', 'remove', 'held']), 'length')
+  };
+  if (changes === 0 || dryRun) {
+    return { backup: { plan: summary, applied: null } };
+  }
+  const message =
+    `Copy ${plan.copy.length} and update ${plan.update.length} files in ${directory}` +
+    `${plan.remove.length ? `, and move ${plan.remove.length} files only in the backup to ${removedFolder}/` : ''}?`;
+  if (!(await confirm(message))) {
+    logger.info('Backup cancelled');
+    return { backup: { plan: summary, applied: null } };
+  }
+  const total = plan.copy.length + plan.update.length;
+  const startedAt = new Date();
+  let done = 0;
+  const applied = applyBackup(plan, {
+    onFile: (action, entry) => {
+      logger.logToFile('debug', `${action} ${entry.path}`);
+      if (action !== 'move') {
+        done += 1;
+        logger.progress(
+          progressBar({ done, total, startedAt, label: 'Backing up', unit: 'files' })
+        );
+      }
+    }
+  });
+  logger.progressDone();
+  logger.info(
+    `Backed up ${applied.copied + applied.updated} files (${formatSize(applied.bytes)})` +
+      `${applied.moved ? `, moved ${applied.moved} to ${applied.removedTo}` : ''}`
+  );
+  return { backup: { plan: summary, applied } };
+};
+
 const runReview = ({ config, switches = {} }) => {
   const db = openSyncLibrary(config);
   try {
@@ -537,6 +638,13 @@ const syncCommand = async ({
         verbose: Boolean(switches.verbose)
       });
     }
+    if (switches.backup) {
+      return await runBackup({
+        config,
+        dryRun: Boolean(switches.dryRun),
+        confirm: confirm || confirmPrompt
+      });
+    }
     if (switches.import) {
       return await runImport({
         credentials,
@@ -578,7 +686,7 @@ module.exports = {
   name: 'sync',
   description: 'Sync Liked Songs and playlists with Spotify; without switches, show the plan',
   usage:
-    'musicman sync [--login | --match [--refresh] [--verbose] | --review | --push [--prune] | --pull | --import] [--dry-run]',
+    'musicman sync [--login | --match [--refresh] [--verbose] | --review | --push [--prune] | --pull | --import | --backup] [--dry-run]',
   switches: [
     'login',
     'match',
@@ -589,6 +697,7 @@ module.exports = {
     'prune',
     'pull',
     'import',
+    'backup',
     'dry-run',
     'format',
     'fzf'

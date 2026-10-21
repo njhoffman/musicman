@@ -117,6 +117,18 @@ sync:
   # beets config, used to find the beets library and its Spotify ids
   beetsConfig: ~/.config/beets/config.yaml
 
+# Backup of the library files with musicman sync --backup: everything in mpd.baseDirectory is mirrored to
+# backup.directory. Files only in the backup are moved to <directory>/.musicman-removed/<date>, never deleted.
+backup:
+  # Backup directory, e.g. a network share; sync --backup needs it set
+  directory:
+  # Paths left out, relative to mpd.baseDirectory: ** is any path, * any part of a name. The live database
+  # is left out because the weekly copies in .musicman are backed up instead.
+  exclude:
+  - musicman.sqlite*
+  - .musicman/download/**
+  - .musicman/upload/**
+
 # Notification daemon settings for desktop notifications
 daemon:
   # Display duration for notifications in milliseconds
