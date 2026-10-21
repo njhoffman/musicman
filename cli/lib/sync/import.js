@@ -6,6 +6,7 @@ const globalTags = require('musicman-common/config/tags.json');
 const { assignFields, fetchDetails } = require('../spotify/fields.js');
 const { execBeet } = require('../beets/sort.js');
 const { downloadTrackId } = require('./download.js');
+const { updateTags } = require('../metadata/write.js');
 
 // frame of a tag name, user tags first like library.tags
 const tagFrame = (config, name) =>
@@ -52,7 +53,7 @@ const importTags = ({ raw, entry, objects, config, now }) => {
 
 const writeImportTags = (file, { custom, filled, playlist }) => {
   const frames = [...filled, ...playlist];
-  NodeId3.update(
+  updateTags(
     {
       userDefinedText: [
         ..._.map(custom, ({ name, value }) => ({ description: name, value })),

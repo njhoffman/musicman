@@ -87,6 +87,16 @@ describe('Spotify Matching', () => {
     });
   });
 
+  it('should keep search queries under the 250 character limit for very long titles', () => {
+    const song = {
+      artist: 'Sufjan Stevens',
+      title: `The Black Hawk War, Or, How to Demolish an Entire Civilization ${'and Still Feel Good '.repeat(12)}`
+    };
+    expect(searchQuery(song).length).to.be.below(250);
+    expect(looseQuery(song).length).to.be.below(250);
+    expect(searchQuery(song)).to.match(/^track:"The Black Hawk War, Or, How to Demolish/);
+  });
+
   it('should build field and loose search queries', () => {
     expect(searchQuery({ title: 'Fall In Love (NEUS Remix)', artist: 'Phantogram' })).to.equal(
       'track:"Fall In Love NEUS Remix" artist:"Phantogram"'

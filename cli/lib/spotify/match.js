@@ -132,18 +132,25 @@ const bestCandidate = (song, tracks, options) => {
 const queryArtist = song =>
   `${song.artist || ''}`.split(/,|;|\s&\s|\s(?:feat\.?|ft\.?|featuring)\s/i)[0];
 
+// Spotify rejects queries over 250 characters, very long titles are cut to their first words
+const maxTitleLength = 150;
+
+const queryTitle = title => {
+  const text = stripTitleNoise(title).replace(/\s+/g, ' ').trim();
+  return text.length > maxTitleLength ? text.slice(0, maxTitleLength).replace(/\s+\S*$/, '') : text;
+};
+
 // Spotify search query for a song, quoting fields so words stay together; version markers are kept
 // so remixes and covers find their own recording
 const searchQuery = song => {
-  const title = stripTitleNoise(song.title)
+  const title = queryTitle(song.title)
     .replace(/[()[\]"]/g, ' ')
     .replace(/\s+/g, ' ');
   return `track:"${title.trim()}" artist:"${queryArtist(song).replace(/"/g, '').trim()}"`;
 };
 
 // looser query of plain words, for titles the field query misses (punctuation, alternate spellings)
-const looseQuery = song =>
-  `${plain(stripTitleNoise(song.title))} ${plain(queryArtist(song))}`.trim();
+const looseQuery = song => `${plain(queryTitle(song.title))} ${plain(queryArtist(song))}`.trim();
 
 module.exports = {
   bestCandidate,

@@ -71,13 +71,38 @@ const mergeAssignments = (meta, assignments) => {
   return { ...meta, ...parsedAssignments };
 };
 
+/**
+ * NodeId3.update, working around node-id3 failing to write a UFID frame without an identifier (e.g. an
+ * empty MusicBrainz UFID): it reads one as an undefined identifier and cannot serialize that back, so
+ * every update of such a file fails. Those files are first written without UFID frames, then updated
+ * with them given back with empty identifiers, which keeps the frames as they were.
+ */
+const updateTags = (tags, file) => {
+  const { raw = {} } = NodeId3.read(file) || {};
+  const ufid = [].concat(raw.UFID || []);
+  if (!_.some(ufid, ({ identifier }) => identifier === undefined)) {
+    return NodeId3.update(tags, file);
+  }
+  const withoutUfid = NodeId3.write(_.omit(raw, 'UFID'), file);
+  if (withoutUfid instanceof Error) {
+    return withoutUfid;
+  }
+  return NodeId3.update(
+    {
+      ...tags,
+      UFID: _.map(ufid, frame => ({ ...frame, identifier: frame.identifier || Buffer.alloc(0) }))
+    },
+    file
+  );
+};
+
 const writeFile = ([file, id3Tags]) => {
   logger.debug(`Writing file: ${file}\nWith Tags:`, id3Tags);
-  return NodeId3.update(id3Tags, file);
+  return updateTags(id3Tags, file);
 };
 
 const writeFiles = config => files => {
   return _.chain(files).map(prepareId3Tags(config)).map(writeFile).value();
 };
 
-module.exports = { mergeAssignments, writeFiles };
+module.exports = { mergeAssignments, updateTags, writeFiles };

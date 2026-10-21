@@ -570,6 +570,7 @@ const syncCommand = async ({
     return { ..._.omit(status, 'client'), plan, pushed, pulled };
   } catch (err) {
     logger.error(err.message);
+    logger.logToFile('error', err.stack);
     process.exitCode = 1;
     return false;
   }

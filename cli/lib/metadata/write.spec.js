@@ -7,7 +7,7 @@ describe('Metadata Write', () => {
   let writeModule;
 
   beforeEach(() => {
-    nodeId3Stub = { update: sinon.stub().returns(true) };
+    nodeId3Stub = { update: sinon.stub().returns(true), read: sinon.stub().returns({ raw: {} }) };
     writeModule = proxyquire('./write.js', {
       'node-id3': nodeId3Stub
     });
@@ -118,6 +118,51 @@ describe('Metadata Write', () => {
       const callArgs = nodeId3Stub.update.firstCall.args;
       expect(callArgs[0]).to.include({ TPE1: 'Artist' });
       expect(callArgs[0]).to.not.have.property('TPE2');
+    });
+  });
+  describe('updateTags', () => {
+    const fs = require('fs');
+    const os = require('os');
+    const path = require('path');
+    const NodeId3 = require('node-id3');
+    const { updateTags } = require('./write.js');
+    let directory;
+    let file;
+
+    beforeEach(() => {
+      directory = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-write-'));
+      file = path.join(directory, 'song.mp3');
+      fs.copyFileSync(path.join(process.cwd(), 'test/data/source/dir1/testFile01.mp3'), file);
+    });
+
+    afterEach(() => {
+      fs.rmSync(directory, { recursive: true, force: true });
+    });
+
+    it('should update a file with a UFID frame without an identifier and keep the frame', () => {
+      const emptyUfid = [
+        { ownerIdentifier: 'http://musicbrainz.org', identifier: Buffer.alloc(0) }
+      ];
+      NodeId3.update({ UFID: emptyUfid }, file);
+      // node-id3 itself cannot write such a file back
+      expect(() => NodeId3.update({ TIT1: 'x' }, file)).to.throw();
+      const before = NodeId3.read(file).raw;
+
+      expect(updateTags({ TIT1: 'IndieRock.Artists' }, file)).to.be.true;
+      expect(updateTags({ userDefinedText: [{ description: 'sp_track_id', value: 'id' }] }, file))
+        .to.be.true;
+      const after = NodeId3.read(file).raw;
+      expect(after.TIT1).to.equal('IndieRock.Artists');
+      expect(after.UFID).to.deep.equal([
+        { ownerIdentifier: 'http://musicbrainz.org', identifier: undefined }
+      ]);
+      expect(Object.keys(after)).to.include.members(Object.keys(before));
+      expect(after.POPM).to.deep.equal(before.POPM);
+    });
+
+    it('should update other files with node-id3 directly', () => {
+      expect(updateTags({ TIT1: 'Grouping' }, file)).to.be.true;
+      expect(NodeId3.read(file).raw.TIT1).to.equal('Grouping');
     });
   });
 });

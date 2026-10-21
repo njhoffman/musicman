@@ -1,6 +1,5 @@
 const _ = require('lodash');
 const path = require('path');
-const NodeId3 = require('node-id3');
 const Promise = require('bluebird');
 const globalTags = require('musicman-common/config/tags.json');
 
@@ -8,6 +7,8 @@ const { bestCandidate, looseQuery, searchQuery } = require('../spotify/match.js'
 const { assignFields, fetchDetails, fetchedAtName, trackIdName } = require('../spotify/fields.js');
 const { transaction } = require('../db/database.js');
 const { updateDatabase } = require('../db/update.js');
+const { updateTags } = require('../metadata/write.js');
+const logger = require('../utils/logger.js');
 
 const spotifyIdFrame = `TXXX.${trackIdName}`;
 const fetchedAtFrame = `TXXX.${fetchedAtName}`;
@@ -80,13 +81,24 @@ const plannedWrites = (db, config, songId, assignment) => {
 };
 
 const writeFields = (file, { custom, filled }) =>
-  NodeId3.update(
+  updateTags(
     {
       userDefinedText: _.map(custom, ({ name, value }) => ({ description: name, value })),
       ..._.fromPairs(_.map(filled, ({ frame, value }) => [frame, value]))
     },
     file
   );
+
+// writes a song's fields, returning why it failed instead of stopping the run (null when written)
+const tryWrite = (file, writes) => {
+  try {
+    const result = writeFields(file, writes);
+    return result instanceof Error ? result.message : null;
+  } catch (err) {
+    logger.logToFile('error', `writing ${file}: ${err.stack}`);
+    return `could not write tags: ${err.message}`;
+  }
+};
 
 /**
  * Finds Spotify track ids for songs (from songTargets) that belong in a Spotify target and do not have
@@ -296,8 +308,12 @@ const matchSongs = async ({
           filled: [],
           kept: []
         };
+        const writeError = dryRun ? null : tryWrite(item.file, writes);
+        if (writeError) {
+          finish('failed', item, { ...result, error: writeError });
+          return;
+        }
         if (!dryRun) {
-          writeFields(item.file, writes);
           written.push(item.file);
         }
         finish(status, item, { ...result, writes, error });
@@ -308,8 +324,12 @@ const matchSongs = async ({
         unassigned[fieldPath] = (unassigned[fieldPath] || 0) + 1;
       });
       const writes = plannedWrites(db, config, item.songId, assignment);
+      const writeError = dryRun ? null : tryWrite(item.file, writes);
+      if (writeError) {
+        finish('failed', item, { ...result, track: objects.track, error: writeError });
+        return;
+      }
       if (!dryRun) {
-        writeFields(item.file, writes);
         written.push(item.file);
       }
       finish(status, item, { ...result, track: objects.track, writes });
