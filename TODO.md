@@ -142,10 +142,14 @@ OVERDUE flag. Feature specs live in `docs/`.
         their tags, multi value fields collect every value) plus all the `spotify.fields`
       - files that did not come from Spotify go through the `sync --match` lookup (beets id, ISRC, search) first
       - supersedes `sync --import`, which only handles manifest downloads as singletons
-- [ ] **`sync --backup`:** (p1) [feature] mirror the library files to a backup location (`/mnt/nfs/Music` now).
+- [x] **`sync --backup`:** (p1) [feature] mirror the library files to a backup location (`/mnt/nfs/Music` now).
       Before changing anything, list the files to copy, update, and delete and confirm; deletions are opt-in and
       listed separately. Refuse to overwrite a backup file whose tag has frames the library copy lacks (how the
       frames lost on 2026-10-21 were recovered) and report those instead.
+- [ ] **Progress feedback for `sync --backup`:** (p2) [feature] the comparison (walking both trees over NFS and reading
+      the tags of changed mp3s for the frame check) runs for minutes with no output, so it looks hung. Show a status
+      line while comparing (files scanned on each side, changed files checked of total, elapsed time), and bytes
+      copied with rate and ETA while copying, not only file counts.
 - [ ] **`check` command:** (p2) [feature] report, and with `--fix` repair (recorded for `check --undo <run>`): files
       that cannot be read or rewritten, frames node-id3 cannot keep, database drift, duplicate songs, custom tag
       names that differ only by case or punctuation (renamed to a `check.names` list seeded with beets names),
