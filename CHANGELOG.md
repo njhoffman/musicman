@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.15.0](https://github.com/njhoffman/musicman/compare/v1.14.0...v1.15.0) (2026-10-21)
+
+
+### Features
+
+* add --format (oneline, csv, json, html) and --fzf to list output ([afeed40](https://github.com/njhoffman/musicman/commit/afeed4083d7ab2a4185ccfb2ec67872d206d9ef3))
+* add logs command to view archived runs ([6ab2b8b](https://github.com/njhoffman/musicman/commit/6ab2b8b5285a8ba88959bf2687f2d2aec28bd734))
+* archive runs that change something and keep progress as a footer ([eb4646e](https://github.com/njhoffman/musicman/commit/eb4646e5fcda038b72566278ff2cdad38bd93a12))
+* write Spotify fields as sp_ tags with verbose sync --match output ([698d69f](https://github.com/njhoffman/musicman/commit/698d69f9ab6cff27a406b4f6297af5007c7b0c62))
+
 ## [1.14.0](https://github.com/njhoffman/musicman/compare/v1.13.0...v1.14.0) (2026-10-20)
 
 
