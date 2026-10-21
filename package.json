@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"cli/lib/**/*.js\" \"cli/test/**/*.js\" \"cli/scripts/**/*.js\" \"common/config/**/*.js\" \"common/mpd/**/*.js\" eslint.config.js \"!cli/test/data/**\"",
-    "format:check": "prettier --check \"cli/lib/**/*.js\" \"cli/test/**/*.js\" \"cli/scripts/**/*.js\" \"common/config/**/*.js\" \"common/mpd/**/*.js\" eslint.config.js \"!cli/test/data/**\""
+    "format:check": "prettier --check \"cli/lib/**/*.js\" \"cli/test/**/*.js\" \"cli/scripts/**/*.js\" \"common/config/**/*.js\" \"common/mpd/**/*.js\" eslint.config.js \"!cli/test/data/**\"",
+    "prepare": "husky",
+    "publish:local": "scripts/publish-local.sh"
   },
   "author": "Nick Hoffman",
   "license": "ISC",

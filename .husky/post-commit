@@ -1,0 +1,5 @@
+# publish the new commit as a musicman build in the background (scripts/publish-local.sh), so the
+# musicman alias can run ~/.local/share/musicman/current instead of the repo being worked on
+log="${MUSICMAN_HOME:-$HOME/.local/share/musicman}/publish.log"
+mkdir -p "$(dirname "$log")"
+nohup "$(git rev-parse --show-toplevel)/scripts/publish-local.sh" >>"$log" 2>&1 &
