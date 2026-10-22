@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.22.0](https://github.com/njhoffman/musicman/compare/v1.21.3...v1.22.0) (2026-10-22)
+
+
+### Features
+
+* recheck existing Spotify matches and accept or reject them in review ([ee0ff3e](https://github.com/njhoffman/musicman/commit/ee0ff3e1462b545fb34e59119544edd831c0a5ff))
+
 ### [1.21.3](https://github.com/njhoffman/musicman/compare/v1.21.2...v1.21.3) (2026-10-21)
 
 
