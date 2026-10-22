@@ -192,6 +192,35 @@ OVERDUE flag. Feature specs live in `docs/`.
       Spotify discographies so the check is quick, and say at the start of the command how much is missing, e.g.
       "notice: 28 albums across 15 artists are not imported yet".
 
+## Playback and integrations
+
+- [ ] **Now playing screen:** (p2) [feature] improve what `musicman` / `view` without arguments shows for the playing
+      song: Nerd Font icons for fields, a progress bar for the position in the track, and when Spotify is playing, its
+      track details and the names of the mapped playlists the song is in.
+- [ ] **Playback controls for MPD and Spotify:** (p2) [feature] one set of mpc style commands (play, pause, next, previous,
+      seek, volume, queue) that acts on whichever player is active, plus musicman features such as playing a search
+      result or a filter. Spotify control goes through the Web API player endpoints (needs the
+      `user-modify-playback-state` and `user-read-playback-state` scopes and a new login).
+- [ ] **`status` command:** (p2) [feature] show the active player (MPD or Spotify), the playing song with its rating and
+      tags, and the playlist or queue it is playing from.
+- [ ] **Like or ignore the Spotify song that is playing:** (p2) [feature] save it to Liked Songs, or add it to an "always
+      ignore" playlist set in a new config option (e.g. `sync.ignorePlaylist`), which sync then leaves alone: never
+      pulled, matched, or downloaded.
+- [ ] **rofi menu for the playing song:** (p2) [feature] a rofi interface that, when Spotify is playing, adds the song to
+      any mapped playlist, Liked Songs, or the ignore playlist, and when MPD is playing, sets the rating, grouping,
+      context, mood, and picks (writing tags like `edit`).
+- [ ] **Own song change notifications:** (p2) [feature] replace the mpDris2 notifications (unreliable now) by extending
+      `lib/notify-daemon.js`: show the source (Spotify or MPD), the rating when there is one, context and mood labels,
+      and the album cover. Follows the testability refactor above.
+- [ ] **Lyrics:** (p3) [feature] fetch lyrics for the playing song (embedded USLT first, then an online source) and show
+      them like Spotify's mini player, scrolling along with the playback position when the lyrics are synced (LRC).
+- [ ] **Smart playlists on Spotify:** (p3) [feature] generate playlists from the library's own metadata (context, mood,
+      picks, rating, grouping, Spotify genres and popularity) instead of only fixed filters, and push them like the
+      mapped playlists. First look into services or libraries that build better smart playlists from that kind of
+      metadata.
+- [ ] **Other music services:** (p3) [feature] support services besides Spotify (e.g. YouTube Music, SoundCloud) for
+      matching, playlist sync, and playback, starting with which ones have a usable API.
+
 ## Housekeeping
 
 - [ ] (p3) [chore] Remove stale tracked files: `cli/test_output.txt`, `cli/test_output2.txt`, `cli/SESSION_SUMMARY.md`,
