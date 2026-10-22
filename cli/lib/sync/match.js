@@ -379,7 +379,9 @@ const reviewItems = (db, config) =>
     db
       .prepare(
         `SELECT s.id, s.path, m.candidate, m.source, s.duration,
-           (SELECT value FROM song_tags WHERE song_id = s.id AND frame_id = ?) AS linked_id
+           (SELECT value FROM song_tags WHERE song_id = s.id AND frame_id = ?) AS linked_id,
+           (SELECT value FROM song_tags WHERE song_id = s.id AND frame_id = 'TPE1') AS artist,
+           (SELECT value FROM song_tags WHERE song_id = s.id AND frame_id = 'TIT2') AS title
          FROM spotify_matches m JOIN songs s ON s.id = m.song_id
          WHERE m.status = 'review' ORDER BY s.path`
       )
@@ -391,6 +393,7 @@ const reviewItems = (db, config) =>
         file: path.join(path.resolve(config.mpd.baseDirectory), row.path),
         path: row.path,
         duration: row.duration,
+        song: { artist: row.artist, title: row.title, duration: row.duration },
         source: row.source,
         candidate,
         linked: Boolean(row.linked_id) && row.linked_id === candidate.id
@@ -473,9 +476,16 @@ const markReviewed = (db, songId, status, trackId) =>
 const acceptReview = async ({ db, config, client, items, now = new Date() }) => {
   const [linked, unlinked] = _.partition(items, 'linked');
   linked.forEach(({ songId, candidate }) => markReviewed(db, songId, 'match', candidate.id));
-  const details = unlinked.length
-    ? await fetchDetails(client, _.map(unlinked, 'candidate.id'), config)
-    : new Map();
+  // without details (e.g. a network error) the id alone is written, sync --match fills the fields later
+  let details = new Map();
+  let detailsError = null;
+  if (unlinked.length > 0) {
+    try {
+      details = await fetchDetails(client, _.map(unlinked, 'candidate.id'), config);
+    } catch (err) {
+      detailsError = err.message;
+    }
+  }
   const failed = [];
   const written = [];
   unlinked.forEach(item => {
@@ -494,7 +504,11 @@ const acceptReview = async ({ db, config, client, items, now = new Date() }) => 
   if (written.length > 0) {
     await updateDatabase(db, { config, files: written, record: false });
   }
-  return { accepted: _.reject(items, item => _.some(failed, { file: item.file })), failed };
+  return {
+    accepted: _.reject(items, item => _.some(failed, { file: item.file })),
+    failed,
+    detailsError
+  };
 };
 
 /**

@@ -239,6 +239,7 @@ module.exports = {
   bestCandidate,
   sameTitle,
   titleDescriptors,
+  titleWords,
   candidateOf,
   looseQuery,
   normalizeTitle,

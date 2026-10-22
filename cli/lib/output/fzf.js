@@ -11,16 +11,29 @@ const previewCommand = (...args) =>
  * Lets the user pick oneline output lines ("key<TAB>text") with fzf, which shows the text and is
  * searched by it. Returns the keys of the picked lines, none when fzf is cancelled or nothing matches.
  */
-const pickWithFzf = (lines, { preview, multi = true, prompt, spawn = spawnSync } = {}) => {
+const pickWithFzf = (
+  lines,
+  {
+    preview,
+    previewWindow = 'right,50%,wrap',
+    multi = true,
+    prompt,
+    header,
+    spawn = spawnSync
+  } = {}
+) => {
   const args = ['--ansi', '--delimiter=\t', '--with-nth=2..', '--layout=reverse', '--height=90%'];
   if (multi) {
     args.push('--multi');
   }
   if (preview) {
-    args.push(`--preview=${preview}`, '--preview-window=right,50%,wrap');
+    args.push(`--preview=${preview}`, `--preview-window=${previewWindow}`);
   }
   if (prompt) {
     args.push(`--prompt=${prompt}> `);
+  }
+  if (header) {
+    args.push(`--header=${header}`);
   }
   // fzf draws on /dev/tty itself, only the picked lines come back on stdout
   const result = spawn('fzf', args, {

@@ -6,7 +6,14 @@ const sinon = require('sinon');
 const { expect } = require('chai');
 
 const { createClient } = require('./api.js');
-const { authorizeUrl, exchangeCode, scopes, userAccessToken, writeTokens } = require('./auth.js');
+const {
+  appToken,
+  authorizeUrl,
+  exchangeCode,
+  scopes,
+  userAccessToken,
+  writeTokens
+} = require('./auth.js');
 const { getCredentials, missingCredentials, tokenPath } = require('./credentials.js');
 const { login } = require('./login.js');
 
@@ -90,6 +97,26 @@ describe('Spotify', () => {
         scope: scopes.join(' '),
         state: 'abc'
       });
+    });
+
+    it('should retry a token request after network errors and explain a lasting one', async () => {
+      const networkError = Object.assign(new TypeError('fetch failed'), {
+        cause: { code: 'ECONNRESET' }
+      });
+      const sleep = sinon.stub().resolves();
+      const flaky = sinon
+        .stub()
+        .onFirstCall()
+        .rejects(networkError)
+        .onSecondCall()
+        .resolves(jsonResponse(200, { access_token: 'app', expires_in: 3600 }));
+      expect(await appToken(credentials, { fetchImpl: flaky, sleep })).to.equal('app');
+      expect(sleep).to.have.been.calledOnceWith(1000);
+
+      const down = sinon.stub().rejects(networkError);
+      const err = await appToken(credentials, { fetchImpl: down, sleep, retries: 2 }).catch(e => e);
+      expect(err.message).to.equal('Spotify token request failed: fetch failed (ECONNRESET)');
+      expect(down).to.have.been.calledThrice;
     });
 
     it('should exchange a code with basic auth and record the expiry', async () => {

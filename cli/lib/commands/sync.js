@@ -26,6 +26,7 @@ const { downloadedFiles, manifestPath, readManifest } = require('../sync/downloa
 const { importDownloads } = require('../sync/import.js');
 const { applyBackup, backupPlan, removedFolder } = require('../sync/backup.js');
 const { saveSnapshot } = require('../sync/snapshot.js');
+const { reviewHeader, reviewLines } = require('../output/review.js');
 const { unsortedFolder } = require('../beets/sort.js');
 const { renderColumns } = require('../output/render.js');
 const { formatWait, progressBar } = require('../output/progress.js');
@@ -617,25 +618,18 @@ const reviewRecords = items =>
     spotifyDuration: candidate.durationMs / 1000
   }));
 
-// review line for fzf: linked matches (already on Spotify) are marked
-const reviewOneline = config => record =>
-  `${record.path}\t${record.linked ? chalk.hex('#DDCC44')('linked ') : ''}${path.relative(
-    config.mpd.baseDirectory,
-    record.path
-  )} ${dim('->')} ${record.spotifyArtists} - ${record.spotifyName} ${dim(
-    `[${record.spotifyAlbum}] ${formatDuration(record.duration)} vs ${formatDuration(
-      record.spotifyDuration
-    )}`
-  )}`;
-
 // accept or reject the review items picked with fzf
 const decideReview = async ({ db, config, items, accept, credentials, fetchImpl, pick }) => {
+  const lines = reviewLines(items);
   const { selected = [] } = emitFormatted({
     switches: { fzf: true },
     config,
     title: accept ? 'accept' : 'reject',
     records: reviewRecords(items),
-    oneline: reviewOneline(config),
+    oneline: record => lines.get(record.path),
+    header: reviewHeader,
+    // wide columns, so the song preview goes below the list
+    previewWindow: 'down,40%,wrap',
     preview: previewCommand('view'),
     pick,
     write: _.noop
@@ -700,7 +694,10 @@ const runReview = async ({ config, switches = {}, credentials, fetchImpl, pick }
         config,
         title: 'musicman sync review',
         records: reviewRecords(items),
-        oneline: reviewOneline(config),
+        oneline: record => reviewLines(items).get(record.path),
+        header: reviewHeader,
+        // wide columns, so the song preview goes below the list
+        previewWindow: 'down,40%,wrap',
         preview: previewCommand('view'),
         pick
       });
@@ -836,7 +833,8 @@ module.exports = {
     'fzf'
   ],
   func: syncCommand,
-  archive: ({ review }) => !review,
+  // reviewing only lists, accepting or rejecting changes tags
+  archive: ({ review, accept, reject }) => !review || Boolean(accept || reject),
   defaultTarget,
   targetArgs: false,
   terms: false

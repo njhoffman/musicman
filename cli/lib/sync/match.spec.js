@@ -459,6 +459,37 @@ describe('Spotify Id Matching', () => {
       expect(status('testFile03.mp3')).to.include({ status: 'match', track_id: 'maybe-id' });
     });
 
+    it('should still write the id when accepting while track details cannot be fetched', async () => {
+      const searched = meta('testFile03.mp3');
+      const row = db.prepare('SELECT duration FROM songs WHERE path = ?').get('testFile03.mp3');
+      await matchSongs({
+        db,
+        config,
+        client: fakeClient({
+          [`track:"${searched.title}" artist:"${searched.artist}"`]: [
+            track('maybe-id', searched.title, searched.artist, row.duration + 20)
+          ]
+        }),
+        songs: songs(['testFile03.mp3'])
+      });
+      const offline = {
+        get: async () => {
+          throw new Error('Spotify token request failed: fetch failed (ECONNRESET)');
+        }
+      };
+      const result = await acceptReview({
+        db,
+        config,
+        client: offline,
+        items: reviewItems(db, config)
+      });
+      expect(result.detailsError).to.equal(
+        'Spotify token request failed: fetch failed (ECONNRESET)'
+      );
+      expect(result.accepted).to.have.length(1);
+      expect(spotifyId('testFile03.mp3')).to.equal('maybe-id');
+    });
+
     it('should unlink a rejected match, remember the track, and look the song up again without it', async () => {
       recheckMatches({ db, config, songs: songs(['testFile01.mp3']) });
       const { rejected } = await rejectReview({ db, config, items: reviewItems(db, config) });

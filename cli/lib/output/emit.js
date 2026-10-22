@@ -69,6 +69,8 @@ const emitFormatted = ({
   sections,
   oneline,
   preview,
+  previewWindow,
+  header,
   pick = pickWithFzf,
   write = text => process.stdout.write(text)
 }) => {
@@ -80,7 +82,12 @@ const emitFormatted = ({
       : formatRecords({ ...options, records, columns })
   );
   if (switches.fzf) {
-    const selected = pick(text ? text.split('\n') : [], { preview, prompt: title });
+    const selected = pick(text ? text.split('\n') : [], {
+      preview,
+      prompt: title,
+      ...(header ? { header } : {}),
+      ...(previewWindow ? { previewWindow } : {})
+    });
     if (selected.length > 0) {
       write(`${selected.join('\n')}\n`);
     }

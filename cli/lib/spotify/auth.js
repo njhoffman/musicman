@@ -19,15 +19,42 @@ const expiryMarginMs = 60 * 1000;
 const basicAuth = ({ clientId, clientSecret }) =>
   `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`;
 
-const requestToken = async (credentials, params, { fetchImpl = fetch, now = Date.now } = {}) => {
-  const res = await fetchImpl(`${accountsUrl}/api/token`, {
-    method: 'POST',
-    headers: {
-      Authorization: basicAuth(credentials),
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: new URLSearchParams(params).toString()
-  });
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// a network error (fetch failed) with its cause, e.g. ECONNRESET or ENOTFOUND
+const networkReason = err => {
+  const cause = err.cause && (err.cause.code || err.cause.message);
+  return cause ? `${err.message} (${cause})` : err.message;
+};
+
+/**
+ * Requests a token, retrying network errors and timeouts (1, 2, then 4 seconds apart) like the Web API
+ * client does, so a dropped connection does not end a run.
+ */
+const requestToken = async (
+  credentials,
+  params,
+  { fetchImpl = fetch, now = Date.now, retries = 3, sleep = wait, timeoutMs = 15000 } = {}
+) => {
+  let res;
+  for (let attempt = 0; !res; attempt += 1) {
+    try {
+      res = await fetchImpl(`${accountsUrl}/api/token`, {
+        method: 'POST',
+        headers: {
+          Authorization: basicAuth(credentials),
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams(params).toString(),
+        signal: AbortSignal.timeout(timeoutMs)
+      });
+    } catch (err) {
+      if (attempt >= retries) {
+        throw new Error(`Spotify token request failed: ${networkReason(err)}`, { cause: err });
+      }
+      await sleep(1000 * 2 ** attempt);
+    }
+  }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new Error(
