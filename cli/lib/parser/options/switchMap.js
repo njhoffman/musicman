@@ -81,6 +81,24 @@ module.exports = {
     alias: '-v',
     func: () => ({ verbose: true })
   },
+  recheck: {
+    description:
+      'With --match, move existing matches that fail the current title rules to review (they stay linked)',
+    alias: '-C',
+    func: () => ({ recheck: true })
+  },
+  accept: {
+    description:
+      'With --review, accept the matches picked with fzf (write their Spotify id and fields)',
+    alias: '-Y',
+    func: () => ({ accept: true })
+  },
+  reject: {
+    description:
+      'With --review, reject the matches picked with fzf: unlink them, remove pushed tracks on the next push, and look the songs up again',
+    alias: '-N',
+    func: () => ({ reject: true })
+  },
   review: {
     description: 'List probable Spotify matches waiting for review',
     alias: '-R',

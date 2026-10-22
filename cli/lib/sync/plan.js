@@ -2,7 +2,7 @@ const _ = require('lodash');
 const path = require('path');
 
 const { transaction } = require('../db/database.js');
-const { spotifyIdFrame } = require('./match.js');
+const { rejectedTracks, spotifyIdFrame } = require('./match.js');
 const { likedId } = require('./targets.js');
 
 // Spotify track id of every stored song, keyed by absolute file path
@@ -34,13 +34,17 @@ const syncedTracks = db =>
  *   spotifyAdded: in the target, does not belong by its tags, and was not in sync before (added on Spotify)
  *   spotifyRemoved: belongs by its tags, is not in the target, and was in sync before (removed on Spotify)
  *   inSync: track ids in the target that belong there
- * and noId (songs that belong without a Spotify id) and pull (tracks in the target not in the library).
+ * and noId (songs that belong without a Spotify id), reject (tracks rejected in review for a song, which
+ * push removes), and pull (tracks in the target not in the library).
  * Songs marked outOfScope (outside sync.scope) are in none of these.
  */
 const syncPlan = (db, config, songs) => {
   const ids = localSpotifyIds(db, config);
   const songByTrack = new Map(_.map([...ids], ([file, id]) => [id, file]));
   const synced = syncedTracks(db);
+  // tracks rejected in review that no song is linked to any more, removed wherever they were pushed
+  const rejected = rejectedTracks(db, config);
+  const isRejected = trackId => rejected.has(trackId) && !songByTrack.has(trackId);
   const playlists = db.prepare('SELECT id, name FROM spotify_playlists').all();
   const tracksOf = db.prepare(
     'SELECT track_id, is_local, name, artists, album FROM spotify_playlist_tracks WHERE playlist_id = ?'
@@ -88,10 +92,14 @@ const syncPlan = (db, config, songs) => {
           'trackId'
         )
       ),
+      reject: _.map(
+        _.filter(remote, ({ track_id: trackId }) => trackId && isRejected(trackId)),
+        track => ({ ...track, file: rejected.get(track.track_id) })
+      ),
       pull: _.filter(
         remote,
         ({ track_id: trackId, is_local: isLocal }) =>
-          !isLocal && trackId && !songByTrack.has(trackId)
+          !isLocal && trackId && !songByTrack.has(trackId) && !isRejected(trackId)
       )
     };
   });

@@ -74,4 +74,29 @@ describe('Sync Push', () => {
     await pushPlan(client, [target('liked', ['a', 'a', 'b'])]);
     expect(client.requests[0][2]).to.deep.equal({ ids: ['a', 'b'] });
   });
+  it('should always remove tracks rejected in review, and pruned tracks only with prune', async () => {
+    const withRejected = [
+      { ...target('liked', ['add-1'], ['prune-1']), reject: [{ track_id: 'rejected-1' }] },
+      { ...target('playlist1', [], ['prune-2']), reject: [{ track_id: 'rejected-2' }] }
+    ];
+    const client = recordingClient();
+    const results = await pushPlan(client, withRejected);
+    expect(client.requests).to.deep.equal([
+      ['PUT', '/me/tracks', { ids: ['add-1'] }],
+      ['DELETE', '/me/tracks', { ids: ['rejected-1'] }],
+      ['DELETE', '/playlists/playlist1/items', { items: [{ uri: 'spotify:track:rejected-2' }] }]
+    ]);
+    expect(results.map(({ added, removed }) => [added, removed])).to.deep.equal([
+      [1, 1],
+      [0, 1]
+    ]);
+
+    const pruning = recordingClient();
+    await pushPlan(pruning, withRejected, { prune: true });
+    expect(pruning.requests[1]).to.deep.equal([
+      'DELETE',
+      '/me/tracks',
+      { ids: ['rejected-1', 'prune-1'] }
+    ]);
+  });
 });

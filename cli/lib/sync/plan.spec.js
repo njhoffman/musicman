@@ -159,6 +159,19 @@ describe('Sync Cache and Plan', () => {
       expect(ids(liked.pull, 'track_id')).to.deep.equal(['elsewhere']);
     });
 
+    it('should list tracks rejected in review for removal instead of as downloads', () => {
+      // 'elsewhere' was pushed for e.mp3, rejected in review, and e.mp3 is unlinked
+      const songId = db.prepare("SELECT id FROM songs WHERE path = 'e.mp3'").get().id;
+      db.prepare(
+        `INSERT INTO spotify_matches (song_id, status, rejected) VALUES (?, 'rejected', '["elsewhere"]')`
+      ).run(songId);
+      const [liked] = syncPlan(db, config, songs);
+      expect(liked.reject.map(track => [track.track_id, track.file])).to.deep.equal([
+        ['elsewhere', '/music/e.mp3']
+      ]);
+      expect(liked.pull).to.be.empty;
+    });
+
     it('should record the agreed tracks and keep unresolved changes as they were', () => {
       const stored = () =>
         ids(db.prepare('SELECT track_id FROM spotify_synced ORDER BY track_id').all(), 'track_id');

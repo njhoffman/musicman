@@ -98,16 +98,16 @@ const updateNodeId3 = (tags, file) => {
 };
 
 /**
- * Tags written to a file with node-id3, keeping the frames node-id3 does not understand and would drop
- * when it rewrites the tag (e.g. TCMP, IPLS, TSOC): their original bytes are appended to the new tag.
- * Returns true, or the Error node-id3 returned.
+ * Runs a node-id3 write of file, keeping the frames node-id3 does not understand and would drop when it
+ * rewrites the tag (e.g. TCMP, IPLS, TSOC): their original bytes are appended to the new tag. Returns
+ * what write returned (true or an Error).
  */
-const updateTags = (tags, file) => {
+const keepingUnknownFrames = (file, write) => {
   const original = readTagBuffer(file);
   const frames = walkFrames(original) || [];
   const known = new Set(_.keys(_.get(NodeId3.read(original || Buffer.alloc(0)), 'raw', {})));
   const unknown = _.filter(frames, ({ id }) => !known.has(id));
-  const result = updateNodeId3(tags, file);
+  const result = write();
   if (result instanceof Error || unknown.length === 0) {
     return result;
   }
@@ -126,6 +126,30 @@ const updateTags = (tags, file) => {
   return result;
 };
 
+/**
+ * Tags written to a file with node-id3 update (added or changed, nothing removed), keeping the frames
+ * node-id3 does not understand. Returns true, or the Error node-id3 returned.
+ */
+const updateTags = (tags, file) => keepingUnknownFrames(file, () => updateNodeId3(tags, file));
+
+/**
+ * Rewrites the whole tag of a file from its node-id3 raw frames after change(raw), e.g. to remove TXXX
+ * fields, which update cannot do. Frames node-id3 does not understand are kept, and UFID frames without
+ * an identifier are written with an empty one. Returns true, or the Error node-id3 returned.
+ */
+const rewriteTags = (file, change) =>
+  keepingUnknownFrames(file, () => {
+    const { raw = {} } = NodeId3.read(file) || {};
+    const changed = change(_.cloneDeep(raw)) || raw;
+    if (changed.UFID) {
+      changed.UFID = _.map([].concat(changed.UFID), frame => ({
+        ...frame,
+        identifier: frame.identifier || Buffer.alloc(0)
+      }));
+    }
+    return NodeId3.write(changed, file);
+  });
+
 const writeFile = ([file, id3Tags]) => {
   logger.debug(`Writing file: ${file}\nWith Tags:`, id3Tags);
   return updateTags(id3Tags, file);
@@ -135,4 +159,4 @@ const writeFiles = config => files => {
   return _.chain(files).map(prepareId3Tags(config)).map(writeFile).value();
 };
 
-module.exports = { mergeAssignments, updateTags, writeFiles };
+module.exports = { mergeAssignments, rewriteTags, updateTags, writeFiles };

@@ -172,10 +172,10 @@ OVERDUE flag. Feature specs live in `docs/`.
 - [x] **Stricter Spotify version matching:** (p2) [bug] matches (search and ISRC) need the same title words and the
       same words in removed suffixes (Campfire mix vs Dub Mix, Early Version, Radio Edit, Happy Home II), otherwise
       they go to review.
-- [ ] **Recheck existing matches and review with accept and reject:** (p1) [feature] 100 matches from before the
-      stricter rule fail it (45 rated 4.5+ and pushed on 2026-10-21). `sync --match --recheck` should move them to
-      review without unlinking them; `sync --review` should accept (keep) or reject a match. A rejected track must be
-      pruned from the playlists it was pushed to, not offered as a download, and the song looked up again.
+- [x] **Recheck existing matches and review with accept and reject:** (p1) [feature] `sync --match --recheck` moves
+      matches failing the title rule to review without unlinking them (45 in scope on 2026-10-21); `sync --review
+      --accept` / `--reject` pick with fzf. Rejected tracks are removed by the next push (no `--prune` needed), are never
+      offered as downloads, and the song is looked up again without them (schema 4).
 - [ ] **Guess the grouping of downloads:** (p2) [feature] for each track handed to spotDL, guess its grouping (genre) from
       the library: groupings of the same artist's songs first, then songs whose Spotify artist genres overlap. Record the
       guess (and why) in the manifest and download into a folder named after it, but never write it to the grouping

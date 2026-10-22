@@ -9,7 +9,13 @@ const { appTokenGetter, readTokens, userAccessToken } = require('../spotify/auth
 const { getCredentials, missingCredentials, tokenPath } = require('../spotify/credentials.js');
 const { login } = require('../spotify/login.js');
 const { readBeetsConfig, readBeetsSpotifyIds } = require('../spotify/beets.js');
-const { matchSongs, reviewItems, spotifyIdFrame } = require('../sync/match.js');
+const {
+  acceptReview,
+  matchSongs,
+  recheckMatches,
+  rejectReview,
+  reviewItems
+} = require('../sync/match.js');
 const { playlistTargets, songTargets } = require('../sync/targets.js');
 const { refreshCache } = require('../sync/cache.js');
 const { recordSynced, syncPlan } = require('../sync/plan.js');
@@ -88,15 +94,18 @@ const confirmPrompt = message => new Confirm({ message }).run();
 
 // apply the plan after confirming, then refresh the cache of the targets that changed
 const runPush = async ({ db, client, config, plan, prune, dryRun, confirm }) => {
-  const total = key => _.sumBy(plan, target => target[key].length);
+  const total = key => _.sumBy(plan, target => (target[key] || []).length);
   const adds = total('add');
-  const removes = prune ? total('prune') : 0;
+  const rejects = total('reject');
+  const removes = (prune ? total('prune') : 0) + rejects;
   if (adds + removes === 0) {
     logger.info('Nothing to push');
     return [];
   }
   const message = `Add ${adds} tracks${
-    prune ? ` and remove ${removes} tracks` : ''
+    removes
+      ? ` and remove ${removes} tracks${rejects ? ` (${rejects} rejected in review)` : ''}`
+      : ''
   } across Liked Songs and playlists?`;
   if (dryRun) {
     logger.info(`Dry run: would ${message.charAt(0).toLowerCase()}${message.slice(1, -1)}`);
@@ -113,7 +122,7 @@ const runPush = async ({ db, client, config, plan, prune, dryRun, confirm }) => 
     prune,
     onTarget: ({ name, added, removed }) =>
       (added || removed) &&
-      logger.info(`${name}: added ${added}${prune ? `, removed ${removed}` : ''}`)
+      logger.info(`${name}: added ${added}${removed ? `, removed ${removed}` : ''}`)
   });
   const changed = _.map(
     _.filter(results, ({ added, removed }) => added || removed),
@@ -199,6 +208,7 @@ const planColumns = [
   ['add', 'Add', target => target.add.length],
   ['noId', 'No id', target => target.noId.length],
   ['prune', 'Prune', target => target.prune.length],
+  ['reject', 'Rejected', target => (target.reject || []).length],
   ['spotifyAdded', '+Spotify', target => target.spotifyAdded.length],
   ['spotifyRemoved', '-Spotify', target => target.spotifyRemoved.length],
   ['pull', 'Pull', target => target.pull.length]
@@ -295,10 +305,36 @@ const librarySongs = async config =>
     config
   });
 
-const runMatch = async ({ credentials, file, fetchImpl, config, dryRun, refresh, verbose }) => {
+const runMatch = async ({
+  credentials,
+  file,
+  fetchImpl,
+  config,
+  dryRun,
+  refresh,
+  recheck,
+  verbose
+}) => {
   const db = openSyncLibrary(config);
   try {
     const songs = songTargets(await librarySongs(config), config);
+    const rechecked = recheck ? recheckMatches({ db, config, songs, dryRun }) : [];
+    rechecked.forEach(item =>
+      logger.info(
+        formatSongResult(
+          'review',
+          item,
+          { source: 'recheck', candidate: item.candidate },
+          { dryRun }
+        )
+      )
+    );
+    if (recheck) {
+      logger.info(
+        `${rechecked.length} matches moved to review by the current title rule (sync --review)` +
+          `${dryRun ? ', dry run' : ''}`
+      );
+    }
     const startedAt = new Date();
     const summary = await matchSongs({
       db,
@@ -368,7 +404,7 @@ const runMatch = async ({ credentials, file, fetchImpl, config, dryRun, refresh,
         )}`
       );
     }
-    return { summary };
+    return { summary, rechecked: rechecked.length };
   } finally {
     db.close();
   }
@@ -569,52 +605,126 @@ const runBackup = async ({ config, dryRun, force = false, confirm }) => {
   return { backup: { plan: summary, applied } };
 };
 
-const runReview = ({ config, switches = {} }) => {
+const reviewRecords = items =>
+  _.map(items, ({ file: songFile, duration, candidate, linked }) => ({
+    path: songFile,
+    duration,
+    linked,
+    spotifyId: candidate.id,
+    spotifyArtists: candidate.artists,
+    spotifyName: candidate.name,
+    spotifyAlbum: candidate.album,
+    spotifyDuration: candidate.durationMs / 1000
+  }));
+
+// review line for fzf: linked matches (already on Spotify) are marked
+const reviewOneline = config => record =>
+  `${record.path}\t${record.linked ? chalk.hex('#DDCC44')('linked ') : ''}${path.relative(
+    config.mpd.baseDirectory,
+    record.path
+  )} ${dim('->')} ${record.spotifyArtists} - ${record.spotifyName} ${dim(
+    `[${record.spotifyAlbum}] ${formatDuration(record.duration)} vs ${formatDuration(
+      record.spotifyDuration
+    )}`
+  )}`;
+
+// accept or reject the review items picked with fzf
+const decideReview = async ({ db, config, items, accept, credentials, fetchImpl, pick }) => {
+  const { selected = [] } = emitFormatted({
+    switches: { fzf: true },
+    config,
+    title: accept ? 'accept' : 'reject',
+    records: reviewRecords(items),
+    oneline: reviewOneline(config),
+    preview: previewCommand('view'),
+    pick,
+    write: _.noop
+  });
+  const picked = _.filter(items, ({ file: songFile }) => selected.includes(songFile));
+  if (picked.length === 0) {
+    logger.info('Nothing picked');
+    return { picked };
+  }
+  const result = accept
+    ? await acceptReview({
+        db,
+        config,
+        client: createClient({ getToken: appTokenGetter(credentials, { fetchImpl }), fetchImpl }),
+        items: picked
+      })
+    : await rejectReview({ db, config, items: picked });
+  const done = accept ? result.accepted : result.rejected;
+  done.forEach(({ path: songPath, candidate, linked }) =>
+    logger.info(
+      `${chalk.hex(accept ? '#55CC55' : '#DD7744')(accept ? 'ACCEPT ' : 'REJECT ')} ${songPath} ${dim(
+        '->'
+      )} ${candidate.artists} - ${candidate.name}${
+        !accept && linked ? dim(' (unlinked, removed from Spotify by the next push)') : ''
+      }`
+    )
+  );
+  result.failed.forEach(({ path: songPath, error }) =>
+    logger.warn(`FAILED  ${songPath}: ${error}`)
+  );
+  logger.info(
+    accept
+      ? `Accepted ${done.length} matches`
+      : `Rejected ${done.length} matches; sync --match looks the songs up again, sync --push removes rejected tracks`
+  );
+  return { picked, ...result };
+};
+
+const runReview = async ({ config, switches = {}, credentials, fetchImpl, pick }) => {
   const db = openSyncLibrary(config);
   try {
     const items = reviewItems(db, config);
+    if (switches.accept || switches.reject) {
+      if (items.length === 0) {
+        logger.info('No Spotify matches waiting for review');
+        return { review: items };
+      }
+      const decided = await decideReview({
+        db,
+        config,
+        items,
+        accept: Boolean(switches.accept),
+        credentials,
+        fetchImpl,
+        pick
+      });
+      return { review: items, ...decided };
+    }
     if (outputFormat(switches) !== 'default') {
       const { selected } = emitFormatted({
         switches,
         config,
         title: 'musicman sync review',
-        records: _.map(items, ({ file: songFile, duration, candidate }) => ({
-          path: songFile,
-          duration,
-          spotifyId: candidate.id,
-          spotifyArtists: candidate.artists,
-          spotifyName: candidate.name,
-          spotifyAlbum: candidate.album,
-          spotifyDuration: candidate.durationMs / 1000
-        })),
-        oneline: record =>
-          `${record.path}\t${record.path} ${dim('->')} ${record.spotifyArtists} - ${
-            record.spotifyName
-          } ${dim(`[${record.spotifyAlbum}] ${formatDuration(record.duration)} vs ${formatDuration(record.spotifyDuration)}`)}`,
-        preview: previewCommand('view')
+        records: reviewRecords(items),
+        oneline: reviewOneline(config),
+        preview: previewCommand('view'),
+        pick
       });
       return { review: items, selected };
     }
-    // edit assigns tags by their library.tags name
-    const tagName = _.get(_.find(config.library.tags, { id: spotifyIdFrame }), 'name');
-    const accept = (songFile, id) =>
-      tagName
-        ? `  accept: musicman edit "${songFile}" ${tagName}=${id}`
-        : `  accept: add a ${spotifyIdFrame} tag to library.tags, then edit it to ${id}`;
     if (items.length === 0) {
       logger.info('No Spotify matches waiting for review');
     }
-    items.forEach(({ file: songFile, path: songPath, duration, candidate }) =>
+    items.forEach(({ path: songPath, duration, candidate, linked }) =>
       logger.info(
         [
-          `${songPath} (${formatDuration(duration)})`,
+          `${songPath} (${formatDuration(duration)})${linked ? chalk.hex('#DDCC44')(' linked') : ''}`,
           `  Spotify: ${candidate.artists} - ${candidate.name} [${
             candidate.album
-          }] (${formatDuration(candidate.durationMs / 1000)})`,
-          accept(songFile, candidate.id)
+          }] (${formatDuration(candidate.durationMs / 1000)})`
         ].join('\n')
       )
     );
+    if (items.length > 0) {
+      logger.info(
+        `${items.length} to review: sync --review --accept or --reject picks matches with fzf` +
+          `${_.some(items, 'linked') ? '; linked ones are already on Spotify' : ''}`
+      );
+    }
     return { review: items };
   } finally {
     db.close();
@@ -628,6 +738,7 @@ const syncCommand = async ({
   fetchImpl,
   open,
   confirm,
+  pick,
   env = process.env,
   file = tokenPath(env)
 }) => {
@@ -651,6 +762,7 @@ const syncCommand = async ({
         config,
         dryRun: Boolean(switches.dryRun),
         refresh: Boolean(switches.refresh),
+        recheck: Boolean(switches.recheck),
         verbose: Boolean(switches.verbose)
       });
     }
@@ -672,7 +784,7 @@ const syncCommand = async ({
       });
     }
     if (switches.review) {
-      return runReview({ config, switches });
+      return await runReview({ config, switches, credentials, fetchImpl, pick });
     }
     const status = await showStatus({ credentials, file, fetchImpl, env, config });
     if (!status.loggedIn) {
@@ -703,13 +815,16 @@ module.exports = {
   name: 'sync',
   description: 'Sync Liked Songs and playlists with Spotify; without switches, show the plan',
   usage:
-    'musicman sync [--login | --match [--refresh] [--verbose] | --review | --push [--prune] | --pull | --import | --backup [--force]] [--dry-run]',
+    'musicman sync [--login | --match [--refresh] [--recheck] [--verbose] | --review [--accept | --reject] | --push [--prune] | --pull | --import | --backup [--force]] [--dry-run]',
   switches: [
     'login',
     'match',
     'refresh',
+    'recheck',
     'verbose',
     'review',
+    'accept',
+    'reject',
     'push',
     'prune',
     'pull',

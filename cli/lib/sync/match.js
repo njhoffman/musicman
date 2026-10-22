@@ -3,11 +3,11 @@ const path = require('path');
 const Promise = require('bluebird');
 const globalTags = require('musicman-common/config/tags.json');
 
-const { bestCandidate, looseQuery, searchQuery } = require('../spotify/match.js');
+const { bestCandidate, looseQuery, sameTitle, searchQuery } = require('../spotify/match.js');
 const { assignFields, fetchDetails, fetchedAtName, trackIdName } = require('../spotify/fields.js');
 const { transaction } = require('../db/database.js');
 const { updateDatabase } = require('../db/update.js');
-const { updateTags } = require('../metadata/write.js');
+const { rewriteTags, updateTags } = require('../metadata/write.js');
 const logger = require('../utils/logger.js');
 
 const spotifyIdFrame = `TXXX.${trackIdName}`;
@@ -36,25 +36,27 @@ const searchTracks = async (client, query, limit) =>
     []
   );
 
-// look up one song: beets id, then ISRC, then artist and title search
-const lookup = async ({ client, song, beetsId }) => {
-  if (beetsId) {
+// look up one song: beets id, then ISRC, then artist and title search, never a track rejected in review
+const lookup = async ({ client, song, beetsId, rejected = new Set() }) => {
+  if (beetsId && !rejected.has(beetsId)) {
     return { status: 'match', source: 'beets', candidate: { id: beetsId } };
   }
+  const search = async (query, limit) =>
+    _.reject(await searchTracks(client, query, limit), ({ id }) => rejected.has(id));
   if (song.isrc) {
-    const result = bestCandidate(song, await searchTracks(client, `isrc:${song.isrc}`, 5), {
+    const result = bestCandidate(song, await search(`isrc:${song.isrc}`, 5), {
       isrc: true
     });
     if (result.status !== 'missing') {
       return { ...result, source: 'isrc' };
     }
   }
-  const strict = bestCandidate(song, await searchTracks(client, searchQuery(song), 10));
+  const strict = bestCandidate(song, await search(searchQuery(song), 10));
   if (strict.status === 'match') {
     return { ...strict, source: 'search' };
   }
   // the looser query only replaces a strict result it improves on
-  const loose = bestCandidate(song, await searchTracks(client, looseQuery(song), 10));
+  const loose = bestCandidate(song, await search(looseQuery(song), 10));
   const rank = { match: 0, review: 1, missing: 2 };
   return { ...(rank[loose.status] < rank[strict.status] ? loose : strict), source: 'search' };
 };
@@ -132,7 +134,7 @@ const matchSongs = async ({
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
   const selectSong = db.prepare('SELECT id, duration FROM songs WHERE path = ?');
   const selectMatch = db.prepare(
-    'SELECT status, track_id, source, checked_at FROM spotify_matches WHERE song_id = ?'
+    'SELECT status, track_id, source, checked_at, rejected FROM spotify_matches WHERE song_id = ?'
   );
   const recheckBefore = daysAgo(now, recheckDays);
   const refreshBefore = daysAgo(now, refreshDays);
@@ -180,8 +182,9 @@ const matchSongs = async ({
       return;
     }
     const cached = selectMatch.get(row.id);
+    const rejected = new Set(cached && cached.rejected ? JSON.parse(cached.rejected) : []);
     // a match found before (e.g. by a dry run) is used without searching again
-    if (cached && cached.status === 'match' && cached.track_id) {
+    if (cached && cached.status === 'match' && cached.track_id && !rejected.has(cached.track_id)) {
       items.push({
         file,
         songId: row.id,
@@ -190,15 +193,16 @@ const matchSongs = async ({
       });
       return;
     }
+    // a song whose match was rejected in review is looked up again right away
     if (
       cached &&
-      cached.status !== 'match' &&
+      !['match', 'rejected'].includes(cached.status) &&
       new Date(`${cached.checked_at.replace(' ', 'T')}Z`) > recheckBefore
     ) {
       counts.cached += 1;
       return;
     }
-    items.push({ file, songId: row.id, song });
+    items.push({ file, songId: row.id, song, rejected });
   });
 
   let done = 0;
@@ -248,7 +252,12 @@ const matchSongs = async ({
         try {
           return {
             item,
-            ...(await lookup({ client, song: item.song, beetsId: beetsIds.get(item.file) }))
+            ...(await lookup({
+              client,
+              song: item.song,
+              beetsId: beetsIds.get(item.file),
+              rejected: item.rejected
+            }))
           };
         } catch (err) {
           if (err.rateLimited) {
@@ -363,21 +372,188 @@ const matchSongs = async ({
   };
 };
 
-// songs with probable matches waiting for review, with their candidate
+// songs waiting for review with their candidate; linked when the file already has the candidate's id
+// (a match moved to review by recheckMatches), so it is on Spotify already
 const reviewItems = (db, config) =>
   _.map(
     db
       .prepare(
-        `SELECT s.path, m.candidate, s.duration FROM spotify_matches m JOIN songs s ON s.id = m.song_id
+        `SELECT s.id, s.path, m.candidate, m.source, s.duration,
+           (SELECT value FROM song_tags WHERE song_id = s.id AND frame_id = ?) AS linked_id
+         FROM spotify_matches m JOIN songs s ON s.id = m.song_id
          WHERE m.status = 'review' ORDER BY s.path`
       )
-      .all(),
-    row => ({
-      file: path.join(path.resolve(config.mpd.baseDirectory), row.path),
-      path: row.path,
-      duration: row.duration,
-      candidate: JSON.parse(row.candidate)
-    })
+      .all(spotifyIdFrame),
+    row => {
+      const candidate = JSON.parse(row.candidate);
+      return {
+        songId: row.id,
+        file: path.join(path.resolve(config.mpd.baseDirectory), row.path),
+        path: row.path,
+        duration: row.duration,
+        source: row.source,
+        candidate,
+        linked: Boolean(row.linked_id) && row.linked_id === candidate.id
+      };
+    }
   );
 
-module.exports = { matchSongs, reviewItems, spotifyIdFrame };
+/**
+ * Moves matches whose Spotify title fails the current title rule (sameTitle) to review, for songs with
+ * targets (songTargets). The files keep their Spotify id and fields, so nothing changes on Spotify until
+ * the match is accepted or rejected. Matches accepted in review before are left alone. Returns the songs
+ * moved; with dryRun nothing is written.
+ */
+const recheckMatches = ({ db, config, songs, dryRun = false }) => {
+  const baseDirectory = path.resolve(config.mpd.baseDirectory);
+  const selectSong = db.prepare('SELECT id, duration FROM songs WHERE path = ?');
+  const selectMatch = db.prepare(
+    'SELECT source, reviewed_at FROM spotify_matches WHERE song_id = ?'
+  );
+  const update = db.prepare(
+    `INSERT INTO spotify_matches (song_id, status, track_id, source, candidate, checked_at)
+     VALUES (?, 'review', ?, ?, ?, datetime('now'))
+     ON CONFLICT (song_id) DO UPDATE SET status = 'review', track_id = excluded.track_id,
+       candidate = excluded.candidate, checked_at = excluded.checked_at`
+  );
+  const moved = _.compact(
+    _.map(
+      _.filter(songs, ({ targets }) => targets.length > 0),
+      ({ file }) => {
+        const row = selectSong.get(path.relative(baseDirectory, file));
+        const trackId = row && frameValue(db, row.id, spotifyIdFrame);
+        if (!trackId) {
+          return null;
+        }
+        const match = selectMatch.get(row.id);
+        const title = frameValue(db, row.id, 'TIT2');
+        const spotifyTitle = frameValue(db, row.id, 'TXXX.sp_title');
+        if ((match && match.reviewed_at) || !spotifyTitle || sameTitle(title, spotifyTitle)) {
+          return null;
+        }
+        const candidate = {
+          id: trackId,
+          name: spotifyTitle,
+          artists: frameValue(db, row.id, 'TXXX.sp_artist'),
+          album: frameValue(db, row.id, 'TXXX.sp_album'),
+          durationMs: Number(frameValue(db, row.id, 'TXXX.sp_duration_ms')) || null
+        };
+        return {
+          songId: row.id,
+          file,
+          source: _.get(match, 'source') || null,
+          song: { artist: frameValue(db, row.id, 'TPE1'), title, duration: row.duration },
+          candidate
+        };
+      }
+    )
+  );
+  if (!dryRun) {
+    transaction(db, () =>
+      moved.forEach(({ songId, candidate, source }) =>
+        update.run(songId, candidate.id, source, JSON.stringify(candidate))
+      )
+    );
+  }
+  return moved;
+};
+
+const markReviewed = (db, songId, status, trackId) =>
+  db
+    .prepare(
+      `UPDATE spotify_matches SET status = ?, track_id = ?, reviewed_at = datetime('now')
+       WHERE song_id = ?`
+    )
+    .run(status, trackId, songId);
+
+/**
+ * Accepts review items: a linked one (already tagged with the candidate) is only marked reviewed, others
+ * get the candidate's id and Spotify fields written like a match. Returns { accepted, failed } items.
+ */
+const acceptReview = async ({ db, config, client, items, now = new Date() }) => {
+  const [linked, unlinked] = _.partition(items, 'linked');
+  linked.forEach(({ songId, candidate }) => markReviewed(db, songId, 'match', candidate.id));
+  const details = unlinked.length
+    ? await fetchDetails(client, _.map(unlinked, 'candidate.id'), config)
+    : new Map();
+  const failed = [];
+  const written = [];
+  unlinked.forEach(item => {
+    const objects = details.get(item.candidate.id);
+    const writes = objects
+      ? plannedWrites(db, config, item.songId, assignFields(objects, config, now))
+      : { custom: [{ name: trackIdName, value: item.candidate.id }], filled: [], kept: [] };
+    const error = tryWrite(item.file, writes);
+    if (error) {
+      failed.push({ ...item, error });
+      return;
+    }
+    written.push(item.file);
+    markReviewed(db, item.songId, 'match', item.candidate.id);
+  });
+  if (written.length > 0) {
+    await updateDatabase(db, { config, files: written, record: false });
+  }
+  return { accepted: _.reject(items, item => _.some(failed, { file: item.file })), failed };
+};
+
+/**
+ * Rejects review items: the candidate is remembered as rejected for the song, so it is never matched
+ * again and, when it was pushed, removed from Spotify by the next push; a linked song also loses its
+ * Spotify id and fields. The songs are looked up again by the next sync --match.
+ */
+const rejectReview = async ({ db, config, items }) => {
+  const select = db.prepare('SELECT rejected FROM spotify_matches WHERE song_id = ?');
+  const update = db.prepare(
+    `UPDATE spotify_matches SET status = 'rejected', track_id = NULL, rejected = ?, reviewed_at = NULL
+     WHERE song_id = ?`
+  );
+  const failed = [];
+  const written = [];
+  items.forEach(item => {
+    if (item.linked) {
+      const result = rewriteTags(item.file, raw => ({
+        ...raw,
+        TXXX: _.reject([].concat(raw.TXXX || []), ({ description }) => /^sp_/.test(description))
+      }));
+      if (result instanceof Error) {
+        failed.push({ ...item, error: result.message });
+        return;
+      }
+      written.push(item.file);
+    }
+    const before = _.get(select.get(item.songId), 'rejected');
+    const rejected = _.uniq([...(before ? JSON.parse(before) : []), item.candidate.id]);
+    update.run(JSON.stringify(rejected), item.songId);
+  });
+  if (written.length > 0) {
+    await updateDatabase(db, { config, files: written, record: false });
+  }
+  return { rejected: _.reject(items, item => _.some(failed, { file: item.file })), failed };
+};
+
+// Spotify track ids rejected in review, keyed by track id with the file of the song they were rejected for
+const rejectedTracks = (db, config) => {
+  const baseDirectory = path.resolve(config.mpd.baseDirectory);
+  const rows = db
+    .prepare(
+      `SELECT s.path, m.rejected FROM spotify_matches m JOIN songs s ON s.id = m.song_id
+       WHERE m.rejected IS NOT NULL`
+    )
+    .all();
+  return new Map(
+    _.flatMap(rows, ({ path: songPath, rejected }) =>
+      JSON.parse(rejected).map(trackId => [trackId, path.join(baseDirectory, songPath)])
+    )
+  );
+};
+
+module.exports = {
+  acceptReview,
+  matchSongs,
+  recheckMatches,
+  rejectReview,
+  rejectedTracks,
+  reviewItems,
+  spotifyIdFrame
+};

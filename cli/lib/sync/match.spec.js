@@ -8,7 +8,14 @@ const { expect } = require('chai');
 const { openDatabase } = require('../db/database.js');
 const { syncTagDefinitions } = require('../db/tags.js');
 const { updateDatabase } = require('../db/update.js');
-const { matchSongs, reviewItems } = require('./match.js');
+const {
+  acceptReview,
+  matchSongs,
+  recheckMatches,
+  rejectReview,
+  rejectedTracks,
+  reviewItems
+} = require('./match.js');
 
 describe('Spotify Id Matching', () => {
   let db;
@@ -359,5 +366,120 @@ describe('Spotify Id Matching', () => {
       songs: songs(['testFile01.mp3', 'testFile02.mp3'])
     });
     expect(summary).to.include({ failed: 2, match: 0 });
+  });
+  describe('review', () => {
+    const tag = (name, fields) =>
+      NodeId3.update(
+        {
+          userDefinedText: Object.entries(fields).map(([description, value]) => ({
+            description,
+            value
+          }))
+        },
+        file(name)
+      );
+    const status = name =>
+      db
+        .prepare(
+          `SELECT m.status, m.track_id, m.reviewed_at, m.rejected FROM spotify_matches m
+           JOIN songs s ON s.id = m.song_id WHERE s.path = ?`
+        )
+        .get(name);
+
+    beforeEach(async () => {
+      // testFile01 is matched to another version, testFile02 to the same title
+      tag('testFile01.mp3', {
+        sp_track_id: 'wrong-id',
+        sp_title: `${meta('testFile01.mp3').title} - Rough Mix`,
+        sp_artist: 'Spotify Artist',
+        sp_fetched_at: new Date().toISOString()
+      });
+      tag('testFile02.mp3', {
+        sp_track_id: 'right-id',
+        sp_title: meta('testFile02.mp3').title,
+        sp_fetched_at: new Date().toISOString()
+      });
+      await updateDatabase(db, { config, target: library });
+    });
+
+    it('should move matches failing the title rule to review and keep them linked', () => {
+      const before = fs.statSync(file('testFile01.mp3')).mtimeMs;
+      const moved = recheckMatches({
+        db,
+        config,
+        songs: songs(['testFile01.mp3', 'testFile02.mp3'])
+      });
+      expect(moved.map(item => item.candidate.id)).to.deep.equal(['wrong-id']);
+      expect(status('testFile01.mp3')).to.include({ status: 'review', track_id: 'wrong-id' });
+      expect(fs.statSync(file('testFile01.mp3')).mtimeMs).to.equal(before);
+      const [item] = reviewItems(db, config);
+      expect(item).to.include({ path: 'testFile01.mp3', linked: true });
+    });
+
+    it('should not move anything in a dry run or a match accepted in review', async () => {
+      const all = songs(['testFile01.mp3']);
+      expect(recheckMatches({ db, config, songs: all, dryRun: true })).to.have.length(1);
+      expect(status('testFile01.mp3')).to.be.undefined;
+      recheckMatches({ db, config, songs: all });
+      await acceptReview({ db, config, client: fakeClient({}), items: reviewItems(db, config) });
+      expect(status('testFile01.mp3')).to.include({ status: 'match' });
+      expect(status('testFile01.mp3').reviewed_at).to.not.be.null;
+      expect(recheckMatches({ db, config, songs: all })).to.be.empty;
+    });
+
+    it('should write the id and fields when accepting a match that is not linked yet', async () => {
+      const searched = meta('testFile03.mp3');
+      const row = db.prepare('SELECT duration FROM songs WHERE path = ?').get('testFile03.mp3');
+      await matchSongs({
+        db,
+        config,
+        client: fakeClient({
+          [`track:"${searched.title}" artist:"${searched.artist}"`]: [
+            track('maybe-id', searched.title, searched.artist, row.duration + 20)
+          ]
+        }),
+        songs: songs(['testFile03.mp3'])
+      });
+      const items = reviewItems(db, config);
+      expect(items.map(item => [item.path, item.linked])).to.deep.equal([
+        ['testFile03.mp3', false]
+      ]);
+      const { accepted, failed } = await acceptReview({
+        db,
+        config,
+        client: fakeClient(
+          {},
+          { 'maybe-id': track('maybe-id', searched.title, searched.artist, 1) }
+        ),
+        items
+      });
+      expect(failed).to.be.empty;
+      expect(accepted).to.have.length(1);
+      expect(spotifyId('testFile03.mp3')).to.equal('maybe-id');
+      expect(status('testFile03.mp3')).to.include({ status: 'match', track_id: 'maybe-id' });
+    });
+
+    it('should unlink a rejected match, remember the track, and look the song up again without it', async () => {
+      recheckMatches({ db, config, songs: songs(['testFile01.mp3']) });
+      const { rejected } = await rejectReview({ db, config, items: reviewItems(db, config) });
+      expect(rejected).to.have.length(1);
+      expect(spotifyId('testFile01.mp3')).to.be.undefined;
+      const tags = (NodeId3.read(file('testFile01.mp3')).raw.TXXX || []).map(t => t.description);
+      expect(tags.filter(name => name.startsWith('sp_'))).to.be.empty;
+      expect(status('testFile01.mp3')).to.include({ status: 'rejected', track_id: null });
+      expect(JSON.parse(status('testFile01.mp3').rejected)).to.deep.equal(['wrong-id']);
+      expect([...rejectedTracks(db, config)]).to.deep.equal([['wrong-id', file('testFile01.mp3')]]);
+
+      // looked up again right away, and the rejected track is never matched again
+      const { title, artist } = meta('testFile01.mp3');
+      const row = db.prepare('SELECT duration FROM songs WHERE path = ?').get('testFile01.mp3');
+      const client = fakeClient({
+        [`track:"${title}" artist:"${artist}"`]: [track('wrong-id', title, artist, row.duration)]
+      });
+      const summary = await matchSongs({ db, config, client, songs: songs(['testFile01.mp3']) });
+      expect(client.queries.length).to.be.above(0);
+      expect(summary).to.include({ match: 0, missing: 1 });
+      expect(JSON.parse(status('testFile01.mp3').rejected)).to.deep.equal(['wrong-id']);
+    });
   });
 });

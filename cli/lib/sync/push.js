@@ -37,7 +37,11 @@ const pushPlan = async (client, plan, { prune = false, onTarget = _.noop } = {})
   const results = [];
   await Promise.each(plan, async target => {
     const addIds = _.uniq(_.map(target.add, 'trackId'));
-    const removeIds = prune ? _.uniq(_.map(target.prune, 'track_id')) : [];
+    // tracks rejected in review are always removed, other tracks only with prune
+    const removeIds = _.uniq([
+      ..._.map(target.reject || [], 'track_id'),
+      ...(prune ? _.map(target.prune, 'track_id') : [])
+    ]);
     if (target.id === likedId) {
       await Promise.each(_.chunk(addIds, likedBatch), ids =>
         client.request('PUT', '/me/tracks', { ids })

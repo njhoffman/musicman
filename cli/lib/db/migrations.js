@@ -2,6 +2,7 @@
 // 1: songs, song_tags, tags, meta
 // 2: spotify_matches (lookup results per song), spotify_playlists and spotify_playlist_tracks (cache)
 // 3: spotify_synced (the tracks each target and the local tags last agreed on)
+// 4: spotify_matches.reviewed_at (a match accepted in review) and .rejected (track ids rejected in review)
 module.exports = [
   `
   CREATE TABLE songs (
@@ -74,5 +75,9 @@ module.exports = [
     synced_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (playlist_id, track_id)
   );
+  `,
+  `
+  ALTER TABLE spotify_matches ADD COLUMN reviewed_at TEXT;
+  ALTER TABLE spotify_matches ADD COLUMN rejected TEXT;
   `
 ];

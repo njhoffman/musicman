@@ -50,9 +50,16 @@ musicman sync --match             # writes TXXX.sp_* tags to the files
 ### 2. Review probable matches
 
 ```sh
-musicman sync --review            # or --fzf to pick, --format=csv to export
-musicman edit "<file>" sp_track_id=<id>   # accept one; the next sync --match fills its fields
+musicman sync --review            # list them; linked ones are already on Spotify
+musicman sync --review --accept   # pick matches to keep with fzf (writes the id and fields if needed)
+musicman sync --review --reject   # pick wrong matches with fzf
+musicman sync --match --recheck   # move existing matches that fail the current title rules to review
 ```
+
+- Rejecting unlinks the song (its `sp_*` tags are removed) and remembers the track: the next `sync --push` removes
+  it from every playlist it was pushed to, without `--prune`, it is never offered as a download, and the next
+  `sync --match` looks the song up again without it.
+- Accepted matches are never moved to review by `--recheck` again.
 
 ### 3. Push to Liked Songs and playlists
 
