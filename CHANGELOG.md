@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.22.1](https://github.com/njhoffman/musicman/compare/v1.22.0...v1.22.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* retry Spotify token requests and show review picks in aligned columns ([31af6e6](https://github.com/njhoffman/musicman/commit/31af6e6582d6e44cdfea4addfce302058970a685))
+
 ## [1.22.0](https://github.com/njhoffman/musicman/compare/v1.21.3...v1.22.0) (2026-10-22)
 
 
