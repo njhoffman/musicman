@@ -1,6 +1,7 @@
 const { expect } = require('chai');
 const {
   bestCandidate,
+  isLiveAlbum,
   looseQuery,
   matchSimilarity,
   normalizeTitle,
@@ -157,6 +158,42 @@ describe('Spotify Matching', () => {
         details: 'suffix +radio -10'
       });
       expect(similarity('Hey You - Live', 280).percent).to.be.below(80);
+    });
+
+    it('should treat a song from a live album as live even when its title does not say so', () => {
+      const studio = { name: 'Down', durationMs: 172000, album: '311' };
+      const live = {
+        name: 'Down',
+        durationMs: 172000,
+        album: 'Down (Live at the Hollywood Palladium)'
+      };
+      const fromLiveAlbum = { title: 'Down', duration: 172, albumType: 'album; live' };
+      expect(matchSimilarity(fromLiveAlbum, studio)).to.deep.equal({
+        percent: 75,
+        details: 'version -live -25'
+      });
+      expect(matchSimilarity(fromLiveAlbum, live).percent).to.equal(100);
+      expect(matchSimilarity({ title: 'Down', duration: 172 }, live).percent).to.equal(75);
+      expect(
+        matchSimilarity({ title: 'Down', duration: 172, album: 'Live at Luther College' }, studio)
+          .percent
+      ).to.equal(75);
+    });
+  });
+
+  describe('isLiveAlbum', () => {
+    it('should spot live album titles without catching titles that only use the word', () => {
+      [
+        'Stop Making Sense (Live)',
+        'Live at Luther College',
+        'I Might Be Wrong: Live Recordings',
+        'Trouble: Norwegian Live EP',
+        'Live',
+        'Once in a Lifetime [Live at the Pantages Theatre, December 1983]'
+      ].forEach(album => expect(isLiveAlbum(album), album).to.be.true);
+      ["I Don't Live Here Anymore", 'Live Through This', 'Alive', 'Delivery'].forEach(
+        album => expect(isLiveAlbum(album), album).to.be.false
+      );
     });
   });
 

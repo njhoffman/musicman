@@ -35,6 +35,9 @@ const chunkSize = 50;
 
 const daysAgo = (now, days) => new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
+// MusicBrainz album type frames as beets and Picard write them, e.g. "album; live"
+const albumTypeFrames = ['TXXX.MusicBrainz Album Type', 'TXXX.MUSICBRAINZ_ALBUMTYPE'];
+
 const frameValue = (db, songId, frameId) =>
   _.get(
     db
@@ -42,6 +45,18 @@ const frameValue = (db, songId, frameId) =>
       .get(songId, frameId),
     'value'
   );
+
+const albumType = (db, songId) =>
+  _.find(_.map(albumTypeFrames, frame => frameValue(db, songId, frame)));
+
+// the song fields lookups and similarity use, from the database
+const songFields = (db, row) => ({
+  artist: frameValue(db, row.id, 'TPE1'),
+  title: frameValue(db, row.id, 'TIT2'),
+  album: frameValue(db, row.id, 'TALB'),
+  albumType: albumType(db, row.id),
+  duration: row.duration
+});
 
 const searchTracks = async (client, query, limit) =>
   _.get(
@@ -205,12 +220,7 @@ const matchSongs = async ({
       counts.notInDatabase += 1;
       return;
     }
-    const song = {
-      artist: frameValue(db, row.id, 'TPE1'),
-      title: frameValue(db, row.id, 'TIT2'),
-      isrc: frameValue(db, row.id, 'TSRC'),
-      duration: row.duration
-    };
+    const song = { ...songFields(db, row), isrc: frameValue(db, row.id, 'TSRC') };
     const trackId = frameValue(db, row.id, spotifyIdFrame);
     if (trackId) {
       const fetchedAt = frameValue(db, row.id, fetchedAtFrame);
@@ -428,16 +438,14 @@ const reviewItems = (db, config) =>
     db
       .prepare(
         `SELECT s.id, s.path, m.candidate, m.source, s.duration,
-           (SELECT value FROM song_tags WHERE song_id = s.id AND frame_id = ?) AS linked_id,
-           (SELECT value FROM song_tags WHERE song_id = s.id AND frame_id = 'TPE1') AS artist,
-           (SELECT value FROM song_tags WHERE song_id = s.id AND frame_id = 'TIT2') AS title
+           (SELECT value FROM song_tags WHERE song_id = s.id AND frame_id = ?) AS linked_id
          FROM spotify_matches m JOIN songs s ON s.id = m.song_id
          WHERE m.status = 'review' ORDER BY s.path`
       )
       .all(spotifyIdFrame),
     row => {
       const candidate = JSON.parse(row.candidate);
-      const song = { artist: row.artist, title: row.title, duration: row.duration };
+      const song = songFields(db, row);
       return {
         songId: row.id,
         file: path.join(path.resolve(config.mpd.baseDirectory), row.path),
@@ -496,7 +504,7 @@ const recheckMatches = ({ db, config, songs, dryRun = false }) => {
           songId: row.id,
           file,
           source: _.get(match, 'source') || null,
-          song: { artist: frameValue(db, row.id, 'TPE1'), title, duration: row.duration },
+          song: songFields(db, row),
           candidate
         };
       }

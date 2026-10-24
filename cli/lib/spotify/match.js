@@ -133,6 +133,20 @@ const versions = title =>
     (`${title || ''}`.toLowerCase().match(new RegExp(versionMarker, 'gi')) || []).map(_.toLower)
   );
 
+// album titles that name a live recording: "Stop Making Sense (Live)", "Live at Luther College", "I Might Be
+// Wrong: Live Recordings", but not "I Don't Live Here Anymore" or "Live Through This"
+const liveAlbumMarker =
+  /[([]\s*live\b|\blive\s*[)\]]|\blive (at|in|from|on|recordings?|ep)\b|[:-]\s*live\b|\blive$/i;
+
+const isLiveAlbum = album => liveAlbumMarker.test(`${album || ''}`.trim());
+
+// version markers of a song or candidate, with live added when only its album says so: a song's MusicBrainz
+// album type (albumType) or album, a candidate's album
+const recordingVersions = (title, { album, albumType } = {}) => {
+  const live = /\blive\b/i.test(`${albumType || ''}`) || isLiveAlbum(album);
+  return _.uniq([...versions(title), ...(live ? ['live'] : [])]);
+};
+
 // first credited artist, without features and collaborators
 const primaryArtist = artist =>
   plain(`${artist || ''}`.split(/,|;|\s&\s|\s(?:feat\.?|ft\.?|featuring|with|x|vs\.?)\s/i)[0]);
@@ -191,8 +205,9 @@ const durationPenalty = seconds => {
 const signed = (words, sign) => _.map(words, word => `${sign}${word}`);
 
 /**
- * How similar a Spotify candidate ({ name, durationMs }) is to a song ({ title, duration } in seconds),
- * 100 for the same title and length. Returns { percent, details }, details naming what cost points, e.g.
+ * How similar a Spotify candidate ({ name, durationMs, album }) is to a song ({ title, duration } in
+ * seconds, album and albumType optional), 100 for the same title and length. A song from a live album
+ * (MusicBrainz album type or album title) differs from a studio candidate like a version marker. Returns { percent, details }, details naming what cost points, e.g.
  * "duration 18.0s -3.8; suffix +rough -10" (+ only Spotify has, - only the song has).
  */
 const matchSimilarity = (song, candidate) => {
@@ -210,8 +225,8 @@ const matchSimilarity = (song, candidate) => {
     `title ${editDistance(local, spotify)} chars`,
     Math.min(penalties.maxTitle, editDistance(local, spotify) * penalties.perCharacter)
   );
-  const localVersions = versions(song.title);
-  const spotifyVersions = versions(candidate.name);
+  const localVersions = recordingVersions(song.title, song);
+  const spotifyVersions = recordingVersions(candidate.name, { album: candidate.album });
   const versionWords = [
     ...signed(_.difference(spotifyVersions, localVersions), '+'),
     ...signed(_.difference(localVersions, spotifyVersions), '-')
@@ -342,6 +357,7 @@ const looseQuery = song => `${plain(queryTitle(song.title))} ${plain(queryArtist
 
 module.exports = {
   bestCandidate,
+  isLiveAlbum,
   sameTitle,
   titleDescriptors,
   titleWords,

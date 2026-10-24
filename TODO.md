@@ -184,11 +184,15 @@ OVERDUE flag. Feature specs live in `docs/`.
       `TXXX.sp_diff_details` on every match, accepted review, and refresh.
 - [x] **Auto-accept close matches:** (p2) [feature] `sync.autoAcceptPercent` (e.g. 95) matches review candidates at
       least that similar without review; empty by default, so nothing changes until it is set.
-- [ ] **Live recordings score as studio matches:** (p1) [bug] the similarity only reads titles, so a song from a live
-      album whose title lacks "(Live)" scores 95-100% against the studio track: 28 of the 524 review items at or
-      above 95% on 2026-10-24 are in `live/` folders (311, Muse, The White Stripes), all matched to studio albums.
-      Fix before setting `sync.autoAcceptPercent`: treat the song as live when its album (TALB), path, or beets
-      albumtype says so and the Spotify album or title does not (and the reverse), costing a version marker.
+- [x] **Live recordings score as studio matches:** (p1) [bug] a song whose MusicBrainz album type is `live` or
+      whose album title names a live recording ("Live at ...", "(Live)", ": Live Recordings") now differs from a
+      studio candidate like a version marker (-25), and a Spotify album such as "[Live at the Pantages Theatre]"
+      counts as live. The 28 live songs at or above 95% on 2026-10-24 now score about 75%.
+- [ ] **Prefer the original album over compilations:** (p2) [feature] a match can be the right recording on the wrong
+      release, e.g. Alice in Chains - Heaven Beside You matched to "Alternative Moments" (Various Artists) instead of
+      their own album. When several candidates are the same recording, rank by the local album (TALB) first, then
+      album_type album over single over compilation, and skip various artists releases. Add a `sync --match
+      --recheck` pass (or a review reason) for existing matches on compilations whose song has its own album.
 - [x] **Icon for linked in the review list:** (p3) [feature] a nerd font link icon replaces `linked` and a unicode
       arrow replaces `->`.
 - [x] **Listen to both versions in review:** (p3) [feature] in the review fzf list, ctrl-l plays the song with mpv
