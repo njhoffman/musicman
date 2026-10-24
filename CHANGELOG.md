@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.23.1](https://github.com/njhoffman/musicman/compare/v1.23.0...v1.23.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* score songs from live albums below studio Spotify matches ([e656aac](https://github.com/njhoffman/musicman/commit/e656aac838af24f507dc96262a06013d5a66e26d))
+
 ## [1.23.0](https://github.com/njhoffman/musicman/compare/v1.22.1...v1.23.0) (2026-10-24)
 
 
