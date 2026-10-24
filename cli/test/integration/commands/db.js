@@ -52,7 +52,7 @@ describe('Db Command', () => {
       config
     });
     expect(fs.existsSync(config.db.path)).to.be.true;
-    expect(stats).to.include({ songs: 0, schemaVersion: 3, lastUpdate: null, lastBackup: null });
+    expect(stats).to.include({ songs: 0, schemaVersion: 5, lastUpdate: null, lastBackup: null });
     expect(stats.tagDefinitions).to.be.greaterThan(100);
   });
 

@@ -8,6 +8,7 @@ const parseSwitches = require('./parser/options/switches.js');
 const { outputFormat } = require('./output/formats.js');
 const logger = require('./utils/logger.js');
 const { archives, finishRun, startRun } = require('./utils/runs.js');
+const { beginJournal, endJournal } = require('./history/journal.js');
 const { autoBackup } = require('./db/index.js');
 const { version } = require('../../package.json');
 
@@ -49,8 +50,10 @@ const run = async args => {
   const run = archives(command, options.switches)
     ? startRun({ command: command.name, args, config })
     : null;
-  // commands that change something back up the database first, once per db.backupInterval
+  // commands that change something back up the database first, once per db.backupInterval, and record
+  // their tag and Spotify changes for musicman undo
   if (run) {
+    beginJournal({ run, config });
     const backup = autoBackup(config);
     if (backup) {
       logger.info(`Backed up database to ${backup.file}`);
@@ -62,6 +65,7 @@ const run = async args => {
   const interrupt = signal => {
     logger.progressDone();
     logger.logToFile('warn', `Interrupted by ${signal}`);
+    endJournal();
     finishRun(run, { config, interrupted: true, exitCode: 130 });
     process.exit(130);
   };
@@ -83,6 +87,7 @@ const run = async args => {
   } finally {
     if (run) {
       signals.forEach(signal => process.removeListener(signal, interrupt));
+      endJournal();
       finishRun(run, { config, result, error, exitCode: process.exitCode || 0 });
     }
   }

@@ -38,6 +38,12 @@ const configSchema = {
       backupCount: { type: 'number', min: 1, required: false }
     }
   },
+  history: {
+    type: 'object',
+    properties: {
+      keep: { type: 'number', min: 1, required: false }
+    }
+  },
   sync: {
     type: 'object',
     properties: {

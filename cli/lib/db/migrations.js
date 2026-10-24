@@ -3,6 +3,7 @@
 // 2: spotify_matches (lookup results per song), spotify_playlists and spotify_playlist_tracks (cache)
 // 3: spotify_synced (the tracks each target and the local tags last agreed on)
 // 4: spotify_matches.reviewed_at (a match accepted in review) and .rejected (track ids rejected in review)
+// 5: history_runs, tag_changes, spotify_changes (what each run changed, for musicman undo)
 module.exports = [
   `
   CREATE TABLE songs (
@@ -79,5 +80,36 @@ module.exports = [
   `
   ALTER TABLE spotify_matches ADD COLUMN reviewed_at TEXT;
   ALTER TABLE spotify_matches ADD COLUMN rejected TEXT;
+  `,
+  `
+  CREATE TABLE history_runs (
+    id TEXT PRIMARY KEY,
+    command TEXT NOT NULL,
+    args TEXT,
+    started_at TEXT NOT NULL,
+    spotify_snapshot TEXT,
+    undoes TEXT,
+    undone_by TEXT
+  );
+
+  CREATE TABLE tag_changes (
+    id INTEGER PRIMARY KEY,
+    run_id TEXT NOT NULL REFERENCES history_runs (id) ON DELETE CASCADE,
+    path TEXT NOT NULL,
+    frame TEXT NOT NULL,
+    before TEXT,
+    after_hash TEXT
+  );
+  CREATE INDEX tag_changes_run ON tag_changes (run_id);
+
+  CREATE TABLE spotify_changes (
+    id INTEGER PRIMARY KEY,
+    run_id TEXT NOT NULL REFERENCES history_runs (id) ON DELETE CASCADE,
+    target_id TEXT NOT NULL,
+    target_name TEXT,
+    action TEXT NOT NULL,
+    track_id TEXT NOT NULL
+  );
+  CREATE INDEX spotify_changes_run ON spotify_changes (run_id);
   `
 ];

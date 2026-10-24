@@ -31,6 +31,11 @@ db:
   # Number of backups to keep, older backups are deleted
   backupCount: 7
 
+# Changes recorded for musicman undo (tag frames and Spotify adds and removes of each run)
+history:
+  # Number of runs whose changes are kept, older ones are removed
+  keep: 50
+
 # Spotify app credentials; SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, and SPOTIFY_REDIRECT_URI in the
 # environment take precedence. Login tokens are stored in $XDG_STATE_HOME/musicman, not here.
 spotify:

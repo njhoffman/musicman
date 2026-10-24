@@ -162,7 +162,7 @@ OVERDUE flag. Feature specs live in `docs/`.
       the tags of changed mp3s for the frame check) runs for minutes with no output, so it looks hung. Show a status
       line while comparing (files scanned on each side, changed files checked of total, elapsed time), and bytes
       copied with rate and ETA while copying, not only file counts.
-- [ ] **`check` command:** (p2) [feature] report, and with `--fix` repair (recorded for `check --undo <run>`): files
+- [ ] **`check` command:** (p2) [feature] report, and with `--fix` repair (recorded for `musicman undo <run>`): files
       that cannot be read or rewritten, frames node-id3 cannot keep, database drift, duplicate songs, custom tag
       names that differ only by case or punctuation (renamed to a `check.names` list seeded with beets names),
       custom tags duplicating standard frames, the leftover `spotify_track_id` frames, and multi value formatting.
@@ -266,18 +266,24 @@ OVERDUE flag. Feature specs live in `docs/`.
 
 ## Undo and history
 
-Library tag changes and Spotify changes cannot be undone today: the database is backed up weekly (`db.autoBackup`,
-not the files), `sync --backup` moves files deleted from the library to `.musicman-removed/<date>/` but overwrites
-changed ones, and the run archive (`$XDG_STATE_HOME/musicman/logs`) only describes what a run did.
+Runs record their tag and Spotify changes for `musicman undo` (since 1.24.0). Still missing: `sync --backup` moves
+files deleted from the library to `.musicman-removed/<date>/` but overwrites changed ones, and the database
+backups (`db.autoBackup`) have no restore command.
 
-- [ ] **Tag change journal and `undo`:** (p1) [feature] record the frames each write replaces (file, frame, before,
-      after, run id) for every command that writes tags (`edit`, `sync --match`, `--review`, `--pull`, `--import`,
-      and future `check --fix`), in the database or next to the run archive. `musicman undo [<run>]` restores the
-      before values, refusing files changed since; `undo --list` shows recent runs with changes. Also covers the
-      `check --undo` the `check` item mentions.
-- [ ] **Spotify change journal and `sync --undo`:** (p1) [feature] `sync --push`, `--prune`, and removals of rejected
-      tracks record each add and remove (target, track id, playlist position, snapshot id) per run; `sync --undo
-      <run>` reverses them. Re-adding to Liked Songs gives a new added date, which cannot be restored.
+- [x] **Tag change journal and `undo`:** (p1) [feature] every archived run records the frames each tag write
+      replaces (`tag_changes`, schema 5: the value before and a hash of the value after) through
+      `lib/history/journal.js`, hooked into `lib/metadata/write.js`. `musicman undo [<run> | --list] [--dry-run]
+      [--force]` restores them, holding back files changed since; the last `history.keep` (50) runs are kept.
+- [x] **Spotify change journal and undo:** (p1) [feature] `sync --push` records each add and remove
+      (`spotify_changes`) and the snapshot saved before it; `musicman undo <run>` reverses them (one command for tags
+      and Spotify rather than `sync --undo`), putting removed tracks back at their old playlist position and
+      updating `spotify_synced` so the next sync sees a local change.
+- [ ] **Follow moved files in the undo history:** (p2) [feature] the history keys files by path, so a write
+      followed by a move (`sort`, the beets step of `sync --import`) makes undo report the file as missing. When
+      `db --update` detects a move (same MusicBrainz track id), update `tag_changes.path` too.
+- [ ] **Record `check --fix` changes:** (p3) [feature] once `check --fix` exists it writes through
+      `lib/metadata/write.js` and is recorded automatically; make sure its run archives (the `archive` flag) so
+      `undo` covers it, replacing the planned `check --undo`.
 - [ ] **Keep replaced files in `sync --backup`:** (p2) [feature] move the backup copy of an updated file to
       `.musicman-removed/<date>/` (or a versions folder) before overwriting it, like deleted files, so a bad tag
       write that reached the backup can still be recovered.

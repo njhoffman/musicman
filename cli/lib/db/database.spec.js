@@ -20,13 +20,16 @@ describe('Database', () => {
         .all()
         .map(({ name }) => name);
       expect(tables).to.deep.equal([
+        'history_runs',
         'meta',
         'song_tags',
         'songs',
+        'spotify_changes',
         'spotify_matches',
         'spotify_playlist_tracks',
         'spotify_playlists',
         'spotify_synced',
+        'tag_changes',
         'tags'
       ]);
       expect(db.prepare('PRAGMA user_version').get().user_version).to.equal(migrations.length);

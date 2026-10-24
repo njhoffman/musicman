@@ -2,18 +2,21 @@ const _ = require('lodash');
 const Promise = require('bluebird');
 
 const { likedId } = require('./targets.js');
+const { recordSpotify } = require('../history/journal.js');
 
 // most ids per Liked Songs request and most uris per playlist request the Web API accepts
 const likedBatch = 50;
 const playlistBatch = 100;
 
-// playlist items endpoints were renamed from /tracks to /items; fall back when /items is not found
-const playlistRequest = async (client, method, id, items) => {
+// playlist items endpoints were renamed from /tracks to /items; fall back when /items is not found.
+// position (adding only) inserts the items there instead of at the end
+const playlistRequest = async (client, method, id, items, { position } = {}) => {
+  const added = { uris: _.map(items, 'uri'), ...(_.isNil(position) ? {} : { position }) };
   try {
     return await client.request(
       method,
       `/playlists/${id}/items`,
-      method === 'DELETE' ? { items } : { uris: _.map(items, 'uri') }
+      method === 'DELETE' ? { items } : added
     );
   } catch (err) {
     if (err.status !== 404) {
@@ -22,7 +25,7 @@ const playlistRequest = async (client, method, id, items) => {
     return client.request(
       method,
       `/playlists/${id}/tracks`,
-      method === 'DELETE' ? { tracks: items } : { uris: _.map(items, 'uri') }
+      method === 'DELETE' ? { tracks: items } : added
     );
   }
 };
@@ -31,7 +34,8 @@ const uri = trackId => ({ uri: `spotify:track:${trackId}` });
 
 /**
  * Applies a sync plan (syncPlan): adds songs to Liked Songs and playlists, and with prune removes
- * tracks whose local song no longer belongs. Returns the number of tracks added and removed per target.
+ * tracks whose local song no longer belongs. Each request that succeeds is recorded for musicman undo.
+ * Returns the number of tracks added and removed per target.
  */
 const pushPlan = async (client, plan, { prune = false, onTarget = _.noop } = {}) => {
   const results = [];
@@ -42,19 +46,27 @@ const pushPlan = async (client, plan, { prune = false, onTarget = _.noop } = {})
       ..._.map(target.reject || [], 'track_id'),
       ...(prune ? _.map(target.prune, 'track_id') : [])
     ]);
+    const recorded = (action, request) => async ids => {
+      await request(ids);
+      recordSpotify({ target, action, trackIds: ids });
+    };
     if (target.id === likedId) {
-      await Promise.each(_.chunk(addIds, likedBatch), ids =>
-        client.request('PUT', '/me/tracks', { ids })
+      await Promise.each(
+        _.chunk(addIds, likedBatch),
+        recorded('add', ids => client.request('PUT', '/me/tracks', { ids }))
       );
-      await Promise.each(_.chunk(removeIds, likedBatch), ids =>
-        client.request('DELETE', '/me/tracks', { ids })
+      await Promise.each(
+        _.chunk(removeIds, likedBatch),
+        recorded('remove', ids => client.request('DELETE', '/me/tracks', { ids }))
       );
     } else {
-      await Promise.each(_.chunk(addIds, playlistBatch), ids =>
-        playlistRequest(client, 'POST', target.id, ids.map(uri))
+      await Promise.each(
+        _.chunk(addIds, playlistBatch),
+        recorded('add', ids => playlistRequest(client, 'POST', target.id, ids.map(uri)))
       );
-      await Promise.each(_.chunk(removeIds, playlistBatch), ids =>
-        playlistRequest(client, 'DELETE', target.id, ids.map(uri))
+      await Promise.each(
+        _.chunk(removeIds, playlistBatch),
+        recorded('remove', ids => playlistRequest(client, 'DELETE', target.id, ids.map(uri)))
       );
     }
     const result = {
@@ -69,4 +81,4 @@ const pushPlan = async (client, plan, { prune = false, onTarget = _.noop } = {})
   return results;
 };
 
-module.exports = { pushPlan };
+module.exports = { likedBatch, playlistBatch, playlistRequest, pushPlan, uri };

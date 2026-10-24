@@ -161,6 +161,25 @@ musicman sync --backup            # mirrors mpd.baseDirectory to backup.director
 - A file is held back when its backup copy has tag frames with data that the library copy lacks (this is how
   frames lost on 2026-10-21 were found and restored); `--force` takes the library version anyway.
 
+## Undoing a run
+
+Every run that changes something records the tag frames it replaced and the Spotify tracks it added or removed
+(the last `history.keep` runs, 50).
+
+```sh
+musicman undo                     # list recent runs with changes (also --list)
+musicman undo latest --dry-run    # what undoing the newest run would restore and reverse
+musicman undo <run id>            # undo one run, after confirming; an id prefix works too
+```
+
+- Files changed again since the run are held back (`CHANGED`); `--force` restores them anyway. Files moved or
+  deleted since (e.g. by `sort` or a beets import) are listed as `MISSING`.
+- Spotify changes are reversed after saving Liked Songs and playlists as they are: tracks the run added are
+  removed, tracks it removed are added back at their old playlist position. Liked Songs added back get a new date.
+- Undoing a push does not change tags, so the next `sync --push` adds those tracks again unless the tags change.
+- An undo is a run of its own, so it can be undone too; a run can only be undone once.
+- Changes beets makes itself (`sort`, the beets step of `sync --import`) are not recorded.
+
 ## When something goes wrong
 
 - **Rate limited:** the run says when the ban lifts; rerun then. `musicman logs latest` shows what was done.

@@ -26,6 +26,7 @@ const { downloadedFiles, manifestPath, readManifest } = require('../sync/downloa
 const { importDownloads } = require('../sync/import.js');
 const { applyBackup, backupPlan, removedFolder } = require('../sync/backup.js');
 const { saveSnapshot } = require('../sync/snapshot.js');
+const { recordSpotifySnapshot } = require('../history/journal.js');
 const {
   reviewBinds,
   reviewHeader,
@@ -124,6 +125,7 @@ const runPush = async ({ db, client, config, plan, prune, dryRun, confirm }) => 
   }
   // what Spotify had before the push, to restore from if a push goes wrong
   const snapshot = await saveSnapshot(client, config);
+  recordSpotifySnapshot(snapshot.file);
   logger.info(`Saved Liked Songs and playlists as they were to ${snapshot.file}`);
   const results = await pushPlan(client, plan, {
     prune,

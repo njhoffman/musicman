@@ -129,9 +129,14 @@ module.exports = {
   },
   force: {
     description:
-      'With --backup, also update backup files held back because their copy has frames the library copy lacks',
+      'With sync --backup, also update backup files held back because their copy has frames the library copy lacks; with undo, also restore files changed since the run',
     alias: '-O',
     func: () => ({ force: true })
+  },
+  list: {
+    description: 'With undo, list the recent runs whose changes can be undone',
+    alias: '-l',
+    func: () => ({ list: true })
   },
   prune: {
     description:

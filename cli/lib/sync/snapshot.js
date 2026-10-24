@@ -22,7 +22,7 @@ const stamp = now =>
 
 /**
  * Saves the current contents of Liked Songs and every mapped playlist, fetched fresh from Spotify, to
- * <db.backupDirectory>/spotify/<time>.json: per target its name, snapshot id, and tracks in order with
+ * <db.backupDirectory>/spotify/<time>.json (<time>-2.json for another in the same second): per target its name, snapshot id, and tracks in order with
  * their id, name, artists, album, and when they were added. Returns the file and per target counts.
  */
 const saveSnapshot = async (client, config, { now = new Date(), onTarget = _.noop } = {}) => {
@@ -47,7 +47,11 @@ const saveSnapshot = async (client, config, { now = new Date(), onTarget = _.noo
 
   const directory = snapshotDirectory(config);
   fs.mkdirSync(directory, { recursive: true });
-  const file = path.join(directory, `${stamp(now)}.json`);
+  // a second snapshot in the same second (a push undone right away) never replaces the first
+  let file = path.join(directory, `${stamp(now)}.json`);
+  for (let n = 2; fs.existsSync(file); n += 1) {
+    file = path.join(directory, `${stamp(now)}-${n}.json`);
+  }
   fs.writeFileSync(file, `${JSON.stringify({ savedAt: now.toISOString(), targets }, null, 2)}\n`);
   return {
     file,

@@ -4,6 +4,7 @@ const { unflatten } = require('flat');
 
 const logger = require('../utils/logger.js');
 const { appendFrames, readTagBuffer, walkFrames } = require('../check/frames.js');
+const { journaledWrite } = require('../history/journal.js');
 
 const toRating = (newRating, ratingMax) => Math.round((newRating * 255) / ratingMax);
 
@@ -97,12 +98,7 @@ const updateNodeId3 = (tags, file) => {
   );
 };
 
-/**
- * Runs a node-id3 write of file, keeping the frames node-id3 does not understand and would drop when it
- * rewrites the tag (e.g. TCMP, IPLS, TSOC): their original bytes are appended to the new tag. Returns
- * what write returned (true or an Error).
- */
-const keepingUnknownFrames = (file, write) => {
+const keepingFrames = (file, write) => {
   const original = readTagBuffer(file);
   const frames = walkFrames(original) || [];
   const known = new Set(_.keys(_.get(NodeId3.read(original || Buffer.alloc(0)), 'raw', {})));
@@ -125,6 +121,15 @@ const keepingUnknownFrames = (file, write) => {
   }
   return result;
 };
+
+/**
+ * Runs a node-id3 write of file, keeping the frames node-id3 does not understand and would drop when it
+ * rewrites the tag (e.g. TCMP, IPLS, TSOC): their original bytes are appended to the new tag. The frames
+ * it changes are recorded for musicman undo when a run is being recorded. Returns what write returned
+ * (true or an Error).
+ */
+const keepingUnknownFrames = (file, write) =>
+  journaledWrite(file, () => keepingFrames(file, write));
 
 /**
  * Tags written to a file with node-id3 update (added or changed, nothing removed), keeping the frames
