@@ -113,8 +113,8 @@ describe('Config Tests', () => {
   describe('Library Tags Configuration', () => {
     it('should map library.tags to tag objects from user config first', () => {
       expect(configModule.library.tags).to.be.an('array');
-      // the user config's 7 tags and the 2 Spotify frames every matched song gets
-      expect(configModule.library.tags).to.have.length(9);
+      // the user config's 7 tags and the 4 Spotify frames every matched song gets
+      expect(configModule.library.tags).to.have.length(11);
 
       // Check that custom tags are included
       const tagNames = configModule.library.tags.map(tag => tag.name);
@@ -131,7 +131,9 @@ describe('Config Tests', () => {
         'title',
         'album',
         'sp_track_id',
-        'sp_fetched_at'
+        'sp_fetched_at',
+        'sp_diff_percent',
+        'sp_diff_details'
       ]);
     });
 
@@ -216,6 +218,8 @@ describe('Config Tests', () => {
         { id: 'TPE1', name: 'artist' },
         { id: 'TXXX.sp_track_id', name: 'sp_track_id' },
         { id: 'TXXX.sp_fetched_at', name: 'sp_fetched_at' },
+        { id: 'TXXX.sp_diff_percent', name: 'sp_diff_percent' },
+        { id: 'TXXX.sp_diff_details', name: 'sp_diff_details' },
         { id: 'TXXX.sp_popularity', name: 'sp_popularity' },
         { id: 'TXXX.sp_genres', name: 'sp_genres', multi: true }
       ]);
@@ -323,7 +327,9 @@ describe('Config Tests', () => {
       expect(config.library.tags.map(t => t.name)).to.deep.equal([
         'artist',
         'sp_track_id',
-        'sp_fetched_at'
+        'sp_fetched_at',
+        'sp_diff_percent',
+        'sp_diff_details'
       ]);
       expect(config.views.list.tags).to.deep.equal([{ name: 'artist' }]);
     });

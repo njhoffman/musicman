@@ -146,6 +146,100 @@ const artistMatches = (localArtist, spotifyArtists) => {
   });
 };
 
+// characters to insert, delete, or substitute to turn one text into the other
+const editDistance = (from, to) => {
+  let previous = _.range(to.length + 1);
+  for (let i = 1; i <= from.length; i += 1) {
+    const current = [i];
+    for (let j = 1; j <= to.length; j += 1) {
+      current[j] = Math.min(
+        previous[j] + 1,
+        current[j - 1] + 1,
+        previous[j - 1] + (from[i - 1] === to[j - 1] ? 0 : 1)
+      );
+    }
+    previous = current;
+  }
+  return previous[to.length];
+};
+
+// points taken off 100 by each kind of difference: a few seconds and capitalization or punctuation are
+// free, up to 20s stays above 95%, a differently named mix or version always falls below it
+const penalties = {
+  freeSeconds: 3,
+  shortGapSeconds: 20,
+  shortGap: 4,
+  perSecondAfter: 0.5,
+  perCharacter: 2,
+  maxTitle: 40,
+  suffix: 1,
+  perDescriptor: 10,
+  perVersion: 25
+};
+
+const durationPenalty = seconds => {
+  const { freeSeconds, shortGapSeconds, shortGap, perSecondAfter } = penalties;
+  if (seconds <= freeSeconds) {
+    return 0;
+  }
+  if (seconds <= shortGapSeconds) {
+    return (shortGap * (seconds - freeSeconds)) / (shortGapSeconds - freeSeconds);
+  }
+  return shortGap + (seconds - shortGapSeconds) * perSecondAfter;
+};
+
+const signed = (words, sign) => _.map(words, word => `${sign}${word}`);
+
+/**
+ * How similar a Spotify candidate ({ name, durationMs }) is to a song ({ title, duration } in seconds),
+ * 100 for the same title and length. Returns { percent, details }, details naming what cost points, e.g.
+ * "duration 18.0s -3.8; suffix +rough -10" (+ only Spotify has, - only the song has).
+ */
+const matchSimilarity = (song, candidate) => {
+  const parts = [];
+  const add = (label, penalty) => penalty > 0 && parts.push({ label, penalty });
+  const seconds =
+    song.duration && candidate.durationMs
+      ? Math.abs(song.duration - candidate.durationMs / 1000)
+      : 0;
+  add(`duration ${seconds.toFixed(1)}s`, durationPenalty(seconds));
+
+  const local = normalizeTitle(song.title);
+  const spotify = normalizeTitle(candidate.name);
+  add(
+    `title ${editDistance(local, spotify)} chars`,
+    Math.min(penalties.maxTitle, editDistance(local, spotify) * penalties.perCharacter)
+  );
+  const localVersions = versions(song.title);
+  const spotifyVersions = versions(candidate.name);
+  const versionWords = [
+    ...signed(_.difference(spotifyVersions, localVersions), '+'),
+    ...signed(_.difference(localVersions, spotifyVersions), '-')
+  ];
+  add(`version ${versionWords.join(' ')}`, versionWords.length * penalties.perVersion);
+  const localDescriptors = titleDescriptors(song.title);
+  const spotifyDescriptors = titleDescriptors(candidate.name);
+  const descriptorWords = [
+    ...signed(_.difference(spotifyDescriptors, localDescriptors), '+'),
+    ...signed(_.difference(localDescriptors, spotifyDescriptors), '-')
+  ];
+  add(`suffix ${descriptorWords.join(' ')}`, descriptorWords.length * penalties.perDescriptor);
+  // stripped suffixes of neutral words only, like (2011 Remaster) on one side
+  if (
+    descriptorWords.length === 0 &&
+    plain(song.title) !== plain(candidate.name) &&
+    local === spotify
+  ) {
+    add('suffix', penalties.suffix);
+  }
+
+  const total = _.sumBy(parts, 'penalty');
+  return {
+    percent: Math.max(0, Math.round(100 - total)),
+    details: parts.map(({ label, penalty }) => `${label} -${_.round(penalty, 1)}`).join('; ')
+  };
+};
+
 const candidateOf = track => ({
   id: track.id,
   name: track.name,
@@ -190,25 +284,36 @@ const rateCandidate = (song, track, { isrc = false } = {}) => {
 };
 
 /**
- * Best of the candidate tracks for a song: { status: 'match' | 'review' | 'missing', candidate, track }
- * with the full Web API track when one qualifies.
- * Matches beat review candidates; ties go to the closest duration.
+ * Best of the candidate tracks for a song: { status: 'match' | 'review' | 'missing', candidate, track,
+ * similarity } with the full Web API track when one qualifies. A review candidate at least
+ * autoAcceptPercent similar (matchSimilarity) is a match. Matches beat review candidates; ties go to the
+ * most similar, then the closest duration.
  */
-const bestCandidate = (song, tracks, options) => {
+const bestCandidate = (song, tracks, { autoAcceptPercent, ...options } = {}) => {
   const rated = _.compact(
     _.map(tracks, track => {
-      const status = rateCandidate(song, track, options);
-      if (!status) {
+      const rating = rateCandidate(song, track, options);
+      if (!rating) {
         return null;
       }
+      const candidate = candidateOf(track);
+      const similarity = matchSimilarity(song, candidate);
+      const status =
+        rating === 'review' && autoAcceptPercent && similarity.percent >= autoAcceptPercent
+          ? 'match'
+          : rating;
       const diff =
         song.duration && track.duration_ms ? Math.abs(song.duration - track.duration_ms / 1000) : 0;
-      return { status, diff, track };
+      return { status, diff, track, candidate, similarity };
     })
   );
-  const best = _.sortBy(rated, [({ status }) => (status === 'match' ? 0 : 1), 'diff'])[0];
+  const best = _.sortBy(rated, [
+    ({ status }) => (status === 'match' ? 0 : 1),
+    ({ similarity }) => -similarity.percent,
+    'diff'
+  ])[0];
   return best
-    ? { status: best.status, candidate: candidateOf(best.track), track: best.track }
+    ? _.pick(best, ['status', 'candidate', 'track', 'similarity'])
     : { status: 'missing', candidate: null };
 };
 
@@ -242,6 +347,7 @@ module.exports = {
   titleWords,
   candidateOf,
   looseQuery,
+  matchSimilarity,
   normalizeTitle,
   primaryArtist,
   rateCandidate,

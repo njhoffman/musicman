@@ -8,8 +8,8 @@ const previewCommand = (...args) =>
   `FORCE_COLOR=1 ${JSON.stringify(process.execPath)} ${JSON.stringify(cliPath)} ${args.join(' ')} {1}`;
 
 /**
- * Lets the user pick oneline output lines ("key<TAB>text") with fzf, which shows the text and is
- * searched by it. Returns the keys of the picked lines, none when fzf is cancelled or nothing matches.
+ * Lets the user pick oneline output lines ("key<TAB>text") with fzf, which shows the text (the fields
+ * of withNth) and is searched by it; binds are fzf --bind values. Returns the keys of the picked lines, none when fzf is cancelled or nothing matches.
  */
 const pickWithFzf = (
   lines,
@@ -19,10 +19,18 @@ const pickWithFzf = (
     multi = true,
     prompt,
     header,
+    withNth = '2..',
+    binds = [],
     spawn = spawnSync
   } = {}
 ) => {
-  const args = ['--ansi', '--delimiter=\t', '--with-nth=2..', '--layout=reverse', '--height=90%'];
+  const args = [
+    '--ansi',
+    '--delimiter=\t',
+    `--with-nth=${withNth}`,
+    '--layout=reverse',
+    '--height=90%'
+  ];
   if (multi) {
     args.push('--multi');
   }
@@ -35,6 +43,7 @@ const pickWithFzf = (
   if (header) {
     args.push(`--header=${header}`);
   }
+  binds.forEach(bind => args.push(`--bind=${bind}`));
   // fzf draws on /dev/tty itself, only the picked lines come back on stdout
   const result = spawn('fzf', args, {
     input: lines.join('\n'),

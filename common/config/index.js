@@ -25,7 +25,12 @@ const resolveLibraryTags = (config) => {
 };
 
 // frames written to every matched song, besides the spotify.fields mapping
-const spotifyFrames = [{ name: 'sp_track_id' }, { name: 'sp_fetched_at' }];
+const spotifyFrames = [
+  { name: 'sp_track_id' },
+  { name: 'sp_fetched_at' },
+  { name: 'sp_diff_percent' },
+  { name: 'sp_diff_details' }
+];
 
 // Spotify fields are tags named like their TXXX.<name> frame and always in library.tags, unless the
 // user config already defines a tag with that name
@@ -94,6 +99,11 @@ const buildConfig = ({
   const archiveDirectory = expandHome(_.get(config, 'logger.archive.directory'));
   if (archiveDirectory) {
     config.logger.archive.directory = archiveDirectory;
+  }
+
+  const imageDirectory = expandHome(_.get(config, 'spotify.artistImageDirectory'));
+  if (imageDirectory) {
+    config.spotify.artistImageDirectory = imageDirectory;
   }
 
   registerSpotifyTags(config);

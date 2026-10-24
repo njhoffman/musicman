@@ -71,6 +71,8 @@ const emitFormatted = ({
   preview,
   previewWindow,
   header,
+  withNth,
+  binds,
   pick = pickWithFzf,
   write = text => process.stdout.write(text)
 }) => {
@@ -86,7 +88,9 @@ const emitFormatted = ({
       preview,
       prompt: title,
       ...(header ? { header } : {}),
-      ...(previewWindow ? { previewWindow } : {})
+      ...(previewWindow ? { previewWindow } : {}),
+      ...(withNth ? { withNth } : {}),
+      ...(binds ? { binds } : {})
     });
     if (selected.length > 0) {
       write(`${selected.join('\n')}\n`);

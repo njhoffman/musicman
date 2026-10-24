@@ -47,7 +47,8 @@ const configSchema = {
       uploadDirectory: { type: 'string', required: false },
       downloadDirectory: { type: 'string', required: false },
       spotdlCommand: { type: 'string', required: false },
-      beetsConfig: { type: 'string', required: false }
+      beetsConfig: { type: 'string', required: false },
+      autoAcceptPercent: { type: 'number', min: 0, max: 100, required: false }
     }
   },
   spotify: {
@@ -59,6 +60,7 @@ const configSchema = {
       refreshDays: { type: 'number', min: 1, required: false },
       requestsPerSecond: { type: 'number', min: 0, required: false },
       fields: { type: 'array', required: false },
+      artistImageDirectory: { type: 'string', required: false },
       ignore: { type: 'array', required: false }
     }
   },
@@ -360,7 +362,7 @@ function validateConfig(config) {
     }
   });
 
-  const reservedFields = ['sp_track_id', 'sp_fetched_at'];
+  const reservedFields = ['sp_track_id', 'sp_fetched_at', 'sp_diff_percent', 'sp_diff_details'];
   _.each(_.get(config, 'spotify.fields', []), (field, i) => {
     if (!_.isPlainObject(field) || !_.isString(field.path) || !_.isString(field.name)) {
       result.errors.push(`spotify.fields[${i}] must have a path and a name`);

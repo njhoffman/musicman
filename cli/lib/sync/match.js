@@ -3,8 +3,22 @@ const path = require('path');
 const Promise = require('bluebird');
 const globalTags = require('musicman-common/config/tags.json');
 
-const { bestCandidate, looseQuery, sameTitle, searchQuery } = require('../spotify/match.js');
-const { assignFields, fetchDetails, fetchedAtName, trackIdName } = require('../spotify/fields.js');
+const {
+  bestCandidate,
+  candidateOf,
+  looseQuery,
+  matchSimilarity,
+  sameTitle,
+  searchQuery
+} = require('../spotify/match.js');
+const {
+  assignFields,
+  fetchDetails,
+  fetchedAtName,
+  similarityFields,
+  trackIdName
+} = require('../spotify/fields.js');
+const { artistImageDirectory, cacheArtistImages } = require('../spotify/images.js');
 const { transaction } = require('../db/database.js');
 const { updateDatabase } = require('../db/update.js');
 const { rewriteTags, updateTags } = require('../metadata/write.js');
@@ -36,8 +50,9 @@ const searchTracks = async (client, query, limit) =>
     []
   );
 
-// look up one song: beets id, then ISRC, then artist and title search, never a track rejected in review
-const lookup = async ({ client, song, beetsId, rejected = new Set() }) => {
+// look up one song: beets id, then ISRC, then artist and title search, never a track rejected in review;
+// review candidates at least autoAcceptPercent similar are matches
+const lookup = async ({ client, song, beetsId, rejected = new Set(), autoAcceptPercent }) => {
   if (beetsId && !rejected.has(beetsId)) {
     return { status: 'match', source: 'beets', candidate: { id: beetsId } };
   }
@@ -45,18 +60,19 @@ const lookup = async ({ client, song, beetsId, rejected = new Set() }) => {
     _.reject(await searchTracks(client, query, limit), ({ id }) => rejected.has(id));
   if (song.isrc) {
     const result = bestCandidate(song, await search(`isrc:${song.isrc}`, 5), {
-      isrc: true
+      isrc: true,
+      autoAcceptPercent
     });
     if (result.status !== 'missing') {
       return { ...result, source: 'isrc' };
     }
   }
-  const strict = bestCandidate(song, await search(searchQuery(song), 10));
+  const strict = bestCandidate(song, await search(searchQuery(song), 10), { autoAcceptPercent });
   if (strict.status === 'match') {
     return { ...strict, source: 'search' };
   }
   // the looser query only replaces a strict result it improves on
-  const loose = bestCandidate(song, await search(looseQuery(song), 10));
+  const loose = bestCandidate(song, await search(looseQuery(song), 10), { autoAcceptPercent });
   const rank = { match: 0, review: 1, missing: 2 };
   return { ...(rank[loose.status] < rank[strict.status] ? loose : strict), source: 'search' };
 };
@@ -81,6 +97,20 @@ const plannedWrites = (db, config, songId, assignment) => {
     kept: _.reject(fallbacks, 'filled')
   };
 };
+
+// the similarity fields of a song and its Spotify track (or a candidate with name and durationMs), none
+// when the track is not known beyond its id (a beets id without details)
+const similarityOf = (song, track) => {
+  const candidate = track && track.duration_ms !== undefined ? candidateOf(track) : track;
+  return candidate && candidate.name ? similarityFields(matchSimilarity(song, candidate)) : [];
+};
+
+// writes of a match known only by its id (details could not be fetched)
+const idOnlyWrites = (song, candidate) => ({
+  custom: [{ name: trackIdName, value: candidate.id }, ...similarityOf(song, candidate)],
+  filled: [],
+  kept: []
+});
 
 const writeFields = (file, { custom, filled }) =>
   updateTags(
@@ -111,6 +141,12 @@ const tryWrite = (file, writes) => {
  * cached match is not searched for again; dryRun writes nothing else (no files, no song tags). Results
  * are saved after every chunk of songs, so an interrupted run keeps what it did.
  *
+ * The photos of matched songs' first artists are saved to artistImageDirectory (spotify.artistImageDirectory)
+ * for offline use, except in a dry run; artistImages in the result has the ids saved and failed.
+ *
+ * Every match also gets TXXX.sp_diff_percent and TXXX.sp_diff_details (matchSimilarity); review
+ * candidates at least autoAcceptPercent (sync.autoAcceptPercent) similar are matched without review.
+ *
  * onSong(status, item, result) is called once per looked up or refreshed song with status match,
  * review, missing, refresh, or failed, and result.writes ({ custom, filled, kept }) when fields were
  * assigned. A Spotify rate limit too long to wait for stops the run: the songs not looked up yet are
@@ -126,6 +162,9 @@ const matchSongs = async ({
   refresh = false,
   recheckDays = defaultRecheckDays,
   refreshDays = _.get(config, 'spotify.refreshDays', 30),
+  autoAcceptPercent = _.get(config, 'sync.autoAcceptPercent'),
+  imageDirectory = artistImageDirectory(config),
+  imageFetch = fetch,
   concurrency = 3,
   now = new Date(),
   onProgress = _.noop,
@@ -154,6 +193,7 @@ const matchSongs = async ({
   };
   const bySource = { beets: 0, isrc: 0, search: 0 };
   const unassigned = {};
+  const artistImages = { saved: [], failed: [] };
   const items = [];
   _.each(songs, ({ file, targets }) => {
     if (targets.length === 0) {
@@ -256,7 +296,8 @@ const matchSongs = async ({
               client,
               song: item.song,
               beetsId: beetsIds.get(item.file),
-              rejected: item.rejected
+              rejected: item.rejected,
+              autoAcceptPercent
             }))
           };
         } catch (err) {
@@ -312,11 +353,7 @@ const matchSongs = async ({
           finish('failed', item, { ...result, error });
           return;
         }
-        const writes = {
-          custom: [{ name: trackIdName, value: result.candidate.id }],
-          filled: [],
-          kept: []
-        };
+        const writes = idOnlyWrites(item.song, result.candidate);
         const writeError = dryRun ? null : tryWrite(item.file, writes);
         if (writeError) {
           finish('failed', item, { ...result, error: writeError });
@@ -329,6 +366,7 @@ const matchSongs = async ({
         return;
       }
       const assignment = assignFields(objects, config, now);
+      assignment.custom.push(...similarityOf(item.song, objects.track));
       _.each(assignment.unassigned, fieldPath => {
         unassigned[fieldPath] = (unassigned[fieldPath] || 0) + 1;
       });
@@ -360,20 +398,31 @@ const matchSongs = async ({
     if (written.length > 0) {
       await updateDatabase(db, { config, files: written, record: false });
     }
+    if (!dryRun) {
+      const images = await cacheArtistImages({
+        artists: _.map([...details.values()], 'artist'),
+        directory: imageDirectory,
+        fetchImpl: imageFetch
+      });
+      artistImages.saved.push(...images.saved);
+      artistImages.failed.push(...images.failed);
+    }
   }
 
   return {
     ...counts,
     bySource,
     unassigned,
+    artistImages,
     dryRun,
     rateLimited: rateLimit ? { retryAfter: rateLimit.retryAfter } : null,
     results: _.map(found, item => _.omit(item, ['track']))
   };
 };
 
-// songs waiting for review with their candidate; linked when the file already has the candidate's id
-// (a match moved to review by recheckMatches), so it is on Spotify already
+// songs waiting for review with their candidate and its similarity (matchSimilarity); linked when the
+// file already has the candidate's id (a match moved to review by recheckMatches), so it is on Spotify
+// already
 const reviewItems = (db, config) =>
   _.map(
     db
@@ -388,14 +437,16 @@ const reviewItems = (db, config) =>
       .all(spotifyIdFrame),
     row => {
       const candidate = JSON.parse(row.candidate);
+      const song = { artist: row.artist, title: row.title, duration: row.duration };
       return {
         songId: row.id,
         file: path.join(path.resolve(config.mpd.baseDirectory), row.path),
         path: row.path,
         duration: row.duration,
-        song: { artist: row.artist, title: row.title, duration: row.duration },
+        song,
         source: row.source,
         candidate,
+        similarity: matchSimilarity(song, candidate),
         linked: Boolean(row.linked_id) && row.linked_id === candidate.id
       };
     }
@@ -470,12 +521,12 @@ const markReviewed = (db, songId, status, trackId) =>
     .run(status, trackId, songId);
 
 /**
- * Accepts review items: a linked one (already tagged with the candidate) is only marked reviewed, others
- * get the candidate's id and Spotify fields written like a match. Returns { accepted, failed } items.
+ * Accepts review items: a linked one (already tagged with the candidate) only gets its similarity
+ * (TXXX.sp_diff_percent, TXXX.sp_diff_details), others get the candidate's id, Spotify fields, and
+ * similarity written like a match. Returns { accepted, failed } items.
  */
 const acceptReview = async ({ db, config, client, items, now = new Date() }) => {
-  const [linked, unlinked] = _.partition(items, 'linked');
-  linked.forEach(({ songId, candidate }) => markReviewed(db, songId, 'match', candidate.id));
+  const unlinked = _.reject(items, 'linked');
   // without details (e.g. a network error) the id alone is written, sync --match fills the fields later
   let details = new Map();
   let detailsError = null;
@@ -488,11 +539,20 @@ const acceptReview = async ({ db, config, client, items, now = new Date() }) => 
   }
   const failed = [];
   const written = [];
-  unlinked.forEach(item => {
-    const objects = details.get(item.candidate.id);
-    const writes = objects
-      ? plannedWrites(db, config, item.songId, assignFields(objects, config, now))
-      : { custom: [{ name: trackIdName, value: item.candidate.id }], filled: [], kept: [] };
+  items.forEach(item => {
+    // scored against the candidate as it was shown in review
+    const similarity = similarityOf(item.song, item.candidate);
+    const objects = !item.linked && details.get(item.candidate.id);
+    let writes;
+    if (item.linked) {
+      writes = { custom: similarity, filled: [], kept: [] };
+    } else if (objects) {
+      const assignment = assignFields(objects, config, now);
+      assignment.custom.push(...similarity);
+      writes = plannedWrites(db, config, item.songId, assignment);
+    } else {
+      writes = idOnlyWrites(item.song, item.candidate);
+    }
     const error = tryWrite(item.file, writes);
     if (error) {
       failed.push({ ...item, error });

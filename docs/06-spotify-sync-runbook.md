@@ -46,6 +46,12 @@ musicman sync --match             # writes TXXX.sp_* tags to the files
   misses after 30 days, and refresh fields older than `spotify.refreshDays` (30); `--refresh` refreshes all.
 - Standard tags (artist, title, year, ...) are only filled when empty, never overwritten.
 - Spotify fields that are neither mapped in `spotify.fields` nor in `spotify.ignore` are reported at the end.
+- Every match gets `sp_diff_percent` (how similar the Spotify track is, 100 for the same title and length) and
+  `sp_diff_details` (what cost points). With `sync.autoAcceptPercent` set (e.g. 95), probable matches at least that
+  similar are matched without review: a few seconds, capitalization, a remaster suffix, or up to 20s pass, another
+  mix or version never does.
+- The first artist's photo is saved to `spotify.artistImageDirectory` (`$XDG_CACHE_HOME/musicman/artists`) for
+  offline use.
 
 ### 2. Review probable matches
 
@@ -60,6 +66,9 @@ musicman sync --match --recheck   # move existing matches that fail the current 
   it from every playlist it was pushed to, without `--prune`, it is never offered as a download, and the next
   `sync --match` looks the song up again without it.
 - Accepted matches are never moved to review by `--recheck` again.
+- The list starts with the similarity; `--accept` offers the most similar first, `--reject` the least similar.
+  In the list, ctrl-l plays the song (mpv), ctrl-s plays the Spotify track in the desktop app (playerctl), and
+  ctrl-x stops.
 
 ### 3. Push to Liked Songs and playlists
 

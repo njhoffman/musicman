@@ -42,6 +42,9 @@ spotify:
   requestsPerSecond: 5
   # Days before the Spotify fields of matched songs (popularity changes) are fetched again
   refreshDays: 30
+  # Where sync --match saves the photo of each matched song's first artist (<artist id>.jpg), so they are
+  # there offline; defaults to $XDG_CACHE_HOME/musicman/artists
+  artistImageDirectory:
   # Spotify fields written to matched songs as custom TXXX.<name> frames, besides TXXX.sp_track_id and
   # TXXX.sp_fetched_at. Each is also a tag with that name, added to library.tags. path starts with
   # track, album (the track's full album), or artist (the track's first artist); [] collects every item
@@ -69,10 +72,12 @@ spotify:
   - { path: 'album.external_ids.upc', name: sp_upc }
   - { path: 'album.copyrights[].text', name: sp_copyright, fallback: copyright, separator: '; ' }
   - { path: 'album.popularity', name: sp_album_popularity }
+  - { path: 'album.images[0].url', name: sp_album_image }
   - { path: 'album.genres[]', name: sp_album_genres, multi: true }
   - { path: 'artist.genres[]', name: sp_genres, multi: true }
   - { path: 'artist.popularity', name: sp_artist_popularity }
   - { path: 'artist.followers.total', name: sp_artist_followers }
+  - { path: 'artist.images[0].url', name: sp_artist_image }
   # Spotify response paths that are not written and not reported as unassigned. Entries with a dot are
   # paths (and everything under them), others are keys ignored at any depth.
   ignore:
@@ -102,6 +107,10 @@ spotify:
 
 # Spotify sync settings
 sync:
+  # Review candidates at least this similar to the song (100 is the same title and length; capitalization,
+  # punctuation, and a few seconds are free, up to 20s or a remaster suffix stays above 95, another mix or
+  # version falls below) are matched without review. Empty sends every probable match to review.
+  autoAcceptPercent:
   # Songs rated at least this are added to Spotify Liked Songs
   likedRating: 4.5
   # Only songs matching this filter (view/search syntax, e.g. rating:4.5 or picks:Nick) take part in sync;

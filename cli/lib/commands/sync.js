@@ -26,7 +26,13 @@ const { downloadedFiles, manifestPath, readManifest } = require('../sync/downloa
 const { importDownloads } = require('../sync/import.js');
 const { applyBackup, backupPlan, removedFolder } = require('../sync/backup.js');
 const { saveSnapshot } = require('../sync/snapshot.js');
-const { reviewHeader, reviewLines } = require('../output/review.js');
+const {
+  reviewBinds,
+  reviewHeader,
+  reviewLines,
+  sortForDecision,
+  stopReviewPlayback
+} = require('../output/review.js');
 const { unsortedFolder } = require('../beets/sort.js');
 const { renderColumns } = require('../output/render.js');
 const { formatWait, progressBar } = require('../output/progress.js');
@@ -382,6 +388,11 @@ const runMatch = async ({
           `${summary.reused ? `; ${summary.reused} from earlier lookups` : ''})`,
         `  fields refreshed: ${summary.refresh}`,
         `  to review: ${summary.review} (musicman sync --review)`,
+        `  artist photos saved: ${summary.artistImages.saved.length}${
+          summary.artistImages.failed.length
+            ? `, failed: ${summary.artistImages.failed.length} (fetched again next run)`
+            : ''
+        }`,
         `  not found: ${summary.missing}, failed: ${summary.failed}${
           summary.skipped ? `, not looked up (rate limit): ${summary.skipped}` : ''
         }`
@@ -607,10 +618,12 @@ const runBackup = async ({ config, dryRun, force = false, confirm }) => {
 };
 
 const reviewRecords = items =>
-  _.map(items, ({ file: songFile, duration, candidate, linked }) => ({
+  _.map(items, ({ file: songFile, duration, candidate, linked, similarity }) => ({
     path: songFile,
     duration,
     linked,
+    similarity: similarity.percent,
+    similarityDetails: similarity.details,
     spotifyId: candidate.id,
     spotifyArtists: candidate.artists,
     spotifyName: candidate.name,
@@ -618,19 +631,36 @@ const reviewRecords = items =>
     spotifyDuration: candidate.durationMs / 1000
   }));
 
-// accept or reject the review items picked with fzf
+// fzf options of the review list: the hidden Spotify id field, the play binds, the song preview below
+const reviewFzf = {
+  withNth: '3..',
+  binds: reviewBinds(),
+  header: reviewHeader,
+  // wide columns, so the song preview goes below the list
+  previewWindow: 'down,40%,wrap',
+  preview: previewCommand('view')
+};
+
+// picks review items with fzf, stopping a song still playing from the list afterwards
+const pickReview = options => {
+  try {
+    return emitFormatted({ ...reviewFzf, ...options });
+  } finally {
+    stopReviewPlayback();
+  }
+};
+
+// accept or reject the review items picked with fzf, offered most similar first to accept and least
+// similar first to reject
 const decideReview = async ({ db, config, items, accept, credentials, fetchImpl, pick }) => {
-  const lines = reviewLines(items);
-  const { selected = [] } = emitFormatted({
+  const sorted = sortForDecision(items, accept);
+  const lines = reviewLines(sorted, { threshold: _.get(config, 'sync.autoAcceptPercent') });
+  const { selected = [] } = pickReview({
     switches: { fzf: true },
     config,
     title: accept ? 'accept' : 'reject',
-    records: reviewRecords(items),
+    records: reviewRecords(sorted),
     oneline: record => lines.get(record.path),
-    header: reviewHeader,
-    // wide columns, so the song preview goes below the list
-    previewWindow: 'down,40%,wrap',
-    preview: previewCommand('view'),
     pick,
     write: _.noop
   });
@@ -689,16 +719,13 @@ const runReview = async ({ config, switches = {}, credentials, fetchImpl, pick }
       return { review: items, ...decided };
     }
     if (outputFormat(switches) !== 'default') {
-      const { selected } = emitFormatted({
+      const lines = reviewLines(items, { threshold: _.get(config, 'sync.autoAcceptPercent') });
+      const { selected } = pickReview({
         switches,
         config,
         title: 'musicman sync review',
         records: reviewRecords(items),
-        oneline: record => reviewLines(items).get(record.path),
-        header: reviewHeader,
-        // wide columns, so the song preview goes below the list
-        previewWindow: 'down,40%,wrap',
-        preview: previewCommand('view'),
+        oneline: record => lines.get(record.path),
         pick
       });
       return { review: items, selected };
@@ -706,10 +733,11 @@ const runReview = async ({ config, switches = {}, credentials, fetchImpl, pick }
     if (items.length === 0) {
       logger.info('No Spotify matches waiting for review');
     }
-    items.forEach(({ path: songPath, duration, candidate, linked }) =>
+    items.forEach(({ path: songPath, duration, candidate, linked, similarity }) =>
       logger.info(
         [
-          `${songPath} (${formatDuration(duration)})${linked ? chalk.hex('#DDCC44')(' linked') : ''}`,
+          `${songPath} (${formatDuration(duration)})${linked ? chalk.hex('#DDCC44')(' linked') : ''}` +
+            ` ${similarity.percent}%${similarity.details ? dim(` ${similarity.details}`) : ''}`,
           `  Spotify: ${candidate.artists} - ${candidate.name} [${
             candidate.album
           }] (${formatDuration(candidate.durationMs / 1000)})`

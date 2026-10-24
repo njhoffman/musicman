@@ -23,10 +23,11 @@ describe('Spotify Id Matching', () => {
   let config;
   const file = name => path.join(library, name);
   const songs = names => names.map(name => ({ file: file(name), meta: {}, targets: ['liked'] }));
-  const spotifyId = name =>
+  const customTag = (name, description) =>
     (NodeId3.read(file(name)).raw.TXXX || [])
-      .filter(t => t.description === 'sp_track_id')
+      .filter(t => t.description === description)
       .map(t => t.value)[0];
+  const spotifyId = name => customTag(name, 'sp_track_id');
   const track = (id, name, artist, seconds) => ({
     id,
     name,
@@ -238,6 +239,38 @@ describe('Spotify Id Matching', () => {
       expect(_.map(writes.filled, 'name')).to.deep.equal(['isrc_code']);
       expect(_.map(writes.kept, 'name')).to.deep.equal(['title']);
       expect(summary.unassigned).to.deep.equal({ 'artist.popularity': 1 });
+    });
+
+    it('should save the first artist photo for offline use, except in a dry run', async () => {
+      const imageDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-artists-'));
+      const urls = [];
+      const imageFetch = async url => {
+        urls.push(url);
+        return { ok: true, status: 200, arrayBuffer: async () => Buffer.from('jpeg') };
+      };
+      const artist = { id: 'artist-1', genres: ['rock'], images: [{ url: 'https://i/big' }] };
+      const run = dryRun =>
+        matchSongs({
+          db,
+          config,
+          client: fakeClient({}, { 'beets-id': fullTrack, 'artist-1': artist }),
+          songs: songs(['testFile01.mp3']),
+          beetsIds: new Map([[file('testFile01.mp3'), 'beets-id']]),
+          refresh: true,
+          dryRun,
+          imageDirectory,
+          imageFetch
+        });
+      try {
+        expect((await run(true)).artistImages.saved).to.be.empty;
+        expect(urls).to.be.empty;
+        const summary = await run(false);
+        expect(summary.artistImages).to.deep.equal({ saved: ['artist-1'], failed: [] });
+        expect(fs.readdirSync(imageDirectory)).to.deep.equal(['artist-1.jpg']);
+        expect(urls).to.deep.equal(['https://i/big']);
+      } finally {
+        fs.rmSync(imageDirectory, { recursive: true, force: true });
+      }
     });
 
     it('should refresh fields that were never fetched or are older than refreshDays', async () => {
@@ -457,6 +490,45 @@ describe('Spotify Id Matching', () => {
       expect(accepted).to.have.length(1);
       expect(spotifyId('testFile03.mp3')).to.equal('maybe-id');
       expect(status('testFile03.mp3')).to.include({ status: 'match', track_id: 'maybe-id' });
+      // scored against the candidate shown in review, not the track fetched on accept
+      expect(customTag('testFile03.mp3', 'sp_diff_percent')).to.equal('96');
+      expect(customTag('testFile03.mp3', 'sp_diff_details')).to.equal('duration 20.0s -4');
+    });
+
+    it('should write the similarity when accepting a linked match', async () => {
+      recheckMatches({ db, config, songs: songs(['testFile01.mp3']) });
+      const { accepted } = await acceptReview({
+        db,
+        config,
+        client: fakeClient({}),
+        items: reviewItems(db, config)
+      });
+      expect(accepted).to.have.length(1);
+      expect(spotifyId('testFile01.mp3')).to.equal('wrong-id');
+      expect(customTag('testFile01.mp3', 'sp_diff_percent')).to.equal('90');
+      expect(customTag('testFile01.mp3', 'sp_diff_details')).to.equal('suffix +rough -10');
+    });
+
+    it('should match without review a candidate at least sync.autoAcceptPercent similar', async () => {
+      const searched = meta('testFile03.mp3');
+      const row = db.prepare('SELECT duration FROM songs WHERE path = ?').get('testFile03.mp3');
+      const answers = {
+        [`track:"${searched.title}" artist:"${searched.artist}"`]: [
+          track('close-id', searched.title, searched.artist, row.duration + 10)
+        ]
+      };
+      const summary = await matchSongs({
+        db,
+        config: _.merge({}, config, { sync: { autoAcceptPercent: 95 } }),
+        client: fakeClient(answers, {
+          'close-id': track('close-id', searched.title, searched.artist, row.duration + 10)
+        }),
+        songs: songs(['testFile03.mp3'])
+      });
+      expect(summary).to.include({ match: 1, review: 0 });
+      expect(spotifyId('testFile03.mp3')).to.equal('close-id');
+      expect(customTag('testFile03.mp3', 'sp_diff_percent')).to.equal('98');
+      expect(reviewItems(db, config)).to.be.empty;
     });
 
     it('should still write the id when accepting while track details cannot be fetched', async () => {

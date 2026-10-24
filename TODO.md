@@ -176,6 +176,36 @@ OVERDUE flag. Feature specs live in `docs/`.
       matches failing the title rule to review without unlinking them (45 in scope on 2026-10-21); `sync --review
       --accept` / `--reject` pick with fzf. Rejected tracks are removed by the next push (no `--prune` needed), are never
       offered as downloads, and the song is looked up again without them (schema 4).
+- [x] **Match similarity percent:** (p2) [feature] `matchSimilarity` in `lib/spotify/match.js` scores a match
+      (100% identical) by duration (free up to 3s, above 95% up to 20s) and title (case and punctuation free, a
+      neutral suffix like a remaster -1, 2 per changed character, -10 per mix or version word such as Radio or
+      Rough, -25 per version marker such as live or remix). Shown as the first column of the `sync --review` list,
+      accept sorted most similar first and reject least similar first. Written as `TXXX.sp_diff_percent` and
+      `TXXX.sp_diff_details` on every match, accepted review, and refresh.
+- [x] **Auto-accept close matches:** (p2) [feature] `sync.autoAcceptPercent` (e.g. 95) matches review candidates at
+      least that similar without review; empty by default, so nothing changes until it is set.
+- [ ] **Live recordings score as studio matches:** (p1) [bug] the similarity only reads titles, so a song from a live
+      album whose title lacks "(Live)" scores 95-100% against the studio track: 28 of the 524 review items at or
+      above 95% on 2026-10-24 are in `live/` folders (311, Muse, The White Stripes), all matched to studio albums.
+      Fix before setting `sync.autoAcceptPercent`: treat the song as live when its album (TALB), path, or beets
+      albumtype says so and the Spotify album or title does not (and the reverse), costing a version marker.
+- [x] **Icon for linked in the review list:** (p3) [feature] a nerd font link icon replaces `linked` and a unicode
+      arrow replaces `->`.
+- [x] **Listen to both versions in review:** (p3) [feature] in the review fzf list, ctrl-l plays the song with mpv
+      (pausing Spotify), ctrl-s plays the candidate in the Spotify desktop app through `playerctl open` (or its
+      `spotify:` URI handler when the app is not running), ctrl-x stops; closing the list stops mpv. Not tried in a
+      real review session yet; MPD is not paused.
+- [x] **Spotify artist metadata on tracks:** (p2) [feature] popularity (`sp_artist_popularity`), followers
+      (`sp_artist_followers`), and genres (`sp_genres`, kept under its existing name) were already mapped; added the
+      photo URL (`sp_artist_image`), and `sync --match` saves each first artist's photo to
+      `spotify.artistImageDirectory` (default `$XDG_CACHE_HOME/musicman/artists/<sp_artist_id>.jpg`) for offline use.
+      Only the first artist is fetched.
+- [ ] **Spotify artist metadata for every credited artist:** (p3) [feature] `fetchDetails` only fetches
+      `artists[0]`, so genres, popularity, and photos of featured or second artists are never stored. Decide whether
+      the extra artist requests are worth it and how multi value fields would hold them.
+- [x] **Spotify album metadata on tracks:** (p2) [feature] `sp_album_popularity` was already mapped; added the
+      largest album image URL as `sp_album_image`. Embedding the image itself (APIC, for offline players) is part of
+      "Fetch missing artwork for singles".
 - [ ] **Guess the grouping of downloads:** (p2) [feature] for each track handed to spotDL, guess its grouping (genre) from
       the library: groupings of the same artist's songs first, then songs whose Spotify artist genres overlap. Record the
       guess (and why) in the manifest and download into a folder named after it, but never write it to the grouping
@@ -218,8 +248,37 @@ OVERDUE flag. Feature specs live in `docs/`.
       picks, rating, grouping, Spotify genres and popularity) instead of only fixed filters, and push them like the
       mapped playlists. First look into services or libraries that build better smart playlists from that kind of
       metadata.
+- [ ] **Mood analysis services:** (p3) [feature] evaluate APIs that tag songs with moods (to fill or suggest the
+      `mood` tag and replace the blocked Spotify audio features): bridge.audio, SonoTeller, Cyanite.ai, Musiio, AIMS
+      API. Compare coverage, price, whether they analyze uploaded audio or only catalogue ids, and rate limits.
+- [ ] **Lyrics analysis and sources:** (p3) [feature] evaluate Musixmatch Pro, lyricsgenius (Genius), and
+      LRCLIB/lrcget (synced LRC lyrics, free and offline friendly) as sources for the Lyrics item and for lyric based
+      tags (themes, explicitness, language).
+- [ ] **Genre analysis services:** (p3) [feature] evaluate Every Noise at Once, Chosic music genre finder, PitchPlus,
+      and SubmitHub "What's my genre" for finer genres than Spotify's artist genres, to help guess groupings
+      ("Guess the grouping of downloads"). Several are websites without an API, so check what can be automated.
 - [ ] **Other music services:** (p3) [feature] support services besides Spotify (e.g. YouTube Music, SoundCloud) for
       matching, playlist sync, and playback, starting with which ones have a usable API.
+
+## Undo and history
+
+Library tag changes and Spotify changes cannot be undone today: the database is backed up weekly (`db.autoBackup`,
+not the files), `sync --backup` moves files deleted from the library to `.musicman-removed/<date>/` but overwrites
+changed ones, and the run archive (`$XDG_STATE_HOME/musicman/logs`) only describes what a run did.
+
+- [ ] **Tag change journal and `undo`:** (p1) [feature] record the frames each write replaces (file, frame, before,
+      after, run id) for every command that writes tags (`edit`, `sync --match`, `--review`, `--pull`, `--import`,
+      and future `check --fix`), in the database or next to the run archive. `musicman undo [<run>]` restores the
+      before values, refusing files changed since; `undo --list` shows recent runs with changes. Also covers the
+      `check --undo` the `check` item mentions.
+- [ ] **Spotify change journal and `sync --undo`:** (p1) [feature] `sync --push`, `--prune`, and removals of rejected
+      tracks record each add and remove (target, track id, playlist position, snapshot id) per run; `sync --undo
+      <run>` reverses them. Re-adding to Liked Songs gives a new added date, which cannot be restored.
+- [ ] **Keep replaced files in `sync --backup`:** (p2) [feature] move the backup copy of an updated file to
+      `.musicman-removed/<date>/` (or a versions folder) before overwriting it, like deleted files, so a bad tag
+      write that reached the backup can still be recovered.
+- [ ] **Restore the database from a backup:** (p3) [feature] `db --restore [<backup>]` to list and restore the
+      automatic database backups; there is no command for it now.
 
 ## Housekeeping
 

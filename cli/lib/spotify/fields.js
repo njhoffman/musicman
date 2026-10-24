@@ -3,6 +3,16 @@ const _ = require('lodash');
 // frames every matched song gets, outside the configurable spotify.fields mapping
 const trackIdName = 'sp_track_id';
 const fetchedAtName = 'sp_fetched_at';
+// how similar the matched track is to the song (matchSimilarity), written with every match
+const diffPercentName = 'sp_diff_percent';
+const diffDetailsName = 'sp_diff_details';
+
+// custom fields of a song's similarity to its Spotify track; details are always written, so an earlier
+// match's details never outlive it
+const similarityFields = ({ percent, details }) => [
+  { name: diffPercentName, value: `${percent}` },
+  { name: diffDetailsName, value: details || 'same title and duration' }
+];
 
 // objects a field path can start with: the track, its full album, and its first artist
 const sources = ['track', 'album', 'artist'];
@@ -149,11 +159,14 @@ const fetchDetails = async (client, trackIds, config, known = new Map()) => {
 
 module.exports = {
   assignFields,
+  diffDetailsName,
+  diffPercentName,
   fetchDetails,
   fetchedAtName,
   fieldDefinitions,
   isIgnored,
   leafPaths,
+  similarityFields,
   trackIdName,
   valuesAt
 };

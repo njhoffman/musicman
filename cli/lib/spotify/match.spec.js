@@ -2,6 +2,7 @@ const { expect } = require('chai');
 const {
   bestCandidate,
   looseQuery,
+  matchSimilarity,
   normalizeTitle,
   primaryArtist,
   rateCandidate,
@@ -107,11 +108,55 @@ describe('Spotify Matching', () => {
       expect(result.candidate).to.include({ id: 'closest', artists: 'Prince', album: 'Album' });
     });
 
+    it('should match review candidates at least autoAcceptPercent similar', () => {
+      const tracks = [track('Automatic', ['Prince'], 586, 'longer')];
+      expect(bestCandidate(song, tracks).status).to.equal('review');
+      const accepted = bestCandidate(song, tracks, { autoAcceptPercent: 95 });
+      expect(accepted).to.deep.include({ status: 'match' });
+      expect(accepted.similarity).to.deep.equal({ percent: 96, details: 'duration 18.0s -3.5' });
+    });
+
+    it('should keep a differently named mix in review whatever the threshold allows for duration', () => {
+      const tracks = [track('Automatic - Dub Mix', ['Prince'], 568, 'dub')];
+      expect(bestCandidate(song, tracks, { autoAcceptPercent: 95 }).status).to.equal('review');
+    });
+
     it('should report missing when nothing qualifies', () => {
       expect(bestCandidate(song, [track('Other', ['Prince'], 568)])).to.deep.equal({
         status: 'missing',
         candidate: null
       });
+    });
+  });
+
+  describe('matchSimilarity', () => {
+    const song = { title: 'Hey You', duration: 280 };
+    const similarity = (name, seconds) =>
+      matchSimilarity(song, { name, durationMs: seconds * 1000 });
+
+    it('should be 100 for the same title and length, ignoring case and punctuation', () => {
+      expect(similarity('Hey, you!', 282)).to.deep.equal({ percent: 100, details: '' });
+    });
+
+    it('should cost a little for parenthesized noise and small title changes', () => {
+      expect(similarity('Hey You (2011 Remaster)', 280)).to.deep.equal({
+        percent: 99,
+        details: 'suffix -1'
+      });
+      expect(similarity('Hey Yu', 280)).to.deep.equal({ percent: 98, details: 'title 1 chars -2' });
+    });
+
+    it('should stay above 95 up to 20 seconds and fall off after', () => {
+      expect(similarity('Hey You', 300).percent).to.equal(96);
+      expect(similarity('Hey You', 330).percent).to.equal(81);
+    });
+
+    it('should fall below 95 for another mix, edit, or version', () => {
+      expect(similarity('Hey You (Radio Edit)', 280)).to.deep.equal({
+        percent: 90,
+        details: 'suffix +radio -10'
+      });
+      expect(similarity('Hey You - Live', 280).percent).to.be.below(80);
     });
   });
 
