@@ -49,10 +49,20 @@ OVERDUE flag. Feature specs live in `docs/`.
       dependencies removed.
 - [ ] **Test tooling:** (p3) [chore] mocha 12, chai 6, sinon 22, sinon-chai 4, nyc to c8. Clean up
       `.mocharc.yml` (it is the full example config with placeholder values).
-- [ ] **Release tooling:** (p3) [chore] `standard-version` is deprecated; switch to `commit-and-tag-version`.
-- [ ] **Commit hooks:** (p3) [chore] `husky` and `commitlint` are installed but not configured (no `.husky/`, no
-      commitlint config). Either set them up or remove them. Decide between gitmoji and plain conventional
-      commits; both configs are installed.
+- [x] **Release tooling:** (p3) [chore] `pnpm release` runs `commit-and-tag-version` (`.versionrc.json`) instead
+      of the deprecated `standard-version`.
+- [x] **CHANGELOG.md format.** (p3) [docs] Keep a Changelog, written by hand under `[Unreleased]`; the
+      `scripts/release-changelog.js` lifecycle scripts refuse a release without entries and move them into the
+      new version's section. The version numbers in the two items below are stale (1.24.x now).
+- [ ] **Stray `vnull` tag.** (p3) [chore] an annotated tag `vnull` ("chore(release): null", 2025-07-27, 25cadb8)
+      from a broken release; delete it locally and on the remote (`git tag -d vnull`, `git push origin :vnull`).
+- [ ] **Prettier config for `scripts/`.** (p3) [chore] only `cli/` has a `.prettierrc`, so root files format with
+      whatever global config is found; `scripts/*.js` was formatted with `--config cli/.prettierrc`. Move the config
+      to the root and add `scripts/` to `pnpm format`.
+- [ ] **Commit hooks:** (p3) [chore] `husky` and `commitlint` are installed; `.husky/post-commit` only runs
+      `scripts/publish-local.sh`, and `.commitlintrc.js` is not run by any hook. Either wire commitlint into a
+      `commit-msg` hook or remove it. Decide between gitmoji and plain conventional commits; both configs are
+      installed.
 - [ ] **`todos` script** (p3) [chore] points `leasot` at `.js` files and `server/`; update or remove.
 - [ ] **`cli/package.json` version is stale.** (p3) [chore] It says 1.2.0 while releases bump only the root
       `package.json` (1.13.0, shown by `musicman --version`). Remove the field or have releases bump it.

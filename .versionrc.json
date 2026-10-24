@@ -1,0 +1,8 @@
+{
+  "skip": { "changelog": true },
+  "commitAll": true,
+  "scripts": {
+    "prerelease": "node scripts/release-changelog.js --check",
+    "postbump": "node scripts/release-changelog.js"
+  }
+}

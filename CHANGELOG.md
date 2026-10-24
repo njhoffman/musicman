@@ -1,313 +1,490 @@
 # Changelog
 
-All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+All notable changes to this project are documented in this file. The format is based on
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.24.0](https://github.com/njhoffman/musicman/compare/v1.23.1...v1.24.0) (2026-10-24)
+## [Unreleased]
 
+### Changed
 
-### Features
+- CHANGELOG.md follows Keep a Changelog: entries are written by hand under `[Unreleased]`, and `pnpm release`
+  moves them into the new version's section. Older versions were converted, and the tags that had no section
+  now have one.
+- `pnpm release` uses `commit-and-tag-version` instead of the deprecated `standard-version`, and stops before
+  bumping the version when `[Unreleased]` has no entries.
 
-* record tag and Spotify changes of each run and undo them with musicman undo ([5f1ae97](https://github.com/njhoffman/musicman/commit/5f1ae97f9a6c049859ec644240508de51fb84239))
+## [1.24.0] - 2026-10-24
 
-### [1.23.1](https://github.com/njhoffman/musicman/compare/v1.23.0...v1.23.1) (2026-10-24)
+### Added
 
+- Record tag and Spotify changes of each run and undo them with musicman undo
 
-### Bug Fixes
+## [1.23.1] - 2026-10-24
 
-* score songs from live albums below studio Spotify matches ([e656aac](https://github.com/njhoffman/musicman/commit/e656aac838af24f507dc96262a06013d5a66e26d))
+### Fixed
 
-## [1.23.0](https://github.com/njhoffman/musicman/compare/v1.22.1...v1.23.0) (2026-10-24)
+- Score songs from live albums below studio Spotify matches
 
+## [1.23.0] - 2026-10-24
 
-### Features
+### Added
 
-* score Spotify match similarity, auto-accept close matches, and play both versions in review ([207a364](https://github.com/njhoffman/musicman/commit/207a3641b184c6e49a78a35731ac1d8b1a081ae8))
+- Score Spotify match similarity, auto-accept close matches, and play both versions in review
 
-### [1.22.1](https://github.com/njhoffman/musicman/compare/v1.22.0...v1.22.1) (2026-10-22)
+## [1.22.1] - 2026-10-22
 
+### Fixed
 
-### Bug Fixes
+- Retry Spotify token requests and show review picks in aligned columns
 
-* retry Spotify token requests and show review picks in aligned columns ([31af6e6](https://github.com/njhoffman/musicman/commit/31af6e6582d6e44cdfea4addfce302058970a685))
+## [1.22.0] - 2026-10-22
 
-## [1.22.0](https://github.com/njhoffman/musicman/compare/v1.21.3...v1.22.0) (2026-10-22)
+### Added
 
+- Recheck existing Spotify matches and accept or reject them in review
 
-### Features
+## [1.21.3] - 2026-10-21
 
-* recheck existing Spotify matches and accept or reject them in review ([ee0ff3e](https://github.com/njhoffman/musicman/commit/ee0ff3e1462b545fb34e59119544edd831c0a5ff))
+### Fixed
 
-### [1.21.3](https://github.com/njhoffman/musicman/compare/v1.21.2...v1.21.3) (2026-10-21)
+- Send Spotify matches of another mix, edit, or version to review
 
+## [1.21.2] - 2026-10-21
 
-### Bug Fixes
+### Fixed
 
-* send Spotify matches of another mix, edit, or version to review ([b7589d3](https://github.com/njhoffman/musicman/commit/b7589d39f91864c904d84e37b132cf240d68cf19))
+- Reject words sync and sort do not take instead of ignoring them
 
-### [1.21.2](https://github.com/njhoffman/musicman/compare/v1.21.1...v1.21.2) (2026-10-21)
+## [1.21.1] - 2026-10-21
 
+### Fixed
 
-### Bug Fixes
+- Reject a first word that is not a command instead of viewing the library
 
-* reject words sync and sort do not take instead of ignoring them ([33c2d07](https://github.com/njhoffman/musicman/commit/33c2d07e4495584cf213e305703cb07141851ae2))
+## [1.21.0] - 2026-10-21
 
-### [1.21.1](https://github.com/njhoffman/musicman/compare/v1.21.0...v1.21.1) (2026-10-21)
+### Added
 
+- Publish a local build of every commit for the musicman alias
 
-### Bug Fixes
+## [1.20.0] - 2026-10-21
 
-* reject a first word that is not a command instead of viewing the library ([ca9b29a](https://github.com/njhoffman/musicman/commit/ca9b29a26578eb966fe5f7c352c6fbd432a364b2))
+### Added
 
-## [1.21.0](https://github.com/njhoffman/musicman/compare/v1.20.0...v1.21.0) (2026-10-21)
+- View and playlist use the whole library when no directory is given
 
+## [1.19.0] - 2026-10-21
 
-### Features
+### Added
 
-* publish a local build of every commit for the musicman alias ([8b217fa](https://github.com/njhoffman/musicman/commit/8b217facddaac3b384826920746fb8e902a4dc68))
+- Limit sync to songs matching sync.scope and add sync --backup --force
 
-## [1.20.0](https://github.com/njhoffman/musicman/compare/v1.19.0...v1.20.0) (2026-10-21)
+## [1.18.0] - 2026-10-21
 
+### Added
 
-### Features
+- Add sync --backup and save Spotify lists before every push
+- Back up the database automatically once a week
 
-* view and playlist use the whole library when no directory is given ([d851d4a](https://github.com/njhoffman/musicman/commit/d851d4a0171dc0798d04cd870603a3c417eec117))
+### Fixed
 
-## [1.19.0](https://github.com/njhoffman/musicman/compare/v1.18.0...v1.19.0) (2026-10-21)
+- Keep ID3 frames node-id3 cannot read when writing tags
+- Write tags to files with an empty UFID frame and cap search query length
 
+## [1.17.0] - 2026-10-21
 
-### Features
+### Added
 
-* limit sync to songs matching sync.scope and add sync --backup --force ([620a11a](https://github.com/njhoffman/musicman/commit/620a11aa5269a65e5b8b5388db0ebe0a702a4e93))
+- Sync playlist changes made on Spotify back into tags
 
-## [1.18.0](https://github.com/njhoffman/musicman/compare/v1.17.0...v1.18.0) (2026-10-21)
+## [1.16.0] - 2026-10-21
 
+### Added
 
-### Features
+- Add the spotDL download script and sync --import
+- Cache sync --match lookups in dry runs and save results per chunk
+- Color the sync --match and db --update status lines
+- Scan the whole library recursively with stats when no target is given
+- Stop sync --match at long Spotify rate limits and add --verbose
 
-* add sync --backup and save Spotify lists before every push ([ffe6e04](https://github.com/njhoffman/musicman/commit/ffe6e04689536bdba9e97d32731546f792a07c33))
-* back up the database automatically once a week ([a319005](https://github.com/njhoffman/musicman/commit/a31900547b6eb010257b17a1d3037c7097a28407))
+### Fixed
 
+- Archive runs stopped by a closed terminal as interrupted
+- Pace the Spotify playlist refresh and push requests like the lookups
 
-### Bug Fixes
+## [1.15.0] - 2026-10-21
 
-* keep ID3 frames node-id3 cannot read when writing tags ([8415ecf](https://github.com/njhoffman/musicman/commit/8415ecfa314976e4175186c41b8b26841988f0f2))
-* write tags to files with an empty UFID frame and cap search query length ([c1abdac](https://github.com/njhoffman/musicman/commit/c1abdac3ff9d6dfc7486c0c90d39a729175430a3))
+### Added
 
-## [1.17.0](https://github.com/njhoffman/musicman/compare/v1.16.0...v1.17.0) (2026-10-21)
+- Add --format (oneline, csv, json, html) and --fzf to list output
+- Add logs command to view archived runs
+- Archive runs that change something and keep progress as a footer
+- Write Spotify fields as sp_ tags with verbose sync --match output
 
+## [1.14.0] - 2026-10-20
 
-### Features
+### Added
 
-* sync playlist changes made on Spotify back into tags ([1a7bf37](https://github.com/njhoffman/musicman/commit/1a7bf37bc477875ce6aca105d5a93704b42bdf11))
+- Add --help and --version
+- Add sort command to move rated songs out of Unrated with beets
+- Show colored level badges on terminal log lines
+- Write a download manifest with sync --pull
 
-## [1.16.0](https://github.com/njhoffman/musicman/compare/v1.15.0...v1.16.0) (2026-10-21)
+### Fixed
 
+- Report no matches in edit before building the confirmation prompt
 
-### Features
+## [1.13.0] - 2026-10-20
 
-* add the spotDL download script and sync --import ([35112b0](https://github.com/njhoffman/musicman/commit/35112b09995a659629855cbc48a45a27214e5f3a))
-* cache sync --match lookups in dry runs and save results per chunk ([98c9fbd](https://github.com/njhoffman/musicman/commit/98c9fbd8fbb27a1150624c7977177c3daefe9333))
-* color the sync --match and db --update status lines ([faa9081](https://github.com/njhoffman/musicman/commit/faa908154c815c9f900ce8a4f8a7088fa01b45bb))
-* scan the whole library recursively with stats when no target is given ([affe0bb](https://github.com/njhoffman/musicman/commit/affe0bb853aa648c4180825c09f4b5d6c6f27068))
-* stop sync --match at long Spotify rate limits and add --verbose ([a071485](https://github.com/njhoffman/musicman/commit/a071485796bb8f9ddcc0b8ff89c13faea5317749))
+### Changed
 
+- **Breaking:** Numeric output.verbosity and logger.file.level values are no longer accepted; use a level name.
 
-### Bug Fixes
+### Fixed
 
-* archive runs stopped by a closed terminal as interrupted ([f357bc0](https://github.com/njhoffman/musicman/commit/f357bc06d033b31169da2d1c3d325c0011dce43d))
-* pace the Spotify playlist refresh and push requests like the lookups ([eaed0e1](https://github.com/njhoffman/musicman/commit/eaed0e1ee843b9e23d59d0bc3a190ce37e6ff689))
+- Use log level names for output.verbosity and logger.file.level
+- Use process.stdout.columns instead of term-size
+- Write playlist paths relative to the MPD music directory
 
-## [1.15.0](https://github.com/njhoffman/musicman/compare/v1.14.0...v1.15.0) (2026-10-21)
+## [1.12.0] - 2026-10-20
 
+### Added
 
-### Features
+- Add sync config, Spotify tables, and beets Spotify id reader
+- Find Spotify track ids for songs with sync --match
+- Push Liked Songs and playlist changes with sync --push
+- Refresh the Spotify playlist cache and report the sync plan
 
-* add --format (oneline, csv, json, html) and --fzf to list output ([afeed40](https://github.com/njhoffman/musicman/commit/afeed4083d7ab2a4185ccfb2ec67872d206d9ef3))
-* add logs command to view archived runs ([6ab2b8b](https://github.com/njhoffman/musicman/commit/6ab2b8b5285a8ba88959bf2687f2d2aec28bd734))
-* archive runs that change something and keep progress as a footer ([eb4646e](https://github.com/njhoffman/musicman/commit/eb4646e5fcda038b72566278ff2cdad38bd93a12))
-* write Spotify fields as sp_ tags with verbose sync --match output ([698d69f](https://github.com/njhoffman/musicman/commit/698d69f9ab6cff27a406b4f6297af5007c7b0c62))
+### Fixed
 
-## [1.14.0](https://github.com/njhoffman/musicman/compare/v1.13.0...v1.14.0) (2026-10-20)
+- Keep a successful Spotify login when the user lookup fails
 
+## [1.11.0] - 2026-10-20
 
-### Features
+### Added
 
-* add --help and --version ([6e5bb08](https://github.com/njhoffman/musicman/commit/6e5bb08f1f32852cf196478d245690009fdc517d))
-* add sort command to move rated songs out of Unrated with beets ([fcff961](https://github.com/njhoffman/musicman/commit/fcff9616bf9cf2584cdccb825beab3ba9e63eee8))
-* show colored level badges on terminal log lines ([0ca4439](https://github.com/njhoffman/musicman/commit/0ca443925d31057b00fe153ffe6a26d06a4de78c))
-* write a download manifest with sync --pull ([e452053](https://github.com/njhoffman/musicman/commit/e4520538f9b23fb88c69b4dd813c7846d125cf1b))
+- Add Spotify login and API client for sync
 
+## [1.10.0] - 2026-10-20
 
-### Bug Fixes
+### Added
 
-* report no matches in edit before building the confirmation prompt ([5e78470](https://github.com/njhoffman/musicman/commit/5e78470fc7e16afb6c34b02ea364879fb565f3c8))
+- Write log messages to a log file
 
-## [1.13.0](https://github.com/njhoffman/musicman/compare/v1.12.0...v1.13.0) (2026-10-20)
+### Fixed
 
+- Match songs without a multi value field for empty filters
 
-### ⚠ BREAKING CHANGES
+## [1.9.0] - 2026-10-20
 
-* numeric output.verbosity and logger.file.level values are
-no longer accepted; use a level name.
+### Added
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add search command with --add and --play
+- Back up the library database before writes and with db --backup
 
-### Bug Fixes
+### Fixed
 
-* use log level names for output.verbosity and logger.file.level ([f85c3d6](https://github.com/njhoffman/musicman/commit/f85c3d661fdbf70bdda10322995c0c07a7a898cf))
-* use process.stdout.columns instead of term-size ([6cc0c5a](https://github.com/njhoffman/musicman/commit/6cc0c5a0acc5756f8cfe3043ac2f9b565df7e12d))
-* write playlist paths relative to the MPD music directory ([26525ab](https://github.com/njhoffman/musicman/commit/26525ab53f0e2c5661c2866bb384bf3af6649a9c))
+- Escape backslashes in MPD arguments and add command lists
 
-## [1.12.0](https://github.com/njhoffman/musicman/compare/v1.11.0...v1.12.0) (2026-10-20)
+## [1.8.0] - 2026-10-20
 
+### Added
 
-### Features
+- Read stats, view, and edit metadata from the library database
 
-* add sync config, Spotify tables, and beets Spotify id reader ([465e1f9](https://github.com/njhoffman/musicman/commit/465e1f95183092a7281a0c04236012e759764afc))
-* find Spotify track ids for songs with sync --match ([a5af6eb](https://github.com/njhoffman/musicman/commit/a5af6ebd3fd7a9675e012c39a20601a7d01ebdf4))
-* push Liked Songs and playlist changes with sync --push ([133926e](https://github.com/njhoffman/musicman/commit/133926ee9d7fef39126826d2746d77580b1b2d81))
-* refresh the Spotify playlist cache and report the sync plan ([781cfac](https://github.com/njhoffman/musicman/commit/781cfacb2d3ed9cb7473350067e8e8ffe330a775))
+### Fixed
 
+- Stop truncating piped output on large results
 
-### Bug Fixes
+## [1.7.0] - 2026-10-20
 
-* keep a successful Spotify login when the user lookup fails ([2e5273e](https://github.com/njhoffman/musicman/commit/2e5273ef89bbfa2571b20b5ecd73b82556146e65))
+### Added
 
-## [1.11.0](https://github.com/njhoffman/musicman/compare/v1.10.0...v1.11.0) (2026-10-20)
+- Add database config with defaults in the mpd base directory
+- Add sqlite library database with db and db --update commands
 
+### Fixed
 
-### Features
+- Parse playlist write switch and long form switches
+- Reject when reading duration or size fails in full metadata reads
 
-* add Spotify login and API client for sync ([62e7040](https://github.com/njhoffman/musicman/commit/62e7040aa953dcd092795a164365a2b166ad4074))
+## [1.6.1] - 2026-10-20
 
-## [1.10.0](https://github.com/njhoffman/musicman/compare/v1.9.0...v1.10.0) (2026-10-20)
+### Fixed
 
+- Write file reading progress to stderr only in a terminal
 
-### Features
+## [1.6.0] - 2026-10-20
 
-* write log messages to a log file ([060aed7](https://github.com/njhoffman/musicman/commit/060aed7553fb6fad6c63188c3aad803a9ab07741))
+### Added
 
+- Add populated tag counts to stats command
 
-### Bug Fixes
+### Fixed
 
-* match songs without a multi value field for empty filters ([8dc192e](https://github.com/njhoffman/musicman/commit/8dc192e0a60aa16a7921d904151916d10af14d37))
+- Continue without current song when MPD is not running
+- Map year to ID3v2.3 TYER frame
+- Render stats for configured multi fields instead of fixed indexes
 
-## [1.9.0](https://github.com/njhoffman/musicman/compare/v1.8.0...v1.9.0) (2026-10-20)
+## [1.5.0] - 2026-10-20
 
+### Fixed
 
-### Features
+- Run notify daemon as systemd user service instead of forever
 
-* add search command with --add and --play ([f7b2d67](https://github.com/njhoffman/musicman/commit/f7b2d679baa3965956c269b0426b0be17be8155a))
-* back up the library database before writes and with db --backup ([dc4a945](https://github.com/njhoffman/musicman/commit/dc4a945b2f8674790b3a5269ccdb3efab30f2254))
+## [1.4.1] - 2026-10-20
 
+### Fixed
 
-### Bug Fixes
+- Render output columns with cli-table3 instead of columnify fork
 
-* escape backslashes in MPD arguments and add command lists ([a6a22d5](https://github.com/njhoffman/musicman/commit/a6a22d5e990afc9f697fed9d6432282b82d4162a))
+## [1.4.0] - 2026-10-20
 
-## [1.8.0](https://github.com/njhoffman/musicman/compare/v1.7.0...v1.8.0) (2026-10-20)
+### Added
 
+- Configure views per output format
+- Read and write metadata using library.tags
 
-### Features
+### Changed
 
-* read stats, view, and edit metadata from the library database ([1022428](https://github.com/njhoffman/musicman/commit/1022428e7ef0476ff0b09b5d733602c1b0b5b101))
+- **Breaking:** Tags no longer controls which metadata is read or written, only tags listed in library.tags are. library.tags only supports text (T***) and custom (TXXX.*) frames.
+- **Breaking:** Output.table, output.vertical, and tags[].tableOrder are no longer supported; use views.table and views.list instead.
 
+## [1.3.0] - 2026-10-20
 
-### Bug Fixes
+### Added
 
-* stop truncating piped output on large results ([7b55b51](https://github.com/njhoffman/musicman/commit/7b55b51c5fa1d536e46c7391ab010b88f8c20fea))
+- Add comprehensive configuration management system
+- Add comprehensive configuration validation and library management
 
-## [1.7.0](https://github.com/njhoffman/musicman/compare/v1.6.1...v1.7.0) (2026-10-20)
+### Fixed
 
+- Resolve all failing unit tests
 
-### Features
+## [1.2.0] - 2025-07-27
 
-* add database config with defaults in the mpd base directory ([cab654e](https://github.com/njhoffman/musicman/commit/cab654e4f3dc9f034b387f264b5bca9b4062a408))
-* add sqlite library database with db and db --update commands ([487a9cb](https://github.com/njhoffman/musicman/commit/487a9cb8926e35382af3c51c7d9205b3482a480f))
+### Changed
 
+- Consistent ID3 tag names in tags.json
 
-### Bug Fixes
+## [1.1.1] - 2025-07-27
 
-* parse playlist write switch and long form switches ([d7ef1da](https://github.com/njhoffman/musicman/commit/d7ef1da6490d92ade52add569249693fd069dd6b))
-* reject when reading duration or size fails in full metadata reads ([7a69888](https://github.com/njhoffman/musicman/commit/7a69888519e4abec2ca6ec9e4a096dd930980dd7))
+Maintenance release with no user-facing changes.
 
-### [1.6.1](https://github.com/njhoffman/musicman/compare/v1.6.0...v1.6.1) (2026-10-20)
+## [1.1.0] - 2025-01-27
 
+### Added
 
-### Bug Fixes
+- Development guidelines (CLAUDE.md) and a changelog policy in the project outline
 
-* write file reading progress to stderr only in a terminal ([33a708e](https://github.com/njhoffman/musicman/commit/33a708e479e764d2ca736649668856b4b2b2218a))
+### Changed
 
-## [1.6.0](https://github.com/njhoffman/musicman/compare/v1.5.0...v1.6.0) (2026-10-20)
+- Updated CLI and root dependencies to their latest patch and minor versions
 
+### Fixed
 
-### Features
+- Address security vulnerabilities by updating outdated dependencies
 
-* add populated tag counts to stats command ([017a976](https://github.com/njhoffman/musicman/commit/017a9762cec8a86f9fca36bb925f1e1451fc8b81))
+## [1.0.24] - 2025-07-25
 
+### Added
 
-### Bug Fixes
+- Duration and file size in full metadata
+- Formatted stats output
 
-* continue without current song when MPD is not running ([36635a8](https://github.com/njhoffman/musicman/commit/36635a8a0ea7038771b0497e05a3825d1890ef04))
-* map year to ID3v2.3 TYER frame ([2fd218a](https://github.com/njhoffman/musicman/commit/2fd218a1673b0bc136e2b029c419426e8d3f1ebc))
-* render stats for configured multi fields instead of fixed indexes ([23f03a1](https://github.com/njhoffman/musicman/commit/23f03a1b1a6a7bbc8c33d4529287fd63e97a1fe0))
+### Fixed
 
-## [1.5.0](https://github.com/njhoffman/musicman/compare/v1.4.1...v1.5.0) (2026-10-20)
+- Current playing song as the default target
 
+## [1.0.23] - 2021-10-23
 
-### Bug Fixes
+### Fixed
 
-* run notify daemon as systemd user service instead of forever ([45dcd3d](https://github.com/njhoffman/musicman/commit/45dcd3d6332226e9b9d71b64804a3037ac0247d5))
+- Paths with glob special characters
 
-### [1.4.1](https://github.com/njhoffman/musicman/compare/v1.4.0...v1.4.1) (2026-10-20)
+## [1.0.22] - 2021-09-28
 
+### Changed
 
-### Bug Fixes
+- Quieter output
 
-* render output columns with cli-table3 instead of columnify fork ([9ce771b](https://github.com/njhoffman/musicman/commit/9ce771b3c3e620ba696e11ea57e34d6c03e861de))
+## [1.0.21] - 2021-08-01
 
-## [1.4.0](https://github.com/njhoffman/musicman/compare/v1.3.0...v1.4.0) (2026-10-20)
+Maintenance release with no user-facing changes.
 
+## [1.0.20] - 2021-03-28
 
-### ⚠ BREAKING CHANGES
+### Added
 
-* tags no longer controls which metadata is read or written,
-only tags listed in library.tags are. library.tags only supports text (T***)
-and custom (TXXX.*) frames.
-* output.table, output.vertical, and tags[].tableOrder are
-no longer supported; use views.table and views.list instead.
+- Logging in playlist stats
 
-### Features
+### Fixed
 
-* configure views per output format ([3d26072](https://github.com/njhoffman/musicman/commit/3d26072fbedfed655cd5c95148507d7bcd7ddc80))
-* read and write metadata using library.tags ([2b1c1ff](https://github.com/njhoffman/musicman/commit/2b1c1ffdce2f5fb319a4a9443c9c1e98838b392a))
+- Buffer overflow when iterating large playlists
 
-## [1.3.0](https://github.com/njhoffman/musicman/compare/v1.2.0...v1.3.0) (2026-10-20)
+## [1.0.19] - 2020-05-09
 
+Maintenance release with no user-facing changes.
 
-### Features
+## [1.0.18] - 2020-05-09
 
-* Add comprehensive configuration management system ([541ea2c](https://github.com/njhoffman/musicman/commit/541ea2c788796c029f95b8bc9d6e1c3ef1a26936))
-* Add comprehensive configuration validation and library management ([0e60fd8](https://github.com/njhoffman/musicman/commit/0e60fd8a35a591388338409fd54967e38fe46713))
+Maintenance release with no user-facing changes.
 
+## [1.0.17] - 2020-04-13
 
-### Bug Fixes
+### Changed
 
-* Resolve all failing unit tests ([4ffe12f](https://github.com/njhoffman/musicman/commit/4ffe12f8eef97d30084869432fa013e3ab674181))
+- Notification daemon updates
 
-## [1.1.0](https://github.com/njhoffman/musicman/compare/v1.0.24...v1.1.0) (2025-01-27)
+## [1.0.16] - 2020-02-17
 
-### Features
+### Added
 
-* **dependencies**: update all CLI and root dependencies to latest patch/minor versions
-* **docs**: add CLAUDE.md for AI assistance and update project outline with changelog policy
+- Confirmation before editing more than one file
+- YAML config files
 
-### Bug Fixes
+## [1.0.15] - 2020-02-15
 
-* **security**: address security vulnerabilities by updating outdated dependencies
+Maintenance release with no user-facing changes.
 
-### [1.0.6](https://github.com/njhoffman/musicman/compare/v1.0.5...v1.0.6) (2020-01-24)
+## [1.0.14] - 2020-02-10
 
-### [1.0.5](https://github.com/njhoffman/musicman/compare/v1.0.4...v1.0.5) (2020-01-23)
+### Added
 
-### [1.0.4](https://github.com/njhoffman/musicman/compare/v1.0.3...v1.0.4) (2020-01-23)
+- Notification daemon for song changes
+- Client player layout (mock data)
+
+## [1.0.13] - 2020-02-09
+
+Maintenance release with no user-facing changes.
+
+## [1.0.12] - 2020-02-09
+
+### Added
+
+- First version of the stats command
+
+## [1.0.11] - 2020-02-01
+
+Maintenance release with no user-facing changes.
+
+## [1.0.10] - 2020-01-27
+
+### Changed
+
+- Clearer output of the differences an edit makes
+
+## [1.0.9] - 2020-01-27
+
+Maintenance release with no user-facing changes.
+
+## [1.0.8] - 2020-01-27
+
+Maintenance release with no user-facing changes.
+
+## [1.0.7] - 2020-01-27
+
+### Added
+
+- Aggregate assignment to multi value fields
+- Better vertical output
+
+### Fixed
+
+- Uninitialized multi value fields no longer show undefined values
+
+## [1.0.6] - 2020-01-24
+
+Maintenance release with no user-facing changes.
+
+## [1.0.5] - 2020-01-23
+
+Maintenance release with no user-facing changes.
+
+## [1.0.4] - 2020-01-23
+
+### Added
+
+- CLI field assignment operator for editing tags
+
+### Changed
+
+- CLI parser rewritten, with tests for the parser and the view, edit, and playlist commands
+
+## [1.0.3] - 2019-11-11
+
+### Added
+
+- MPD integration in the server, with MPD events pushed to the client over websockets
+
+## [1.0.2] - 2019-11-10
+
+### Added
+
+- Material UI in the client
+
+## [1.0.1] - 2019-11-09
+
+### Added
+
+- Initial server with music-metadata handlers and the first routes
+- React client scaffold
+
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.24.0...HEAD
+[1.24.0]: https://github.com/njhoffman/musicman/compare/v1.23.1...v1.24.0
+[1.23.1]: https://github.com/njhoffman/musicman/compare/v1.23.0...v1.23.1
+[1.23.0]: https://github.com/njhoffman/musicman/compare/v1.22.1...v1.23.0
+[1.22.1]: https://github.com/njhoffman/musicman/compare/v1.22.0...v1.22.1
+[1.22.0]: https://github.com/njhoffman/musicman/compare/v1.21.3...v1.22.0
+[1.21.3]: https://github.com/njhoffman/musicman/compare/v1.21.2...v1.21.3
+[1.21.2]: https://github.com/njhoffman/musicman/compare/v1.21.1...v1.21.2
+[1.21.1]: https://github.com/njhoffman/musicman/compare/v1.21.0...v1.21.1
+[1.21.0]: https://github.com/njhoffman/musicman/compare/v1.20.0...v1.21.0
+[1.20.0]: https://github.com/njhoffman/musicman/compare/v1.19.0...v1.20.0
+[1.19.0]: https://github.com/njhoffman/musicman/compare/v1.18.0...v1.19.0
+[1.18.0]: https://github.com/njhoffman/musicman/compare/v1.17.0...v1.18.0
+[1.17.0]: https://github.com/njhoffman/musicman/compare/v1.16.0...v1.17.0
+[1.16.0]: https://github.com/njhoffman/musicman/compare/v1.15.0...v1.16.0
+[1.15.0]: https://github.com/njhoffman/musicman/compare/v1.14.0...v1.15.0
+[1.14.0]: https://github.com/njhoffman/musicman/compare/v1.13.0...v1.14.0
+[1.13.0]: https://github.com/njhoffman/musicman/compare/v1.12.0...v1.13.0
+[1.12.0]: https://github.com/njhoffman/musicman/compare/v1.11.0...v1.12.0
+[1.11.0]: https://github.com/njhoffman/musicman/compare/v1.10.0...v1.11.0
+[1.10.0]: https://github.com/njhoffman/musicman/compare/v1.9.0...v1.10.0
+[1.9.0]: https://github.com/njhoffman/musicman/compare/v1.8.0...v1.9.0
+[1.8.0]: https://github.com/njhoffman/musicman/compare/v1.7.0...v1.8.0
+[1.7.0]: https://github.com/njhoffman/musicman/compare/v1.6.1...v1.7.0
+[1.6.1]: https://github.com/njhoffman/musicman/compare/v1.6.0...v1.6.1
+[1.6.0]: https://github.com/njhoffman/musicman/compare/v1.5.0...v1.6.0
+[1.5.0]: https://github.com/njhoffman/musicman/compare/v1.4.1...v1.5.0
+[1.4.1]: https://github.com/njhoffman/musicman/compare/v1.4.0...v1.4.1
+[1.4.0]: https://github.com/njhoffman/musicman/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/njhoffman/musicman/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/njhoffman/musicman/compare/v1.1.1...v1.2.0
+[1.1.1]: https://github.com/njhoffman/musicman/compare/v1.1.0...v1.1.1
+[1.1.0]: https://github.com/njhoffman/musicman/compare/v1.0.24...v1.1.0
+[1.0.24]: https://github.com/njhoffman/musicman/compare/v1.0.23...v1.0.24
+[1.0.23]: https://github.com/njhoffman/musicman/compare/v1.0.22...v1.0.23
+[1.0.22]: https://github.com/njhoffman/musicman/compare/v1.0.21...v1.0.22
+[1.0.21]: https://github.com/njhoffman/musicman/compare/v1.0.20...v1.0.21
+[1.0.20]: https://github.com/njhoffman/musicman/compare/v1.0.19...v1.0.20
+[1.0.19]: https://github.com/njhoffman/musicman/compare/v1.0.18...v1.0.19
+[1.0.18]: https://github.com/njhoffman/musicman/compare/v1.0.17...v1.0.18
+[1.0.17]: https://github.com/njhoffman/musicman/compare/v1.0.16...v1.0.17
+[1.0.16]: https://github.com/njhoffman/musicman/compare/v1.0.15...v1.0.16
+[1.0.15]: https://github.com/njhoffman/musicman/compare/v1.0.14...v1.0.15
+[1.0.14]: https://github.com/njhoffman/musicman/compare/v1.0.13...v1.0.14
+[1.0.13]: https://github.com/njhoffman/musicman/compare/v1.0.12...v1.0.13
+[1.0.12]: https://github.com/njhoffman/musicman/compare/v1.0.11...v1.0.12
+[1.0.11]: https://github.com/njhoffman/musicman/compare/v1.0.10...v1.0.11
+[1.0.10]: https://github.com/njhoffman/musicman/compare/v1.0.9...v1.0.10
+[1.0.9]: https://github.com/njhoffman/musicman/compare/v1.0.8...v1.0.9
+[1.0.8]: https://github.com/njhoffman/musicman/compare/v1.0.7...v1.0.8
+[1.0.7]: https://github.com/njhoffman/musicman/compare/v1.0.6...v1.0.7
+[1.0.6]: https://github.com/njhoffman/musicman/compare/v1.0.5...v1.0.6
+[1.0.5]: https://github.com/njhoffman/musicman/compare/v1.0.4...v1.0.5
+[1.0.4]: https://github.com/njhoffman/musicman/compare/v1.0.3...v1.0.4
+[1.0.3]: https://github.com/njhoffman/musicman/compare/v1.0.2...v1.0.3
+[1.0.2]: https://github.com/njhoffman/musicman/compare/v1.0.1...v1.0.2
+[1.0.1]: https://github.com/njhoffman/musicman/releases/tag/v1.0.1
