@@ -60,4 +60,20 @@ describe('Spotify Membership Changes', () => {
       ['/m/d.mp3', 'Liked Songs', 'removed']
     ]);
   });
+
+  it('should tag every copy of a song and ask once per track', () => {
+    const track = { file: '/m/a.mp3', files: ['/m/a.mp3', '/m/a.1.mp3'], name: 'A', artists: 'X' };
+    const plan = [
+      { id: '0n9JG8Dm0RUQZohcEsfVfu', name: 'Hot', spotifyAdded: [track], spotifyRemoved: [] },
+      { id: 'liked', name: 'Liked Songs', spotifyAdded: [track], spotifyRemoved: [] }
+    ];
+    const { assignments, decide } = membershipChanges(plan, config);
+    expect(assignments).to.deep.equal({
+      '/m/a.mp3': { picks: ['+Hot'] },
+      '/m/a.1.mp3': { picks: ['+Hot'] }
+    });
+    expect(decide.map(({ file, target }) => [file, target])).to.deep.equal([
+      ['/m/a.mp3', 'Liked Songs']
+    ]);
+  });
 });

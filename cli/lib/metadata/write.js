@@ -21,7 +21,10 @@ const prepareCustomFields = txxxFields =>
 const prepareId3Tags =
   config =>
   ([file, fields]) => {
-    const filteredTags = _.pick(fields, _.map(config.library.tags, 'name'));
+    // multi value fields are stored comma separated, as they are read; node-id3 writes an array as undefined
+    const filteredTags = _.mapValues(_.pick(fields, _.map(config.library.tags, 'name')), value =>
+      _.isArray(value) ? value.join(',') : value
+    );
     const editTags = _.mapKeys(
       filteredTags,
       (value, name) => _.find(config.library.tags, { name }).id

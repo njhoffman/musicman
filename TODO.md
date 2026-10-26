@@ -140,8 +140,25 @@ OVERDUE flag. Feature specs live in `docs/`.
       run stores what each target and the tags agree on (`spotify_synced`); the plan compares Spotify, that state,
       and the tags three ways. `sync --pull` adds or removes multi value filter tags (context, picks) for changes
       made on Spotify and lists Liked Songs and grouping changes to decide; `--prune` only removes local changes.
-- [ ] **Verify `sync --push` against Spotify** (p2) [test] the first push to Liked Songs and a playlist (the
-      `/items` endpoints and their `/tracks` fallback).
+- [x] **Verify `sync --push` against Spotify** (p2) [test] the push of 2026-10-21 added 7757 tracks (1523 to Liked
+      Songs, the rest across 23 playlists), and the pushes of 2026-10-24 found nothing left to add.
+- [x] **Duplicate files sharing a Spotify id show up as prune.** (p1) [bug] a track is now extra (prune or
+      +Spotify) only when no copy of its song belongs, and `sync --pull` tags every copy. Took the prunes of
+      2026-10-24 from 158 to 71.
+- [x] **Multi value writes stored `undefined`.** (p1) [bug] `+`/`-` and list assignments (`sync --pull`,
+      `musicman edit`) handed node-id3 an array, which it writes as `undefined`, wiping the whole field; this
+      was the frame loss of 2026-10-21. `writeFiles` now joins arrays with commas.
+- [x] **Restore playlist tags lost on 2026-10-21.** (p1) [bug] the 99 files the `sync --pull` of 2026-10-21 16:50
+      wrote had 82 Picks and 69 Context frames reading `undefined` (in the NFS backup too); restored from the
+      database backup of 2026-10-20 21:19 (run `20261026-174457-repair`, undoable, database copy in
+      `.musicman/musicman-before-frame-repair-20261026.sqlite`), and the 56 `spotify_synced` rows still marking
+      them in sync were cleared, so they show as +Spotify for `sync --pull` instead of prune.
+- [ ] **Run `sync --pull` for the repaired tags.** (p1) [chore] the dry run on 2026-10-26 tags 105 files
+      (+303 across the context and picks playlists, Hot +83, Spicy +63) and lists 9 changes to decide; `push`
+      then has 122 songs to add (44 in Study) that the restore put back in playlists they were in before.
+- [ ] **Verify `sync --push --prune` and its undo** (p2) [test] no push has removed anything yet, so the remove
+      endpoints, the snapshot before them, and `musicman undo` putting tracks back at their old position have only
+      run in tests. Nothing is left to prune after the repair; test it with a deliberate removal.
 - [ ] **`sync --push` export:** (p2) [feature] export songs missing from Spotify to `sync.uploadDirectory`, one subfolder per
       target playlist (hardlinks when possible), with a `README.md` checklist and printed summary. Verify first
       how Spotify desktop Local Files sources handle subfolders.

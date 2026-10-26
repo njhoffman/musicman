@@ -1,3 +1,4 @@
+const _ = require('lodash');
 const sinon = require('sinon');
 const { expect } = require('chai');
 const proxyquire = require('proxyquire');
@@ -112,6 +113,15 @@ describe('Metadata Write', () => {
       expect(callArgs[0].TXXX).to.deep.equal([{ description: 'Custom', value: 'Custom Value' }]);
     });
 
+    it('should write multi value fields comma separated', () => {
+      const files = [['test.mp3', { artist: ['A', 'B'], custom: ['Spicy', 'Nick', 'Hot'] }]];
+      writeModule.writeFiles(config)(files);
+
+      const callArgs = nodeId3Stub.update.firstCall.args;
+      expect(callArgs[0].TPE1).to.equal('A,B');
+      expect(callArgs[0].TXXX).to.deep.equal([{ description: 'Custom', value: 'Spicy,Nick,Hot' }]);
+    });
+
     it('should only write fields defined in library.tags', () => {
       const files = [['test.mp3', { artist: 'Artist', album_artist: 'Album Artist' }]];
       const writer = writeModule.writeFiles({
@@ -206,6 +216,25 @@ describe('Metadata Write', () => {
     it('should update other files with node-id3 directly', () => {
       expect(updateTags({ TIT1: 'Grouping' }, file)).to.be.true;
       expect(NodeId3.read(file).raw.TIT1).to.equal('Grouping');
+    });
+
+    it('should keep existing values when adding to a multi value field (sync --pull, edit +value)', () => {
+      const { mergeAssignments, writeFiles } = require('./write.js');
+      const config = {
+        library: { tags: [{ name: 'picks', id: 'TXXX.Picks', multi: true }] },
+        rating: { tag: 'POPM', max: 5 }
+      };
+      const picks = () =>
+        _.get(
+          _.find([].concat(NodeId3.read(file).raw.TXXX || []), { description: 'Picks' }),
+          'value'
+        );
+      writeFiles(config)([[file, { picks: 'Nick,Hot' }]]);
+      expect(picks()).to.equal('Nick,Hot');
+      writeFiles(config)([
+        [file, mergeAssignments({ picks: picks() }, { picks: ['+Spicy', '-Nick'] })]
+      ]);
+      expect(picks()).to.equal('Spicy,Hot');
     });
   });
 });

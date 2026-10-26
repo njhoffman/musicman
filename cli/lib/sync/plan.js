@@ -32,6 +32,8 @@ const syncedTracks = db =>
  *   add: belongs in the target by its tags, is not in it, and was not removed on Spotify
  *   prune: in the target, no longer belongs by its tags, and was in sync before (a local change)
  *   spotifyAdded: in the target, does not belong by its tags, and was not in sync before (added on Spotify)
+ * prune and spotifyAdded tracks carry every file linked to the track (files) besides the first (file);
+ * a track counts as belonging when any of them does.
  *   spotifyRemoved: belongs by its tags, is not in the target, and was in sync before (removed on Spotify)
  *   inSync: track ids in the target that belong there
  * and noId (songs that belong without a Spotify id), reject (tracks rejected in review for a song, which
@@ -40,7 +42,9 @@ const syncedTracks = db =>
  */
 const syncPlan = (db, config, songs) => {
   const ids = localSpotifyIds(db, config);
-  const songByTrack = new Map(_.map([...ids], ([file, id]) => [id, file]));
+  // several files can share a track id (album and compilation copies, repeated downloads)
+  const filesByTrack = _.groupBy([...ids.keys()], file => ids.get(file));
+  const songByTrack = new Map(_.map(filesByTrack, (files, id) => [id, files[0]]));
   const synced = syncedTracks(db);
   // tracks rejected in review that no song is linked to any more, removed wherever they were pushed
   const rejected = rejectedTracks(db, config);
@@ -65,12 +69,17 @@ const syncPlan = (db, config, songs) => {
     );
     const missing = _.filter(withId, ({ trackId }) => !remoteIds.has(trackId));
     const [spotifyRemoved, add] = _.partition(missing, ({ trackId }) => before.has(trackId));
+    // a track is extra only when no copy of its song belongs, and every copy is in sync.scope
     const extra = _.map(
       _.filter(remote, ({ track_id: trackId }) => {
-        const file = trackId && songByTrack.get(trackId);
-        return file && !memberFiles.has(file) && !ignored.has(file);
+        const files = (trackId && filesByTrack[trackId]) || [];
+        return files.length > 0 && !files.some(file => memberFiles.has(file) || ignored.has(file));
       }),
-      track => ({ ...track, file: songByTrack.get(track.track_id) })
+      track => ({
+        ...track,
+        file: songByTrack.get(track.track_id),
+        files: filesByTrack[track.track_id]
+      })
     );
     const [prune, spotifyAdded] = _.partition(extra, ({ track_id: trackId }) =>
       before.has(trackId)

@@ -172,6 +172,52 @@ describe('Sync Cache and Plan', () => {
       expect(liked.pull).to.be.empty;
     });
 
+    describe('with several files linked to one track', () => {
+      // c2.mp3 is a second copy of c.mp3 (track tc), e.g. from a compilation
+      beforeEach(() => {
+        const { lastInsertRowid } = db
+          .prepare("INSERT INTO songs (path, mtime, size) VALUES ('c2.mp3', 1, 1)")
+          .run();
+        db.prepare(
+          "INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, 'TXXX.sp_track_id', 'tc')"
+        ).run(lastInsertRowid);
+      });
+      const copy = (targets, extra = {}) => [
+        ...songs,
+        { file: '/music/c2.mp3', targets, ...extra }
+      ];
+
+      it('should keep a track in sync when any copy belongs, even if another copy does not', () => {
+        synced(['ta', 'tc']);
+        const [liked] = syncPlan(db, config, copy(['liked']));
+        expect(liked.prune).to.be.empty;
+        expect(liked.spotifyAdded).to.be.empty;
+        expect(liked.inSync).to.deep.equal(['ta', 'tc']);
+      });
+
+      it('should prune a track only when no copy belongs, listing every copy', () => {
+        synced(['ta', 'tc']);
+        const [liked] = syncPlan(db, config, copy([]));
+        expect(liked.prune.map(track => [track.track_id, track.files])).to.deep.equal([
+          ['tc', ['/music/c.mp3', '/music/c2.mp3']]
+        ]);
+      });
+
+      it('should list every copy of a track added on Spotify', () => {
+        const [liked] = syncPlan(db, config, copy([]));
+        expect(liked.spotifyAdded.map(track => track.files)).to.deep.equal([
+          ['/music/c.mp3', '/music/c2.mp3']
+        ]);
+      });
+
+      it('should leave a track alone when any copy is outside sync.scope', () => {
+        synced(['ta', 'tc']);
+        const [liked] = syncPlan(db, config, copy([], { outOfScope: true }));
+        expect(liked.prune).to.be.empty;
+        expect(liked.spotifyAdded).to.be.empty;
+      });
+    });
+
     it('should record the agreed tracks and keep unresolved changes as they were', () => {
       const stored = () =>
         ids(db.prepare('SELECT track_id FROM spotify_synced ORDER BY track_id').all(), 'track_id');

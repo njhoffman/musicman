@@ -35,12 +35,15 @@ const membershipChanges = (plan, config) => {
   _.each(plan, target => {
     const tag =
       target.id === likedId || !filters[target.id] ? null : filterTag(filters[target.id], config);
+    // a playlist tag goes on every copy of the song, a decision is asked once per track
     const changes = [
-      ..._.map(target.spotifyAdded, ({ file, name, artists }) => ({
-        file,
-        sign: '+',
-        label: `${artists} - ${name}`
-      })),
+      ..._.flatMap(target.spotifyAdded, ({ file, files = [file], name, artists }) =>
+        _.map(tag ? files : [file], copy => ({
+          file: copy,
+          sign: '+',
+          label: `${artists} - ${name}`
+        }))
+      ),
       ..._.map(target.spotifyRemoved, ({ file }) => ({ file, sign: '-' }))
     ];
     _.each(changes, ({ file, sign, label }) => {

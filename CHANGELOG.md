@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- Adding or removing a value of a multi value field (`musicman edit picks:+Hot`, `sync --pull`) no longer
+  wipes the field: the whole value was written as `undefined`.
+- A song with several files linked to one Spotify track (an album and a compilation copy, a repeated
+  download) no longer shows that track as to prune when only one copy has the playlist's tag, and
+  `sync --pull` tags every copy.
+
 ## [1.24.1] - 2026-10-24
 
 ### Changed
