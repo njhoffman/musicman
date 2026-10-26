@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.24.2] - 2026-10-26
+
 ### Fixed
 
 - Adding or removing a value of a multi value field (`musicman edit picks:+Hot`, `sync --pull`) no longer
@@ -441,7 +443,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.24.1...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.24.2...HEAD
+[1.24.2]: https://github.com/njhoffman/musicman/compare/v1.24.1...v1.24.2
 [1.24.1]: https://github.com/njhoffman/musicman/compare/v1.24.0...v1.24.1
 [1.24.0]: https://github.com/njhoffman/musicman/compare/v1.23.1...v1.24.0
 [1.23.1]: https://github.com/njhoffman/musicman/compare/v1.23.0...v1.23.1
