@@ -19,8 +19,12 @@ const globPattern = pattern =>
       .join('')}$`
   );
 
-// every file under a directory as relative path -> { size, mtimeMs }, leaving out excluded paths
-const listTree = (root, excluded = () => false) => {
+// how often listing and comparing report progress, in files
+const progressEvery = 100;
+
+// every file under a directory as relative path -> { size, mtimeMs }, leaving out excluded paths;
+// onCount(files listed so far) is called every progressEvery files and once at the end
+const listTree = (root, excluded = () => false, onCount = _.noop) => {
   const files = new Map();
   if (!fs.existsSync(root)) {
     return files;
@@ -36,10 +40,14 @@ const listTree = (root, excluded = () => false) => {
       } else if (entry.isFile()) {
         const stat = fs.statSync(path.join(root, entryPath));
         files.set(entryPath, { size: stat.size, mtimeMs: stat.mtimeMs });
+        if (files.size % progressEvery === 0) {
+          onCount(files.size);
+        }
       }
     });
   };
   walk('');
+  onCount(files.size);
   return files;
 };
 
@@ -101,15 +109,20 @@ const caseRenames = pairs =>
  *   rename: folders and files the backup names with other capitalization (a case-insensitive share such
  *     as SMB finds the library path there), renamed to the library's before copying
  * Paths matching exclude (globs relative to source, e.g. musicman.sqlite*) are left out on both sides.
+ * onProgress reports { phase: 'list', side: 'library' | 'backup', count } while the trees are listed and
+ * { phase: 'compare', done, total } while library files are compared with their backup copies.
  * layoutHint is set when the backup looks like a copy of one source subfolder (e.g. of Rated).
  */
-const backupPlan = ({ source, directory, exclude = [] }) => {
+const backupPlan = ({ source, directory, exclude = [], onProgress = _.noop }) => {
   const patterns = _.map(exclude, globPattern);
   const excluded = relative => _.some(patterns, pattern => pattern.test(relative));
-  const sourceFiles = listTree(source, excluded);
+  const sourceFiles = listTree(source, excluded, count =>
+    onProgress({ phase: 'list', side: 'library', count })
+  );
   const backupFiles = listTree(
     directory,
-    relative => relative === removedFolder || excluded(relative)
+    relative => relative === removedFolder || excluded(relative),
+    count => onProgress({ phase: 'list', side: 'backup', count })
   );
 
   const byLowerCase = _.groupBy([...backupFiles.keys()], _.toLower);
@@ -128,7 +141,12 @@ const backupPlan = ({ source, directory, exclude = [] }) => {
   const casePairs = [];
   const matched = new Set();
   let unchanged = 0;
+  let compared = 0;
   sourceFiles.forEach((stat, relative) => {
+    compared += 1;
+    if (compared % progressEvery === 0 || compared === sourceFiles.size) {
+      onProgress({ phase: 'compare', done: compared, total: sourceFiles.size });
+    }
     const actual = backupPath(relative);
     const existing = actual && backupFiles.get(actual);
     if (actual) {

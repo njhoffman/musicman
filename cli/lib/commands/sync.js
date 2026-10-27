@@ -36,7 +36,7 @@ const {
   stopReviewPlayback
 } = require('../output/review.js');
 const { unsortedFolder } = require('../beets/sort.js');
-const { formatWait, progressBar } = require('../output/progress.js');
+const { formatClock, formatWait, progressBar } = require('../output/progress.js');
 const {
   backupColors,
   formatBackupSummary,
@@ -674,7 +674,33 @@ const runBackup = async ({ config, dryRun, force = false, confirm }) => {
   }
   const source = path.resolve(config.mpd.baseDirectory);
   logger.info(`Comparing ${source} with ${directory}`);
-  const planned = backupPlan({ source, directory, exclude: _.get(config, 'backup.exclude', []) });
+  const comparingStarted = new Date();
+  const listed = { library: 0, backup: 0 };
+  const planned = backupPlan({
+    source,
+    directory,
+    exclude: _.get(config, 'backup.exclude', []),
+    onProgress: ({ phase, side, count, done, total }) => {
+      if (phase === 'list') {
+        listed[side] = count;
+        logger.progress(
+          `${chalk.hex('#8888FF').bold('Listing')} ${listed.library} library files, ` +
+            `${listed.backup} backup files  ${dim(formatClock((new Date() - comparingStarted) / 1000))}`
+        );
+      } else {
+        logger.progress(
+          progressBar({
+            done,
+            total,
+            startedAt: comparingStarted,
+            label: 'Comparing',
+            unit: 'files'
+          })
+        );
+      }
+    }
+  });
+  logger.progressDone();
   // --force takes the library version of held files too
   const plan = force
     ? { ...planned, update: [...planned.update, ...planned.held], held: [] }
@@ -732,15 +758,27 @@ const runBackup = async ({ config, dryRun, force = false, confirm }) => {
     return { backup: { plan: summary, applied: null } };
   }
   const total = plan.copy.length + plan.update.length;
+  const mb = 1024 ** 2;
+  const totalMb = Math.ceil(_.sumBy([...plan.copy, ...plan.update], 'size') / mb);
   const startedAt = new Date();
   let done = 0;
+  let bytes = 0;
   const applied = applyBackup(plan, {
     onFile: (action, entry) => {
       logger.logToFile('debug', `${action} ${entry.path}`);
       if (action === 'copy' || action === 'update') {
         done += 1;
+        bytes += entry.size;
+        // by size, so the rate and ETA follow the bytes copied rather than the file count
         logger.progress(
-          progressBar({ done, total, startedAt, label: 'Backing up', unit: 'files' })
+          progressBar({
+            done: Math.round(bytes / mb),
+            total: totalMb,
+            startedAt,
+            label: 'Backing up',
+            unit: 'MB',
+            detail: dim(`${done}/${total} files`)
+          })
         );
       }
     }

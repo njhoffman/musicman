@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `sync --backup` shows progress while it lists the library and the backup and while it compares them, and
+  measures the copy progress in MB, so its rate and ETA follow the bytes copied.
+
 ### Fixed
 
 - A Spotify match whose title has another number (`17 Ghosts II` and `16 Ghosts II`) costs 10 points per

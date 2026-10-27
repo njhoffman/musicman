@@ -187,7 +187,7 @@ OVERDUE flag. Feature specs live in `docs/`.
       Before changing anything, list the files to copy, update, and delete and confirm; deletions are opt-in and
       listed separately. Refuse to overwrite a backup file whose tag has frames the library copy lacks (how the
       frames lost on 2026-10-21 were recovered) and report those instead.
-- [ ] **Progress feedback for `sync --backup`:** (p2) [feature] the comparison (walking both trees over NFS and reading
+- [x] **Progress feedback for `sync --backup`:** (p2) [feature] done in 1.27.0; the comparison (walking both trees over NFS and reading
       the tags of changed mp3s for the frame check) runs for minutes with no output, so it looks hung. Show a status
       line while comparing (files scanned on each side, changed files checked of total, elapsed time), and bytes
       copied with rate and ETA while copying, not only file counts.
@@ -217,7 +217,7 @@ OVERDUE flag. Feature specs live in `docs/`.
       whose album title names a live recording ("Live at ...", "(Live)", ": Live Recordings") now differs from a
       studio candidate like a version marker (-25), and a Spotify album such as "[Live at the Pantages Theatre]"
       counts as live. The 28 live songs at or above 95% on 2026-10-24 now score about 75%.
-- [x] **Changed numbers in a title cost more similarity:** (p2) [bug] done in 1.26.2 (-10 per differing number). `17 Ghosts II` -> `16 Ghosts II` and
+- [x] **Changed numbers in a title cost more similarity:** (p2) [bug] done in 1.27.0 (-10 per differing number). `17 Ghosts II` -> `16 Ghosts II` and
       `23 Ghosts III` -> `22 Ghosts III` (Nine Inch Nails) score 95-96% as one changed character (-2), so they are
       offered for auto-accept; a number that differs is another track and should fall well below 95.
 - [ ] **Prefer the original album over compilations:** (p2) [feature] a match can be the right recording on the wrong

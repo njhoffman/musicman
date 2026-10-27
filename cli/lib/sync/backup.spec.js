@@ -246,4 +246,20 @@ describe('Library Backup', () => {
     expect(result.timesLost).to.deep.equal([]);
     expect(paths(backupPlan({ source, directory }).update)).to.deep.equal(['musicman.log']);
   });
+
+  it('should report listing and comparing progress', () => {
+    for (let i = 0; i < 150; i += 1) {
+      write(source, `Rated/${i}.txt`, `${i}`);
+    }
+    write(directory, 'Rated/0.txt', '0');
+    const reports = [];
+    backupPlan({ source, directory, onProgress: report => reports.push(report) });
+    expect(reports).to.deep.equal([
+      { phase: 'list', side: 'library', count: 100 },
+      { phase: 'list', side: 'library', count: 150 },
+      { phase: 'list', side: 'backup', count: 1 },
+      { phase: 'compare', done: 100, total: 150 },
+      { phase: 'compare', done: 150, total: 150 }
+    ]);
+  });
 });
