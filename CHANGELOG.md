@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.25.0] - 2026-10-26
+
 ### Changed
 
 - `sync --match` lists the matches at least `sync.autoAcceptPercent` similar, new ones and ones waiting in
@@ -469,7 +471,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.24.4...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.25.0...HEAD
+[1.25.0]: https://github.com/njhoffman/musicman/compare/v1.24.4...v1.25.0
 [1.24.4]: https://github.com/njhoffman/musicman/compare/v1.24.3...v1.24.4
 [1.24.3]: https://github.com/njhoffman/musicman/compare/v1.24.2...v1.24.3
 [1.24.2]: https://github.com/njhoffman/musicman/compare/v1.24.1...v1.24.2
