@@ -2,6 +2,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const NodeId3 = require('node-id3');
+const sinon = require('sinon');
 const { expect } = require('chai');
 
 const { appendFrames } = require('../check/frames.js');
@@ -127,5 +128,37 @@ describe('Library Backup', () => {
     // the next plan has nothing to do
     const again = backupPlan({ source, directory });
     expect(again.copy.length + again.update.length + again.remove.length).to.equal(0);
+  });
+
+  it('should set the time of a copy after renaming it into place', () => {
+    write(source, 'Rated/new.txt', 'new');
+    const rename = sinon.spy(fs, 'renameSync');
+    const utimes = sinon.spy(fs, 'utimesSync');
+    try {
+      applyBackup(backupPlan({ source, directory }));
+      const target = path.join(directory, 'Rated/new.txt');
+      expect(utimes.calledWith(target)).to.be.true;
+      expect(utimes.calledWith(`${target}.musicman-partial`)).to.be.false;
+      expect(utimes.calledAfter(rename)).to.be.true;
+    } finally {
+      rename.restore();
+      utimes.restore();
+    }
+  });
+
+  it('should list copies whose time the file system did not keep', () => {
+    write(source, 'Rated/new.txt', 'new');
+    write(source, 'Rated/changed.txt', 'changed');
+    write(directory, 'Rated/changed.txt', 'old');
+    write(source, 'Rated/same.txt', 'same');
+    write(directory, 'Rated/same.txt', 'same');
+    const utimes = sinon.stub(fs, 'utimesSync');
+    try {
+      const result = applyBackup(backupPlan({ source, directory }));
+      expect(result.timesLost.sort()).to.deep.equal(['Rated/changed.txt', 'Rated/new.txt']);
+    } finally {
+      utimes.restore();
+    }
+    expect(applyBackup(backupPlan({ source, directory })).timesLost).to.deep.equal([]);
   });
 });

@@ -124,23 +124,27 @@ const backupPlan = ({ source, directory, exclude = [] }) => {
 
 const dateStamp = now => now.toISOString().slice(0, 10).replace(/-/g, '');
 
-// copies through a temporary file in the same folder, so an interrupted copy never leaves a partial file
+// copies through a temporary file in the same folder, so an interrupted copy never leaves a partial file;
+// the time is set after the rename: a CIFS mount closes a written file late (closetimeo) and the server
+// then stamps it with the current time, replacing a time set before the rename forced that close
 const copyFile = (from, to, mtimeMs) => {
   fs.mkdirSync(path.dirname(to), { recursive: true });
   const temporary = `${to}.musicman-partial`;
   fs.copyFileSync(from, temporary);
-  const time = new Date(mtimeMs);
-  fs.utimesSync(temporary, time, time);
   fs.renameSync(temporary, to);
+  const time = new Date(mtimeMs);
+  fs.utimesSync(to, time, time);
 };
 
 /**
  * Applies a backup plan: copies new and changed files (not held ones) and moves files only in the backup
- * to .musicman-removed/<date>/. onFile(action, entry) is called after each file.
+ * to .musicman-removed/<date>/. onFile(action, entry) is called after each file. timesLost lists the
+ * copies whose modification time did not stay the source's, which the next backup would copy again.
  */
 const applyBackup = (plan, { now = new Date(), onFile = _.noop } = {}) => {
   const { source, directory } = plan;
-  const result = { copied: 0, updated: 0, moved: 0, bytes: 0, removedTo: null };
+  const result = { copied: 0, updated: 0, moved: 0, bytes: 0, removedTo: null, timesLost: [] };
+  const copied = [...plan.copy, ...plan.update];
   [
     ...plan.copy.map(entry => ['copy', entry]),
     ...plan.update.map(entry => ['update', entry])
@@ -151,6 +155,18 @@ const applyBackup = (plan, { now = new Date(), onFile = _.noop } = {}) => {
     result.bytes += entry.size;
     onFile(action, entry);
   });
+  // checked once every copy is done, so a time a file system replaces when it closes the file shows
+  result.timesLost = _.map(
+    _.filter(
+      copied,
+      entry =>
+        !sameFile(
+          fs.statSync(path.join(source, entry.path)),
+          fs.statSync(path.join(directory, entry.path))
+        )
+    ),
+    'path'
+  );
   if (plan.remove.length > 0) {
     result.removedTo = path.join(directory, removedFolder, dateStamp(now));
     plan.remove.forEach(entry => {

@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- `sync --backup` to an SMB (CIFS) share no longer copies the whole library on every run: the share
+  replaced the modification time set on each copy when it closed the file, so every file looked changed
+  the next time. The time is now set after the copy is renamed into place, and a warning names the copies
+  whose time still did not stay. The first backup after this copies everything once more.
+
 ## [1.24.3] - 2026-10-26
 
 ### Changed

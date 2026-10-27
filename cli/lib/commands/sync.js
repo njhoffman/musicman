@@ -625,6 +625,13 @@ const runBackup = async ({ config, dryRun, force = false, confirm }) => {
     `Backed up ${applied.copied + applied.updated} files (${formatSize(applied.bytes)})` +
       `${applied.moved ? `, moved ${applied.moved} to ${applied.removedTo}` : ''}`
   );
+  if (applied.timesLost.length > 0) {
+    logger.warn(
+      `${applied.timesLost.length} backup copies did not keep their modified time (e.g. ${
+        applied.timesLost[0]
+      }), so the next backup copies them again; the backup file system may not keep times set on files`
+    );
+  }
   return { backup: { plan: summary, applied } };
 };
 
