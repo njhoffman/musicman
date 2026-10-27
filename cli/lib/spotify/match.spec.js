@@ -109,17 +109,18 @@ describe('Spotify Matching', () => {
       expect(result.candidate).to.include({ id: 'closest', artists: 'Prince', album: 'Album' });
     });
 
-    it('should match review candidates at least autoAcceptPercent similar', () => {
+    it('should keep a close review candidate in review with its similarity', () => {
       const tracks = [track('Automatic', ['Prince'], 586, 'longer')];
-      expect(bestCandidate(song, tracks).status).to.equal('review');
-      const accepted = bestCandidate(song, tracks, { autoAcceptPercent: 95 });
-      expect(accepted).to.deep.include({ status: 'match' });
-      expect(accepted.similarity).to.deep.equal({ percent: 96, details: 'duration 18.0s -3.5' });
+      const result = bestCandidate(song, tracks);
+      expect(result).to.deep.include({ status: 'review' });
+      expect(result.similarity).to.deep.equal({ percent: 96, details: 'duration 18.0s -3.5' });
     });
 
-    it('should keep a differently named mix in review whatever the threshold allows for duration', () => {
+    it('should score a differently named mix below an auto-accept threshold of 95', () => {
       const tracks = [track('Automatic - Dub Mix', ['Prince'], 568, 'dub')];
-      expect(bestCandidate(song, tracks, { autoAcceptPercent: 95 }).status).to.equal('review');
+      const result = bestCandidate(song, tracks);
+      expect(result.status).to.equal('review');
+      expect(result.similarity.percent).to.be.below(95);
     });
 
     it('should report missing when nothing qualifies', () => {

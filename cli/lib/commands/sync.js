@@ -16,6 +16,7 @@ const {
   rejectReview,
   reviewItems
 } = require('../sync/match.js');
+const { autoAcceptItems, confirmAutoAccept } = require('../sync/accept.js');
 const { playlistTargets, songTargets } = require('../sync/targets.js');
 const { refreshCache } = require('../sync/cache.js');
 const { recordSynced, syncPlan } = require('../sync/plan.js');
@@ -37,6 +38,7 @@ const {
 const { unsortedFolder } = require('../beets/sort.js');
 const { formatWait, progressBar } = require('../output/progress.js');
 const {
+  formatMatchSummary,
   formatPlan,
   formatSongResult,
   formatUnassigned,
@@ -323,6 +325,63 @@ const librarySongs = async config =>
     config
   });
 
+// lists the review matches at least sync.autoAcceptPercent similar and accepts them after asking, all of
+// them or all but the ones picked to leave out; without a terminal to ask in they stay in review
+const runAutoAccept = async ({ db, config, client, items, threshold, dryRun, confirm, pick }) => {
+  if (items.length === 0) {
+    return 0;
+  }
+  const lines = reviewLines(items, { threshold });
+  logger.info(
+    `Matches at ${threshold}% or more, least similar first:\n${_.map(
+      items,
+      item => lines.get(item.file).split('\t')[2]
+    ).join('\n')}`
+  );
+  if (dryRun) {
+    logger.info(`Dry run: would ask to accept ${items.length} matches at ${threshold}% or more`);
+    return 0;
+  }
+  if (!confirm) {
+    logger.info(
+      `${items.length} matches at ${threshold}% or more stay in review: there is no terminal to ` +
+        'confirm them in, run sync --match in one'
+    );
+    return 0;
+  }
+  const { accept, leftOut } = await confirmAutoAccept({
+    items,
+    threshold,
+    confirm,
+    pickOut: async candidates => {
+      const { selected = [] } = pickReview({
+        switches: { fzf: true },
+        config,
+        title: 'leave out',
+        records: reviewRecords(candidates),
+        oneline: record => lines.get(record.path),
+        pick,
+        write: _.noop
+      });
+      return selected;
+    }
+  });
+  if (accept.length === 0) {
+    logger.info(`Nothing accepted, ${items.length} matches stay in review (sync --review)`);
+    return 0;
+  }
+  const result = await acceptReview({ db, config, client, items: accept });
+  result.failed.forEach(({ path: songPath, error }) =>
+    logger.warn(`FAILED  ${songPath}: ${error}`)
+  );
+  logger.info(
+    `Accepted ${result.accepted.length} matches${
+      leftOut.length ? `, ${leftOut.length} left in review (sync --review)` : ''
+    }${result.failed.length ? `, ${result.failed.length} failed` : ''}`
+  );
+  return result.accepted.length;
+};
+
 const runMatch = async ({
   credentials,
   file,
@@ -331,7 +390,9 @@ const runMatch = async ({
   dryRun,
   refresh,
   recheck,
-  verbose
+  verbose,
+  confirm,
+  pick
 }) => {
   const db = openSyncLibrary(config);
   try {
@@ -354,20 +415,21 @@ const runMatch = async ({
       );
     }
     const startedAt = new Date();
+    // lookups need no user, the app token avoids the user-read-private scope a market would need
+    const client = createClient({
+      getToken: appTokenGetter(credentials, { fetchImpl }),
+      fetchImpl,
+      requestsPerSecond: _.get(config, 'spotify.requestsPerSecond'),
+      onWait: (seconds, reason) =>
+        logger.progress(
+          chalk.hex('#DDCC44')(`Spotify ${reason}, retrying in ${Math.ceil(seconds)}s`)
+        )
+    });
     const summary = await matchSongs({
       db,
       config,
       songs,
-      // lookups need no user, the app token avoids the user-read-private scope a market would need
-      client: createClient({
-        getToken: appTokenGetter(credentials, { fetchImpl }),
-        fetchImpl,
-        requestsPerSecond: _.get(config, 'spotify.requestsPerSecond'),
-        onWait: (seconds, reason) =>
-          logger.progress(
-            chalk.hex('#DDCC44')(`Spotify ${reason}, retrying in ${Math.ceil(seconds)}s`)
-          )
-      }),
+      client,
       beetsIds: readBeetsSpotifyIds(config.sync.beetsConfig),
       dryRun,
       refresh,
@@ -388,26 +450,16 @@ const runMatch = async ({
         )
     });
     logger.progressDone();
-    const { bySource } = summary;
+    const threshold = _.get(config, 'sync.autoAcceptPercent');
+    const queue = reviewItems(db, config);
+    const autoAccept = autoAcceptItems(queue, threshold);
     logger.info(
-      [
-        `Spotify ids ${dryRun ? '(dry run, only the lookups were cached)' : ''}`.trim(),
-        `  songs for Liked Songs or playlists: ${summary.targets}`,
-        `  already tagged: ${summary.tagged}, recently checked: ${summary.cached}`,
-        `  not in database: ${summary.notInDatabase} (run musicman db --update)`,
-        `  matched: ${summary.match} (beets ${bySource.beets}, isrc ${bySource.isrc}, search ${bySource.search}` +
-          `${summary.reused ? `; ${summary.reused} from earlier lookups` : ''})`,
-        `  fields refreshed: ${summary.refresh}`,
-        `  to review: ${summary.review} (musicman sync --review)`,
-        `  artist photos saved: ${summary.artistImages.saved.length}${
-          summary.artistImages.failed.length
-            ? `, failed: ${summary.artistImages.failed.length} (fetched again next run)`
-            : ''
-        }`,
-        `  not found: ${summary.missing}, failed: ${summary.failed}${
-          summary.skipped ? `, not looked up (rate limit): ${summary.skipped}` : ''
-        }`
-      ].join('\n')
+      formatMatchSummary(summary, {
+        dryRun,
+        threshold,
+        autoAccept: autoAccept.length,
+        toReview: queue.length - autoAccept.length
+      })
     );
     if (summary.rateLimited) {
       const retryAt = new Date(Date.now() + summary.rateLimited.retryAfter * 1000);
@@ -427,7 +479,17 @@ const runMatch = async ({
         )}`
       );
     }
-    return { summary, rechecked: rechecked.length };
+    const accepted = await runAutoAccept({
+      db,
+      config,
+      client,
+      items: autoAccept,
+      threshold,
+      dryRun,
+      confirm,
+      pick
+    });
+    return { summary, rechecked: rechecked.length, autoAccept: autoAccept.length, accepted };
   } finally {
     db.close();
   }
@@ -806,7 +868,10 @@ const syncCommand = async ({
         dryRun: Boolean(switches.dryRun),
         refresh: Boolean(switches.refresh),
         recheck: Boolean(switches.recheck),
-        verbose: Boolean(switches.verbose)
+        verbose: Boolean(switches.verbose),
+        // auto-accept asks first, so without a terminal nothing is accepted
+        confirm: confirm || (process.stdin.isTTY ? confirmPrompt : null),
+        pick
       });
     }
     if (switches.backup) {

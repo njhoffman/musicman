@@ -300,11 +300,10 @@ const rateCandidate = (song, track, { isrc = false } = {}) => {
 
 /**
  * Best of the candidate tracks for a song: { status: 'match' | 'review' | 'missing', candidate, track,
- * similarity } with the full Web API track when one qualifies. A review candidate at least
- * autoAcceptPercent similar (matchSimilarity) is a match. Matches beat review candidates; ties go to the
- * most similar, then the closest duration.
+ * similarity } with the full Web API track when one qualifies. Matches beat review candidates; ties go
+ * to the most similar (matchSimilarity), then the closest duration.
  */
-const bestCandidate = (song, tracks, { autoAcceptPercent, ...options } = {}) => {
+const bestCandidate = (song, tracks, options = {}) => {
   const rated = _.compact(
     _.map(tracks, track => {
       const rating = rateCandidate(song, track, options);
@@ -313,13 +312,9 @@ const bestCandidate = (song, tracks, { autoAcceptPercent, ...options } = {}) => 
       }
       const candidate = candidateOf(track);
       const similarity = matchSimilarity(song, candidate);
-      const status =
-        rating === 'review' && autoAcceptPercent && similarity.percent >= autoAcceptPercent
-          ? 'match'
-          : rating;
       const diff =
         song.duration && track.duration_ms ? Math.abs(song.duration - track.duration_ms / 1000) : 0;
-      return { status, diff, track, candidate, similarity };
+      return { status: rating, diff, track, candidate, similarity };
     })
   );
   const best = _.sortBy(rated, [

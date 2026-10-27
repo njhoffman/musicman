@@ -170,8 +170,74 @@ const formatPlan = (plan, columns, highlighted = []) =>
     })
   });
 
+/**
+ * The sync --match summary: labels, right aligned counts (zeros dimmed, the ones waiting on a decision
+ * highlighted), and notes. autoAccept and toReview count the review queue after the run, split at
+ * threshold (sync.autoAcceptPercent); without a threshold there is no auto-accept row.
+ */
+const formatMatchSummary = (
+  summary,
+  { dryRun = false, threshold, autoAccept = 0, toReview = 0 }
+) => {
+  const { bySource, artistImages } = summary;
+  const notFoundBefore = summary.cached - (summary.cachedReview || 0);
+  const rows = _.compact([
+    ['songs for Liked Songs or playlists', summary.targets],
+    ['  already tagged', summary.tagged],
+    [
+      '  recently checked',
+      summary.cached,
+      summary.cached
+        ? `${summary.cachedReview || 0} waiting for review, ${notFoundBefore} not found`
+        : ''
+    ],
+    [
+      '  not in database',
+      summary.notInDatabase,
+      summary.notInDatabase ? 'musicman db --update' : ''
+    ],
+    [
+      'matched',
+      summary.match,
+      `beets ${bySource.beets}, isrc ${bySource.isrc}, search ${bySource.search}${
+        summary.reused ? `; ${summary.reused} from earlier lookups` : ''
+      }`
+    ],
+    ['fields refreshed', summary.refresh],
+    _.isNumber(threshold) && ['to auto-accept', autoAccept, `at ${threshold}% or more`, true],
+    ['to review', toReview, `${summary.review} new; sync --review`, true],
+    [
+      'artist photos saved',
+      artistImages.saved.length,
+      artistImages.failed.length
+        ? `failed ${artistImages.failed.length}, fetched again next run`
+        : ''
+    ],
+    ['not found', summary.missing],
+    ['failed', summary.failed],
+    summary.skipped && ['not looked up', summary.skipped, 'Spotify rate limit']
+  ]);
+  const strong = new Set(_.map(_.filter(rows, 3), 0));
+  const table = renderColumns({
+    rows: _.map(rows, ([label, count, note = '']) => [label, String(count), note]),
+    splitter: '   ',
+    columns: [
+      {},
+      {
+        align: 'right',
+        format: (cell, i) =>
+          cell === '0' ? dim(cell) : strong.has(rows[i][0]) ? highlight(cell) : cell
+      },
+      { format: cell => dim(cell) }
+    ]
+  });
+  const title = `Spotify ids${dryRun ? ' (dry run, only the lookups were cached)' : ''}`;
+  return `${title}\n${_.map(table.split('\n'), line => `  ${line.trimEnd()}`).join('\n')}`;
+};
+
 module.exports = {
   durationDiff,
+  formatMatchSummary,
   formatPlan,
   formatSongResult,
   formatUnassigned,

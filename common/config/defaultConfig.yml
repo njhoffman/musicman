@@ -114,7 +114,8 @@ spotify:
 sync:
   # Review candidates at least this similar to the song (100 is the same title and length; capitalization,
   # punctuation, and a few seconds are free, up to 20s or a remaster suffix stays above 95, another mix or
-  # version falls below) are matched without review. Empty sends every probable match to review.
+  # version falls below) are listed by sync --match and accepted after one confirmation, leaving out any you
+  # pick. Empty leaves every probable match for sync --review.
   autoAcceptPercent:
   # Songs rated at least this are added to Spotify Liked Songs
   likedRating: 4.5

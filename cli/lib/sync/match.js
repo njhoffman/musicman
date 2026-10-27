@@ -65,29 +65,25 @@ const searchTracks = async (client, query, limit) =>
     []
   );
 
-// look up one song: beets id, then ISRC, then artist and title search, never a track rejected in review;
-// review candidates at least autoAcceptPercent similar are matches
-const lookup = async ({ client, song, beetsId, rejected = new Set(), autoAcceptPercent }) => {
+// look up one song: beets id, then ISRC, then artist and title search, never a track rejected in review
+const lookup = async ({ client, song, beetsId, rejected = new Set() }) => {
   if (beetsId && !rejected.has(beetsId)) {
     return { status: 'match', source: 'beets', candidate: { id: beetsId } };
   }
   const search = async (query, limit) =>
     _.reject(await searchTracks(client, query, limit), ({ id }) => rejected.has(id));
   if (song.isrc) {
-    const result = bestCandidate(song, await search(`isrc:${song.isrc}`, 5), {
-      isrc: true,
-      autoAcceptPercent
-    });
+    const result = bestCandidate(song, await search(`isrc:${song.isrc}`, 5), { isrc: true });
     if (result.status !== 'missing') {
       return { ...result, source: 'isrc' };
     }
   }
-  const strict = bestCandidate(song, await search(searchQuery(song), 10), { autoAcceptPercent });
+  const strict = bestCandidate(song, await search(searchQuery(song), 10));
   if (strict.status === 'match') {
     return { ...strict, source: 'search' };
   }
   // the looser query only replaces a strict result it improves on
-  const loose = bestCandidate(song, await search(looseQuery(song), 10), { autoAcceptPercent });
+  const loose = bestCandidate(song, await search(looseQuery(song), 10));
   const rank = { match: 0, review: 1, missing: 2 };
   return { ...(rank[loose.status] < rank[strict.status] ? loose : strict), source: 'search' };
 };
@@ -159,8 +155,9 @@ const tryWrite = (file, writes) => {
  * The photos of matched songs' first artists are saved to artistImageDirectory (spotify.artistImageDirectory)
  * for offline use, except in a dry run; artistImages in the result has the ids saved and failed.
  *
- * Every match also gets TXXX.sp_diff_percent and TXXX.sp_diff_details (matchSimilarity); review
- * candidates at least autoAcceptPercent (sync.autoAcceptPercent) similar are matched without review.
+ * Every match also gets TXXX.sp_diff_percent and TXXX.sp_diff_details (matchSimilarity). Probable
+ * matches always go to review, also those at least sync.autoAcceptPercent similar: sync --match shows
+ * those and accepts them after asking (autoAcceptItems).
  *
  * onSong(status, item, result) is called once per looked up or refreshed song with status match,
  * review, missing, refresh, or failed, and result.writes ({ custom, filled, kept }) when fields were
@@ -177,7 +174,6 @@ const matchSongs = async ({
   refresh = false,
   recheckDays = defaultRecheckDays,
   refreshDays = _.get(config, 'spotify.refreshDays', 30),
-  autoAcceptPercent = _.get(config, 'sync.autoAcceptPercent'),
   imageDirectory = artistImageDirectory(config),
   imageFetch = fetch,
   concurrency = 3,
@@ -197,6 +193,7 @@ const matchSongs = async ({
     targets: 0,
     tagged: 0,
     cached: 0,
+    cachedReview: 0,
     notInDatabase: 0,
     match: 0,
     review: 0,
@@ -250,6 +247,9 @@ const matchSongs = async ({
       new Date(`${cached.checked_at.replace(' ', 'T')}Z`) > recheckBefore
     ) {
       counts.cached += 1;
+      if (cached.status === 'review') {
+        counts.cachedReview += 1;
+      }
       return;
     }
     items.push({ file, songId: row.id, song, rejected });
@@ -306,8 +306,7 @@ const matchSongs = async ({
               client,
               song: item.song,
               beetsId: beetsIds.get(item.file),
-              rejected: item.rejected,
-              autoAcceptPercent
+              rejected: item.rejected
             }))
           };
         } catch (err) {

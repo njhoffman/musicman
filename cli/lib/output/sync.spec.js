@@ -1,7 +1,14 @@
+const _ = require('lodash');
 const { expect } = require('chai');
 const { stripAnsi } = require('../utils/logger.js');
 const chalk = require('chalk').default;
-const { durationDiff, formatPlan, formatSongResult, formatUnassigned } = require('./sync.js');
+const {
+  durationDiff,
+  formatMatchSummary,
+  formatPlan,
+  formatSongResult,
+  formatUnassigned
+} = require('./sync.js');
 
 describe('Sync Output', () => {
   const item = {
@@ -153,6 +160,65 @@ describe('Sync Output', () => {
       expect(liked).to.not.match(bold('3'));
       expect(liked).to.not.match(bold('0'));
       expect(study).to.not.equal(stripAnsi(study));
+    });
+  });
+
+  describe('formatMatchSummary', () => {
+    const summary = {
+      targets: 2642,
+      tagged: 1833,
+      cached: 809,
+      cachedReview: 756,
+      notInDatabase: 0,
+      match: 0,
+      refresh: 0,
+      review: 0,
+      missing: 0,
+      failed: 0,
+      skipped: 0,
+      reused: 0,
+      bySource: { beets: 0, isrc: 0, search: 0 },
+      artistImages: { saved: [], failed: [] }
+    };
+    const lines = text => stripAnsi(text).split('\n');
+
+    it('should right align the counts with notes after them', () => {
+      const [title, ...rows] = lines(
+        formatMatchSummary(summary, { dryRun: true, threshold: 95, autoAccept: 496, toReview: 260 })
+      );
+      expect(title).to.equal('Spotify ids (dry run, only the lookups were cached)');
+      expect(rows[0]).to.equal('  songs for Liked Songs or playlists   2642');
+      expect(rows[2]).to.equal(
+        '    recently checked                    809   756 waiting for review, 53 not found'
+      );
+      expect(rows).to.include('  to auto-accept                        496   at 95% or more');
+      expect(rows).to.include('  to review                             260   0 new; sync --review');
+      expect(_.uniq(rows.map(row => row.indexOf('   ', 36)))).to.have.length(1);
+    });
+
+    it('should leave out auto-accept without a threshold and show a rate limit', () => {
+      const rows = lines(formatMatchSummary({ ...summary, skipped: 12 }, { toReview: 756 }));
+      expect(rows.join('\n')).to.not.include('auto-accept');
+      expect(rows[rows.length - 1]).to.match(/^ {2}not looked up +12 {3}Spotify rate limit$/);
+    });
+
+    it('should highlight the counts waiting on a decision and dim zeros', () => {
+      const originalLevel = chalk.level;
+      chalk.level = 1;
+      try {
+        const rows = formatMatchSummary(summary, {
+          threshold: 95,
+          autoAccept: 496,
+          toReview: 260
+        }).split('\n');
+        const row = label => rows.find(line => stripAnsi(line).includes(label));
+        const bold = '\u001b[1m';
+        expect(row('to auto-accept')).to.include(bold).and.include('496');
+        expect(row('already tagged')).to.not.include(bold);
+        expect(row('not found ')).to.not.equal(stripAnsi(row('not found ')));
+      } finally {
+        chalk.level = originalLevel;
+      }
     });
   });
 });

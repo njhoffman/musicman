@@ -509,7 +509,7 @@ describe('Spotify Id Matching', () => {
       expect(customTag('testFile01.mp3', 'sp_diff_details')).to.equal('suffix +rough -10');
     });
 
-    it('should match without review a candidate at least sync.autoAcceptPercent similar', async () => {
+    it('should keep a candidate at least sync.autoAcceptPercent similar in review', async () => {
       const searched = meta('testFile03.mp3');
       const row = db.prepare('SELECT duration FROM songs WHERE path = ?').get('testFile03.mp3');
       const answers = {
@@ -525,10 +525,11 @@ describe('Spotify Id Matching', () => {
         }),
         songs: songs(['testFile03.mp3'])
       });
-      expect(summary).to.include({ match: 1, review: 0 });
-      expect(spotifyId('testFile03.mp3')).to.equal('close-id');
-      expect(customTag('testFile03.mp3', 'sp_diff_percent')).to.equal('98');
-      expect(reviewItems(db, config)).to.be.empty;
+      expect(summary).to.include({ match: 0, review: 1 });
+      expect(spotifyId('testFile03.mp3')).to.be.undefined;
+      const [waiting] = reviewItems(db, config);
+      expect(waiting.candidate.id).to.equal('close-id');
+      expect(waiting.similarity.percent).to.equal(98);
     });
 
     it('should still write the id when accepting while track details cannot be fetched', async () => {

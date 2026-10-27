@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- `sync --match` lists the matches at least `sync.autoAcceptPercent` similar, new ones and ones waiting in
+  review from earlier runs, and accepts them after asking: all of them, or all but the ones you pick to leave
+  out with fzf, which stay in review. They are no longer accepted without being shown.
+- The `sync --match` summary is aligned: counts right aligned with notes after them, zeros dimmed, and the
+  counts waiting on a decision (to auto-accept, to review) highlighted. Recently checked songs are split into
+  waiting for review and not found.
+
 ## [1.24.4] - 2026-10-26
 
 ### Fixed

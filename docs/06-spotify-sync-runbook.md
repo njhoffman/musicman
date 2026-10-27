@@ -48,8 +48,10 @@ musicman sync --match             # writes TXXX.sp_* tags to the files
 - Spotify fields that are neither mapped in `spotify.fields` nor in `spotify.ignore` are reported at the end.
 - Every match gets `sp_diff_percent` (how similar the Spotify track is, 100 for the same title and length) and
   `sp_diff_details` (what cost points). With `sync.autoAcceptPercent` set (e.g. 95), probable matches at least that
-  similar are matched without review: a few seconds, capitalization, a remaster suffix, or up to 20s pass, another
-  mix or version never does.
+  similar (a few seconds, capitalization, a remaster suffix, or up to 20s pass, another mix or version never does)
+  are listed after the summary, least similar first, including ones waiting in review from earlier runs.
+  `sync --match` then asks to accept them all; say no to pick the ones to leave out with fzf, which stay in review.
+  A dry run only lists them, and without a terminal nothing is accepted.
 - The first artist's photo is saved to `spotify.artistImageDirectory` (`$XDG_CACHE_HOME/musicman/artists`) for
   offline use.
 
