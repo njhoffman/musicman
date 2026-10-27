@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.26.1] - 2026-10-27
+
 ### Changed
 
 - The `sync --backup` summary is a table: per action (copy, update, rename, hold, move) its count, size, and
@@ -501,7 +503,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.26.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.26.1...HEAD
+[1.26.1]: https://github.com/njhoffman/musicman/compare/v1.26.0...v1.26.1
 [1.26.0]: https://github.com/njhoffman/musicman/compare/v1.25.1...v1.26.0
 [1.25.1]: https://github.com/njhoffman/musicman/compare/v1.25.0...v1.25.1
 [1.25.0]: https://github.com/njhoffman/musicman/compare/v1.24.4...v1.25.0
