@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- `sync --backup` to a case-insensitive share (SMB) no longer moves files aside when a library folder or file
+  differs from its backup copy only in capitalization (`lil kiiwi (Deluxe)` and `(deluxe)`): the backup copy is
+  renamed to the library's capitalization instead. Before, each run copied those files into the existing folder
+  and then moved them into `.musicman-removed`, so they went missing from the backup every other run.
+- The warning about copies that did not keep their modified time no longer names a file that changed while
+  it was being copied, such as `musicman.log` written by the backup run itself.
+
 ## [1.25.0] - 2026-10-26
 
 ### Changed

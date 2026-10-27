@@ -631,7 +631,9 @@ const runBackup = async ({ config, dryRun, force = false, confirm }) => {
         'with their library copies instead of being copied again.'
     );
     process.exitCode = 1;
-    return { backup: { plan: _.omit(plan, ['copy', 'update', 'remove']), applied: null } };
+    return {
+      backup: { plan: _.omit(plan, ['copy', 'update', 'remove', 'held', 'rename']), applied: null }
+    };
   }
   listBackupFiles('COPY', plan.copy, '#55CC55');
   listBackupFiles('UPDATE', plan.update, '#55BBDD');
@@ -641,6 +643,12 @@ const runBackup = async ({ config, dryRun, force = false, confirm }) => {
     '#DDCC44',
     entry => `${entry.path} (backup has ${entry.frames.join(', ')})`
   );
+  listBackupFiles(
+    'RENAME',
+    plan.rename,
+    '#BB88DD',
+    ({ from, to }) => `${from} -> ${path.basename(to)}`
+  );
   listBackupFiles('MOVE', plan.remove, '#DD7744');
   const size = entries => formatSize(_.sumBy(entries, 'size'));
   logger.info(
@@ -649,20 +657,22 @@ const runBackup = async ({ config, dryRun, force = false, confirm }) => {
       `  copy (new): ${plan.copy.length} (${size(plan.copy)})`,
       `  update (changed): ${plan.update.length} (${size(plan.update)})`,
       `  unchanged: ${plan.unchanged}`,
+      `  renamed to the library's capitalization: ${plan.rename.length}`,
       `  held back, the backup copy has frames the library copy lacks: ${plan.held.length}`,
       `  only in the backup, moved to ${removedFolder}/: ${plan.remove.length}`
     ].join('\n')
   );
-  const changes = plan.copy.length + plan.update.length + plan.remove.length;
+  const changes = plan.copy.length + plan.update.length + plan.remove.length + plan.rename.length;
   const summary = {
-    ..._.omit(plan, ['copy', 'update', 'remove', 'held']),
-    counts: _.mapValues(_.pick(plan, ['copy', 'update', 'remove', 'held']), 'length')
+    ..._.omit(plan, ['copy', 'update', 'remove', 'held', 'rename']),
+    counts: _.mapValues(_.pick(plan, ['copy', 'update', 'remove', 'held', 'rename']), 'length')
   };
   if (changes === 0 || dryRun) {
     return { backup: { plan: summary, applied: null } };
   }
   const message =
-    `Copy ${plan.copy.length} and update ${plan.update.length} files in ${directory}` +
+    `${plan.rename.length ? `Rename ${plan.rename.length} folders and files to the library's capitalization, c` : 'C'}` +
+    `opy ${plan.copy.length} and update ${plan.update.length} files in ${directory}` +
     `${plan.remove.length ? `, and move ${plan.remove.length} files only in the backup to ${removedFolder}/` : ''}?`;
   if (!(await confirm(message))) {
     logger.info('Backup cancelled');
@@ -674,7 +684,7 @@ const runBackup = async ({ config, dryRun, force = false, confirm }) => {
   const applied = applyBackup(plan, {
     onFile: (action, entry) => {
       logger.logToFile('debug', `${action} ${entry.path}`);
-      if (action !== 'move') {
+      if (action === 'copy' || action === 'update') {
         done += 1;
         logger.progress(
           progressBar({ done, total, startedAt, label: 'Backing up', unit: 'files' })
@@ -685,6 +695,7 @@ const runBackup = async ({ config, dryRun, force = false, confirm }) => {
   logger.progressDone();
   logger.info(
     `Backed up ${applied.copied + applied.updated} files (${formatSize(applied.bytes)})` +
+      `${applied.renamed ? `, renamed ${applied.renamed} to the library's capitalization` : ''}` +
       `${applied.moved ? `, moved ${applied.moved} to ${applied.removedTo}` : ''}`
   );
   if (applied.timesLost.length > 0) {

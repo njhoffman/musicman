@@ -161,4 +161,89 @@ describe('Library Backup', () => {
     }
     expect(applyBackup(backupPlan({ source, directory })).timesLost).to.deep.equal([]);
   });
+
+  describe('on a case-insensitive share', () => {
+    let exists;
+
+    // paths under the backup resolve whatever their case, like on an SMB share
+    beforeEach(() => {
+      const realExists = fs.existsSync.bind(fs);
+      exists = sinon.stub(fs, 'existsSync').callsFake(target => {
+        if (!target.startsWith(directory) || realExists(target)) {
+          return realExists(target);
+        }
+        let current = directory;
+        return path
+          .relative(directory, target)
+          .split('/')
+          .every(part => {
+            const found =
+              realExists(current) &&
+              fs.readdirSync(current).find(name => name.toLowerCase() === part.toLowerCase());
+            current = found ? path.join(current, found) : current;
+            return Boolean(found);
+          });
+      });
+    });
+
+    afterEach(() => {
+      exists.restore();
+    });
+
+    it('should rename folders and files to the library capitalization instead of moving them', () => {
+      write(source, 'Rated/Album (Deluxe)/01 - Song.mp3', 'one');
+      write(source, 'Rated/Album (Deluxe)/02 - Other Song.mp3', 'two');
+      write(source, 'Rated/Album (Deluxe)/03 - New.mp3', 'three');
+      write(directory, 'Rated/album (deluxe)/01 - Song.mp3', 'one');
+      write(directory, 'Rated/album (deluxe)/02 - other song.mp3', 'old two');
+      write(directory, 'Rated/Gone.mp3', 'gone');
+      const plan = backupPlan({ source, directory });
+      expect(plan.rename).to.deep.equal([
+        { from: 'Rated/album (deluxe)', to: 'Rated/Album (Deluxe)' },
+        {
+          from: 'Rated/Album (Deluxe)/02 - other song.mp3',
+          to: 'Rated/Album (Deluxe)/02 - Other Song.mp3'
+        }
+      ]);
+      expect(paths(plan.copy)).to.deep.equal(['Rated/Album (Deluxe)/03 - New.mp3']);
+      expect(paths(plan.update)).to.deep.equal(['Rated/Album (Deluxe)/02 - Other Song.mp3']);
+      expect(paths(plan.remove)).to.deep.equal(['Rated/Gone.mp3']);
+      expect(plan.unchanged).to.equal(1);
+
+      const result = applyBackup(plan, { now: new Date('2026-10-27T12:00:00Z') });
+      expect(result).to.include({ renamed: 2, copied: 1, updated: 1, moved: 1 });
+      expect(fs.readdirSync(path.join(directory, 'Rated')).sort()).to.deep.equal([
+        'Album (Deluxe)'
+      ]);
+      expect(fs.readdirSync(path.join(directory, 'Rated/Album (Deluxe)')).sort()).to.deep.equal([
+        '01 - Song.mp3',
+        '02 - Other Song.mp3',
+        '03 - New.mp3'
+      ]);
+      const again = backupPlan({ source, directory });
+      expect(again.copy.length + again.update.length + again.remove.length).to.equal(0);
+      expect(again.rename).to.be.empty;
+    });
+  });
+
+  it('should treat folders differing in case as different on a case-sensitive backup', () => {
+    write(source, 'Rated/Album (Deluxe)/01 - Song.mp3', 'one');
+    write(directory, 'Rated/album (deluxe)/01 - Song.mp3', 'one');
+    const plan = backupPlan({ source, directory });
+    expect(plan.rename).to.be.empty;
+    expect(paths(plan.copy)).to.deep.equal(['Rated/Album (Deluxe)/01 - Song.mp3']);
+    expect(paths(plan.remove)).to.deep.equal(['Rated/album (deluxe)/01 - Song.mp3']);
+  });
+
+  it('should not count a file changed while it was copied as a lost time', () => {
+    const log = write(source, 'musicman.log', 'line 1\n', new Date('2026-10-20T00:00:00Z'));
+    const result = applyBackup(backupPlan({ source, directory }), {
+      onFile: () => {
+        fs.appendFileSync(log, 'line 2\n');
+        fs.utimesSync(log, new Date(), new Date());
+      }
+    });
+    expect(result.timesLost).to.deep.equal([]);
+    expect(paths(backupPlan({ source, directory }).update)).to.deep.equal(['musicman.log']);
+  });
 });

@@ -44,7 +44,8 @@ const listTree = (root, excluded = () => false) => {
 };
 
 // network file systems keep coarser times, so modification times within 2 seconds count as equal
-const sameFile = (a, b) => a.size === b.size && Math.abs(a.mtimeMs - b.mtimeMs) < 2000;
+const sameTime = (a, b) => Math.abs(a - b) < 2000;
+const sameFile = (a, b) => a.size === b.size && sameTime(a.mtimeMs, b.mtimeMs);
 
 // a frame value without data, e.g. a lyrics frame with no text, which writers like node-id3 leave out
 const isEmptyValue = value =>
@@ -67,12 +68,38 @@ const framesOnlyInBackup = (source, target) => {
   );
 };
 
+// the renames, shallowest first, that give backup paths ({ from, to } pairs differing only in case) the
+// library's capitalization; each from names its parent as already renamed
+const caseRenames = pairs =>
+  _.sortBy(
+    _.uniqBy(
+      _.flatMap(pairs, ({ from, to }) => {
+        const fromParts = from.split('/');
+        const toParts = to.split('/');
+        return _.compact(
+          _.map(
+            toParts,
+            (part, i) =>
+              part !== fromParts[i] && {
+                from: [...toParts.slice(0, i), fromParts[i]].join('/'),
+                to: toParts.slice(0, i + 1).join('/')
+              }
+          )
+        );
+      }),
+      'to'
+    ),
+    ({ to }) => to.split('/').length
+  );
+
 /**
  * What it takes to make directory a copy of source:
  *   copy: files only in the source
  *   update: files in both that differ (size or modification time)
  *   held: mp3 updates held back because the backup copy has frames the library copy lacks
  *   remove: files only in the backup, which are moved to .musicman-removed, never deleted
+ *   rename: folders and files the backup names with other capitalization (a case-insensitive share such
+ *     as SMB finds the library path there), renamed to the library's before copying
  * Paths matching exclude (globs relative to source, e.g. musicman.sqlite*) are left out on both sides.
  * layoutHint is set when the backup looks like a copy of one source subfolder (e.g. of Rated).
  */
@@ -85,25 +112,44 @@ const backupPlan = ({ source, directory, exclude = [] }) => {
     relative => relative === removedFolder || excluded(relative)
   );
 
+  const byLowerCase = _.groupBy([...backupFiles.keys()], _.toLower);
+  // the backup path of a library path: the same, or on a case-insensitive share one differing in case
+  const backupPath = relative => {
+    if (backupFiles.has(relative)) {
+      return relative;
+    }
+    const variant = _.find(byLowerCase[_.toLower(relative)], other => !sourceFiles.has(other));
+    return variant && fs.existsSync(path.join(directory, relative)) ? variant : null;
+  };
+
   const copy = [];
   const update = [];
   const held = [];
+  const casePairs = [];
+  const matched = new Set();
   let unchanged = 0;
   sourceFiles.forEach((stat, relative) => {
-    const existing = backupFiles.get(relative);
+    const actual = backupPath(relative);
+    const existing = actual && backupFiles.get(actual);
+    if (actual) {
+      matched.add(actual);
+    }
+    if (actual && actual !== relative) {
+      casePairs.push({ from: actual, to: relative });
+    }
     if (!existing) {
       copy.push({ path: relative, size: stat.size });
     } else if (sameFile(stat, existing)) {
       unchanged += 1;
     } else {
       const frames = relative.toLowerCase().endsWith('.mp3')
-        ? framesOnlyInBackup(path.join(source, relative), path.join(directory, relative))
+        ? framesOnlyInBackup(path.join(source, relative), path.join(directory, actual))
         : [];
       (frames.length > 0 ? held : update).push({ path: relative, size: stat.size, frames });
     }
   });
   const remove = _.map(
-    [...backupFiles.keys()].filter(relative => !sourceFiles.has(relative)),
+    [...backupFiles.keys()].filter(relative => !matched.has(relative)),
     relative => ({ path: relative, size: backupFiles.get(relative).size })
   );
 
@@ -119,7 +165,17 @@ const backupPlan = ({ source, directory, exclude = [] }) => {
       ? { folder: parent, names: backupTop }
       : null;
 
-  return { source, directory, copy, update, held, remove, unchanged, layoutHint };
+  return {
+    source,
+    directory,
+    copy,
+    update,
+    held,
+    remove,
+    rename: caseRenames(casePairs),
+    unchanged,
+    layoutHint
+  };
 };
 
 const dateStamp = now => now.toISOString().slice(0, 10).replace(/-/g, '');
@@ -136,21 +192,45 @@ const copyFile = (from, to, mtimeMs) => {
   fs.utimesSync(to, time, time);
 };
 
+// a rename that changes only case goes through a temporary name, which a case-insensitive share needs
+const renameCase = (directory, { from, to }) => {
+  const temporary = path.join(directory, `${to}.musicman-case`);
+  fs.renameSync(path.join(directory, from), temporary);
+  fs.renameSync(temporary, path.join(directory, to));
+};
+
 /**
- * Applies a backup plan: copies new and changed files (not held ones) and moves files only in the backup
- * to .musicman-removed/<date>/. onFile(action, entry) is called after each file. timesLost lists the
- * copies whose modification time did not stay the source's, which the next backup would copy again.
+ * Applies a backup plan: renames backup paths to the library's capitalization, copies new and changed
+ * files (not held ones), and moves files only in the backup to .musicman-removed/<date>/.
+ * onFile(action, entry) is called after each file or rename. timesLost lists the copies whose
+ * modification time is not the one set on them, which the next backup would copy again; a file that
+ * changed while it was copied (e.g. the log of this run) is not one.
  */
 const applyBackup = (plan, { now = new Date(), onFile = _.noop } = {}) => {
   const { source, directory } = plan;
-  const result = { copied: 0, updated: 0, moved: 0, bytes: 0, removedTo: null, timesLost: [] };
-  const copied = [...plan.copy, ...plan.update];
+  const result = {
+    renamed: 0,
+    copied: 0,
+    updated: 0,
+    moved: 0,
+    bytes: 0,
+    removedTo: null,
+    timesLost: []
+  };
+  (plan.rename || []).forEach(entry => {
+    renameCase(directory, entry);
+    result.renamed += 1;
+    onFile('rename', entry);
+  });
+  const timesSet = [];
   [
     ...plan.copy.map(entry => ['copy', entry]),
     ...plan.update.map(entry => ['update', entry])
   ].forEach(([action, entry]) => {
     const from = path.join(source, entry.path);
-    copyFile(from, path.join(directory, entry.path), fs.statSync(from).mtimeMs);
+    const { mtimeMs } = fs.statSync(from);
+    copyFile(from, path.join(directory, entry.path), mtimeMs);
+    timesSet.push({ path: entry.path, mtimeMs });
     result[action === 'copy' ? 'copied' : 'updated'] += 1;
     result.bytes += entry.size;
     onFile(action, entry);
@@ -158,12 +238,9 @@ const applyBackup = (plan, { now = new Date(), onFile = _.noop } = {}) => {
   // checked once every copy is done, so a time a file system replaces when it closes the file shows
   result.timesLost = _.map(
     _.filter(
-      copied,
-      entry =>
-        !sameFile(
-          fs.statSync(path.join(source, entry.path)),
-          fs.statSync(path.join(directory, entry.path))
-        )
+      timesSet,
+      ({ path: relative, mtimeMs }) =>
+        !sameTime(fs.statSync(path.join(directory, relative)).mtimeMs, mtimeMs)
     ),
     'path'
   );
