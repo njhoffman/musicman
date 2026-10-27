@@ -178,7 +178,8 @@ const editDistance = (from, to) => {
 };
 
 // points taken off 100 by each kind of difference: a few seconds and capitalization or punctuation are
-// free, up to 20s stays above 95%, a differently named mix or version always falls below it
+// free, up to 20s stays above 95%, a differently named mix or version or another number in the title
+// (17 Ghosts II and 16 Ghosts II) always falls below it
 const penalties = {
   freeSeconds: 3,
   shortGapSeconds: 20,
@@ -188,8 +189,14 @@ const penalties = {
   maxTitle: 40,
   suffix: 1,
   perDescriptor: 10,
+  perNumber: 10,
   perVersion: 25
 };
+
+// the numbers in a normalized title (leading zeros dropped), which name another track when they differ;
+// not years, which kept suffixes can have (Fatboy Slim Remix/Remastered 2009)
+const titleNumbers = title =>
+  _.uniq(_.reject(title.match(/\d+/g) || [], n => /^(19|20)\d\d$/.test(n)));
 
 const durationPenalty = seconds => {
   const { freeSeconds, shortGapSeconds, shortGap, perSecondAfter } = penalties;
@@ -225,6 +232,13 @@ const matchSimilarity = (song, candidate) => {
     `title ${editDistance(local, spotify)} chars`,
     Math.min(penalties.maxTitle, editDistance(local, spotify) * penalties.perCharacter)
   );
+  const localNumbers = titleNumbers(local);
+  const spotifyNumbers = titleNumbers(spotify);
+  const numberWords = [
+    ...signed(_.difference(spotifyNumbers, localNumbers), '+'),
+    ...signed(_.difference(localNumbers, spotifyNumbers), '-')
+  ];
+  add(`number ${numberWords.join(' ')}`, numberWords.length * penalties.perNumber);
   const localVersions = recordingVersions(song.title, song);
   const spotifyVersions = recordingVersions(candidate.name, { album: candidate.album });
   const versionWords = [

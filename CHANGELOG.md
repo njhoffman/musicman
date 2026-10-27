@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- A Spotify match whose title has another number (`17 Ghosts II` and `16 Ghosts II`) costs 10 points per
+  differing number, so it falls below an auto-accept threshold of 95; years such as "Remastered 2009" and
+  leading zeros do not count.
+
 ## [1.26.1] - 2026-10-27
 
 ### Changed

@@ -161,6 +161,31 @@ describe('Spotify Matching', () => {
       expect(similarity('Hey You - Live', 280).percent).to.be.below(80);
     });
 
+    it('should fall below 95 for another number in the title', () => {
+      const ghosts = { title: '17 Ghosts II', duration: 300 };
+      expect(matchSimilarity(ghosts, { name: '16 Ghosts II', durationMs: 300000 })).to.deep.equal({
+        percent: 78,
+        details: 'title 1 chars -2; number +16 -17 -20'
+      });
+      expect(similarity('Hey You 2', 280).percent).to.be.below(95);
+    });
+
+    it('should not count leading zeros or numbers in removed suffixes', () => {
+      expect(
+        matchSimilarity(
+          { title: '07 - Song', duration: 200 },
+          { name: '7 - Song', durationMs: 200000 }
+        ).percent
+      ).to.equal(100);
+      expect(similarity('Hey You - 2011 Remaster', 280).percent).to.equal(99);
+      expect(
+        matchSimilarity(
+          { title: 'Body Movin (Fatboy Slim Remix)', duration: 200 },
+          { name: 'Body Movin - Fatboy Slim Remix/Remastered 2009', durationMs: 200000 }
+        ).details
+      ).to.not.include('number');
+    });
+
     it('should treat a song from a live album as live even when its title does not say so', () => {
       const studio = { name: 'Down', durationMs: 172000, album: '311' };
       const live = {
