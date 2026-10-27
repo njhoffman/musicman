@@ -6,6 +6,7 @@ const {
   durationDiff,
   formatMatchSummary,
   formatPlan,
+  formatPushResults,
   formatSongResult,
   formatUnassigned
 } = require('./sync.js');
@@ -216,6 +217,35 @@ describe('Sync Output', () => {
         expect(row('to auto-accept')).to.include(bold).and.include('496');
         expect(row('already tagged')).to.not.include(bold);
         expect(row('not found ')).to.not.equal(stripAnsi(row('not found ')));
+      } finally {
+        chalk.level = originalLevel;
+      }
+    });
+  });
+
+  describe('formatPushResults', () => {
+    const results = [
+      { id: 'liked', name: 'Liked Songs', added: 241, removed: 0 },
+      { id: 'p1', name: '[Rock] Pop-Rock', added: 0, removed: 0 },
+      { id: 'p2', name: 'Study', added: 232, removed: 3 }
+    ];
+
+    it('should list the targets that changed and a total', () => {
+      expect(stripAnsi(formatPushResults(results)).split('\n')).to.deep.equal([
+        'Target        Added   Removed',
+        'Liked Songs     241         0',
+        'Study           232         3',
+        'Total           473         3'
+      ]);
+    });
+
+    it('should bold the totals', () => {
+      const originalLevel = chalk.level;
+      chalk.level = 1;
+      try {
+        const total = formatPushResults(results).split('\n')[3];
+        expect(total).to.include('\u001b[1m');
+        expect(stripAnsi(total)).to.match(/^Total/);
       } finally {
         chalk.level = originalLevel;
       }

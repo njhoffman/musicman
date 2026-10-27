@@ -6,6 +6,17 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `sync --push` shows progress bars while it saves the Spotify snapshot and while it adds and removes tracks,
+  then a table of tracks added and removed per playlist with a total. `--verbose` also lists every song added
+  or removed.
+
+### Fixed
+
+- The sync plan table header is no longer shifted right of its columns: the log badge now goes on a
+  "Sync plan" title line above the table.
+
 ## [1.25.1] - 2026-10-27
 
 ### Fixed

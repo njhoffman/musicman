@@ -99,4 +99,19 @@ describe('Sync Push', () => {
       { ids: ['rejected-1', 'prune-1'] }
     ]);
   });
+
+  it('should report progress across targets after each request', async () => {
+    const progress = [];
+    await pushPlan(
+      recordingClient(),
+      [target('liked', ids('l', 60)), target('playlist1', ids('p', 30), ['gone'])],
+      { prune: true, onProgress: report => progress.push(report) }
+    );
+    expect(progress).to.deep.equal([
+      { done: 50, total: 91, target: 'liked' },
+      { done: 60, total: 91, target: 'liked' },
+      { done: 90, total: 91, target: 'playlist1' },
+      { done: 91, total: 91, target: 'playlist1' }
+    ]);
+  });
 });

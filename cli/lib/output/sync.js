@@ -235,8 +235,38 @@ const formatMatchSummary = (
   return `${title}\n${_.map(table.split('\n'), line => `  ${line.trimEnd()}`).join('\n')}`;
 };
 
+/**
+ * The sync --push results (pushPlan) as a table of the targets that changed, tracks added and removed,
+ * with a total row; zeros dimmed and the totals bold.
+ */
+const formatPushResults = results => {
+  const changed = _.filter(results, ({ added, removed }) => added + removed > 0);
+  const rows = [
+    ..._.map(changed, ({ name, added, removed }) => [name, String(added), String(removed)]),
+    ['Total', String(_.sumBy(changed, 'added')), String(_.sumBy(changed, 'removed'))]
+  ];
+  const last = rows.length - 1;
+  const count = (cell, i) => {
+    if (cell === '0') {
+      return dim(cell);
+    }
+    return i === last ? highlight(cell) : cell;
+  };
+  return renderColumns({
+    head: ['Target', 'Added', 'Removed'],
+    rows,
+    splitter: '   ',
+    columns: [
+      { maxWidth: 40, format: (cell, i) => (i === last ? chalk.bold(cell) : cell) },
+      { align: 'right', format: count },
+      { align: 'right', format: count }
+    ]
+  });
+};
+
 module.exports = {
   durationDiff,
+  formatPushResults,
   formatMatchSummary,
   formatPlan,
   formatSongResult,

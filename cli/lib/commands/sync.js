@@ -40,6 +40,7 @@ const { formatWait, progressBar } = require('../output/progress.js');
 const {
   formatMatchSummary,
   formatPlan,
+  formatPushResults,
   formatSongResult,
   formatUnassigned,
   highlight,
@@ -107,8 +108,22 @@ const showStatus = async ({ credentials, file, fetchImpl, env, config }) => {
 // refresh the cache of Liked Songs and mapped playlists, then report what sync would change
 const confirmPrompt = message => new Confirm({ message }).run();
 
+// every track a push added or removed, per target, by its local file when it has one
+const listPushed = (config, plan, prune) =>
+  _.each(plan, target => {
+    const label = ({ file, name, artists }) =>
+      file ? path.relative(config.mpd.baseDirectory, file) : `${artists} - ${name}`;
+    _.each(_.uniqBy(target.add, 'trackId'), song =>
+      logger.info(`${chalk.hex('#55CC55')('ADD    ')} ${target.name}: ${label(song)}`)
+    );
+    _.each(
+      _.uniqBy([...(target.reject || []), ...(prune ? target.prune : [])], 'track_id'),
+      track => logger.info(`${chalk.hex('#DD7744')('REMOVE ')} ${target.name}: ${label(track)}`)
+    );
+  });
+
 // apply the plan after confirming, then refresh the cache of the targets that changed
-const runPush = async ({ db, client, config, plan, prune, dryRun, confirm }) => {
+const runPush = async ({ db, client, config, plan, prune, dryRun, confirm, verbose = false }) => {
   const total = key => _.sumBy(plan, target => (target[key] || []).length);
   const adds = total('add');
   const rejects = total('reject');
@@ -131,20 +146,54 @@ const runPush = async ({ db, client, config, plan, prune, dryRun, confirm }) => 
     return [];
   }
   // what Spotify had before the push, to restore from if a push goes wrong
-  const snapshot = await saveSnapshot(client, config);
+  const lists = 1 + _.uniq(_.map(playlistTargets(config), 'id')).length;
+  const savingStarted = new Date();
+  let saved = 0;
+  const snapshot = await saveSnapshot(client, config, {
+    onTarget: () => {
+      saved += 1;
+      logger.progress(
+        progressBar({
+          done: saved,
+          total: lists,
+          startedAt: savingStarted,
+          label: 'Saving Spotify',
+          unit: 'lists'
+        })
+      );
+    }
+  });
+  logger.progressDone();
   recordSpotifySnapshot(snapshot.file);
   logger.info(`Saved Liked Songs and playlists as they were to ${snapshot.file}`);
+  const pushStarted = new Date();
   const results = await pushPlan(client, plan, {
     prune,
-    onTarget: ({ name, added, removed }) =>
-      (added || removed) &&
-      logger.info(`${name}: added ${added}${removed ? `, removed ${removed}` : ''}`)
+    onProgress: ({ done, total, target }) =>
+      logger.progress(
+        progressBar({
+          done,
+          total,
+          startedAt: pushStarted,
+          label: 'Pushing',
+          unit: 'tracks',
+          detail: target
+        })
+      )
   });
+  logger.progressDone();
+  if (verbose) {
+    listPushed(config, plan, prune);
+  }
+  logger.info(`Pushed to Spotify\n${indented(formatPushResults(results))}`);
   const changed = _.map(
     _.filter(results, ({ added, removed }) => added || removed),
     'id'
   );
-  await refreshCache(db, client, _.without(changed, 'liked'));
+  await refreshCache(db, client, _.without(changed, 'liked'), {
+    onTarget: (id, status) => logger.progress(`Refreshing the changed playlists: ${id} ${status}`)
+  });
+  logger.progressDone();
   return results;
 };
 
@@ -217,6 +266,9 @@ const runPull = async ({ config, plan, dryRun, confirm }) => {
   return { manifest, file, membership };
 };
 
+// a table logged under a title line: the title takes the log badge, the table lines are indented below
+const indented = table => _.map(table.split('\n'), line => `  ${line}`).join('\n');
+
 const planColumns = [
   ['target', 'Target', target => target.name],
   ['spotify', 'Spotify', target => target.remote],
@@ -248,7 +300,7 @@ const outputPlan = (plan, { config, switches, highlighted = [] }) => {
         } -${record.spotifyRemoved}, pull ${record.pull}`
     });
   } else {
-    logger.info(`\n${formatPlan(plan, planColumns, highlighted)}`);
+    logger.info(`Sync plan\n${indented(formatPlan(plan, planColumns, highlighted))}`);
   }
   const total = key => {
     const count = _.sumBy(plan, target => target[key].length);
@@ -294,7 +346,16 @@ const runPlan = async ({
     ];
     outputPlan(plan, { config, switches, highlighted });
     const pushed = push
-      ? await runPush({ db, client, config, plan, prune, dryRun, confirm })
+      ? await runPush({
+          db,
+          client,
+          config,
+          plan,
+          prune,
+          dryRun,
+          confirm,
+          verbose: Boolean(switches.verbose)
+        })
       : undefined;
     const pulled = pull ? await runPull({ config, plan, dryRun, confirm }) : undefined;
     // what Spotify and the tags agree on now is the state the next sync compares with
