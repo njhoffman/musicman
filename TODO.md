@@ -153,9 +153,12 @@ OVERDUE flag. Feature specs live in `docs/`.
       database backup of 2026-10-20 21:19 (run `20261026-174457-repair`, undoable, database copy in
       `.musicman/musicman-before-frame-repair-20261026.sqlite`), and the 56 `spotify_synced` rows still marking
       them in sync were cleared, so they show as +Spotify for `sync --pull` instead of prune.
-- [ ] **Run `sync --pull` for the repaired tags.** (p1) [chore] the dry run on 2026-10-26 tags 105 files
-      (+303 across the context and picks playlists, Hot +83, Spicy +63) and lists 9 changes to decide; `push`
-      then has 122 songs to add (44 in Study) that the restore put back in playlists they were in before.
+- [x] **Run `sync --pull` for the repaired tags.** (p1) [chore] done 2026-10-26: the pull tagged the files,
+      `push` added 122 (Study 44, Nick's Picks 77, Relax 1), then `sync --backup`.
+- [ ] **Decide the 9 Spotify changes `sync --pull` left.** (p2) [chore] 7 songs added on Spotify to a
+      grouping playlist their local grouping does not match (5 to [Rock] Alternative-Metal, 1 to [Rock]
+      Indie-Rock, 1 to [Rap] Rap-R&B) and My Morning Jacket - Rocket Man removed from Liked Songs and
+      [Rock] Folk-Rock: change the local grouping/rating, or undo it on Spotify.
 - [ ] **Verify `sync --push --prune` and its undo** (p2) [test] no push has removed anything yet, so the remove
       endpoints, the snapshot before them, and `musicman undo` putting tracks back at their old position have only
       run in tests. Nothing is left to prune after the repair; test it with a deliberate removal.
