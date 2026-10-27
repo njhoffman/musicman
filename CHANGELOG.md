@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- The `sync --backup` summary is a table: per action (copy, update, rename, hold, move) its count, size, and
+  what it means, counts right aligned, zeros dimmed, and the actions with files in their list color. The file
+  lists show each file's size.
+
 ## [1.26.0] - 2026-10-27
 
 ### Added

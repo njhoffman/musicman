@@ -4,6 +4,7 @@ const { stripAnsi } = require('../utils/logger.js');
 const chalk = require('chalk').default;
 const {
   durationDiff,
+  formatBackupSummary,
   formatMatchSummary,
   formatPlan,
   formatPushResults,
@@ -249,6 +250,41 @@ describe('Sync Output', () => {
       } finally {
         chalk.level = originalLevel;
       }
+    });
+  });
+
+  describe('formatBackupSummary', () => {
+    const mb = 1024 ** 2;
+    const plan = {
+      copy: [{ path: 'a.mp3', size: 3 * mb }],
+      update: [
+        { path: 'b.mp3', size: 2 * mb },
+        { path: 'c.mp3', size: 5 * mb }
+      ],
+      rename: [{ from: 'x', to: 'X' }],
+      held: [],
+      remove: [],
+      unchanged: 6836
+    };
+
+    it('should align counts and sizes per action, with a dry run title', () => {
+      expect(
+        stripAnsi(
+          formatBackupSummary(plan, {
+            directory: '/mnt/backup',
+            dryRun: true,
+            removedFolder: '.musicman-removed'
+          })
+        ).split('\n')
+      ).to.deep.equal([
+        'Backup to /mnt/backup (dry run, nothing changed)',
+        '  copy           1   3 MB   new in the library',
+        '  update         2   7 MB   changed since the last backup',
+        "  rename         1          capitalization differs from the library's",
+        '  hold           0          the backup copy has frames the library copy lacks (--force copies anyway)',
+        '  move           0          only in the backup, moved to .musicman-removed/',
+        '  unchanged   6836'
+      ]);
     });
   });
 });

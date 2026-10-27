@@ -38,9 +38,12 @@ const {
 const { unsortedFolder } = require('../beets/sort.js');
 const { formatWait, progressBar } = require('../output/progress.js');
 const {
+  backupColors,
+  formatBackupSummary,
   formatMatchSummary,
   formatPlan,
   formatPushResults,
+  formatSize,
   formatSongResult,
   formatUnassigned,
   highlight,
@@ -643,13 +646,13 @@ const runImport = async ({ credentials, fetchImpl, config, dryRun, confirm }) =>
   }
 };
 
-const formatSize = bytes =>
-  bytes >= 1024 ** 3
-    ? `${(bytes / 1024 ** 3).toFixed(1)} GB`
-    : `${Math.max(1, Math.round(bytes / 1024 ** 2))} MB`;
-
 // a few files of a backup plan category on the terminal, every one in the log
-const listBackupFiles = (label, entries, color, describe = entry => entry.path) => {
+const listBackupFiles = (
+  label,
+  entries,
+  color,
+  describe = entry => `${entry.path} ${dim(formatSize(entry.size))}`
+) => {
   _.each(entries, entry => logger.logToFile('info', `${label} ${describe(entry)}`));
   const shown = _.take(entries, 15);
   _.each(shown, entry => logger.info(`${chalk.hex(color)(label.padEnd(7))} ${describe(entry)}`));
@@ -680,7 +683,7 @@ const runBackup = async ({ config, dryRun, force = false, confirm }) => {
     listBackupFiles(
       'FORCE',
       planned.held,
-      '#DDCC44',
+      backupColors.held,
       entry => `${entry.path} (backup loses ${entry.frames.join(', ')})`
     );
   }
@@ -696,33 +699,22 @@ const runBackup = async ({ config, dryRun, force = false, confirm }) => {
       backup: { plan: _.omit(plan, ['copy', 'update', 'remove', 'held', 'rename']), applied: null }
     };
   }
-  listBackupFiles('COPY', plan.copy, '#55CC55');
-  listBackupFiles('UPDATE', plan.update, '#55BBDD');
+  listBackupFiles('COPY', plan.copy, backupColors.copy);
+  listBackupFiles('UPDATE', plan.update, backupColors.update);
   listBackupFiles(
     'HOLD',
     plan.held,
-    '#DDCC44',
+    backupColors.held,
     entry => `${entry.path} (backup has ${entry.frames.join(', ')})`
   );
   listBackupFiles(
     'RENAME',
     plan.rename,
-    '#BB88DD',
+    backupColors.rename,
     ({ from, to }) => `${from} -> ${path.basename(to)}`
   );
-  listBackupFiles('MOVE', plan.remove, '#DD7744');
-  const size = entries => formatSize(_.sumBy(entries, 'size'));
-  logger.info(
-    [
-      `Backup to ${directory}${dryRun ? ' (dry run, nothing changed)' : ''}`,
-      `  copy (new): ${plan.copy.length} (${size(plan.copy)})`,
-      `  update (changed): ${plan.update.length} (${size(plan.update)})`,
-      `  unchanged: ${plan.unchanged}`,
-      `  renamed to the library's capitalization: ${plan.rename.length}`,
-      `  held back, the backup copy has frames the library copy lacks: ${plan.held.length}`,
-      `  only in the backup, moved to ${removedFolder}/: ${plan.remove.length}`
-    ].join('\n')
-  );
+  listBackupFiles('MOVE', plan.remove, backupColors.remove);
+  logger.info(formatBackupSummary(plan, { directory, dryRun, removedFolder }));
   const changes = plan.copy.length + plan.update.length + plan.remove.length + plan.rename.length;
   const summary = {
     ..._.omit(plan, ['copy', 'update', 'remove', 'held', 'rename']),

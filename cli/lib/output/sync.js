@@ -264,8 +264,70 @@ const formatPushResults = results => {
   });
 };
 
+const formatSize = bytes =>
+  bytes >= 1024 ** 3
+    ? `${(bytes / 1024 ** 3).toFixed(1)} GB`
+    : `${Math.max(1, Math.round(bytes / 1024 ** 2))} MB`;
+
+// colors of the sync --backup actions, in its file lists and summary
+const backupColors = {
+  copy: '#55CC55',
+  update: '#55BBDD',
+  rename: '#BB88DD',
+  held: '#DDCC44',
+  remove: '#DD7744'
+};
+
+/**
+ * The sync --backup plan summary (backupPlan): per action its count, size, and what it means, counts
+ * right aligned, zeros dimmed, and the actions that change something in their list color.
+ */
+const formatBackupSummary = (plan, { directory, dryRun = false, removedFolder }) => {
+  const actions = [
+    ['copy', 'copy', 'new in the library'],
+    ['update', 'update', 'changed since the last backup'],
+    ['rename', 'rename', "capitalization differs from the library's"],
+    ['held', 'hold', 'the backup copy has frames the library copy lacks (--force copies anyway)'],
+    ['remove', 'move', `only in the backup, moved to ${removedFolder}/`]
+  ];
+  const rows = [
+    ..._.map(actions, ([key, label, note]) => {
+      const entries = plan[key] || [];
+      const sized = key !== 'rename' && entries.length > 0;
+      return [
+        label,
+        String(entries.length),
+        sized ? formatSize(_.sumBy(entries, 'size')) : '',
+        note
+      ];
+    }),
+    ['unchanged', String(plan.unchanged), '', '']
+  ];
+  const keys = [..._.map(actions, 0), 'unchanged'];
+  const table = renderColumns({
+    rows,
+    splitter: '   ',
+    columns: [
+      {
+        format: (cell, i) =>
+          rows[i][1] !== '0' && backupColors[keys[i]]
+            ? chalk.hex(backupColors[keys[i]])(cell)
+            : cell
+      },
+      { align: 'right', format: cell => (cell === '0' ? dim(cell) : cell) },
+      { align: 'right', format: cell => dim(cell) },
+      { format: cell => dim(cell) }
+    ]
+  });
+  const title = `Backup to ${directory}${dryRun ? ' (dry run, nothing changed)' : ''}`;
+  return `${title}\n${_.map(table.split('\n'), line => `  ${line.trimEnd()}`).join('\n')}`;
+};
+
 module.exports = {
+  backupColors,
   durationDiff,
+  formatBackupSummary,
+  formatSize,
   formatPushResults,
   formatMatchSummary,
   formatPlan,
