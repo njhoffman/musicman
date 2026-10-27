@@ -155,10 +155,9 @@ OVERDUE flag. Feature specs live in `docs/`.
       them in sync were cleared, so they show as +Spotify for `sync --pull` instead of prune.
 - [x] **Run `sync --pull` for the repaired tags.** (p1) [chore] done 2026-10-26: the pull tagged the files,
       `push` added 122 (Study 44, Nick's Picks 77, Relax 1), then `sync --backup`.
-- [ ] **Decide the 9 Spotify changes `sync --pull` left.** (p2) [chore] 7 songs added on Spotify to a
-      grouping playlist their local grouping does not match (5 to [Rock] Alternative-Metal, 1 to [Rock]
-      Indie-Rock, 1 to [Rap] Rap-R&B) and My Morning Jacket - Rocket Man removed from Liked Songs and
-      [Rock] Folk-Rock: change the local grouping/rating, or undo it on Spotify.
+- [x] **Decide the 9 Spotify changes `sync --pull` left.** (p2) [chore] done 2026-10-26: the 7 songs were
+      removed from the grouping playlists that do not match (run `20261026-214605-sync`), and My Morning Jacket
+      - Rocket Man was deleted from the library.
 - [ ] **Verify `sync --push --prune` and its undo** (p2) [test] no push has removed anything yet, so the remove
       endpoints, the snapshot before them, and `musicman undo` putting tracks back at their old position have only
       run in tests. Nothing is left to prune after the repair; test it with a deliberate removal.
