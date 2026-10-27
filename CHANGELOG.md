@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.24.4] - 2026-10-26
+
 ### Fixed
 
 - `sync --backup` to an SMB (CIFS) share no longer copies the whole library on every run: the share
@@ -458,7 +460,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.24.3...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.24.4...HEAD
+[1.24.4]: https://github.com/njhoffman/musicman/compare/v1.24.3...v1.24.4
 [1.24.3]: https://github.com/njhoffman/musicman/compare/v1.24.2...v1.24.3
 [1.24.2]: https://github.com/njhoffman/musicman/compare/v1.24.1...v1.24.2
 [1.24.1]: https://github.com/njhoffman/musicman/compare/v1.24.0...v1.24.1
