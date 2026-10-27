@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.24.3] - 2026-10-26
+
 ### Changed
 
 - The sync plan table keeps each count clearly under its own header (right aligned, wider gutter), dims
@@ -449,7 +451,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.24.2...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.24.3...HEAD
+[1.24.3]: https://github.com/njhoffman/musicman/compare/v1.24.2...v1.24.3
 [1.24.2]: https://github.com/njhoffman/musicman/compare/v1.24.1...v1.24.2
 [1.24.1]: https://github.com/njhoffman/musicman/compare/v1.24.0...v1.24.1
 [1.24.0]: https://github.com/njhoffman/musicman/compare/v1.23.1...v1.24.0
