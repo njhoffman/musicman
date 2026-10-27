@@ -1,6 +1,7 @@
 const { expect } = require('chai');
 const { stripAnsi } = require('../utils/logger.js');
-const { durationDiff, formatSongResult, formatUnassigned } = require('./sync.js');
+const chalk = require('chalk').default;
+const { durationDiff, formatPlan, formatSongResult, formatUnassigned } = require('./sync.js');
 
 describe('Sync Output', () => {
   const item = {
@@ -113,5 +114,45 @@ describe('Sync Output', () => {
     expect(formatUnassigned({ 'track.a': 1, 'track.b': 3 })).to.equal(
       '  track.b (3 songs)\n  track.a (1 song)'
     );
+  });
+
+  describe('formatPlan', () => {
+    const columns = [
+      ['target', 'Target', target => target.name],
+      ['add', 'Add', target => target.add],
+      ['spotifyAdded', '+Spotify', target => target.spotifyAdded]
+    ];
+    const plan = [
+      { name: 'Study', add: 44, spotifyAdded: 0 },
+      { name: 'Liked Songs', add: 0, spotifyAdded: 3 }
+    ];
+    let originalLevel;
+
+    beforeEach(() => {
+      originalLevel = chalk.level;
+      chalk.level = 1;
+    });
+
+    afterEach(() => {
+      chalk.level = originalLevel;
+    });
+
+    it('should right align counts under their headers with a wide gutter', () => {
+      const lines = stripAnsi(formatPlan(plan, columns)).split('\n');
+      expect(lines[0].trimEnd()).to.equal('Target        Add   +Spotify');
+      expect(lines[1].trimEnd()).to.equal('Study          44          0');
+      expect(lines[2].trimEnd()).to.equal('Liked Songs     0          3');
+    });
+
+    it('should make the highlighted columns bold and dim zeros', () => {
+      const [head, study, liked] = formatPlan(plan, columns, ['add']).split('\n');
+      const bold = text => new RegExp(`\\u001b\\[1m[^ ]*${text}`);
+      expect(head).to.match(bold('Add'));
+      expect(head).to.not.match(bold('\\+Spotify'));
+      expect(study).to.match(bold('44'));
+      expect(liked).to.not.match(bold('3'));
+      expect(liked).to.not.match(bold('0'));
+      expect(study).to.not.equal(stripAnsi(study));
+    });
   });
 });

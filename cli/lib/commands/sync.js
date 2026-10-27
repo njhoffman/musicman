@@ -35,9 +35,14 @@ const {
   stopReviewPlayback
 } = require('../output/review.js');
 const { unsortedFolder } = require('../beets/sort.js');
-const { renderColumns } = require('../output/render.js');
 const { formatWait, progressBar } = require('../output/progress.js');
-const { formatSongResult, formatUnassigned, matchCounts } = require('../output/sync.js');
+const {
+  formatPlan,
+  formatSongResult,
+  formatUnassigned,
+  highlight,
+  matchCounts
+} = require('../output/sync.js');
 const { dim, emitFormatted } = require('../output/emit.js');
 const { outputFormat } = require('../output/formats.js');
 const { previewCommand } = require('../output/fzf.js');
@@ -223,7 +228,7 @@ const planColumns = [
   ['pull', 'Pull', target => target.pull.length]
 ];
 
-const outputPlan = (plan, { config, switches }) => {
+const outputPlan = (plan, { config, switches, highlighted = [] }) => {
   if (outputFormat(switches) !== 'default') {
     emitFormatted({
       switches,
@@ -241,13 +246,12 @@ const outputPlan = (plan, { config, switches }) => {
         } -${record.spotifyRemoved}, pull ${record.pull}`
     });
   } else {
-    const rows = _.map(plan, target => _.map(planColumns, ([, , value]) => String(value(target))));
-    const columns = [{ maxWidth: 40 }, ...Array(planColumns.length - 1).fill({ align: 'right' })];
-    logger.info(
-      `\n${renderColumns({ head: _.map(planColumns, 1), rows, columns, splitter: '  ' })}`
-    );
+    logger.info(`\n${formatPlan(plan, planColumns, highlighted)}`);
   }
-  const total = key => _.sumBy(plan, target => target[key].length);
+  const total = key => {
+    const count = _.sumBy(plan, target => target[key].length);
+    return highlighted.includes(key) ? highlight(count) : count;
+  };
   const scope = _.get(config, 'sync.scope');
   if (scope) {
     logger.info(`Only songs matching sync.scope (${scope}) are synced`);
@@ -281,7 +285,12 @@ const runPlan = async ({
     });
     logger.progressDone();
     const plan = syncPlan(db, config, songTargets(await librarySongs(config), config));
-    outputPlan(plan, { config, switches });
+    // the counts the command acts on stand out in the plan
+    const highlighted = [
+      ...(push ? ['add', ...(prune ? ['prune'] : [])] : []),
+      ...(pull ? ['spotifyAdded', 'spotifyRemoved', 'pull'] : [])
+    ];
+    outputPlan(plan, { config, switches, highlighted });
     const pushed = push
       ? await runPush({ db, client, config, plan, prune, dryRun, confirm })
       : undefined;

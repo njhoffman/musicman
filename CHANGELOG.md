@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- The sync plan table keeps each count clearly under its own header (right aligned, wider gutter), dims
+  zeros, and puts the counts the command acts on in bold: Add for `--push` (and Prune with `--prune`),
+  +Spotify, -Spotify and Pull for `--pull`, in the table and the totals line.
+
 ## [1.24.2] - 2026-10-26
 
 ### Fixed

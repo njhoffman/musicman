@@ -3,6 +3,7 @@ const chalk = require('chalk').default;
 
 const { availableWidth, stripAnsi } = require('../utils/logger.js');
 const { coloredCounts } = require('./progress.js');
+const { renderColumns } = require('./render.js');
 
 const statusColors = {
   match: '#55CC55',
@@ -144,4 +145,37 @@ const matchCounts = ({ match, refresh, review, missing, failed }) =>
     [failed, 'failed', statusColors.failed]
   ]);
 
-module.exports = { durationDiff, formatSongResult, formatUnassigned, matchCounts, statusColors };
+const highlight = text => chalk.bold(key(text));
+
+/**
+ * The sync plan table, one row per target from columns ([key, header, value(target)]). Counts are right
+ * aligned under their headers with a wide gutter, zeros are dimmed, and the columns whose keys are in
+ * highlighted (what the command acts on, e.g. add for --push) are bold.
+ */
+const formatPlan = (plan, columns, highlighted = []) =>
+  renderColumns({
+    head: _.map(columns, 1),
+    rows: _.map(plan, target => _.map(columns, ([, , value]) => String(value(target)))),
+    splitter: '   ',
+    columns: _.map(columns, ([name], i) => {
+      if (i === 0) {
+        return { maxWidth: 40 };
+      }
+      const strong = highlighted.includes(name);
+      return {
+        align: 'right',
+        formatHeader: header => (strong ? highlight(header) : header),
+        format: cell => (cell === '0' ? dim(cell) : strong ? highlight(cell) : cell)
+      };
+    })
+  });
+
+module.exports = {
+  durationDiff,
+  formatPlan,
+  formatSongResult,
+  formatUnassigned,
+  highlight,
+  matchCounts,
+  statusColors
+};
