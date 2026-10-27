@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.26.0] - 2026-10-27
+
 ### Added
 
 - `sync --push` shows progress bars while it saves the Spotify snapshot and while it adds and removes tracks,
@@ -493,7 +495,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.25.1...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.26.0...HEAD
+[1.26.0]: https://github.com/njhoffman/musicman/compare/v1.25.1...v1.26.0
 [1.25.1]: https://github.com/njhoffman/musicman/compare/v1.25.0...v1.25.1
 [1.25.0]: https://github.com/njhoffman/musicman/compare/v1.24.4...v1.25.0
 [1.24.4]: https://github.com/njhoffman/musicman/compare/v1.24.3...v1.24.4
