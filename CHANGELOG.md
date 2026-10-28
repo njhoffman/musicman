@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- `--include=<fields>`, `--exclude=<fields>` and `--write=<name>` work like `-i`, `-x` and `-w`; before, the
+  `=` form was not read as a switch. `--help` shows their value.
+
 ## [1.27.0] - 2026-10-27
 
 ### Added

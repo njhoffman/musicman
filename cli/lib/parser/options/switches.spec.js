@@ -8,6 +8,18 @@ describe('Switch Parsing', () => {
     expect(parseSwitches(['-o', 'html']).switches).to.deep.equal({ format: 'html' });
   });
 
+  it('should read --name=value for include, exclude, and write', () => {
+    expect(parseSwitches(['--include=artist,title']).switches).to.deep.equal({
+      include: ['artist', 'title']
+    });
+    expect(parseSwitches(['--exclude=album artist']).switches).to.deep.equal({
+      exclude: ['album artist']
+    });
+    const { remaining, switches } = parseSwitches(['--write=Folder/Party', 'rating:4']);
+    expect(switches).to.deep.equal({ write: 'Folder/Party' });
+    expect(remaining).to.deep.equal(['rating:4']);
+  });
+
   it('should leave the value out of the remaining arguments', () => {
     const { remaining, switches } = parseSwitches([
       'rating:4',

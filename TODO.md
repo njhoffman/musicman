@@ -40,6 +40,8 @@ OVERDUE flag. Feature specs live in `docs/`.
 - [ ] **Clean up duplicate TXXX fields.** (p2) [chore] `stats` shows case and spelling variants of the same field
       (`Comment`/`COMMENT`, `ALBUMARTISTS`/`ALBUM_ARTISTS`, `ARTISTS`/`Artists`) from different taggers.
       Decide which to keep and consolidate them, possibly through beets.
+- [x] **`--include=`, `--exclude=` and `--write=` are not parsed.** (p2) [bug] Only switches with a `value`
+      key expand `--name=value`, and only `format` had one; `include`, `exclude` and `write` now do.
 
 ## Tooling
 

@@ -12,6 +12,7 @@ module.exports = {
   include: {
     description: 'Only show these comma-separated field names in output',
     alias: '-i',
+    value: 'fields',
     examples: ['-i artist,title', '-i "artist,album type"'],
     func: (used, optionList, i) => {
       used.push(optionList[i + 1]);
@@ -21,6 +22,7 @@ module.exports = {
   exclude: {
     description: 'Field names to omit from output',
     alias: '-x',
+    value: 'fields',
     examples: ['-x album', '-x "Album Artist"'],
     func: (used, optionList, i) => {
       used.push(optionList[i + 1]);
@@ -30,6 +32,7 @@ module.exports = {
   write: {
     description: 'File name/path of the playlist to write',
     alias: '-w',
+    value: 'name',
     examples: ['-w party', '-w "Folder Name/Party Songs"'],
     func: (used, optionList, i) => {
       used.push(optionList[i + 1]);
