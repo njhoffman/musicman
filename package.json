@@ -1,6 +1,6 @@
 {
   "name": "musicman",
-  "version": "1.27.0",
+  "version": "1.27.1",
   "description": "Music Manager",
   "main": "index.js",
   "scripts": {
