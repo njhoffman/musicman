@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.28.0] - 2026-10-27
+
 ### Added
 
 - `musicman completion zsh` prints a zsh completion script: commands, each command's switches and aliases,
@@ -531,7 +533,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.27.1...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.28.0...HEAD
+[1.28.0]: https://github.com/njhoffman/musicman/compare/v1.27.1...v1.28.0
 [1.27.1]: https://github.com/njhoffman/musicman/compare/v1.27.0...v1.27.1
 [1.27.0]: https://github.com/njhoffman/musicman/compare/v1.26.1...v1.27.0
 [1.26.1]: https://github.com/njhoffman/musicman/compare/v1.26.0...v1.26.1
