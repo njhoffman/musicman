@@ -39,6 +39,7 @@ module.exports = {
   description: 'Write the files matching filters to an MPD playlist',
   usage: 'musicman playlist [target] [field:value ...] [-w name]',
   switches: ['recursive', 'norecursive', 'write', 'files'],
+  completes: ['paths', 'filters'],
   func: playlistCommand,
   // without a target the whole library is searched
   defaultTarget: baseDirectory => baseDirectory,

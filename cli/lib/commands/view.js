@@ -46,6 +46,7 @@ module.exports = {
   description: 'Show tags of files: a table for several files, a list for one',
   usage: 'musicman [view] [target] [field:value ...]',
   switches: ['recursive', 'norecursive', 'include', 'exclude', 'files', 'format', 'fzf'],
+  completes: ['paths', 'filters'],
   func: viewCommand,
   // without a target (and no song playing) the whole library is shown
   defaultTarget: baseDirectory => baseDirectory

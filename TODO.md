@@ -42,6 +42,10 @@ OVERDUE flag. Feature specs live in `docs/`.
       Decide which to keep and consolidate them, possibly through beets.
 - [x] **`--include=`, `--exclude=` and `--write=` are not parsed.** (p2) [bug] Only switches with a `value`
       key expand `--name=value`, and only `format` had one; `include`, `exclude` and `write` now do.
+- [ ] **`-i`/`--include` and `-x`/`--exclude` do nothing.** (p2) [bug] `switchMap.js` parses them into
+      `switches.include` and `switches.exclude`, but no command or formatter reads them, so
+      `musicman view -i artist,title` still shows every column. Apply them where the table and list columns
+      are chosen in `lib/output/`.
 
 ## Tooling
 
@@ -78,6 +82,14 @@ OVERDUE flag. Feature specs live in `docs/`.
 
 ## Features
 
+- [ ] **Complete tag values and run ids in zsh.** (p3) [feature] `lib/completion/zsh.js` stops after `field:` and
+      `field=`, and offers only `latest` for `undo` and `logs`. Values from the library database and run ids
+      from `listRuns` need a fast hidden path (`musicman completion values <field>`) called at Tab time;
+      measure the node startup cost first.
+- [ ] **Unquoted `~field:` exclusions do not complete in zsh.** (p3) [feature] zsh sends a word that starts with an
+      unquoted `~` to the `-tilde-` context, so `_musicman` never runs; `\~mood:` and `'~mood:` complete.
+      A fix binds a `-tilde-` wrapper that calls `_musicman_fields` for musicman and `_tilde` otherwise,
+      which touches every command's tilde completion.
 - [ ] **Smarter terminal fitting** (p3) [feature] for the table view: shrink the widest columns instead of dropping the
       rightmost ones.
 - [ ] (p3) [feature] Honor `views.list.headers.visible` (currently ignored) and implement `views.table.seperators.horizontal`

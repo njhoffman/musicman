@@ -121,6 +121,7 @@ module.exports = {
   usage:
     'musicman search [field:value | field value | text ...] [--add | --play] [--format=<format> | --fzf]',
   switches: ['add', 'play', 'files', 'format', 'fzf'],
+  completes: ['filters'],
   func: searchCommand,
   defaultTarget,
   targetArgs: false,

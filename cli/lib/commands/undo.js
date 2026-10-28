@@ -173,6 +173,7 @@ module.exports = {
     'Undo the tag and Spotify changes of a recent run, or list the runs that can be undone',
   usage: 'musicman undo [--list | <run id | latest> [--dry-run] [--force]]',
   switches: ['list', 'dry-run', 'force'],
+  words: ['latest'],
   func: undoCommand,
   defaultTarget,
   targetArgs: false,

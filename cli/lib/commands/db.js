@@ -91,6 +91,7 @@ module.exports = {
   description: 'Show library database stats, update it from the files, or back it up',
   usage: 'musicman db [--update [target]] [--backup]',
   switches: ['update', 'backup'],
+  completes: ['paths'],
   func: dbCommand,
   archive: ({ update, backup }) => update || backup,
   defaultTarget

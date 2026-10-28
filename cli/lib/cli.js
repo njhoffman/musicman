@@ -4,6 +4,7 @@ const { loadConfig } = require('musicman-common/config');
 const commandParser = require('./parser/index.js');
 const { getAvailableSong } = require('./clients/mpd.js');
 const { helpOutput } = require('./help.js');
+const { completionOutput } = require('./completion/index.js');
 const parseSwitches = require('./parser/options/switches.js');
 const { outputFormat } = require('./output/formats.js');
 const logger = require('./utils/logger.js');
@@ -19,6 +20,22 @@ const run = async args => {
   const help = helpOutput(args, version);
   if (help !== null) {
     process.stdout.write(`${help}\n`);
+    return;
+  }
+  // completion scripts too, the field names come from the config when it exists
+  let completion;
+  try {
+    completion = completionOutput(args, {
+      version,
+      fields: () => loadConfig().library.tags.map(({ name }) => name)
+    });
+  } catch (err) {
+    logger.error(err.message);
+    process.exitCode = 1;
+    return;
+  }
+  if (completion !== null) {
+    process.stdout.write(completion);
     return;
   }
 

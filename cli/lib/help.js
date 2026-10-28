@@ -2,12 +2,8 @@ const _ = require('lodash');
 
 const commands = require('./commands/index.js');
 const switchMap = require('./parser/options/switchMap.js');
-
-// handled before the config loads, so they work without a config
-const globalSwitches = {
-  help: { alias: '-h', description: 'Show help, for a command with musicman <command> --help' },
-  version: { alias: '-V', description: 'Show the musicman version' }
-};
+const globalSwitches = require('./parser/options/globalSwitches.js');
+const { completionCommand } = require('./completion/index.js');
 
 const helpArgs = ['--help', '-h'];
 const versionArgs = ['--version', '-V'];
@@ -33,7 +29,9 @@ const generalHelp = version =>
     'Usage: musicman [command] [target] [field:value ...] [field=value ...] [switches]',
     '',
     'Commands (view when none is given):',
-    columns(_.map(commands, ({ name, description }) => [name, description])),
+    columns(
+      _.map([...commands, completionCommand], ({ name, description }) => [name, description])
+    ),
     '',
     'Filters and assignments:',
     columns([
@@ -74,7 +72,7 @@ const helpOutput = (args, version) => {
   if (!_.some(args, arg => helpArgs.includes(arg))) {
     return null;
   }
-  const command = _.find(commands, { name: args[0] });
+  const command = _.find([...commands, completionCommand], { name: args[0] });
   return command ? commandHelp(command) : generalHelp(version);
 };
 

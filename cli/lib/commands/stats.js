@@ -103,6 +103,7 @@ module.exports = {
   description: 'Count values, ratings, and populated tags across files',
   usage: 'musicman stats [target] [field:value ...]',
   switches: ['recursive', 'norecursive', 'files', 'format', 'fzf'],
+  completes: ['paths', 'filters'],
   func: statsCommand,
   defaultTarget: baseDirectory => baseDirectory
 };

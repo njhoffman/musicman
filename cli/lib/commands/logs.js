@@ -86,6 +86,8 @@ module.exports = {
   description: 'List archived runs of commands that changed something, or show one run and its log',
   usage: 'musicman logs [command | run id | latest] [--format=<format> | --fzf]',
   switches: ['format', 'fzf'],
+  completes: ['commands'],
+  words: ['latest'],
   func: logsCommand,
   defaultTarget,
   targetArgs: false

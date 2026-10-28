@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman completion zsh` prints a zsh completion script: commands, each command's switches and aliases,
+  `--format` values, field names for `field:value`, `~field:value`, `field=value`, and `-i`/`-x` lists,
+  paths, and `latest` for `undo` and `logs`. Field names are those of `library.tags` when the script is
+  generated. Install it as `_musicman` in a directory on `$fpath`, or `source <(musicman completion zsh)`.
+  Completion needs `musicman` to be a function or an executable, not an alias.
+
 ## [1.27.1] - 2026-10-27
 
 ### Fixed
