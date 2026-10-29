@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.28.1] - 2026-10-28
+
 ### Fixed
 
 - Rating filters compare ratings as numbers, so `rating:4-4` and `rating:3.5-4` include songs rated 4.0;
@@ -538,7 +540,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.28.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.28.1...HEAD
+[1.28.1]: https://github.com/njhoffman/musicman/compare/v1.28.0...v1.28.1
 [1.28.0]: https://github.com/njhoffman/musicman/compare/v1.27.1...v1.28.0
 [1.27.1]: https://github.com/njhoffman/musicman/compare/v1.27.0...v1.27.1
 [1.27.0]: https://github.com/njhoffman/musicman/compare/v1.26.1...v1.27.0
