@@ -19,6 +19,7 @@ const {
   trackIdName
 } = require('../spotify/fields.js');
 const { artistImageDirectory, cacheArtistImages } = require('../spotify/images.js');
+const { ignoredTracks } = require('./targets.js');
 const { transaction } = require('../db/database.js');
 const { updateDatabase } = require('../db/update.js');
 const { rewriteTags, updateTags } = require('../metadata/write.js');
@@ -207,6 +208,8 @@ const matchSongs = async ({
   const unassigned = {};
   const artistImages = { saved: [], failed: [] };
   const items = [];
+  // tracks in sync.ignorePlaylist are never matched, like tracks rejected in review
+  const ignored = ignoredTracks(db, config);
   _.each(songs, ({ file, targets }) => {
     if (targets.length === 0) {
       return;
@@ -306,7 +309,7 @@ const matchSongs = async ({
               client,
               song: item.song,
               beetsId: beetsIds.get(item.file),
-              rejected: item.rejected
+              rejected: new Set([...item.rejected, ...ignored])
             }))
           };
         } catch (err) {

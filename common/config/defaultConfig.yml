@@ -126,6 +126,9 @@ sync:
   #   - filter: grouping:AlternativeMetal.Artists
   #     playlist: https://open.spotify.com/playlist/5MUDXMSHkjbA2CIYXjj1Vz
   playlists: []
+  # Spotify playlist of tracks to leave alone (the menu's ignore button adds to it): sync never lists them to
+  # pull or download, and never matches a song to them. Not a sync target, nothing is pushed to it.
+  ignorePlaylist:
   # Songs to add to Spotify through the desktop app, defaults to .musicman/upload in mpd.baseDirectory
   uploadDirectory:
   # spotDL downloads, defaults to .musicman/download in mpd.baseDirectory
@@ -146,6 +149,24 @@ backup:
   - musicman.sqlite*
   - .musicman/download/**
   - .musicman/upload/**
+
+# rofi menu for the playing song (musicman menu), for MPD and Spotify
+menu:
+  # rofi theme, defaults to the musicman panel theme in cli/share/rofi
+  theme:
+  # More rofi arguments, e.g. [-theme-str, 'window { width: 900px; }']
+  rofiArgs: []
+  # Buttons that tag the playing song: filter is one field:value (view/search syntax), label its caption,
+  # key the key that presses it, icon an optional glyph. MPD songs and Spotify songs in the library get
+  # the tag (Spotify ones are pushed right away); other Spotify songs are added to the sync.playlists
+  # entry with the same filter.
+  #   - label: Study
+  #     filter: context:Study
+  #     key: a
+  buttons: []
+  # Rating buttons, keys 1, 2, 3, ... in order; Spotify songs not in the library go to the sync.playlists
+  # entry for that exact rating, e.g. rating:4.5-4.5
+  ratings: [4, 4.5, 5]
 
 # Notification daemon settings for desktop notifications
 daemon:

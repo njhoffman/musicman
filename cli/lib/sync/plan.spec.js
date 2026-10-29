@@ -117,6 +117,17 @@ describe('Sync Cache and Plan', () => {
     };
     const ids = (list, key) => list.map(item => item[key]);
 
+    it('should leave sync.ignorePlaylist out of the targets and its tracks out of pull', () => {
+      const ignoreId = 'IgnorePlaylist00000000';
+      db.prepare("INSERT INTO spotify_playlists (id, name) VALUES (?, 'Ignore')").run(ignoreId);
+      db.prepare(
+        "INSERT INTO spotify_playlist_tracks (playlist_id, track_id, is_local) VALUES (?, 'elsewhere', 0)"
+      ).run(ignoreId);
+      const plan = syncPlan(db, { ...config, sync: { ignorePlaylist: ignoreId } }, songs);
+      expect(plan.map(target => target.id)).to.deep.equal(['liked']);
+      expect(plan[0].pull).to.be.empty;
+    });
+
     it('should report songs to add, without ids, and to pull', () => {
       const [liked] = syncPlan(db, config, songs);
       expect(liked).to.include({ name: 'Liked Songs', remote: 4, local: 4 });

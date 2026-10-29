@@ -54,7 +54,17 @@ const configSchema = {
       downloadDirectory: { type: 'string', required: false },
       spotdlCommand: { type: 'string', required: false },
       beetsConfig: { type: 'string', required: false },
-      autoAcceptPercent: { type: 'number', min: 0, max: 100, required: false }
+      autoAcceptPercent: { type: 'number', min: 0, max: 100, required: false },
+      ignorePlaylist: { type: 'string', required: false }
+    }
+  },
+  menu: {
+    type: 'object',
+    properties: {
+      theme: { type: 'string', required: false },
+      rofiArgs: { type: 'array', required: false },
+      buttons: { type: 'array', required: false },
+      ratings: { type: 'array', required: false }
     }
   },
   spotify: {

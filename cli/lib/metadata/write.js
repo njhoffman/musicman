@@ -167,4 +167,4 @@ const writeFiles = config => files => {
   return _.chain(files).map(prepareId3Tags(config)).map(writeFile).value();
 };
 
-module.exports = { mergeAssignments, rewriteTags, updateTags, writeFiles };
+module.exports = { mergeAssignments, prepareRating, rewriteTags, updateTags, writeFiles };

@@ -291,12 +291,20 @@ OVERDUE flag. Feature specs live in `docs/`.
       `user-modify-playback-state` and `user-read-playback-state` scopes and a new login).
 - [ ] **`status` command:** (p2) [feature] show the active player (MPD or Spotify), the playing song with its rating and
       tags, and the playlist or queue it is playing from.
-- [ ] **Like or ignore the Spotify song that is playing:** (p2) [feature] save it to Liked Songs, or add it to an "always
-      ignore" playlist set in a new config option (e.g. `sync.ignorePlaylist`), which sync then leaves alone: never
-      pulled, matched, or downloaded.
-- [ ] **rofi menu for the playing song:** (p2) [feature] a rofi interface that, when Spotify is playing, adds the song to
-      any mapped playlist, Liked Songs, or the ignore playlist, and when MPD is playing, sets the rating, grouping,
-      context, mood, and picks (writing tags like `edit`).
+- [x] **Like or ignore the Spotify song that is playing:** (p2) [feature] `musicman menu` likes Spotify songs not in
+      the library and adds them to `sync.ignorePlaylist`, which sync never pulls, matches, or downloads.
+- [x] **rofi menu for the playing song:** (p2) [feature] `musicman menu` (`docs/07-menu.md`): playback controls for
+      MPD and Spotify, tag and rating buttons from `menu.buttons` and `menu.ratings`.
+- [ ] **Menu: grouping buttons.** (p3) [feature] `menu.buttons` only takes one value of a multi value field
+      (context, mood, picks); grouping is single valued, so setting it would need a picker submenu.
+- [ ] **Menu: redraw when the song changes.** (p3) [feature] the menu shows the song as it was when drawn; a song that
+      ends while it is open stays shown until the next press. rofi has no timer, so this would need closing and
+      reopening it from a player event (MPD idle, MPRIS PropertiesChanged).
+- [ ] **Menu: control Spotify on other devices.** (p3) [feature] playback goes through MPRIS, so only the desktop app;
+      a Web API fallback (needs `user-modify-playback-state` and a new login) would cover the phone and speakers.
+- [ ] **Menu: Liked Songs state comes from the cache.** (p3) [bug] the like button of a Spotify song not in the library
+      is highlighted from the cached Liked Songs, refreshed by sync runs; a song liked in the app since shows as not
+      liked until then. Pressing like again is harmless (saving is idempotent), but undo would then remove it.
 - [ ] **Own song change notifications:** (p2) [feature] replace the mpDris2 notifications (unreliable now) by extending
       `lib/notify-daemon.js`: show the source (Spotify or MPD), the rating when there is one, context and mood labels,
       and the album cover. Follows the testability refactor above.

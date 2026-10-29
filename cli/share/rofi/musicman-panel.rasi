@@ -1,0 +1,119 @@
+/*
+ * musicman menu: the source and song in the title, the cover beside the song's details and the menu's
+ * status (player, state, volume, whether the song is in the library), and a grid of buttons. musicman
+ * sets the cover, the status, the accent color (Spotify green or MPD amber) and the grid size per menu
+ * with -theme-str. Override anything through menu.rofiArgs, or replace the theme with menu.theme.
+ */
+
+configuration {
+    show-icons: false;
+}
+
+* {
+    background:     #1e222a;
+    background-alt: #2a2f3a;
+    foreground:     #c8ccd4;
+    muted:          #7f8796;
+    accent:         #61afef;
+    active:         #98c379;
+    urgent:         #e06c75;
+    font:           "FiraCode Nerd Font 10";
+    background-color: transparent;
+    text-color:       @foreground;
+}
+
+window {
+    location:         center;
+    anchor:           center;
+    width:            900px;
+    border:           2px solid;
+    border-color:     @accent;
+    border-radius:    12px;
+    background-color: @background;
+}
+
+mainbox {
+    orientation: vertical;
+    children:    [ "inputbar", "info", "listview" ];
+    padding:     16px;
+    spacing:     12px;
+}
+
+inputbar {
+    children: [ "prompt" ];
+}
+
+prompt {
+    font:       "FiraCode Nerd Font Bold 12";
+    text-color: @accent;
+}
+
+/* The cover, the song's details, and the status right-aligned beside them */
+info {
+    expand:           false;
+    orientation:      horizontal;
+    children:         [ "icon-cover", "message", "textbox-status" ];
+    spacing:          14px;
+    padding:          10px 12px;
+    border-radius:    8px;
+    background-color: @background-alt;
+}
+
+/* musicman sets filename to the song's cover; without one the square stays empty */
+icon-cover {
+    expand:         false;
+    size:           112px;
+    vertical-align: 0.5;
+}
+
+message {
+    expand:         true;
+    vertical-align: 0.5;
+}
+
+textbox-status {
+    expand:           false;
+    content:          " ";
+    markup:           true;
+    horizontal-align: 1;
+    vertical-align:   0.5;
+}
+
+textbox {
+    text-color: @foreground;
+    markup:     true;
+}
+
+listview {
+    columns:      8;
+    lines:        3;
+    flow:         horizontal;
+    fixed-height: true;
+    cycle:        true;
+    scrollbar:    false;
+    layout:       vertical;
+    spacing:      8px;
+}
+
+element {
+    orientation:      vertical;
+    padding:          4px;
+    border-radius:    8px;
+    background-color: @background-alt;
+    cursor:           pointer;
+}
+
+element-text {
+    horizontal-align: 0.5;
+    vertical-align:   0.5;
+    text-color:       inherit;
+    cursor:           inherit;
+}
+
+element normal.active,
+element alternate.active   { text-color: @accent; }
+element normal.urgent,
+element alternate.urgent   { text-color: @urgent; }
+element selected.normal    { background-color: @accent; text-color: @background; }
+element selected.active    { background-color: @accent; text-color: @background; }
+element selected.urgent    { background-color: @urgent; text-color: @background; }

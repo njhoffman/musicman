@@ -123,6 +123,23 @@ describe('Spotify Id Matching', () => {
     expect(stored.value).to.equal('search-id');
   });
 
+  it('should never match a song to a track in sync.ignorePlaylist', async () => {
+    const ignoreId = 'IgnorePlaylist00000000';
+    db.prepare("INSERT INTO spotify_playlists (id, name) VALUES (?, 'Ignore')").run(ignoreId);
+    db.prepare(
+      "INSERT INTO spotify_playlist_tracks (playlist_id, track_id) VALUES (?, 'beets-id')"
+    ).run(ignoreId);
+    const summary = await matchSongs({
+      db,
+      config: { ...config, sync: { ignorePlaylist: ignoreId } },
+      client: fakeClient({}),
+      songs: songs(['testFile01.mp3']),
+      beetsIds: new Map([[file('testFile01.mp3'), 'beets-id']])
+    });
+    expect(summary).to.include({ match: 0 });
+    expect(spotifyId('testFile01.mp3')).to.equal(undefined);
+  });
+
   it('should keep probable matches for review and remember misses', async () => {
     const reviewed = meta('testFile01.mp3');
     const row = db.prepare('SELECT duration FROM songs WHERE path = ?').get('testFile01.mp3');

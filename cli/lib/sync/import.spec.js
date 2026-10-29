@@ -157,6 +157,24 @@ describe('Download Import', () => {
     expect(custom(moved)).to.not.have.property('sp_popularity');
   });
 
+  it('should write the rating of a rating playlist like edit does', async () => {
+    config.rating = { tag: 'POPM', email: 'Default', max: 5 };
+    manifest.tracks[0].tags = { rating: '4.5' };
+    manifest.tracks[1].importedAt = '2026-10-20T00:00:00.000Z';
+    const summary = await importDownloads({
+      config,
+      client: { get: async () => ({}) },
+      manifest,
+      files: files(),
+      beetsLog: path.join(directory, 'beets-import.log'),
+      runBeet: fakeBeet([])
+    });
+    const moved = path.join(library, path.basename(download(idA, 'A - One')));
+    const popm = [].concat(NodeId3.read(moved).raw.POPM)[0];
+    expect(popm).to.include({ email: 'Default', rating: 230 });
+    expect(summary.files[0].playlist).to.deep.equal(['rating:4.5']);
+  });
+
   it('should not write or run beets in a dry run', async () => {
     const before = fs.readFileSync(download(idA, 'A - One'));
     const runBeet = sinon.spy();

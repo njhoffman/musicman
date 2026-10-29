@@ -6,6 +6,19 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman menu` opens a rofi menu for the song playing in MPD or Spotify (`docs/07-menu.md`), bound to
+  `$mod+Shift+m` in i3: prev, play/pause, next, seek and volume with the same layout for both players, the
+  source shown in the title and accent color, and the cover beside the song's details. `Tab` switches player.
+- Menu buttons from `menu.buttons` (e.g. `context:Study`, `picks:Hot`) and `menu.ratings` (4, 4.5, 5) tag or
+  rate the playing song: MPD songs locally, Spotify songs in the library locally and pushed to Spotify right
+  away, other Spotify songs by adding them to the matching `sync.playlists` entry. Like and ignore buttons
+  for Spotify songs not in the library. Each press is its own run, so `musicman undo` takes back one.
+- `sync.ignorePlaylist`: tracks in this Spotify playlist are never listed to pull or download, and never
+  matched to a song.
+- A Spotify song pulled from a rating playlist (`rating:4.5-4.5`) gets that rating on `sync --import`.
+
 ## [1.28.1] - 2026-10-28
 
 ### Fixed

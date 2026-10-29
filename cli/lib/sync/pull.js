@@ -5,10 +5,15 @@ const path = require('path');
 const parseFilters = require('../parser/options/filters.js');
 const { likedId, playlistTargets } = require('./targets.js');
 
-// tags a track gets from a playlist's filter, e.g. grouping:IndieRock.Artists or context:Study
+// tags a track gets from a playlist's filter, e.g. grouping:IndieRock.Artists or context:Study, and the
+// rating of an exact rating filter (rating:4.5-4.5)
 const filterTags = (filter, config) => {
-  const { include } = parseFilters(filter.split(/\s+(?=~?[\w]+:)/), config, 'sync');
-  return _.pickBy(include, value => value !== '');
+  const { include, rating } = parseFilters(filter.split(/\s+(?=~?[\w]+:)/), config, 'sync');
+  const tags = _.pickBy(include, value => value !== '');
+  const exact = !rating.exclude && rating.min && Number(rating.min) === Number(rating.max);
+  return exact && !_.isNaN(Number(rating.min))
+    ? { ...tags, rating: Number(rating.min).toFixed(1) }
+    : tags;
 };
 
 // combine tags from several playlists, multi value fields collect every value

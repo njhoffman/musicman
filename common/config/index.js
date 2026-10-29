@@ -106,6 +106,11 @@ const buildConfig = ({
     config.spotify.artistImageDirectory = imageDirectory;
   }
 
+  const menuTheme = expandHome(_.get(config, 'menu.theme'));
+  if (menuTheme) {
+    config.menu.theme = menuTheme;
+  }
+
   registerSpotifyTags(config);
   const { tags, missing } = resolveLibraryTags(config);
   config.library.tags = tags;

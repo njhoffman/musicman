@@ -17,7 +17,7 @@ const {
   reviewItems
 } = require('../sync/match.js');
 const { autoAcceptItems, confirmAutoAccept } = require('../sync/accept.js');
-const { playlistTargets, songTargets } = require('../sync/targets.js');
+const { ignorePlaylistId, playlistTargets, songTargets } = require('../sync/targets.js');
 const { refreshCache } = require('../sync/cache.js');
 const { recordSynced, syncPlan } = require('../sync/plan.js');
 const { membershipChanges } = require('../sync/membership.js');
@@ -333,7 +333,11 @@ const runPlan = async ({
 }) => {
   const db = openSyncLibrary(config);
   try {
-    const playlistIds = _.map(playlistTargets(config), 'id');
+    // sync.ignorePlaylist is refreshed too, its tracks are left out of the pull list
+    const playlistIds = _.compact([
+      ..._.map(playlistTargets(config), 'id'),
+      ignorePlaylistId(config)
+    ]);
     await refreshCache(db, client, playlistIds, {
       onTarget: (id, status, count) =>
         logger.progress(

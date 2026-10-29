@@ -8,6 +8,7 @@ const syncCommand = require('./sync.js');
 const sortCommand = require('./sort.js');
 const logsCommand = require('./logs.js');
 const undoCommand = require('./undo.js');
+const menuCommand = require('./menu.js');
 
 module.exports = [
   viewCommand,
@@ -19,5 +20,6 @@ module.exports = [
   syncCommand,
   sortCommand,
   logsCommand,
-  undoCommand
+  undoCommand,
+  menuCommand
 ];

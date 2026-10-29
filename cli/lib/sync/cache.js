@@ -49,15 +49,32 @@ const storePlaylist = (db, { id, name, snapshotId, rows }) =>
   });
 
 /**
+ * Refreshes the cached tracks of one playlist, unless its snapshot_id did not change since the last
+ * refresh. Resolves to 'refreshed' with the track count, or 'unchanged'.
+ */
+const refreshPlaylist = async (db, client, id) => {
+  const cached = db.prepare('SELECT snapshot_id FROM spotify_playlists WHERE id = ?').get(id);
+  const playlist = await client.get(`/playlists/${id}?fields=name,snapshot_id`);
+  if (playlist.snapshot_id && playlist.snapshot_id === _.get(cached, 'snapshot_id')) {
+    return { status: 'unchanged' };
+  }
+  const items = await client.paginate(
+    `/playlists/${id}/items?limit=100&fields=${encodeURIComponent(itemFields)}`
+  );
+  storePlaylist(db, {
+    id,
+    name: playlist.name,
+    snapshotId: playlist.snapshot_id,
+    rows: _.map(items, toRow)
+  });
+  return { status: 'refreshed', count: items.length };
+};
+
+/**
  * Refreshes the local cache of Liked Songs and the playlists in playlistIds. Playlists whose
  * snapshot_id did not change since the last refresh are not fetched again.
  */
 const refreshCache = async (db, client, playlistIds, { onTarget = _.noop } = {}) => {
-  const cachedSnapshot = id =>
-    _.get(
-      db.prepare('SELECT snapshot_id FROM spotify_playlists WHERE id = ?').get(id),
-      'snapshot_id'
-    );
   const summary = { refreshed: [], unchanged: [] };
 
   const liked = await client.paginate('/me/tracks?limit=50');
@@ -71,25 +88,11 @@ const refreshCache = async (db, client, playlistIds, { onTarget = _.noop } = {})
   onTarget(likedId, 'refreshed', liked.length);
 
   await Promise.each(_.uniq(playlistIds), async id => {
-    const playlist = await client.get(`/playlists/${id}?fields=name,snapshot_id`);
-    if (playlist.snapshot_id && playlist.snapshot_id === cachedSnapshot(id)) {
-      summary.unchanged.push(id);
-      onTarget(id, 'unchanged');
-      return;
-    }
-    const items = await client.paginate(
-      `/playlists/${id}/items?limit=100&fields=${encodeURIComponent(itemFields)}`
-    );
-    storePlaylist(db, {
-      id,
-      name: playlist.name,
-      snapshotId: playlist.snapshot_id,
-      rows: _.map(items, toRow)
-    });
-    summary.refreshed.push(id);
-    onTarget(id, 'refreshed', items.length);
+    const { status, count } = await refreshPlaylist(db, client, id);
+    summary[status].push(id);
+    onTarget(id, status, count);
   });
   return summary;
 };
 
-module.exports = { refreshCache, toRow };
+module.exports = { refreshCache, refreshPlaylist, toRow };

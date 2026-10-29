@@ -6,7 +6,7 @@ const globalTags = require('musicman-common/config/tags.json');
 const { assignFields, fetchDetails } = require('../spotify/fields.js');
 const { execBeet } = require('../beets/sort.js');
 const { downloadTrackId } = require('./download.js');
-const { updateTags } = require('../metadata/write.js');
+const { prepareRating, updateTags } = require('../metadata/write.js');
 
 // frame of a tag name, user tags first like library.tags
 const tagFrame = (config, name) =>
@@ -43,15 +43,24 @@ const importTags = ({ raw, entry, objects, config, now }) => {
       return frame ? { name, frame, value: [].concat(value).join(',') } : null;
     })
   );
+  // the rating of a rating playlist (rating:4.5-4.5) is written like edit writes it
+  const rating = _.get(entry, 'tags.rating')
+    ? {
+        frame: config.rating.tag,
+        value: entry.tags.rating,
+        tag: prepareRating(entry.tags.rating, config.rating)
+      }
+    : null;
   return {
     custom: assignment.custom,
     filled,
     playlist,
+    rating,
     unassigned: assignment.unassigned
   };
 };
 
-const writeImportTags = (file, { custom, filled, playlist }) => {
+const writeImportTags = (file, { custom, filled, playlist, rating }) => {
   const frames = [...filled, ...playlist];
   updateTags(
     {
@@ -70,7 +79,8 @@ const writeImportTags = (file, { custom, filled, playlist }) => {
           _.reject(frames, ({ frame }) => frame.startsWith('TXXX.')),
           ({ frame, value }) => [frame, value]
         )
-      )
+      ),
+      ...(rating ? { [rating.frame]: rating.tag } : {})
     },
     file
   );
@@ -176,7 +186,10 @@ const importDownloads = async ({
       trackId,
       fields: tags.custom.length,
       filled: _.map(tags.filled, 'name'),
-      playlist: _.map(tags.playlist, ({ name, value }) => `${name}:${value}`)
+      playlist: [
+        ..._.map(tags.playlist, ({ name, value }) => `${name}:${value}`),
+        ...(tags.rating ? [`rating:${tags.rating.value}`] : [])
+      ]
     }))
   };
 };

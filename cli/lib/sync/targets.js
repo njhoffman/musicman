@@ -19,6 +19,26 @@ const playlistTargets = config =>
     matches: filterMatcher(filter, config)
   }));
 
+// id of sync.ignorePlaylist, null without one
+const ignorePlaylistId = config => {
+  const playlist = _.get(config, 'sync.ignorePlaylist');
+  return playlist ? parsePlaylistId(playlist) : null;
+};
+
+// track ids in the cached sync.ignorePlaylist, which sync never pulls or matches
+const ignoredTracks = (db, config) => {
+  const id = ignorePlaylistId(config);
+  if (!id) {
+    return new Set();
+  }
+  const rows = db
+    .prepare(
+      'SELECT track_id FROM spotify_playlist_tracks WHERE playlist_id = ? AND track_id IS NOT NULL'
+    )
+    .all(id);
+  return new Set(_.map(rows, 'track_id'));
+};
+
 // whether a song takes part in sync at all: songs matching sync.scope, every song without one
 const scopeMatcher = config => {
   const scope = `${_.get(config, 'sync.scope') || ''}`.trim();
@@ -49,4 +69,11 @@ const songTargets = (songs, config) => {
   });
 };
 
-module.exports = { likedId, playlistTargets, scopeMatcher, songTargets };
+module.exports = {
+  ignorePlaylistId,
+  ignoredTracks,
+  likedId,
+  playlistTargets,
+  scopeMatcher,
+  songTargets
+};

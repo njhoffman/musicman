@@ -36,6 +36,13 @@ describe('Sync Pull Manifest', () => {
     expect(filterTags('context:Study', config)).to.deep.equal({ context: ['Study'] });
   });
 
+  it('should derive the rating of an exact rating filter, and no rating from a minimum', () => {
+    expect(filterTags('rating:4.5-4.5', config)).to.deep.equal({ rating: '4.5' });
+    expect(filterTags('rating:5-5', config)).to.deep.equal({ rating: '5.0' });
+    expect(filterTags('rating:4', config)).to.deep.equal({});
+    expect(filterTags('~rating:4-4', config)).to.deep.equal({});
+  });
+
   it('should list each track once with its targets and merged tags', () => {
     const manifest = buildManifest(
       [
