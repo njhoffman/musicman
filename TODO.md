@@ -40,8 +40,16 @@ OVERDUE flag. Feature specs live in `docs/`.
 - [ ] **Clean up duplicate TXXX fields.** (p2) [chore] `stats` shows case and spelling variants of the same field
       (`Comment`/`COMMENT`, `ALBUMARTISTS`/`ALBUM_ARTISTS`, `ARTISTS`/`Artists`) from different taggers.
       Decide which to keep and consolidate them, possibly through beets.
+- [x] **Clean up context and mood values.** (p2) [chore] Fixed the typo `mood:Ubpeat`, moved `mood:Study` to
+      context, `context:Mellow` and `context:Upbeat` to mood, and `context:FixEnding` and `context:Instrumental`
+      to picks, removed `mood:Dirt`, and renamed `mood:Very Mellow` to `Placid` (every Placid song is also Mellow).
+- [ ] **Unmapped and empty grouping playlists.** (p2) [chore] `grouping:Dubstep.Singles` (34 songs rated 4.5+)
+      has no `sync.playlists` entry, while `Ambient.Artists`, `ElectronicFunk.Artists`, and
+      `ContemporaryInstrumental` have entries but few or no songs in scope, so their playlists push empty.
 - [x] **`--include=`, `--exclude=` and `--write=` are not parsed.** (p2) [bug] Only switches with a `value`
       key expand `--name=value`, and only `format` had one; `include`, `exclude` and `write` now do.
+- [x] **Rating ranges compared as strings.** (p2) [bug] `filterRating` in `cli/lib/metadata/filter.js` compared
+      `'4.0' <= '4'` as text, so `rating:4-4` matched nothing; it now compares numbers.
 - [ ] **`-i`/`--include` and `-x`/`--exclude` do nothing.** (p2) [bug] `switchMap.js` parses them into
       `switches.include` and `switches.exclude`, but no command or formatter reads them, so
       `musicman view -i artist,title` still shows every column. Apply them where the table and list columns

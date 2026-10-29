@@ -14,6 +14,7 @@
   - try to populate these from spotify along with any other spotify specific tags
 - if still not found, it will need to be marked for upload it to spotify
 - all local songs rating 4.5 and above should be added to 'Liked Songs' playlist in spotify
+- all local songs rated 4.0 and above take part in sync (`sync.scope: rating:4`), each rating also has its own playlist
 - if song exists in spotify, but not locally, download it, assign the tags you can
   - we will use 'beet import --singletons' to move it into 'Sorted/Unrated/_Singles' folder
   - I will then manually rate it and add other tags, then import it into the Rated folder (it's never a full album download so always treated a single)
@@ -56,6 +57,10 @@
 
 ```
 
+rating:4.0-4.0                            : https://open.spotify.com/playlist/455XWx0KV3qKIeKGZQMNxn?si=2db4f08bd53e41f6
+rating:4.5-4.5                            : https://open.spotify.com/playlist/0deBgxaKJq70b44cgGAh5R?si=ec9494dfd39145ba
+rating:5.0-5.0                            : https://open.spotify.com/playlist/7dHswIb91NuqJlgu5WAZB0?si=2b211b73fad24f26
+
 grouping:AlternativeMetal.Artists         : https://open.spotify.com/playlist/5MUDXMSHkjbA2CIYXjj1Vz?si=a9900a672c9c4839 
 grouping:AlternativeRock.Artists          : https://open.spotify.com/playlist/5ewgiAwSOXnUpiTZ0SKqpW?si=6c8d6ad075e6458b 
 grouping:FolkRock.Artists                 : https://open.spotify.com/playlist/5suA7TaRaQV9RMrwHwai5k?si=eabdc55ac0254c9e 
@@ -88,13 +93,10 @@ grouping:Rap-R&B.Singles                  : https://open.spotify.com/playlist/2c
 context:Code 
 context:Coitus        : https://open.spotify.com/playlist/1W2322kKmTEbGdpl785zxi?si=ce6287905da9499a
 context:Drive 
-context:FixEnding 
 context:Float 
 context:Heroin 
-context:Instrumental 
 context:Lift          : https://open.spotify.com/playlist/3JKVlTuOn2XId92u6tOVAG?si=d00347fdfa58437a
 context:Lounge 
-context:Mellow 
 context:Morning       : https://open.spotify.com/playlist/6uaBcSaUy7ZkKFEn4NZO1Y?si=aedc3268f3d946a5 
 context:Party 
 context:Pool 
@@ -103,13 +105,11 @@ context:Run           : https://open.spotify.com/playlist/2euVje5AhJnoKqUAlzzNs8
 context:Sleep 
 context:Smoke 
 context:Study         : https://open.spotify.com/playlist/6hik9wlDckKrPZ9FTusxJH?si=a8f3167fb34846dd
-context:Upbeat 
 
 mood:Bluesy
 mood:Chill
 mood:Dark
-mood:Dirt
-mood:Dreamy
+mood:Dreamy       : https://open.spotify.com/playlist/3YIcRIeYBnCh5XSNwWIBQe
 mood:Driving
 mood:Energetic
 mood:Ethereal
@@ -117,17 +117,17 @@ mood:Folksy
 mood:Gloomy
 mood:Groovy
 mood:Happy
-mood:Hardcore
-mood:Intense
-mood:Mellow
-mood:Study         
+mood:Hardcore     : https://open.spotify.com/playlist/6AMZWD2r5k4siRrMdc09lA
+mood:Intense      : https://open.spotify.com/playlist/5PXHSZIuRst8yXqF4V5Lnw
+mood:Mellow       : https://open.spotify.com/playlist/38ut3aMZd8fQypNGB98BG0
+mood:Placid       : https://open.spotify.com/playlist/2ILupzehs23ZZOUcpYPhAE
 mood:Trippy
-mood:Ubpeat
-mood:Upbeat
+mood:Upbeat       : https://open.spotify.com/playlist/0gB7dvLw9zvqjUt858spbv
 mood:Uplifting
-mood:Very Mellow 
 
+picks:FixEnding
 picks:Guitar
+picks:Instrumental
 picks:Hot          : https://open.spotify.com/playlist/0n9JG8Dm0RUQZohcEsfVfu?si=37361b7d8cd34eaa 
 picks:Spicy        : https://open.spotify.com/playlist/4R9tgnxcLrHm80LGZyE8zu?si=ecd300ec95644c4a
 picks:Jeremy

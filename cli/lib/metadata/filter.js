@@ -1,13 +1,14 @@
 const _ = require('lodash');
 
+// ratings compare as numbers, so 4.0 is within rating:3.5-4 and rating:4-4
 const filterRating = (rating, { min, max, exclude }) => {
   let ratingMatch = false;
   if (_.isString(min) || _.isString(max)) {
     if (!_.isNaN(parseFloat(min))) {
-      ratingMatch = rating >= min;
+      ratingMatch = Number(rating) >= Number(min);
     }
     if (!_.isNaN(parseFloat(max))) {
-      ratingMatch = rating <= max && ratingMatch;
+      ratingMatch = Number(rating) <= Number(max) && ratingMatch;
     }
     // if rating set to blank/empty string, match if metadata has no rating
     ratingMatch = (min === '' && !rating) || ratingMatch;

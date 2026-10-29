@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- Rating filters compare ratings as numbers, so `rating:4-4` and `rating:3.5-4` include songs rated 4.0;
+  before, a whole-number upper bound left them out.
+
 ## [1.28.0] - 2026-10-27
 
 ### Added

@@ -72,7 +72,20 @@ describe('Metadata Files Filter', async () => {
     it('should only include files that exist within range of provided rating', async () => {
       const filters = { rating: { min: '3.5', max: '4' } };
       const filtered = filesMetadata.filter(filterFunc(filters));
-      expect(filtered).to.have.length(2);
+      expect(filtered).to.have.length(4);
+    });
+
+    it('should match an exact rating whether written 4 or 4.0', async () => {
+      const ratings = filters =>
+        filesMetadata.filter(filterFunc(filters)).map(([, { rating }]) => rating);
+      expect(ratings({ rating: { min: '4', max: '4' } })).to.deep.equal(['4.0', '4.0']);
+      expect(ratings({ rating: { min: '4.0', max: '4.0' } })).to.deep.equal(['4.0', '4.0']);
+      expect(ratings({ rating: { min: '5', max: '5' } })).to.deep.equal(['5.0', '5.0']);
+    });
+
+    it('should not match unrated files with a rating range', async () => {
+      const filtered = filesMetadata.filter(filterFunc({ rating: { min: '0', max: '5' } }));
+      expect(filtered).to.have.length(13);
     });
 
     it('Should exclude files that match negation rating single number', async () => {
