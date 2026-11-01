@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.40.2] - 2026-11-01
+
 ### Removed
 
 - The `server.port` and `websocket.port` options of the removed placeholders; a config that still sets
@@ -791,7 +793,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.40.1...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.40.2...HEAD
+[1.40.2]: https://github.com/njhoffman/musicman/compare/v1.40.1...v1.40.2
 [1.40.1]: https://github.com/njhoffman/musicman/compare/v1.40.0...v1.40.1
 [1.40.0]: https://github.com/njhoffman/musicman/compare/v1.39.0...v1.40.0
 [1.39.0]: https://github.com/njhoffman/musicman/compare/v1.38.0...v1.39.0
