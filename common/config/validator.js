@@ -88,6 +88,13 @@ const configSchema = {
       port: { type: 'number', min: 1, max: 65535, required: false }
     }
   },
+  check: {
+    type: 'object',
+    properties: {
+      rareCount: { type: 'number', min: 1, required: false },
+      names: { type: 'array', required: false }
+    }
+  },
   spotify: {
     type: 'object',
     properties: {

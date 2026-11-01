@@ -6,6 +6,22 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman check --fix` repairs what the checks find, after showing every change and asking once: renames
+  custom field spellings to one (a configured tag id or a `check.names` entry, else the most used), removes
+  custom fields with the same text as the standard frame they duplicate (or moves them into an empty one),
+  removes leftover `spotify_track_id` frames, writes multi value fields without empty, padded, or repeated
+  items and in their most used casing, and updates the database for drifted files. Each file is rewritten
+  once; the run is archived so `musicman undo` restores the tags. `--dry-run` only shows the changes, and
+  what needs a decision (two spellings with different values, a differing standard frame, a custom grouping)
+  is listed and left alone.
+- `check` reports `rare` values: context, mood, and picks values at most `check.rareCount` (3) songs use,
+  with a common value one edit away (two from eight letters) as a suggestion.
+- `check` reports `exclusive` problems: songs and Spotify tracks in more than one rating or grouping
+  playlist (the `sync.playlists` filtering one single value field), saying which playlist the tags call
+  for, or which copies of the song disagree.
+
 ## [1.40.3] - 2026-11-01
 
 ### Changed

@@ -112,6 +112,12 @@ module.exports = {
     alias: '-W',
     func: () => ({ watch: true })
   },
+  fix: {
+    description:
+      'With check, repair field names, duplicated standard frames, leftover Spotify ids, multi values, case, and drift after asking',
+    alias: '-E',
+    func: () => ({ fix: true })
+  },
   'dry-run': {
     description:
       'Show what would change without writing files or Spotify (sync --match still caches its lookups)',

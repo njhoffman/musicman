@@ -51,7 +51,10 @@ MPRIS, so only the desktop app on this machine.
 `musicman check` reports library problems without changing anything: database drift, unreadable files,
 frames a rewrite would lose, custom field names that differ by case or duplicate standard frames, leftover
 Spotify id frames, multi value formatting, ratings off the half step scale, garbled text, and duplicate
-songs. It exits 1 when it finds something; [docs/08-check.md](docs/08-check.md) lists the checks.
+songs, rare context, mood, and picks values, and songs in two rating or grouping playlists. It exits 1
+when it finds something. `musicman check --fix` repairs field names, fields duplicating standard frames,
+leftover Spotify ids, multi value formatting, and case after one confirmation, recorded for
+`musicman undo`; [docs/08-check.md](docs/08-check.md) lists the checks and repairs.
 
 `musicman ui` serves a management page on 127.0.0.1 (`ui.port`, 6660) until ctrl-c. It lists the Spotify
 matches waiting for review, accepted in review, and rejected; picking a song shows the local file and the

@@ -52,15 +52,26 @@ Reviewed: 2026-11-01
 
 ## 3. Library data
 
-- [ ] **`check --fix`.** (p2) [feature] repair what `musicman check` reports, one check at a time, each
-      recorded for `musicman undo <run>`: rename custom field names to one spelling (a `check.names` list
-      seeded with beets names; `names` suggests the most used), drop custom fields duplicating standard
-      frames when the values match, remove the leftover `spotify_track_id` frames (4663 files), rewrite multi
-      value fields without empty or repeated items (2437 values), and update drifted files in the database.
-      Ratings off the scale, garbled text, and duplicates need a decision per song, so they stay reports.
-- [ ] **Clean up duplicate TXXX fields.** (p2) [chore] `stats` shows case and spelling variants of the same field
-      (`Comment`/`COMMENT`, `ALBUMARTISTS`/`ALBUM_ARTISTS`, `ARTISTS`/`Artists`) from different taggers.
-      Decide which to keep and consolidate them, possibly through beets or `check --fix`.
+- [ ] **Run `check --fix` on the library.** (p2) [chore] after `sync --backup`: one directory first, then the
+      rest. The dry run of 2026-11-01 plans 3502 name changes and 2137 standard ones in 1890 files, 4663
+      leftover Spotify ids, and 2217 multi value rewrites; 784 cases are left for a decision (mostly a
+      `Comment` that differs from COMM).
+- [ ] **One ReplayGain spelling.** (p3) [chore] the configured `replaygain_track_gain` wins its group, while
+      `REPLAYGAIN_ALBUM_GAIN` and `REPLAYGAIN_ALBUM_PEAK` win theirs by count, so `check --fix` leaves the four
+      ReplayGain fields in two casings. Check which spelling beets' replaygain plugin writes and put the album
+      ones in `check.names`, or the track ones in `library.tags`, so a later beets write does not add them back.
+- [ ] **Copies of a song in two rating playlists.** (p2) [bug] `check --only=exclusive` (2026-11-01): 62 tracks
+      in two rating playlists and 11 in two grouping playlists on Spotify, each linked to two files that
+      disagree (e.g. 311 - Beautiful Disaster on Transistor at 5.0 and on Live at 4.5). Push puts a track
+      wherever any copy belongs. Decide per song (one rating for both, or unlink the copy matched to the wrong
+      recording, often a live file matched to the studio track), and have push remove a track from the other
+      playlists of an exclusive group.
+- [ ] **Rare values found by `check`.** (p3) [chore] mood:Bluesy (2), Dark, Folksy, Groovy (3 each), and
+      picks:Jeremy (1) on 2026-11-01; keep, merge, or rename each.
+- [x] **`check --fix`.** (p2) [feature] `musicman check --fix` (docs/08-check.md): names, standard,
+      spotify-id, multi, case, and drift, after one confirmation, recorded for `musicman undo`.
+- [x] **Clean up duplicate TXXX fields.** (p2) [chore] `check --fix` renames each name to its most used
+      spelling (the configured tag id or a `check.names` entry first); running it is the item above.
 - [ ] **Unmapped and empty grouping playlists.** (p2) [chore] `grouping:Dubstep.Singles` (34 songs rated 4.5+)
       has no `sync.playlists` entry, while `Ambient.Artists`, `ElectronicFunk.Artists`, and
       `ContemporaryInstrumental` have entries but few or no songs in scope, so their playlists push empty.
