@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.37.1] - 2026-11-01
+
 ### Changed
 
 - Include and exclude filters (`field:value`, `~field:value`) share one matcher; what they match is
@@ -719,7 +721,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.37.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.37.1...HEAD
+[1.37.1]: https://github.com/njhoffman/musicman/compare/v1.37.0...v1.37.1
 [1.37.0]: https://github.com/njhoffman/musicman/compare/v1.36.0...v1.37.0
 [1.36.0]: https://github.com/njhoffman/musicman/compare/v1.35.0...v1.36.0
 [1.35.0]: https://github.com/njhoffman/musicman/compare/v1.34.0...v1.35.0
