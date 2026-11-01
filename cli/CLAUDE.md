@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Start CLI**: `pnpm start` or `node lib/cli.js`
 - **Development mode**: `pnpm dev` (uses nodemon for auto-restart)
 - **Run tests**: `pnpm test` (uses Mocha)
-- **Test with coverage**: `pnpm test:coverage` (uses nyc)
+- **Test with coverage**: `pnpm test:coverage` (uses c8)
 - **Test watch mode**: `pnpm test:watch`
 - **Lint code**: `pnpm lint` (ESLint)
 - **Fix lint issues**: `pnpm lint:fix`

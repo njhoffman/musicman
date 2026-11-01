@@ -1,0 +1,7 @@
+{
+  "all": true,
+  "include": ["lib/**/*.js", "scripts/**/*.js"],
+  "exclude": ["**/*.spec.js", "lib/ui/public/**"],
+  "reporter": ["text-summary", "html"],
+  "reports-dir": "coverage"
+}

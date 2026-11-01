@@ -15,7 +15,7 @@ dist
 build
 
 # code coverage
-.nyc_output/
+coverage/
 .coveralls.yml
 reports/coverage
 
