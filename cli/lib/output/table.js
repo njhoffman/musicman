@@ -5,7 +5,7 @@ const { availableWidth } = require('../utils/logger.js');
 
 const outputTable = (metadata, config) => {
   const { views: { table = {} } = {} } = config;
-  const { seperators = {}, headers = {}, tags: viewTags = [] } = table;
+  const { separators = {}, headers = {}, tags: viewTags = [] } = table;
 
   const formatHeader = name => (headers.capitalize ? _.toUpper(name) : _.upperFirst(name));
   const colorHeader = header => (headers.color ? chalk.hex(headers.color)(header) : header);
@@ -40,7 +40,7 @@ const outputTable = (metadata, config) => {
       format: formatCell(tag),
       formatHeader: colorHeader
     })),
-    splitter: _.isString(seperators.vertical) ? seperators.vertical : ' ',
+    splitter: _.isString(separators.vertical) ? separators.vertical : ' ',
     maxLineWidth: availableWidth()
   });
 };

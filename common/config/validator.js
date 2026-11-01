@@ -137,7 +137,7 @@ const configSchema = {
         properties: {
           color: { type: 'string', required: false },
           headers: { type: 'object', required: false },
-          seperators: { type: 'object', required: false },
+          separators: { type: 'object', required: false },
           tags: { type: 'array', required: false }
         },
         required: false
@@ -278,10 +278,11 @@ function parsePlaylistId(playlist) {
   return match ? match[1] : null;
 }
 
-// options moved into views, reported as errors with where they moved to
+// options moved or renamed, reported as errors with where they went
 const legacyOptions = {
   'output.table': 'moved to views.table',
-  'output.vertical': 'moved to views.list'
+  'output.vertical': 'moved to views.list',
+  'views.table.seperators': 'renamed to views.table.separators'
 };
 
 /**

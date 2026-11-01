@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- The table view option `views.table.seperators` is now spelled `views.table.separators`; a config that still
+  uses the old key fails validation with a message naming the new one.
+
 ## [1.29.0] - 2026-10-28
 
 ### Added

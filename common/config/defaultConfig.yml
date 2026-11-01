@@ -265,7 +265,7 @@ views:
       visible: true
       # Whether to capitalize header text
       capitalize: false
-    seperators:
+    separators:
       # Whether to show vertical separators between columns
       vertical: false
       # Whether to show horizontal separators between rows
