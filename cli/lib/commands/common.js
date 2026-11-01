@@ -118,9 +118,6 @@ const getFilteredFiles = async (
 
   const files = fileList || getFiles(target, { ext: 'mp3', recursive });
 
-  // logger.debug(`Getting metadata for ${files.length} files`);
-  // TODO: fix memory overflow in event loop
-
   // files given explicitly (e.g. re-reading after a write) are always read from disk
   const metadataFiles = fileList
     ? await readFileMetadata(files, fullMetadata)

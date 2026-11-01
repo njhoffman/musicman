@@ -5,6 +5,8 @@ resolves them; `/todo` and `/todo-pop` (from `~/.shell`) show open/done counts a
 `(p1)` (high) or `(p3)` (low); untagged items are `p2` (normal). `(due YYYY-MM-DD)` adds a date and an
 OVERDUE flag. Feature specs live in `docs/`.
 
+Reviewed: 2026-10-31
+
 ## Bugs
 
 - [x] **`pnpm lint` fails with 103 errors.** Fixed by the ESLint migration.
@@ -23,15 +25,20 @@ OVERDUE flag. Feature specs live in `docs/`.
       the level's `fg`, `bg`, and `gui`; the log file is unchanged.
 - [ ] **Make the notify daemon testable.** (p3) [refactor] `notify-daemon.js` runs on require; split notification building
       and sending from the MPD loop so `sendNotification` can be unit tested.
-- [ ] **Rename `seperators` to `separators`** (p3) [refactor] in `views.table`, with a legacy-key error like the other
+- [x] **Rename `seperators` to `separators`** (p3) [refactor] in `views.table`, with a legacy-key error like the other
       migrated options.
 - [ ] **Replace `bluebird`** (p3) [refactor] with native promises (`Promise.map` concurrency via a small helper).
 - [ ] **Replace `prompt-confirm`** (p3) [refactor] (unmaintained since 2017) with `@inquirer/confirm`.
 - [ ] **Vendored MPD client.** (p3) [refactor] `common/mpd/MpdClient` is a local copy; evaluate a maintained client
       (e.g. `mpd-api`) instead of forking it.
-- [ ] **Move existing TODO comments here and remove them from code:** (p3) [chore] combine include/exclude filters (`metadata/filter.js`), memory overflow when
-      reading many files (`commands/common.js`), duration/size option for stats (`commands/stats.js`),
-      zero-match handling in edit (`commands/edit.js`).
+- [x] **Move existing TODO comments here and remove them from code:** (p3) [chore] moved to the items below and
+      to the vendored MPD client item; the comments are removed.
+- [ ] **Combine `filterInclude` and `filterExclude`.** (p3) [refactor] `cli/lib/metadata/filter.js` repeats the same
+      walk twice. Not a plain negation: for multi-value fields exclude means none of the values is present, while
+      include means all are, so a shared helper needs a per-mode predicate.
+- [ ] **Memory use when reading many files.** (p3) [bug] an old comment in `getFilteredFiles`
+      (`cli/lib/commands/common.js`) reported memory overflow reading the whole library from disk. Check peak memory
+      of `stats --files` on the full library; reading in batches (as `db/update.js` does) would bound it.
 
 - [ ] **`library.tagId` is not used.** (p3) [chore] Decided to stay on ID3v2.3 (all sampled files, beets `id3v23: true`,
       and node-id3 all use v2.3); `year` now maps to `TYER`. `library.tagId` is set to `ID3v2.3` but nothing
@@ -54,6 +61,13 @@ OVERDUE flag. Feature specs live in `docs/`.
       `switches.include` and `switches.exclude`, but no command or formatter reads them, so
       `musicman view -i artist,title` still shows every column. Apply them where the table and list columns
       are chosen in `lib/output/`.
+- [ ] **MPD responses cut values at the second colon.** (p2) [bug] `parseMpdData` in `common/mpd/MpdClient.js`
+      splits each line on every `:` and keeps two parts, so `file: Artist/Live: 1999/x.mp3` becomes
+      `Artist/Live`, and `status` `time: 12:240` becomes `12`. The notify daemon and `menu` then read the wrong
+      file. Split on the first `: ` only, and add a spec.
+- [ ] **Default `stats.filters` use a field that does not exist.** (p3) [bug] `Singles > 4.0` filters on
+      `type:singles` (no `type` tag is configured) and `Total` is `rating:5.0`. Fix them with the
+      `stats.filters` item above.
 
 ## Tooling
 
@@ -100,7 +114,7 @@ OVERDUE flag. Feature specs live in `docs/`.
       which touches every command's tilde completion.
 - [ ] **Smarter terminal fitting** (p3) [feature] for the table view: shrink the widest columns instead of dropping the
       rightmost ones.
-- [ ] (p3) [feature] Honor `views.list.headers.visible` (currently ignored) and implement `views.table.seperators.horizontal`
+- [ ] (p3) [feature] Honor `views.list.headers.visible` (currently ignored) and implement `views.table.separators.horizontal`
       or remove it.
 - [ ] **Divider above the status line:** (p3) [feature] draw a dim full width rule above the footer progress line so it
       stands apart from the log lines scrolling above it (redrawn with the footer, cut to the terminal width).
@@ -108,6 +122,9 @@ OVERDUE flag. Feature specs live in `docs/`.
       APIC frame) and embed one: the Spotify album image (from `sp_album_id`) first, then beets fetchart sources. Report
       what was found and from where; `--dry-run` to preview. Decide whether this is its own command or part of `check
       --fix`.
+- [ ] **Duration and size in `stats`.** (p3) [feature] `stats` prints `total_duration` and `total_size`, summed from
+      `file.duration` and `file.size`; an old comment asked for an option to include them. Check that both are
+      filled for files read from disk as well as from the database, and decide whether they belong behind a switch.
 - [ ] **Generate artwork when none can be found:** (p3) [feature] for singles still without a cover, generate one (e.g.
       artist and title over a color derived from the grouping), clearly marked as generated so a real cover can replace
       it later.

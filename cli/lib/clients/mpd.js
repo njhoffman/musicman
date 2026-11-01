@@ -3,8 +3,6 @@ const Promise = require('bluebird');
 const { MpdClient, cmd } = require('musicman-common/mpd/MpdClient.js');
 const logger = require('../utils/logger.js');
 
-// TODO: fork this into it's own repo
-
 const connectMpd = ({ port, host }, { timeout = 2000 } = {}) =>
   new Promise((resolve, reject) => {
     const mpdClient = MpdClient.connect({ port, host });

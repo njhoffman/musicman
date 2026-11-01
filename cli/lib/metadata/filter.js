@@ -19,7 +19,6 @@ const filterRating = (rating, { min, max, exclude }) => {
   return ratingMatch;
 };
 
-// TODO: can probably combine these?
 const filterInclude = (include, metadata) =>
   // returns true if any matches found
   _.keys(include).every(filterKey => {

@@ -57,7 +57,6 @@ const statsCommand = async ({ options, config, target }) => {
   logger.info(
     `Scanning ${target || baseDirectory}${recursive ? ' recursively' : ''} for mp3 files`
   );
-  // TODO: add option to include duration and size
   const allFiles = await getFilteredFiles({
     target: target || baseDirectory,
     options: scanOptions,
