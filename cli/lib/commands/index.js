@@ -12,6 +12,7 @@ const menuCommand = require('./menu.js');
 const shuffleCommand = require('./shuffle.js');
 const spotifyCommand = require('./spotify.js');
 const playerCommand = require('./player.js');
+const checkCommand = require('./check.js');
 const statusCommand = require('./status.js');
 
 module.exports = [
@@ -29,5 +30,6 @@ module.exports = [
   shuffleCommand,
   spotifyCommand,
   playerCommand,
+  checkCommand,
   statusCommand
 ];

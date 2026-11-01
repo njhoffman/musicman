@@ -53,19 +53,20 @@ Reviewed: 2026-11-01
 
 ## 3. Library data
 
-- [ ] **`check` command.** (p2) [feature] report, and with `--fix` repair (recorded for `musicman undo <run>`): files
-      that cannot be read or rewritten, frames node-id3 cannot keep, database drift, duplicate songs, custom tag
-      names that differ only by case or punctuation (renamed to a `check.names` list seeded with beets names),
-      custom tags duplicating standard frames, the leftover `spotify_track_id` frames, and multi value formatting.
-      Also report ratings off the half step scale (e.g. Hollerado - Got to Loose is 2.8) and text that looks
-      garbled by a wrong encoding (its copyright reads `20･･－－－0`). `lib/check/frames.js` (raw frame parsing)
-      is done.
+- [ ] **`check --fix`.** (p2) [feature] repair what `musicman check` reports, one check at a time, each
+      recorded for `musicman undo <run>`: rename custom field names to one spelling (a `check.names` list
+      seeded with beets names; `names` suggests the most used), drop custom fields duplicating standard
+      frames when the values match, remove the leftover `spotify_track_id` frames (4663 files), rewrite multi
+      value fields without empty or repeated items (2437 values), and update drifted files in the database.
+      Ratings off the scale, garbled text, and duplicates need a decision per song, so they stay reports.
 - [ ] **Clean up duplicate TXXX fields.** (p2) [chore] `stats` shows case and spelling variants of the same field
       (`Comment`/`COMMENT`, `ALBUMARTISTS`/`ALBUM_ARTISTS`, `ARTISTS`/`Artists`) from different taggers.
       Decide which to keep and consolidate them, possibly through beets or `check --fix`.
 - [ ] **Unmapped and empty grouping playlists.** (p2) [chore] `grouping:Dubstep.Singles` (34 songs rated 4.5+)
       has no `sync.playlists` entry, while `Ambient.Artists`, `ElectronicFunk.Artists`, and
       `ContemporaryInstrumental` have entries but few or no songs in scope, so their playlists push empty.
+- [x] **`check` command (report).** (p2) [feature] `musicman check` reports every planned check without
+      changing anything (`docs/08-check.md`); repairs are the open `check --fix` item.
 - [x] **Clean up context and mood values.** (p2) [chore] fixed `mood:Ubpeat`, moved values between context, mood,
       and picks, removed `mood:Dirt`, renamed `mood:Very Mellow` to `Placid`.
 

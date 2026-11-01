@@ -16,6 +16,7 @@ musicman shuffle "Nick's Picks"             # play a playlist in a real random o
 musicman player next                        # skip in whichever player is active
 musicman player play context:Study rating:5 # play search results (MPD, or the active Spotify)
 musicman spotify repeat next                # step Spotify's repeat mode
+musicman check                              # report library problems (below), changes nothing
 musicman --help                             # every command and switch
 ```
 
@@ -46,6 +47,11 @@ player, MPD when none is; on Spotify they use the songs' Spotify ids through the
 Connect device), leaving out songs never matched to Spotify. Everything else controls Spotify through
 MPRIS, so only the desktop app on this machine.
 
+`musicman check` reports library problems without changing anything: database drift, unreadable files,
+frames a rewrite would lose, custom field names that differ by case or duplicate standard frames, leftover
+Spotify id frames, multi value formatting, ratings off the half step scale, garbled text, and duplicate
+songs. It exits 1 when it finds something; [docs/08-check.md](docs/08-check.md) lists the checks.
+
 Configuration: defaults in `common/config/defaultConfig.yml`, your overrides in `~/.musicmanrc.yml`.
 
 ## Documentation
@@ -59,6 +65,7 @@ Configuration: defaults in `common/config/defaultConfig.yml`, your overrides in 
 | Pushing to Spotify         | [docs/05-spotify-push.md](docs/05-spotify-push.md)                 |
 | Sync runbook               | [docs/06-spotify-sync-runbook.md](docs/06-spotify-sync-runbook.md) |
 | rofi menu                  | [docs/07-menu.md](docs/07-menu.md)                                 |
+| Library checks             | [docs/08-check.md](docs/08-check.md)                               |
 | Changes by version         | [CHANGELOG.md](CHANGELOG.md)                                       |
 | Known issues and plans     | [TODO.md](TODO.md)                                                 |
 

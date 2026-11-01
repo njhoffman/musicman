@@ -167,5 +167,20 @@ module.exports = {
     description: 'Update the database from the mpd base directory or the target directory',
     alias: '-u',
     func: () => ({ update: true })
+  },
+  only: {
+    description: 'check: run only these comma-separated checks',
+    alias: '-c',
+    value: 'checks',
+    examples: ['--only=names,multi', '-c duplicates'],
+    func: (used, optionList, i) => {
+      used.push(optionList[i + 1]);
+      return { only: optionList[i + 1] };
+    }
+  },
+  all: {
+    description: 'check: list every finding instead of the first 10 of each check',
+    alias: '-A',
+    func: () => ({ all: true })
   }
 };

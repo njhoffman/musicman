@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman check [target]` reports library problems without changing anything: database drift,
+  unreadable files, frames a tag rewrite would lose, custom field names that differ only by case or
+  punctuation, custom fields duplicating standard frames, leftover `spotify_track_id` frames, multi value
+  formatting and case variants, ratings off the half step scale, garbled text, and duplicate songs (by
+  Spotify id, MusicBrainz id, or artist, title, and length). `--only` picks checks, `--all` lists every
+  finding, `--format=json` prints them for scripts; it exits 1 when something is found.
+
 ## [1.35.0] - 2026-11-01
 
 ### Added
