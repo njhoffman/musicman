@@ -1,7 +1,7 @@
 const _ = require('lodash');
 const path = require('path');
 const { execFile } = require('child_process');
-const Promise = require('bluebird');
+const { mapLimit } = require('../utils/promise.js');
 
 // run beet with arguments, resolving with its output or rejecting with its error output
 const execBeet = (args, { command = 'beet' } = {}) =>
@@ -66,20 +66,24 @@ const sortCandidates = (db, { config, beets, beetsItems }) => {
  */
 const sortSongs = async (candidates, { beetsConfig, runBeet = execBeet, onSong = _.noop } = {}) => {
   const configArgs = beetsConfig ? ['-c', beetsConfig] : [];
-  const results = await Promise.mapSeries(candidates, async candidate => {
-    const args =
-      candidate.action === 'move'
-        ? [...configArgs, 'update', '-m', `path:${candidate.file}`]
-        : [...configArgs, 'import', '-s', '-q', '-A', candidate.file];
-    try {
-      await runBeet(args);
-      onSong('sorted', candidate);
-      return { ...candidate, status: 'sorted' };
-    } catch (err) {
-      onSong('failed', candidate, err.message);
-      return { ...candidate, status: 'failed', error: err.message };
-    }
-  });
+  const results = await mapLimit(
+    candidates,
+    async candidate => {
+      const args =
+        candidate.action === 'move'
+          ? [...configArgs, 'update', '-m', `path:${candidate.file}`]
+          : [...configArgs, 'import', '-s', '-q', '-A', candidate.file];
+      try {
+        await runBeet(args);
+        onSong('sorted', candidate);
+        return { ...candidate, status: 'sorted' };
+      } catch (err) {
+        onSong('failed', candidate, err.message);
+        return { ...candidate, status: 'failed', error: err.message };
+      }
+    },
+    1
+  );
   return {
     sorted: _.filter(results, { status: 'sorted' }).length,
     failed: _.filter(results, { status: 'failed' }).length,

@@ -3,7 +3,6 @@ const rimraf = require('rimraf');
 const copyDir = require('copy-dir');
 const NodeId3 = require('node-id3');
 const fs = require('fs');
-const Promise = require('bluebird');
 
 const testTags = require('./data/testTags.js');
 

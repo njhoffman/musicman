@@ -27,7 +27,7 @@ Reviewed: 2026-10-31
       and sending from the MPD loop so `sendNotification` can be unit tested.
 - [x] **Rename `seperators` to `separators`** (p3) [refactor] in `views.table`, with a legacy-key error like the other
       migrated options.
-- [ ] **Replace `bluebird`** (p3) [refactor] with native promises (`Promise.map` concurrency via a small helper).
+- [x] **Replace `bluebird`** (p3) [refactor] with native promises (`Promise.map` concurrency via a small helper).
 - [x] **Replace `prompt-confirm`** (p3) [refactor] (unmaintained since 2017) with `@inquirer/confirm`.
 - [ ] **Vendored MPD client.** (p3) [refactor] `common/mpd/MpdClient` is a local copy; evaluate a maintained client
       (e.g. `mpd-api`) instead of forking it.

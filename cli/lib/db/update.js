@@ -1,7 +1,7 @@
 const _ = require('lodash');
 const fs = require('fs');
 const path = require('path');
-const Promise = require('bluebird');
+const { mapLimit } = require('../utils/promise.js');
 const { escape, globSync } = require('glob');
 
 const { readMetadataFull, parseMetadata } = require('../metadata/read.js');
@@ -104,7 +104,7 @@ const updateDatabase = async (
   const listed = fileList
     ? [].concat(fileList).map(file => path.resolve(file))
     : listFiles(path.resolve(target));
-  const files = await Promise.map(listed, async file => {
+  const files = await mapLimit(listed, async file => {
     const { mtimeMs, size } = await fs.promises.stat(file);
     return { file, path: relativePath(file), mtime: Math.floor(mtimeMs), size };
   });
@@ -224,10 +224,11 @@ const updateDatabase = async (
   };
 
   // read each batch concurrently, then write it in one transaction
-  await Promise.each(_.chunk(toRead, batchSize), async batch => {
-    const results = await Promise.map(batch, readFile, { concurrency });
+  for (const batch of _.chunk(toRead, batchSize)) {
+    // batches run one after another, each written in one transaction
+    const results = await mapLimit(batch, readFile, concurrency);
     transaction(db, () => _.compact(results).forEach(writeSong));
-  });
+  }
 
   // songs in scope whose files were not found and were not moved
   const removed = _.filter(scopeRows, row => !seen.has(row.path) && !relinked.has(row.id));

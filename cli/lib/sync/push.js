@@ -1,5 +1,4 @@
 const _ = require('lodash');
-const Promise = require('bluebird');
 
 const { likedId } = require('./targets.js');
 const { recordSpotify } = require('../history/journal.js');
@@ -55,30 +54,29 @@ const pushPlan = async (
   const total = _.sumBy(changes, ({ addIds, removeIds }) => addIds.length + removeIds.length);
   let done = 0;
   const results = [];
-  await Promise.each(changes, async ({ target, addIds, removeIds }) => {
-    const recorded = (action, request) => async ids => {
-      await request(ids);
-      recordSpotify({ target, action, trackIds: ids });
-      done += ids.length;
-      onProgress({ done, total, target: target.name });
+  for (const { target, addIds, removeIds } of changes) {
+    // one request per batch, each recorded as it succeeds
+    const sendBatches = async (action, batches, request) => {
+      for (const ids of batches) {
+        await request(ids);
+        recordSpotify({ target, action, trackIds: ids });
+        done += ids.length;
+        onProgress({ done, total, target: target.name });
+      }
     };
     if (target.id === likedId) {
-      await Promise.each(
-        _.chunk(addIds, likedBatch),
-        recorded('add', ids => client.request('PUT', '/me/tracks', { ids }))
+      await sendBatches('add', _.chunk(addIds, likedBatch), ids =>
+        client.request('PUT', '/me/tracks', { ids })
       );
-      await Promise.each(
-        _.chunk(removeIds, likedBatch),
-        recorded('remove', ids => client.request('DELETE', '/me/tracks', { ids }))
+      await sendBatches('remove', _.chunk(removeIds, likedBatch), ids =>
+        client.request('DELETE', '/me/tracks', { ids })
       );
     } else {
-      await Promise.each(
-        _.chunk(addIds, playlistBatch),
-        recorded('add', ids => playlistRequest(client, 'POST', target.id, ids.map(uri)))
+      await sendBatches('add', _.chunk(addIds, playlistBatch), ids =>
+        playlistRequest(client, 'POST', target.id, ids.map(uri))
       );
-      await Promise.each(
-        _.chunk(removeIds, playlistBatch),
-        recorded('remove', ids => playlistRequest(client, 'DELETE', target.id, ids.map(uri)))
+      await sendBatches('remove', _.chunk(removeIds, playlistBatch), ids =>
+        playlistRequest(client, 'DELETE', target.id, ids.map(uri))
       );
     }
     const result = {
@@ -89,7 +87,7 @@ const pushPlan = async (
     };
     results.push(result);
     onTarget(result);
-  });
+  }
   return results;
 };
 

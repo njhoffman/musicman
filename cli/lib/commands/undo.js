@@ -11,7 +11,6 @@ const { openLibrary } = require('../db/index.js');
 const { dim } = require('../output/emit.js');
 const logger = require('../utils/logger.js');
 
-
 const runLine = run =>
   [
     run.id.padEnd(30),

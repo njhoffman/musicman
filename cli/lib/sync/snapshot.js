@@ -1,7 +1,6 @@
 const _ = require('lodash');
 const fs = require('fs');
 const path = require('path');
-const Promise = require('bluebird');
 
 const { toRow } = require('./cache.js');
 const { likedId, playlistTargets } = require('./targets.js');
@@ -31,7 +30,7 @@ const saveSnapshot = async (client, config, { now = new Date(), onTarget = _.noo
   targets.push({ id: likedId, name: 'Liked Songs', snapshotId: null, tracks: _.map(liked, toRow) });
   onTarget(likedId, liked.length);
 
-  await Promise.each(_.uniq(_.map(playlistTargets(config), 'id')), async id => {
+  for (const id of _.uniq(_.map(playlistTargets(config), 'id'))) {
     const playlist = await client.get(`/playlists/${id}?fields=name,snapshot_id`);
     const items = await client.paginate(
       `/playlists/${id}/items?limit=100&fields=${encodeURIComponent(itemFields)}`
@@ -43,7 +42,7 @@ const saveSnapshot = async (client, config, { now = new Date(), onTarget = _.noo
       tracks: _.map(items, toRow)
     });
     onTarget(id, items.length);
-  });
+  }
 
   const directory = snapshotDirectory(config);
   fs.mkdirSync(directory, { recursive: true });

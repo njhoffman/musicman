@@ -2,7 +2,7 @@ const _ = require('lodash');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const Promise = require('bluebird');
+const { mapLimit } = require('../utils/promise.js');
 
 // artist photos default to $XDG_CACHE_HOME/musicman/artists, one <artist id>.jpg each
 const artistImageDirectory = (config, env = process.env) =>
@@ -24,7 +24,7 @@ const cacheArtistImages = async ({ artists, directory, fetchImpl = fetch, concur
   );
   const saved = [];
   const failed = [];
-  await Promise.map(
+  await mapLimit(
     missing,
     async artist => {
       try {
@@ -43,7 +43,7 @@ const cacheArtistImages = async ({ artists, directory, fetchImpl = fetch, concur
         failed.push({ id: artist.id, error: err.message });
       }
     },
-    { concurrency }
+    concurrency
   );
   return { saved, failed };
 };

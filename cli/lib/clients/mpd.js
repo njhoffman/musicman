@@ -1,5 +1,4 @@
 const _ = require('lodash');
-const Promise = require('bluebird');
 const { MpdClient, cmd } = require('musicman-common/mpd/MpdClient.js');
 const logger = require('../utils/logger.js');
 
@@ -61,9 +60,9 @@ const queueSongs = async (mpdConfig, songPaths, { replace = false } = {}) => {
   try {
     const adds = songPaths.map(songPath => cmd('add', [songPath]));
     const commands = replace ? [cmd('clear', []), ...adds, cmd('play', [])] : adds;
-    await Promise.each(_.chunk(commands, commandListSize), chunk =>
-      mpdClient.sendCommandListAsync(chunk)
-    );
+    for (const chunk of _.chunk(commands, commandListSize)) {
+      await mpdClient.sendCommandListAsync(chunk);
+    }
     return songPaths.length;
   } finally {
     mpdClient.socket.destroy();

@@ -7,7 +7,6 @@ const { readBeetsConfig, readBeetsItems } = require('../spotify/beets.js');
 const { sortCandidates, sortSongs, unsortedFolder } = require('../beets/sort.js');
 const logger = require('../utils/logger.js');
 
-
 // sort: have beets move rated songs with a sorted grouping out of its unsorted folder
 const sortCommand = async ({ options, config, runBeet, confirm = confirmPrompt }) => {
   const dryRun = Boolean(_.get(options, 'switches.dryRun'));

@@ -1,5 +1,4 @@
 const _ = require('lodash');
-const Promise = require('bluebird');
 
 const { transaction } = require('../db/database.js');
 const { likedId } = require('./targets.js');
@@ -87,11 +86,11 @@ const refreshCache = async (db, client, playlistIds, { onTarget = _.noop } = {})
   summary.refreshed.push(likedId);
   onTarget(likedId, 'refreshed', liked.length);
 
-  await Promise.each(_.uniq(playlistIds), async id => {
+  for (const id of _.uniq(playlistIds)) {
     const { status, count } = await refreshPlaylist(db, client, id);
     summary[status].push(id);
     onTarget(id, status, count);
-  });
+  }
   return summary;
 };
 

@@ -1,7 +1,6 @@
 const _ = require('lodash');
 const fs = require('fs');
 const path = require('path');
-const Promise = require('bluebird');
 
 const { transaction } = require('../db/database.js');
 const { updateDatabase } = require('../db/update.js');
@@ -170,7 +169,7 @@ const undoSpotify = async ({ db, config, client, plan }) => {
   );
 
   const byTarget = _.groupBy(plan.spotify, 'targetId');
-  await Promise.each(_.keys(byTarget), async targetId => {
+  for (const targetId of _.keys(byTarget)) {
     const changes = byTarget[targetId];
     const target = { id: targetId, name: changes[0].targetName };
     const present = new Set(current[targetId] || []);
@@ -193,32 +192,32 @@ const undoSpotify = async ({ db, config, client, plan }) => {
     );
 
     if (targetId === likedId) {
-      await Promise.each(_.chunk(removeIds, likedBatch), async ids => {
+      for (const ids of _.chunk(removeIds, likedBatch)) {
         await client.request('DELETE', '/me/tracks', { ids });
         recordSpotify({ target, action: 'remove', trackIds: ids });
-      });
-      await Promise.each(_.chunk(addIds, likedBatch), async ids => {
+      }
+      for (const ids of _.chunk(addIds, likedBatch)) {
         await client.request('PUT', '/me/tracks', { ids });
         recordSpotify({ target, action: 'add', trackIds: ids });
-      });
+      }
     } else {
-      await Promise.each(_.chunk(removeIds, playlistBatch), async ids => {
+      for (const ids of _.chunk(removeIds, playlistBatch)) {
         await playlistRequest(client, 'DELETE', targetId, ids.map(uri));
         recordSpotify({ target, action: 'remove', trackIds: ids });
-      });
+      }
       // in their old order, so each earlier position is already filled when a later one is added
       const order = before[targetId] || [];
       const positioned = _.sortBy(addIds, trackId => {
         const index = order.indexOf(trackId);
         return index === -1 ? Infinity : index;
       });
-      await Promise.each(positioned, async trackId => {
+      for (const trackId of positioned) {
         const index = order.indexOf(trackId);
         await playlistRequest(client, 'POST', targetId, [uri(trackId)], {
           position: index === -1 ? null : index
         });
         recordSpotify({ target, action: 'add', trackIds: [trackId] });
-      });
+      }
     }
     transaction(db, () => {
       removeIds.forEach(trackId => syncedDelete.run(targetId, trackId));
@@ -226,7 +225,7 @@ const undoSpotify = async ({ db, config, client, plan }) => {
     });
     result.removed.push(..._.map(removeIds, trackId => ({ targetName: target.name, trackId })));
     result.added.push(..._.map(addIds, trackId => ({ targetName: target.name, trackId })));
-  });
+  }
   await refreshCache(db, client, _.without(_.keys(byTarget), likedId));
   return result;
 };

@@ -3,7 +3,7 @@ const fs = require('fs');
 const NodeId3 = require('node-id3');
 const mp3Duration = require('mp3-duration');
 const { flatten } = require('flat');
-const Promise = require('bluebird');
+const { mapLimit } = require('../utils/promise.js');
 const { readHeaderDuration } = require('./duration.js');
 const { progress, progressDone } = require('../utils/logger.js');
 
@@ -70,7 +70,7 @@ const readFiles = async (files, reader) => {
   const fileList = [].concat(files);
   let done = 0;
   try {
-    return await Promise.map(
+    return await mapLimit(
       fileList,
       async file => {
         const result = await Promise.all([file, reader(file)]);
@@ -78,7 +78,7 @@ const readFiles = async (files, reader) => {
         progress(`Reading ${done}/${fileList.length} files`);
         return result;
       },
-      { concurrency: 5 }
+      5
     );
   } finally {
     progressDone();

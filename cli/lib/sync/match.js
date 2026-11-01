@@ -1,6 +1,6 @@
 const _ = require('lodash');
 const path = require('path');
-const Promise = require('bluebird');
+const { mapLimit } = require('../utils/promise.js');
 const globalTags = require('musicman-common/config/tags.json');
 
 const {
@@ -284,7 +284,7 @@ const matchSongs = async ({
       continue;
     }
     // songs with an id are only refreshed, the others are looked up first
-    const looked = await Promise.map(
+    const looked = await mapLimit(
       chunk,
       async item => {
         if (item.trackId) {
@@ -320,7 +320,7 @@ const matchSongs = async ({
           return { item, status: 'failed', error: err.message };
         }
       },
-      { concurrency }
+      concurrency
     );
 
     const withFields = _.filter(looked, ({ status }) => ['match', 'refresh'].includes(status));
