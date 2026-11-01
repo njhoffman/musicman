@@ -19,33 +19,27 @@ const filterRating = (rating, { min, max, exclude }) => {
   return ratingMatch;
 };
 
-const filterInclude = (include, metadata) =>
-  // returns true if any matches found
-  _.keys(include).every(filterKey => {
-    if (include[filterKey] === '') {
-      return _.isEmpty(metadata[filterKey]);
-    } else if (_.isArray(include[filterKey])) {
-      const metaVals = `${metadata[filterKey]}`.split(',').map(_.toLower);
-      return include[filterKey].every(multiVal => metaVals.includes(_.toLower(multiVal)));
-    }
+/**
+ * Whether a song's value of one field matches a filter value: an empty filter matches an empty field,
+ * a list (multi value fields) matches when every item is one of the field's values, and text matches
+ * as a case-insensitive substring. Each item of a list is tested on its own, so exclude (negate) means
+ * none of them is present, not that some is missing.
+ */
+const fieldMatches = (filterValue, metaValue, negate) => {
+  const test = matched => (negate ? !matched : matched);
+  if (filterValue === '') {
+    return test(_.isEmpty(metaValue));
+  }
+  if (_.isArray(filterValue)) {
+    const metaVals = `${metaValue}`.split(',').map(_.toLower);
+    return filterValue.every(item => test(metaVals.includes(_.toLower(item))));
+  }
+  return test(_.toLower(metaValue).includes(_.toLower(filterValue)));
+};
 
-    const filterVal = _.toLower(include[filterKey]);
-    return _.toLower(metadata[filterKey]).includes(filterVal);
-  });
-
-const filterExclude = (exclude, metadata) =>
-  // returns true if no matches found
-  _.keys(exclude).every(filterKey => {
-    if (exclude[filterKey] === '') {
-      return !_.isEmpty(metadata[filterKey]);
-    } else if (_.isArray(exclude[filterKey])) {
-      const metaVals = `${metadata[filterKey]}`.split(',').map(_.toLower);
-      return exclude[filterKey].every(multiVal => !metaVals.includes(_.toLower(multiVal)));
-    }
-
-    const filterVal = _.toLower(exclude[filterKey]);
-    return !_.toLower(metadata[filterKey]).includes(filterVal);
-  });
+// true when every field of the filters matches the song (include), or none does (exclude, negate)
+const matchesFilters = (filters, metadata, { negate = false } = {}) =>
+  _.keys(filters).every(key => fieldMatches(filters[key], metadata[key], negate));
 
 const filterFiles =
   filters =>
@@ -53,8 +47,8 @@ const filterFiles =
     const { include = {}, exclude = {} } = filters;
 
     const ratingMatch = filterRating(metadata.rating, filters.rating || {});
-    const includeMatch = filterInclude(include, metadata);
-    const excludeMatch = filterExclude(exclude, metadata);
+    const includeMatch = matchesFilters(include, metadata);
+    const excludeMatch = matchesFilters(exclude, metadata, { negate: true });
 
     return includeMatch && excludeMatch && ratingMatch;
   };

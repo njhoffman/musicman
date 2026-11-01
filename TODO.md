@@ -34,9 +34,8 @@ Reviewed: 2026-11-01
 
 ## 2. Code quality
 
-- [ ] **Combine `filterInclude` and `filterExclude`.** (p3) [refactor] `cli/lib/metadata/filter.js` repeats the same
-      walk twice. Not a plain negation: for multi-value fields exclude means none of the values is present, while
-      include means all are, so a shared helper needs a per-mode predicate.
+- [x] **Combine `filterInclude` and `filterExclude`.** (p3) [refactor] one `matchesFilters` negates the test of each
+      value, so a multi value exclude still means none of the values is present.
 - [x] **Skip the MPD lookup for commands without targets.** (p3) [perf] `cli/lib/cli.js` asks MPD for the playing
       song before parsing every command, so `shuffle`, `spotify`, `sync`, `logs`, and `undo` wait for it too, up to
       the 2 s connect timeout when MPD is down. Done: commands with `targetArgs: false` skip it.

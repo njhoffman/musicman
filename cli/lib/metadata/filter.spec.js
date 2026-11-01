@@ -125,5 +125,16 @@ describe('Metadata Files Filter', async () => {
       const filtered = filesMetadata.filter(filterFunc(filters));
       expect(filtered).to.have.length(12);
     });
+
+    it('should need every value to include a song and none of them to exclude it', () => {
+      const songs = [
+        ['both', { mood: 'Sad,Gloomy' }],
+        ['one', { mood: 'sad,Calm' }],
+        ['none', { mood: 'Calm' }]
+      ];
+      const names = filters => songs.filter(filterFunc(filters)).map(([name]) => name);
+      expect(names({ include: { mood: ['Sad', 'Gloomy'] } })).to.deep.equal(['both']);
+      expect(names({ exclude: { mood: ['Sad', 'Gloomy'] } })).to.deep.equal(['none']);
+    });
   });
 });
