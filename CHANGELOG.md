@@ -10,6 +10,8 @@ All notable changes to this project are documented in this file. The format is b
 
 - The table view option `views.table.seperators` is now spelled `views.table.separators`; a config that still
   uses the old key fails validation with a message naming the new one.
+- Confirmation prompts (`edit` on several files, `sync`, `sort`, `undo`) use `@inquirer/confirm`; the answer
+  still defaults to no, and Ctrl+C or a closed input now answers no instead of erroring.
 
 ## [1.29.0] - 2026-10-28
 

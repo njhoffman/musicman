@@ -3,7 +3,7 @@ const chalk = require('chalk').default;
 const fs = require('fs');
 const path = require('path');
 
-const Confirm = require('prompt-confirm');
+const { confirm: confirmPrompt } = require('../utils/confirm.js');
 const { createClient } = require('../spotify/api.js');
 const { appTokenGetter, readTokens, userAccessToken } = require('../spotify/auth.js');
 const { getCredentials, missingCredentials, tokenPath } = require('../spotify/credentials.js');
@@ -109,7 +109,6 @@ const showStatus = async ({ credentials, file, fetchImpl, env, config }) => {
 };
 
 // refresh the cache of Liked Songs and mapped playlists, then report what sync would change
-const confirmPrompt = message => new Confirm({ message }).run();
 
 // every track a push added or removed, per target, by its local file when it has one
 const listPushed = (config, plan, prune) =>

@@ -29,10 +29,7 @@ describe('Edit Command', () => {
       '../output/index.js': {
         outputDifferences: outputStub
       },
-      'prompt-confirm': function (options) {
-        this.run = confirmStub;
-        return this;
-      }
+      '../utils/confirm.js': { confirm: confirmStub }
     });
 
     // Suppress console output during tests
@@ -96,10 +93,7 @@ describe('Edit Command', () => {
         '../output/index.js': {
           outputDifferences: outputStub
         },
-        'prompt-confirm': function (options) {
-          this.run = confirmStub;
-          return this;
-        }
+        '../utils/confirm.js': { confirm: confirmStub }
       });
 
       checkExistsStub.returns(true);
@@ -142,10 +136,7 @@ describe('Edit Command', () => {
         '../output/index.js': {
           outputDifferences: outputStub
         },
-        'prompt-confirm': function (options) {
-          this.run = confirmStub;
-          return this;
-        }
+        '../utils/confirm.js': { confirm: confirmStub }
       });
 
       checkExistsStub.returns(true);
@@ -192,10 +183,7 @@ describe('Edit Command', () => {
         './common.js': { getFilteredFiles: getFilteredFilesStub, saveMetadata: saveMetadataStub },
         '../utils/files.js': { checkExists: checkExistsStub },
         '../output/index.js': { outputDifferences: outputStub },
-        'prompt-confirm': function (options) {
-          this.run = confirmStub;
-          return this;
-        }
+        '../utils/confirm.js': { confirm: confirmStub }
       });
       checkExistsStub.returns(true);
       getFilteredFilesStub.resolves([]);

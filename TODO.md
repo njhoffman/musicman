@@ -28,7 +28,7 @@ Reviewed: 2026-10-31
 - [x] **Rename `seperators` to `separators`** (p3) [refactor] in `views.table`, with a legacy-key error like the other
       migrated options.
 - [ ] **Replace `bluebird`** (p3) [refactor] with native promises (`Promise.map` concurrency via a small helper).
-- [ ] **Replace `prompt-confirm`** (p3) [refactor] (unmaintained since 2017) with `@inquirer/confirm`.
+- [x] **Replace `prompt-confirm`** (p3) [refactor] (unmaintained since 2017) with `@inquirer/confirm`.
 - [ ] **Vendored MPD client.** (p3) [refactor] `common/mpd/MpdClient` is a local copy; evaluate a maintained client
       (e.g. `mpd-api`) instead of forking it.
 - [x] **Move existing TODO comments here and remove them from code:** (p3) [chore] moved to the items below and

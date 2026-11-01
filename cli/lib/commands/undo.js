@@ -1,7 +1,7 @@
 const _ = require('lodash');
 const chalk = require('chalk').default;
 const path = require('path');
-const Confirm = require('prompt-confirm');
+const { confirm: confirmPrompt } = require('../utils/confirm.js');
 
 const { createClient } = require('../spotify/api.js');
 const { readTokens, userAccessToken } = require('../spotify/auth.js');
@@ -11,7 +11,6 @@ const { openLibrary } = require('../db/index.js');
 const { dim } = require('../output/emit.js');
 const logger = require('../utils/logger.js');
 
-const confirmPrompt = message => new Confirm({ message }).run();
 
 const runLine = run =>
   [

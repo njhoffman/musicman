@@ -1,13 +1,12 @@
 const _ = require('lodash');
 const fs = require('fs');
-const Confirm = require('prompt-confirm');
+const { confirm: confirmPrompt } = require('../utils/confirm.js');
 
 const { openLibrary, updateDatabase } = require('../db/index.js');
 const { readBeetsConfig, readBeetsItems } = require('../spotify/beets.js');
 const { sortCandidates, sortSongs, unsortedFolder } = require('../beets/sort.js');
 const logger = require('../utils/logger.js');
 
-const confirmPrompt = message => new Confirm({ message }).run();
 
 // sort: have beets move rated songs with a sorted grouping out of its unsorted folder
 const sortCommand = async ({ options, config, runBeet, confirm = confirmPrompt }) => {

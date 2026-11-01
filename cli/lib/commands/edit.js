@@ -1,5 +1,5 @@
 const _ = require('lodash');
-const Confirm = require('prompt-confirm');
+const { confirm } = require('../utils/confirm.js');
 
 const {
   getFilteredFiles,
@@ -30,10 +30,7 @@ const editCommand = async ({ target, options, config }) => {
 
   // editing several files at once asks first
   if (filtered.length > 1 && !isTest) {
-    const prompt = new Confirm({
-      message: `You are about to apply changes to ${filtered.length} files, proceed?`
-    });
-    if (!(await prompt.run())) {
+    if (!(await confirm(`You are about to apply changes to ${filtered.length} files, proceed?`))) {
       logger.info(`Declined to modify ${filtered.length} files`);
       return false;
     }

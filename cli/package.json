@@ -35,6 +35,7 @@
     "sinon-chai": "^3.7.0"
   },
   "dependencies": {
+    "@inquirer/confirm": "^6.3.5",
     "bluebird": "^3.7.2",
     "chalk": "^6.0.1",
     "cli-table3": "^0.6.5",
@@ -47,7 +48,6 @@
     "musicman-common": "workspace:*",
     "node-id3": "^0.2.9",
     "pretty-error": "^4.0.0",
-    "prompt-confirm": "2.0.4",
     "string-width": "^8.3.0"
   },
   "version": "1.2.0",
