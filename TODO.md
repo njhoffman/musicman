@@ -348,5 +348,5 @@ database backups (`db.autoBackup`) have no restore command.
       `menu/`, or `history/`. Bring them in line with the code, or point them at the README.
 - [ ] **Delete the local `install.sh`.** (p3) [chore] an untracked copy of the nvm installer, ignored by a
       `.gitignore` entry of its own; delete the file and that entry.
-- [ ] **Remove or update the untracked repo copy of `.musicmanrc.yml`.** (p3) [chore] it uses the old config format
-      and shows up in `git status`; the real config is `~/.musicmanrc.yml`.
+- [x] **Remove the untracked repo copy of `.musicmanrc.yml`.** (p3) [chore] it was identical to
+      `~/.musicmanrc.yml`, which dotbare tracks; deleted 2026-11-01 and ignored in `.gitignore`.

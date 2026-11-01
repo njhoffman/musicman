@@ -7,3 +7,5 @@ node_modules
 # local tooling
 .vectorcode
 install.sh
+# the user config lives in ~/.musicmanrc.yml, tracked by dotbare; never a copy here
+/.musicmanrc.yml

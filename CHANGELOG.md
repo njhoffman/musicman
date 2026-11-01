@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- A copy of `.musicmanrc.yml` in the repository root is ignored by git; the user config is
+  `~/.musicmanrc.yml`.
+
 ## [1.32.0] - 2026-11-01
 
 ### Added
