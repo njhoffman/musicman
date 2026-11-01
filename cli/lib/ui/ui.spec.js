@@ -1,5 +1,6 @@
 const _ = require('lodash');
 const fs = require('fs');
+const http = require('http');
 const os = require('os');
 const path = require('path');
 const NodeId3 = require('node-id3');
@@ -361,10 +362,73 @@ describe('musicman ui', () => {
       expect((await post(`/api/songs/${id}/accept`, { trackId: 'x; rm' })).status).to.equal(400);
       const notJson = await fetch(`${base}/api/songs/${id}/accept`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: '{'
       });
       expect(notJson.status).to.equal(400);
       expect(calls).to.be.empty;
+    });
+
+    // a request with any headers, Host included (fetch does not let it be set)
+    const raw = (method, url, headers, body) =>
+      new Promise((resolve, reject) => {
+        const req = http.request(
+          { host: '127.0.0.1', port: server.address().port, method, path: url, headers },
+          res => {
+            let text = '';
+            res.on('data', chunk => {
+              text += chunk;
+            });
+            res.on('end', () => resolve({ status: res.statusCode, body: text }));
+          }
+        );
+        req.on('error', reject);
+        req.end(body);
+      });
+
+    it('should refuse a Host that is not this server, so a rebinding site cannot read it', async () => {
+      const port = server.address().port;
+      expect((await raw('GET', '/api/review', { Host: `evil.example:${port}` })).status).to.equal(
+        403
+      );
+      expect((await raw('GET', '/api/review', { Host: '127.0.0.1:1' })).status).to.equal(403);
+      expect((await raw('GET', '/api/review', { Host: `localhost:${port}` })).status).to.equal(200);
+    });
+
+    it('should refuse a cross-site text/plain POST and one from another origin', async () => {
+      const port = server.address().port;
+      const id = songId('testFile01.mp3');
+      const body = JSON.stringify({ trackId: trackA });
+      const plain = await raw(
+        'POST',
+        `/api/songs/${id}/reject`,
+        { Host: `127.0.0.1:${port}`, 'Content-Type': 'text/plain', Origin: 'https://evil.example' },
+        body
+      );
+      expect(plain.status).to.equal(415);
+      const foreign = await raw(
+        'POST',
+        `/api/songs/${id}/reject`,
+        {
+          Host: `127.0.0.1:${port}`,
+          'Content-Type': 'application/json',
+          Origin: 'https://evil.example'
+        },
+        body
+      );
+      expect(foreign.status).to.equal(403);
+      const page = await raw(
+        'POST',
+        `/api/songs/${id}/accept`,
+        {
+          Host: `127.0.0.1:${port}`,
+          'Content-Type': 'application/json; charset=utf-8',
+          Origin: `http://127.0.0.1:${port}`
+        },
+        body
+      );
+      expect(page.status).to.equal(200);
+      expect(calls).to.deep.equal([['accept', id, trackA]]);
     });
 
     it('should play a track in the Spotify app', async () => {

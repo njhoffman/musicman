@@ -11,7 +11,10 @@ zpty -w z 'compadd () {
   (( $#__hits )) && print -r -- "HIT ${(j:|:)__hits}" >&2
   return ret
 }'
-zpty -w z 'bindkey -e; bindkey "^I" complete-word; zstyle ":completion:*" menu no'
+# Tab completes, then prints a marker, so each line is read only once its completion has finished (typed
+# ahead keys change what completion does); the marker is written as TAB''END so its echo does not match
+zpty -w z "tabend() { zle complete-word; print -r -- TAB''END >&2 }; zle -N tabend"
+zpty -w z 'bindkey -e; bindkey "^I" tabend; zstyle ":completion:*" menu no'
 local out
 # the marker is typed as RE''ADY so only its output matches
 zpty -w z "print -r -- RE''ADY"
@@ -19,10 +22,12 @@ zpty -r z out '*READY*'
 local line
 for line in ${@[2,-1]}; do
   zpty -w -n z "$line"$'\t'
+  zpty -r z out '*TABEND*'
+  print -r -- "== $line"
+  print -rl -- ${${(M)${(f)out//$'\r'/}:#*HIT *}/#*HIT /HIT }
+  # clear the line and wait for the prompt to settle before the next one
   zpty -w -n z $'\C-u'
   zpty -w z "print -r -- DO''NE"
   zpty -r z out '*DONE*'
-  print -r -- "== $line"
-  print -rl -- ${${(M)${(f)out//$'\r'/}:#*HIT *}/#*HIT /HIT }
 done
 zpty -d z

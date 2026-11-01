@@ -108,6 +108,33 @@ const sendAudio = (req, res, baseDirectory, songPath) => {
   fs.createReadStream(file, { start, end }).pipe(res);
 };
 
+// the names the page is reached by; any other Host is a DNS rebinding site that resolves to 127.0.0.1
+const allowedHosts = port => [`127.0.0.1:${port}`, `localhost:${port}`];
+
+/**
+ * Refuses requests that do not come from the page itself: a Host other than 127.0.0.1 or localhost at
+ * the server's port (DNS rebinding), and POSTs that are not JSON or come from another origin. A web
+ * page elsewhere can send a text/plain POST without asking first, but not a JSON one: that needs a CORS
+ * preflight, which this server never answers.
+ */
+const checkOrigin = req => {
+  const hosts = allowedHosts(req.socket.localPort);
+  if (!hosts.includes(req.headers.host)) {
+    throw new HttpError(403, `Host ${req.headers.host || '(none)'} is not this server`);
+  }
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    return;
+  }
+  const type = `${req.headers['content-type'] || ''}`.split(';')[0].trim().toLowerCase();
+  if (type !== 'application/json') {
+    throw new HttpError(415, 'Requests that change something must be application/json');
+  }
+  const { origin } = req.headers;
+  if (origin !== undefined && !hosts.map(host => `http://${host}`).includes(origin)) {
+    throw new HttpError(403, `Origin ${origin} is not this page`);
+  }
+};
+
 const songId = value => {
   const id = Number(value);
   if (!Number.isInteger(id) || id <= 0) {
@@ -131,7 +158,7 @@ const trackIdOf = body => {
  *   POST /api/songs/<id>/accept          { trackId } accept the track for the song
  *   POST /api/songs/<id>/reject          { trackId } reject the track for the song
  *   POST /api/spotify/open               { trackId } play the track in the Spotify desktop app
- * Dependencies: db, config, actions (reviewActions), getClient() a Spotify app client or null without
+ * Only requests from the page itself are answered (checkOrigin). Dependencies: db, config, actions (reviewActions), getClient() a Spotify app client or null without
  * credentials, librarySongs() the songs with their targets (songTargets), plan(songs) syncPlan, and
  * player (spotifyPlayer).
  */
@@ -205,6 +232,7 @@ const createHandler = ({ db, config, actions, getClient, librarySongs, plan, pla
   return async (req, res) => {
     const { pathname } = new URL(req.url, 'http://localhost');
     try {
+      checkOrigin(req);
       const route = _.find(
         routes,
         ([method, pattern]) => method === req.method && pattern.test(pathname)

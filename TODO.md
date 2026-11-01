@@ -100,14 +100,6 @@ Reviewed: 2026-11-01
       filled from the database and from `--files` reads alike (20 min, 21 MB for `Rap-R&B/Singles` both ways), so
       no switch is needed.
 
-- [ ] **`musicman ui` transfer actions.** (p2) [feature] the Spotify to local and local to Spotify lists only
-      display; add downloading (`sync --pull`) and the upload export from the page, and a refresh of the cached
-      playlists so the lists are not as old as the last sync.
-- [ ] **Cache the `musicman ui` transfer lists.** (p3) [perf] each load reads the library and computes the sync
-      plan, about 5 s; keep the result until the database or the playlist cache changes.
-- [ ] **Remove the `server/` and `client/` placeholders.** (p3) [chore] the 2019 Express and React scaffolds
-      are unused now that `musicman ui` serves the page from the cli.
-
 ## 5. Artwork
 
 - [ ] **Fetch missing artwork for singles.** (p2) [feature] find songs tagged as singles without an embedded cover (no
@@ -140,7 +132,7 @@ Reviewed: 2026-11-01
       their own album. When several candidates are the same recording, rank by the local album (TALB) first, then
       album_type album over single over compilation, and skip various artists releases. Add a `sync --match
       --recheck` pass (or a review reason) for existing matches on compilations whose song has its own album.
-- [ ] **`sync --push` export.** (p2) [feature] export songs missing from Spotify to `sync.uploadDirectory`, one
+- [ ] **`sync --push` export.** (p2) [feature] (also the action of the `musicman ui` local to Spotify list) export songs missing from Spotify to `sync.uploadDirectory`, one
       subfolder per target playlist (hardlinks when possible), with a `README.md` checklist and printed summary.
       Verify first how Spotify desktop Local Files sources handle subfolders.
 - [ ] **Verify pushed local files.** (p2) [feature] on `sync`, read local tracks in the mapped playlists, report
@@ -334,8 +326,8 @@ database backups (`db.autoBackup`) have no restore command.
 - [ ] **Prettier config at the root.** (p3) [chore] only `cli/` has a `.prettierrc`, so root files (`scripts/`,
       `README.md`, `common/`) format with whatever global config is found; they were formatted with
       `--config cli/.prettierrc`. Move the config to the root and add `scripts/` to `pnpm format`.
-- [ ] **`todos` script.** (p3) [chore] `pnpm todos` runs `leasot` on `cli/config` (gone) and `server/`; the code
-      has no TODO comments left, so remove the script and the `leasot` devDependency.
+- [ ] **`todos` script.** (p3) [chore] `pnpm todos` runs `leasot` on `cli/config` and `server/`, both gone; the
+      code has no TODO comments left, so remove the script and the `leasot` devDependency.
 - [ ] **Stray `vnull` tag.** (p3) [chore] an annotated tag `vnull` ("chore(release): null", 2025-07-27, 25cadb8)
       from a broken release, locally and on the remote; delete it (`git tag -d vnull`, `git push origin :vnull`).
 - [x] **ESLint migration.** (p2) [chore] ESLint 10 flat config, `eslint-config-prettier`, Prettier 3 separately.
@@ -351,9 +343,8 @@ database backups (`db.autoBackup`) have no restore command.
 - [ ] **Remove stale tracked files.** (p3) [chore] `cli/test_output.txt`, `cli/test_output2.txt`,
       `cli/SESSION_SUMMARY.md`, and `cli/CONTEXT.md` (superseded by the root `CONTEXT.md`); `docs/scratch.md` holds
       early notes on `library.tags` that the config now implements.
-- [ ] **Placeholder `server/` and `client/`.** (p3) [chore] untouched since 2020, not in the pnpm workspace, and the
-      server no longer starts (`require('../../../common/config')` returns the module, not a config). Remove them,
-      or move them out of the repo until a server is planned.
+- [x] **Placeholder `server/` and `client/`.** (p3) [chore] removed with their `server.port` and `websocket.port`
+      options; `musicman ui` serves the page from the cli.
 - [ ] **Refresh the developer docs.** (p3) [docs] `cli/CLAUDE.md` lists the commands as view, edit, playlist, stats,
       quotes 91 passing tests and nyc coverage, and ends with a stale "Current Session Context"; root `CONTEXT.md`
       says commits use gitmoji; `docs/01-outline.md` shows a 2020 layout without `db/`, `sync/`, `spotify/`,
@@ -362,3 +353,39 @@ database backups (`db.autoBackup`) have no restore command.
       `.gitignore` entry of its own; delete the file and that entry.
 - [x] **Remove the untracked repo copy of `.musicmanrc.yml`.** (p3) [chore] it was identical to
       `~/.musicmanrc.yml`, which dotbare tracks; deleted 2026-11-01 and ignored in `.gitignore`.
+
+## 14. Management page (`musicman ui`, `cli/lib/ui/`)
+
+- [x] **Cross-site requests can change the library.** (p1) [bug] `checkOrigin` in `cli/lib/ui/server.js`: the
+      Host must be 127.0.0.1 or localhost at the server's port, and POSTs must be JSON from the page's origin.
+- [ ] **Warn while another run changes the library.** (p2) [feature] accepting during `sync --match` or `--pull`
+      writes the same files and rows; show a banner (and ask before acting) while a run in the runs directory is
+      `running`, which `listRuns` already reports.
+- [ ] **Reload the lists.** (p2) [feature] the page loads each list once; a `sync` in a terminal leaves it stale
+      until the browser reloads. Add a reload button per list, or poll a cheap change marker (the newest
+      `spotify_matches.checked_at`, `reviewed_at`, and playlist `synced_at`).
+- [ ] **Match a song by hand.** (p2) [feature] 865 songs are `missing` (no candidate found). Search Spotify from
+      the page for a song, play the results, and accept one, the same accept as for a review candidate; also offer
+      other candidates for a review song whose candidate is wrong.
+- [ ] **Keyboard review.** (p2) [feature] j/k or arrows to move through the list, space to play the local file,
+      s to play the Spotify version, a and r to accept or reject and move on; with 26 to review and 774 accepted to
+      audit, mouse only review is slow.
+- [ ] **Sort the lists.** (p3) [feature] by similarity (least similar first to audit accepted matches), length
+      difference, path, or when accepted; columns are fixed in the order the API returns.
+- [ ] **Transfer actions.** (p2) [feature] the Spotify to local and local to Spotify lists only display; add
+      downloading (`sync --pull`) of picked tracks, the upload export (`sync --push` export in section 7), and a
+      refresh of the cached playlists so the lists are newer than the last sync.
+- [ ] **Cache the transfer lists.** (p3) [perf] each load reads the library and computes the sync plan, about 5 s;
+      keep the result until the database or the playlist cache changes.
+- [ ] **Undo from the page.** (p3) [feature] list the `ui` runs with what each changed and undo one, as
+      `musicman undo <run id>` does.
+- [ ] **Full Spotify playback in the page.** (p3) [feature] the embedded player plays full tracks only when the
+      browser is logged in to Spotify, previews otherwise. The Web Playback SDK plays in the page with the
+      `streaming` scope (a new `sync --login`) and Premium.
+- [ ] **Try "Play in Spotify app".** (p3) [test] the button opens the track in the desktop app through MPRIS; it
+      has only run against a fake player.
+- [ ] **Tests for the page script.** (p3) [test] `public/app.js` (tabs, filter, compare panel, busy buttons) has
+      no tests; the server and data behind it do. A browser test (Playwright) or a DOM test of the render
+      functions.
+- [ ] **Page semantics.** (p3) [feature] the tabs are buttons without `tablist` roles and the rows are focusable
+      table rows; use a tablist and announce the selected song for screen readers.

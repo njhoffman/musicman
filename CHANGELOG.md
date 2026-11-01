@@ -6,6 +6,25 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- `musicman ui` only answers its own page. Before, a web page open in the browser could accept or reject
+  matches with a plain text POST to 127.0.0.1:6660, and a DNS rebinding site could read the lists and
+  stream library files. Requests must now name 127.0.0.1 or localhost at the server's port as their Host,
+  and requests that change something must be JSON from the page's own origin.
+- The zsh completion test waits for each completion to finish before typing the next line; it failed
+  most runs when the keys were typed ahead.
+
+### Removed
+
+- The unused `server/` and `client/` placeholders (a 2019 Express server and React app that no longer
+  started) and their `server.port` and `websocket.port` options; a config that still sets them gets an
+  unknown option warning. `musicman ui` serves the page from the cli.
+
+### Added
+
+- README section for `musicman ui`.
+
 ## [1.40.0] - 2026-11-01
 
 ### Added
