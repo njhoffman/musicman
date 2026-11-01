@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.31.0] - 2026-11-01
+
 ### Added
 
 - `musicman shuffle` plays a Spotify source in a uniformly random order: Liked Songs (`liked`), one of your
@@ -602,7 +604,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.30.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.31.0...HEAD
+[1.31.0]: https://github.com/njhoffman/musicman/compare/v1.30.0...v1.31.0
 [1.30.0]: https://github.com/njhoffman/musicman/compare/v1.29.0...v1.30.0
 [1.29.0]: https://github.com/njhoffman/musicman/compare/v1.28.1...v1.29.0
 [1.28.1]: https://github.com/njhoffman/musicman/compare/v1.28.0...v1.28.1
