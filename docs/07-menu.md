@@ -1,30 +1,35 @@
 ## rofi menu for the playing song
 
 `musicman menu` opens a rofi menu for the song playing in MPD or Spotify (the desktop app). It has the
-same layout for both players; the title (` Spotify` or ` MPD`), the window border and button accent
-(Spotify green, MPD amber), and the status column show which one it controls. It stays open after each
-action until `q` or Escape. i3 binds it to `$mod+Shift+m`.
+same layout for both players; the title (` Spotify` or ` MPD`), the window border, the playback icons
+(Spotify green, MPD amber), and the status column show which one it controls. It opens with `next`
+selected, so Enter right away skips the song, and stays open after each action until `q` or Escape. i3
+binds it to `$mod+Shift+m`.
 
 ```
- Spotify  ·  Look on Down From the Bridge
-┌────────┬────────────────────────────────────────────┬─────────────┐
-│ cover  │ Look on Down From the Bridge               │     Spotify │
-│        │ Mazzy Star  ·  Among My Swan               │     playing │
-│        │ ▶  1:23 / 3:00                             │    vol 100% │
-│        │ ★★★★★  5.0   context Study   picks Nick    │  in library │
-└────────┴────────────────────────────────────────────┴─────────────┘
- prev  pause  next  -10s  +10s  vol -  vol +  to MPD          p t n h l - = Tab
- shuffle on  repeat off  reshuffle Liked Songs  Study  Hot      u r o a s
- Nick's Picks  Ambient.Artists  4.0  4.5  5.0  like  ignore      d g 1 2 3 y x
+ Spotify
+┌──────────┬──────────────────────────────────────────────┬─────────────┐
+│          │ Look on Down From the Bridge                 │     Spotify │
+│  cover   │ Mazzy Star  ·  Among My Swan                 │     playing │
+│          │ ▶  1:23  ━━━━━━━━━●──────────────────  3:00  │    vol 100% │
+│          │ ★★★★★  5.0      FolkRock.Artists      1996   │  in library │
+│          │  Study    Drive    Mellow    Nick          │             │
+└──────────┴──────────────────────────────────────────────┴─────────────┘
+ prev  pause  next  -30s  +30s  vol -  vol +  shuffle  repeat       p t n h l - = u r
+ reshuffle  details  genre  tags  4.0  4.5  5.0  like  ignore       o i g e 1 2 3 y x
 ```
+
+The song's tags are shown as chips colored per field (context blue, mood purple, picks red); icons are
+colored per kind of button (playback, modes, song, ratings, like).
 
 ### Which player
 
 The one playing; Spotify when both are. With neither playing, a paused one, else a stopped MPD (so play
-works). `Tab` switches to the other player while both run.
+works). The menu follows whichever player takes over (see Following the song); there is no switch.
 
 Spotify is controlled through MPRIS (`playerctl -p spotify`), so only the desktop app on this machine:
 no Web API player scopes, no Premium requirement. MPD through its protocol (`mpd.host`, `mpd.port`).
+Seek moves 30 seconds.
 
 ### Shuffle, repeat, and reshuffle
 
@@ -39,25 +44,41 @@ After the playback controls:
   caption names the source; disabled when there is neither. Why this beats Spotify's own shuffle: the
   README's "Spotify shuffle" section.
 
-Smart Shuffle cannot be controlled from here: neither MPRIS nor the Web API exposes it. The keys `u`,
-`r`, `o`, and `g` are not given to tag buttons without a `key`.
+Smart Shuffle cannot be controlled from here: neither MPRIS nor the Web API exposes it.
 
 ### Following the song
 
 While the menu is open it checks the players once a second; when another track starts (or the other
 player takes over) it closes and opens again with the new song, since rofi cannot update an open menu.
 
-### Grouping
+### Submenus
 
-`g` (captioned with the song's grouping) opens a second menu of the groupings used in the library, most
-used first; Escape goes back. Picking one sets the grouping tag of an MPD song or a Spotify song in the
-library (pushed right away, like the tag buttons). A Spotify song not in the library moves to the
-`sync.playlists` playlist of that grouping (an entry whose filter is just `grouping:<value>`) and out of
-the other grouping playlists; groupings without such a playlist are disabled for it.
+`i` details, `g` genre, and `e` tags open a second menu over the same song panel. Their buttons are plain
+text, and typing filters them (rofi matches the raw text of a button, so the main menu, drawn with
+markup, has no filter). Escape goes back to the main menu.
 
-### Song buttons
+### Details
 
-Configured in `menu.buttons` (one `field:value` of a multi value field each) and `menu.ratings`:
+`i` lists everything about the song, one line each: for a song in the library its file (path, size,
+modified) and every tag with a value, Spotify fields included; for a Spotify song not in the library the
+track as Spotify plays it. Then its Spotify link and URI and the cached Spotify playlists it is in.
+
+### Genre
+
+`g` (captioned with the song's grouping, `genre` when it has none) opens the groupings used in the
+library, most used first. Picking one sets the grouping tag of an MPD song or a Spotify song in the
+library (pushed right away, like tags). A Spotify song not in the library moves to the `sync.playlists`
+playlist of that grouping (an entry whose filter is just `grouping:<value>`) and out of the other grouping
+playlists; groupings without such a playlist are disabled for it.
+
+### Tags
+
+`e` (captioned with how many tags the song has) opens every value of `menu.tagFields` (picks, context and
+mood by default) used on at least `menu.tagMinSongs` songs (5), most used first per field, with the
+song's own values and `menu.extraTags` (values no song has yet) added. `menu.buttons` are pinned first,
+pressed with Alt and their key (`Alt+a`, shown as `M-a`), since plain letters filter. A highlighted tag
+(✓) is one the song has; pressing a tag adds or removes it, and the menu stays open with the song read
+again, so several tags can be changed in a row.
 
 ```yaml
 menu:
@@ -67,12 +88,17 @@ menu:
       key: a
     - label: Hot
       filter: 'picks:Hot'
+  tagFields: [picks, context, mood]
+  tagMinSongs: 5
+  extraTags: ['mood:Nostalgic']
   ratings: [4, 4.5, 5]
 ```
 
-A highlighted button means the song has that tag (or rating). What a press does depends on the song:
+### Tag and rating buttons
 
-| Song                                | Tag button                                                              | Rating button                                                    |
+What a tag or rating press does depends on the song:
+
+| Song                                | Tag                                                                     | Rating button                                                    |
 | ----------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | MPD                                 | adds or removes the value (`context=+Study`)                            | sets the rating                                                  |
 | Spotify, in the library (by its id) | the same local change, then pushed right away                           | the same, pushed right away                                      |
@@ -84,7 +110,7 @@ A highlighted button means the song has that tag (or rating). What a press does 
   track is never added twice. Songs outside `sync.scope` are not pushed.
 - A Spotify song not in the library that is in a rating playlist gets that rating when `sync --pull`
   and `sync --import` bring it in.
-- Buttons without a matching `sync.playlists` entry are disabled for Spotify songs not in the library.
+- Tags without a matching `sync.playlists` entry are disabled for Spotify songs not in the library.
 
 `like` shows whether Spotify has the track in Liked Songs now (asked each time the menu is drawn, falling
 back to the cache of the last sync), so a song liked in the app is never added twice.

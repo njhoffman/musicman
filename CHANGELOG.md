@@ -6,6 +6,26 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman menu` has a details screen (`i`): the file (path, size, modified) and every tag with a value,
+  or the Spotify track for songs not in the library, with its Spotify link and the playlists it is in.
+- A tags submenu (`e`) lists every picks, context, and mood value used on at least `menu.tagMinSongs` songs
+  (5), the song's own values, and `menu.extraTags` for new ones; `menu.tagFields` picks the fields.
+  Pressing a tag adds or removes it and keeps the submenu open. Typing filters the submenus.
+
+### Changed
+
+- The menu's tag buttons moved from the main screen to the tags submenu: `menu.buttons` are pinned first
+  there and pressed with Alt and their key (`Alt+a`). The song's tags still show in the info box, as
+  colored chips.
+- The grouping button is captioned `genre` (the song's grouping when it has one).
+- The menu opens with `next` selected, so Enter right away skips the song.
+- Seek buttons move 30 seconds instead of 10.
+- The menu always controls the player that plays (Spotify when both do); the `Tab` switch is gone.
+- New look: wider panel, larger cover, a progress bar, colored stars and icons, buttons in two rows of
+  nine, and the selected button framed instead of filled.
+
 ## [1.33.0] - 2026-11-01
 
 ### Added

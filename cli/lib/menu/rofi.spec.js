@@ -1,7 +1,7 @@
 const { EventEmitter } = require('events');
 const { expect } = require('chai');
 
-const { buttonMarkup, panelView, rasiMarkup, runRofi } = require('./rofi.js');
+const { buttonMarkup, buttonText, keyLabel, panelView, rasiMarkup, runRofi } = require('./rofi.js');
 
 describe('Menu rofi', () => {
   // a spawn that records rofi's arguments and input, then exits with code and output
@@ -131,7 +131,9 @@ describe('Menu rofi', () => {
         '-mesg',
         'details'
       ]);
-      expect(args).to.include('listview { columns: 2; lines: 2; }');
+      expect(args).to.include('listview { columns: 2; lines: 2; scrollbar: false; }');
+      expect(args).to.include('-markup-rows');
+      expect(args).to.not.include('-selected-row');
       expect(args).to.include('* { accent: #1db954; }');
       expect(args).to.include('icon-cover { filename: "/c/cover.jpg"; }');
       expect(args).to.include('textbox-status { content: "<b>Spotify</b>\\nplaying"; }');
@@ -145,6 +147,62 @@ describe('Menu rofi', () => {
         'q'
       ]);
     });
+
+    it('should draw a plain menu as text with a filter box, faded entries urgent, rows capped', async () => {
+      const fake = fakeSpawn(0, '0');
+      const view = panelView({ theme: '/t.rasi', spawnProcess: fake.spawnProcess });
+      const entries = Array.from({ length: 10 }, (_, i) => ({
+        icon: 'I',
+        label: `tag${i}`,
+        active: i === 1,
+        disabled: i === 2
+      }));
+      await view({
+        title: 't',
+        entries,
+        keys: [],
+        plain: true,
+        columns: 2,
+        maxLines: 3,
+        align: 'left'
+      });
+      const { args, input } = fake.calls[0];
+      expect(args).to.not.include('-markup-rows');
+      expect(args).to.include('listview { columns: 2; lines: 3; scrollbar: true; }');
+      expect(args).to.include('inputbar { children: [ "prompt", "textbox-sep", "entry" ]; }');
+      expect(args).to.include('element-text { horizontal-align: 0; }');
+      expect(args.slice(args.indexOf('-u'), args.indexOf('-u') + 2)).to.deep.equal(['-u', '2']);
+      expect(args.slice(args.indexOf('-eh'), args.indexOf('-eh') + 2)).to.deep.equal(['-eh', '2']);
+      expect(input.split('|').slice(0, 2)).to.deep.equal(['I\ntag0', 'I ✓\ntag1']);
+    });
+
+    it('should select the given entry when the menu opens', async () => {
+      const fake = fakeSpawn(0, '0');
+      await panelView({ spawnProcess: fake.spawnProcess })({
+        title: 't',
+        entries: [{ label: 'a' }, { label: 'b' }, { label: 'c' }],
+        selected: 2
+      });
+      const { args } = fake.calls[0];
+      expect(
+        args.slice(args.indexOf('-selected-row'), args.indexOf('-selected-row') + 2)
+      ).to.deep.equal(['-selected-row', '2']);
+    });
+  });
+
+  it('should show Alt keys as M-, color icons by tone, and put plain keys after the caption', () => {
+    expect(keyLabel('Alt+a')).to.equal('M-a');
+    expect(keyLabel('Alt+minus')).to.equal('M--');
+    expect(buttonMarkup({ icon: 'V', label: 'next', tone: '#123456' })).to.include(
+      '<span font_size="x-large" foreground="#123456">V</span>'
+    );
+    expect(buttonMarkup({ icon: 'V', label: 'x', tone: '#123456', disabled: true })).to.not.include(
+      'foreground'
+    );
+    expect(buttonText({ icon: 'I', label: 'Study', key: 'Alt+a', active: true })).to.equal(
+      'I ✓\nStudy   M-a'
+    );
+    expect(buttonText({ label: 'path  /a|b' })).to.equal('path  /a¦b');
   });
 
   it('should show keysym names as the character they type, and fade disabled buttons', () => {

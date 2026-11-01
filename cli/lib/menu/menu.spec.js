@@ -1,6 +1,6 @@
 const { expect } = require('chai');
 
-const { Menu, clock } = require('./menu.js');
+const { Menu, clock, progressBar } = require('./menu.js');
 
 describe('Menu', () => {
   const track = { title: 'Song', artist: 'Artist', album: 'Album', position: 61, duration: 200 };
@@ -49,8 +49,11 @@ describe('Menu', () => {
       const { menus, view } = fakeView([]);
       await menuWith({ players: [fakePlayer(source, 'playing')], view }).open();
       const [menu] = menus;
-      expect(menu.title).to.equal(`${source === 'mpd' ? '  MPD' : '  Spotify'}  ·  Song`);
-      expect(menu.message).to.equal('<b>Song</b>\nArtist  ·  Album\n▶  1:01 / 3:20');
+      expect(menu.title).to.equal(source === 'mpd' ? '  MPD' : '  Spotify');
+      const [title, artist, progress] = menu.message.split('\n');
+      expect(title).to.equal('<span font_size="large"><b>Song</b></span>');
+      expect(artist).to.equal('<b>Artist</b>  ·  <span alpha="65%">Album</span>');
+      expect(progress).to.match(/^▶ {2}1:01 {2}<span.*<\/span> {2}3:20$/);
       expect(menu.status.slice(0, 3)).to.deep.equal([
         `<b>${source === 'mpd' ? 'MPD' : 'Spotify'}</b>`,
         'playing',
@@ -68,11 +71,24 @@ describe('Menu', () => {
       'l',
       'minus',
       'equal',
-      'Tab',
       'u',
       'r',
       'o'
     ]);
+  });
+
+  it('should open with next selected and the buttons in two rows', async () => {
+    const { menus, view } = fakeView([]);
+    await menuWith({ players: [fakePlayer('spotify', 'playing')], view }).open();
+    expect(menus[0].selected).to.equal(2);
+    expect(menus[0].columns).to.equal(5);
+  });
+
+  it('should draw the progress bar in accent, the played part filled', () => {
+    expect(progressBar(50, 100, '#fff', 11)).to.equal(
+      '<span foreground="#fff">━━━━━●</span><span alpha="35%">─────</span>'
+    );
+    expect(progressBar(0, 0, '#fff', 3)).to.include('●</span><span alpha="35%">──</span>');
   });
 
   describe('shuffle, repeat, and reshuffle', () => {
@@ -144,34 +160,41 @@ describe('Menu', () => {
     const player = fakePlayer('spotify', 'playing');
     const { menus, view } = fakeView([2, { key: 'h' }, { key: 'equal' }, { key: 'q' }]);
     await menuWith({ players: [player], view }).open();
-    expect(player.calls).to.deep.equal([['next'], ['seek', -10], ['volume', 5]]);
+    expect(player.calls).to.deep.equal([['next'], ['seek', -30], ['volume', 5]]);
     expect(menus).to.have.length(4);
   });
 
-  it('should switch to the other running player with Tab', async () => {
-    const spotify = fakePlayer('spotify', 'playing');
-    const mpd = fakePlayer('mpd', 'paused');
-    const { menus, view } = fakeView([{ key: 'Tab' }, { key: 't' }]);
+  it('should control the player that plays, Spotify when both do, without a switch button', async () => {
+    const spotify = fakePlayer('spotify', 'paused');
+    const mpd = fakePlayer('mpd', 'playing');
+    const { menus, view } = fakeView([{ key: 't' }]);
     await menuWith({ players: [spotify, mpd], view }).open();
-    expect(menus[0].title).to.include('Spotify');
-    expect(menus[1].title).to.include('MPD');
+    expect(menus[0].title).to.include('MPD');
     expect(mpd.calls).to.deep.equal([['toggle']]);
-    expect(spotify.calls).to.be.empty;
+    expect(menus[0].keys).to.deep.equal(['q']);
+
+    const both = fakeView([]);
+    await menuWith({
+      players: [fakePlayer('mpd', 'playing'), fakePlayer('spotify', 'playing')],
+      view: both.view
+    }).open();
+    expect(both.menus[0].title).to.include('Spotify');
   });
 
   it('should do nothing for a disabled button, and announce a failed action without closing', async () => {
-    const player = fakePlayer('mpd', 'playing');
+    const player = fakePlayer('mpd', 'playing', { volume: null });
     player.next = async () => {
       throw new Error('MPD went away');
     };
     const notes = [];
-    const { menus, view } = fakeView([{ key: 'Tab' }, { key: 'n' }]);
+    const { menus, view } = fakeView([{ key: 'minus' }, { key: 'n' }]);
     await menuWith({
       players: [player],
       view,
       notify: async message => notes.push(message)
     }).open();
-    expect(menus[0].entries.find(({ key }) => key === 'Tab').disabled).to.equal(true);
+    expect(menus[0].entries.find(({ key }) => key === 'minus').disabled).to.equal(true);
+    expect(player.calls).to.be.empty;
     expect(notes).to.deep.equal(['MPD went away']);
     expect(menus).to.have.length(3);
   });
@@ -204,7 +227,7 @@ describe('Menu', () => {
     await menuWith({ players: [fakePlayer('spotify', 'playing')], view, songActions }).open();
     expect(menus[0].message).to.include('★★★★  4.0');
     expect(menus[0].status).to.include('in library');
-    expect(menus[0].entries[11]).to.include({ label: 'tag /m/a.mp3' });
+    expect(menus[0].entries[10]).to.include({ label: 'tag /m/a.mp3' });
     expect(ran).to.deep.equal(['a']);
   });
 
@@ -241,7 +264,10 @@ describe('Menu', () => {
       follow: 2,
       notify: async () => {}
     }).open();
-    expect(menus.map(menu => menu.title.split('·')[1].trim())).to.deep.equal(['First', 'Second']);
+    expect(menus.map(menu => /<b>(\w+)<\/b>/.exec(menu.message)[1])).to.deep.equal([
+      'First',
+      'Second'
+    ]);
   });
 
   it('should leave the menu open without following when follow is 0', async () => {
@@ -279,8 +305,54 @@ describe('Menu', () => {
     expect(ran).to.deep.equal(['Rock']);
     expect(menus[1].title).to.match(/grouping$/);
     expect(menus[1].entries.map(({ label }) => label)).to.deep.equal(['Rock', 'Jazz']);
-    expect(menus[1].columns).to.equal(4);
+    expect(menus[1]).to.include({ columns: 4, plain: true });
+    // typing filters a submenu, so q is not bound there
+    expect(menus[1].keys).to.deep.equal([]);
     expect(menus).to.have.length(7);
+  });
+
+  it('should keep a stay submenu open after a pick, drawn again from the song read anew', async () => {
+    let tagged = false;
+    const songActions = {
+      song: async () => ({ details: [tagged ? 'is-tagged' : 'not-tagged'] }),
+      entries: async () => [
+        {
+          label: 'tags',
+          key: 'e',
+          stay: true,
+          columns: 6,
+          choices: async () => [
+            {
+              label: 'Study',
+              active: tagged,
+              run: async () => {
+                tagged = !tagged;
+              }
+            },
+            { label: 'Off', disabled: true, run: async () => expect.fail('disabled') },
+            { label: 'Info' }
+          ]
+        }
+      ]
+    };
+    // e opens tags, 0 toggles Study (menu stays), 1 is disabled (stays), Escape goes back; e, then 2
+    // has no run and goes back
+    const { menus, view } = fakeView([{ key: 'e' }, 0, 1, null, { key: 'e' }, 2, { key: 'q' }]);
+    await menuWith({ players: [fakePlayer('mpd', 'playing')], view, songActions }).open();
+    expect(tagged).to.equal(true);
+    expect(menus.map(({ title }) => (title.includes('tags') ? 'tags' : 'main'))).to.deep.equal([
+      'main',
+      'tags',
+      'tags',
+      'tags',
+      'main',
+      'tags',
+      'main'
+    ]);
+    expect(menus[1].message).to.include('not-tagged');
+    expect(menus[2].message).to.include('is-tagged');
+    expect(menus[2].entries[0].active).to.equal(true);
+    expect(menus[1].columns).to.equal(6);
   });
 
   it('should format times as m:ss', () => {

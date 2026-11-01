@@ -64,7 +64,10 @@ const configSchema = {
       theme: { type: 'string', required: false },
       rofiArgs: { type: 'array', required: false },
       buttons: { type: 'array', required: false },
-      ratings: { type: 'array', required: false }
+      ratings: { type: 'array', required: false },
+      tagFields: { type: 'array', required: false },
+      tagMinSongs: { type: 'number', min: 0, required: false },
+      extraTags: { type: 'array', required: false }
     }
   },
   status: {

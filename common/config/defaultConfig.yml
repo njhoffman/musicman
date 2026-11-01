@@ -166,14 +166,21 @@ menu:
   theme:
   # More rofi arguments, e.g. [-theme-str, 'window { width: 900px; }']
   rofiArgs: []
-  # Buttons that tag the playing song: filter is one field:value (view/search syntax), label its caption,
-  # key the key that presses it, icon an optional glyph. MPD songs and Spotify songs in the library get
-  # the tag (Spotify ones are pushed right away); other Spotify songs are added to the sync.playlists
-  # entry with the same filter.
+  # Tags pinned first in the tags submenu (e): filter is one field:value (view/search syntax), label its
+  # caption, key the letter that presses it there with Alt (Alt+a), icon an optional glyph. MPD songs and
+  # Spotify songs in the library get the tag (Spotify ones are pushed right away); other Spotify songs are
+  # added to the sync.playlists entry with the same filter.
   #   - label: Study
   #     filter: context:Study
   #     key: a
   buttons: []
+  # Multi value fields listed in the tags submenu
+  tagFields: [picks, context, mood]
+  # Values of tagFields on fewer songs than this are left out of the tags submenu (unless the song has one)
+  tagMinSongs: 5
+  # Tags listed in the tags submenu even when no song has them yet, one field:value each
+  #   - 'mood:Nostalgic'
+  extraTags: []
   # Rating buttons, keys 1, 2, 3, ... in order; Spotify songs not in the library go to the sync.playlists
   # entry for that exact rating, e.g. rating:4.5-4.5
   ratings: [4, 4.5, 5]

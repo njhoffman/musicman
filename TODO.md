@@ -235,6 +235,15 @@ Reviewed: 2026-11-01
       tracks as a list (a rewritten playlist plays its previous order for a minute or more), so playback stops after
       them although the playlist holds the rest. Options: start the playlist at track 1001 once the list ends
       (needs a watcher), or queue the next tracks from the notify daemon.
+- [ ] **Menu: unbound letters filter the main menu unseen.** (p3) [bug] the main menu has no filter box, but rofi
+      still filters on keys no button takes (`f`, `z`, ...), so a stray press can hide buttons until Backspace.
+      Bind the free letters to nothing (`-kb-custom-N` to a no-op key) or show the filter there too.
+- [ ] **Menu details: copy a line.** (p3) [feature] Enter on a line of the details screen (`i`) could copy its value
+      (the Spotify link, the file path) with `xclip`/`wl-copy` instead of going back.
+- [x] **Menu: details, genre, and tags submenus.** (p2) [feature] the details screen (`i`), the grouping button
+      renamed genre, and a tags submenu (`e`) of every picks, context, and mood value replace the tag buttons on the
+      main screen; `menu.tagFields`, `menu.tagMinSongs`, and `menu.extraTags` configure it. Opens on next, seek 30s,
+      no player switch, new look.
 - [x] **Reshuffle the playing playlist.** (p3) [feature] the menu's reshuffle button repeats the last
       `musicman shuffle` source, because MPRIS does not say which playlist is playing. `GET /me/player` gives the
       context (`user-read-playback-state` is granted), so it could shuffle what is playing instead.

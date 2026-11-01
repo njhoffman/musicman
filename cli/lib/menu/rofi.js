@@ -86,51 +86,84 @@ const runRofi = (args, input, { spawnProcess = spawn, keys = [], signal = null }
 // keys to bind for a menu: its buttons' keys, then the menu-wide ones
 const menuKeys = menu => _.uniq([..._.compact(_.map(menu.entries, 'key')), ...(menu.keys || [])]);
 
-const activeArgs = menu => {
-  const active = _.flatMap(menu.entries, (entry, index) => (entry.active ? [index] : []));
-  return active.length ? ['-a', active.join(',')] : [];
+// rofi's -a (active) or -u (urgent) argument for the entries with flag
+const flagArgs = (menu, flag, option) => {
+  const indexes = _.flatMap(menu.entries, (entry, index) => (entry[flag] ? [index] : []));
+  return indexes.length ? [option, indexes.join(',')] : [];
 };
 
-// how a key is shown on its button: keysym names as the character they type
+// how a key is shown on its button: keysym names as the character they type, Alt+ as M-
 const keySymbols = { minus: '-', equal: '=', comma: ',', period: '.', space: '␣' };
-const keyLabel = key => keySymbols[key] || key;
+const keyLabel = key => {
+  const alt = /^Alt\+(.+)$/.exec(key);
+  return alt ? `M-${keyLabel(alt[1])}` : keySymbols[key] || key;
+};
 
-// A button: a large icon over its key (dimmed) and caption. Highlighted buttons have a bold caption,
-// ones that do not apply to the song are drawn faded. | separates entries, so it is replaced.
+// | separates entries, so it is replaced in captions
+const captionOf = entry => String(entry.caption || entry.label).replace(/\|/g, '¦');
+
+// A button: a large icon (in the entry's tone) over its key (dimmed) and caption. Highlighted buttons
+// have a bold caption, ones that do not apply to the song are drawn faded.
 const buttonMarkup = entry => {
-  const caption = escapeMarkup(entry.caption || entry.label).replace(/\|/g, '¦');
+  const caption = escapeMarkup(captionOf(entry));
   const key = entry.key
-    ? `<span alpha="55%" font_size="small">${escapeMarkup(keyLabel(entry.key))}</span> `
+    ? `<span alpha="55%" font_size="small">${escapeMarkup(keyLabel(entry.key))}</span>  `
     : '';
-  const text = `<span font_size="x-large">${entry.icon || ' '}</span>\n${key}${
+  const tone = entry.tone && !entry.disabled ? ` foreground="${entry.tone}"` : '';
+  const text = `<span font_size="x-large"${tone}>${entry.icon || ' '}</span>\n${key}${
     entry.active ? `<b>${caption}</b>` : caption
   }`;
   return entry.disabled ? `<span alpha="35%">${text}</span>` : text;
 };
 
+// A button of a plain menu, text only since rofi filters on the raw text, markup included: the icon
+// and a check for highlighted ones, the caption, the key after it. Faded through the urgent state.
+const buttonText = entry => {
+  const icon = entry.icon ? `${entry.icon}${entry.active ? ' ✓' : ''}` : entry.active ? '✓' : '';
+  const key = entry.key ? `   ${keyLabel(entry.key)}` : '';
+  return _.compact([icon, `${captionOf(entry)}${key}`]).join('\n');
+};
+
 /**
- * Draws a menu as a grid of buttons under the song: a title (the source and song), the cover beside the
- * song's details and the menu's status, all set per menu with -theme-str. Entries hold a line break, so
- * they are separated by | instead; three lines of height fit the large icon and caption.
+ * Draws a menu as a grid of buttons under the song: a title (the source), the cover beside the song's
+ * details and the menu's status, all set per menu with -theme-str. Entries hold a line break, so they
+ * are separated by | instead; three lines of height fit the large icon and caption.
  * Menus are { title, message, status, cover, accent, columns, entries: [{ icon, label, caption, key,
- * active, disabled }], keys, signal }; aborting signal closes the menu to redraw it.
+ * tone, active, disabled }], keys, selected, signal }; aborting signal closes the menu to redraw it.
+ * A plain menu (submenus) is text only and shows a filter box, typing filters its buttons; disabled
+ * buttons are marked urgent, which the theme fades. height sets lines of text per button, maxLines the
+ * rows shown at most (the rest scroll), align 'left' left-aligns the text (lines of details).
  */
 const panelView =
   ({ args = [], theme = panelTheme, spawnProcess = spawn } = {}) =>
   menu => {
-    const lines = Math.ceil(menu.entries.length / (menu.columns || panelColumns));
-    const columns = Math.ceil(menu.entries.length / lines);
+    const count = Math.max(1, menu.entries.length);
+    const rows = Math.ceil(count / (menu.columns || panelColumns));
+    const columns = Math.ceil(count / rows);
+    const lines = menu.maxLines ? Math.min(rows, menu.maxLines) : rows;
+    const height = menu.height || (menu.plain ? 2 : 3);
     return runRofi(
       [
-        '-markup-rows',
+        ...(menu.plain ? [] : ['-markup-rows']),
         '-sep',
         '|',
         '-eh',
-        '3',
+        `${height}`,
         '-theme',
         theme,
         '-theme-str',
-        `listview { columns: ${columns}; lines: ${lines}; }`,
+        `listview { columns: ${columns}; lines: ${lines}; scrollbar: ${lines < rows}; }`,
+        ...(menu.plain
+          ? ['-theme-str', 'inputbar { children: [ "prompt", "textbox-sep", "entry" ]; }']
+          : []),
+        ...(menu.align === 'left'
+          ? [
+              '-theme-str',
+              'element-text { horizontal-align: 0; }',
+              '-theme-str',
+              'element { padding: 2px 10px; }'
+            ]
+          : []),
         '-theme-str',
         `textbox-status { content: ${rasiMarkup((menu.status || []).join('\n') || ' ')}; }`,
         ...(menu.accent ? ['-theme-str', `* { accent: ${menu.accent}; }`] : []),
@@ -141,16 +174,20 @@ const panelView =
         menu.title,
         '-mesg',
         menu.message || ' ',
-        ...activeArgs(menu),
+        ...flagArgs(menu, 'active', '-a'),
+        ...(menu.plain ? flagArgs(menu, 'disabled', '-u') : []),
+        ...(menu.selected > 0 ? ['-selected-row', `${menu.selected}`] : []),
         ...args
       ],
-      _.map(menu.entries, buttonMarkup).join('|'),
+      _.map(menu.entries, menu.plain ? buttonText : buttonMarkup).join('|'),
       { spawnProcess, keys: menuKeys(menu), signal: menu.signal || null }
     );
   };
 
 module.exports = {
   buttonMarkup,
+  buttonText,
+  keyLabel,
   escapeMarkup,
   menuKeys,
   panelTheme,

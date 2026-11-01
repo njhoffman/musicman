@@ -2,7 +2,18 @@ const { expect } = require('chai');
 
 const { openDatabase } = require('../db/database.js');
 const { mergeAssignments } = require('../metadata/write.js');
-const { groupingTargets, menuButtons, songActions, stars } = require('./actions.js');
+const {
+  extraTags,
+  groupingTargets,
+  libraryTagValues,
+  menuButtons,
+  songActions,
+  songDetails,
+  songInfo,
+  stars,
+  tagFields,
+  tagList
+} = require('./actions.js');
 
 describe('Menu song actions', () => {
   const study = 'StudyPlaylist000000000';
@@ -40,7 +51,10 @@ describe('Menu song actions', () => {
         { label: 'Hot', filter: 'picks:hot' },
         { label: "Nick's Picks", filter: 'picks:Nick' }
       ],
-      ratings: [4, 4.5, 5]
+      ratings: [4, 4.5, 5],
+      tagFields: ['picks', 'context'],
+      tagMinSongs: 2,
+      extraTags: ['context:Cook']
     }
   };
 
@@ -72,6 +86,60 @@ describe('Menu song actions', () => {
       expect(() => menuButtons(bad)).to.throw(
         "menu.buttons[0].filter 'grouping:Rock' must be one value"
       );
+    });
+  });
+
+  describe('tags submenu config', () => {
+    it('should take the configured tag fields, or the default ones the library has', () => {
+      expect(tagFields(config)).to.deep.equal([
+        { name: 'picks', id: 'TXXX.picks' },
+        { name: 'context', id: 'TXXX.context' }
+      ]);
+      // mood is a default field, but this library has none
+      expect(tagFields({ ...config, menu: {} })).to.deep.equal([
+        { name: 'picks', id: 'TXXX.picks' },
+        { name: 'context', id: 'TXXX.context' }
+      ]);
+      expect(() => tagFields({ ...config, menu: { tagFields: ['grouping'] } })).to.throw(
+        "menu.tagFields: 'grouping' is not a multi value field"
+      );
+    });
+
+    it('should reject an extra tag that is not one value of a tag field', () => {
+      const fields = tagFields(config);
+      expect(extraTags(config, fields)).to.deep.equal([{ field: 'context', value: 'Cook' }]);
+      expect(() =>
+        extraTags({ ...config, menu: { extraTags: ['grouping:Rock'] } }, fields)
+      ).to.throw("menu.extraTags[0] 'grouping:Rock' must be one value of a menu.tagFields field");
+    });
+
+    it('should list pinned tags first, then per field the values used enough, the song own and extras', () => {
+      const listed = tagList({
+        pinned: [{ field: 'context', value: 'Study', label: 'Study', key: 'a' }],
+        fields: [{ name: 'picks' }, { name: 'context' }],
+        values: [
+          { field: 'context', value: 'study', count: 9 },
+          { field: 'context', value: 'Run', count: 4 },
+          { field: 'picks', value: 'Hot', count: 2 },
+          { field: 'context', value: 'Rare', count: 1 },
+          { field: 'picks', value: 'Once', count: 1 }
+        ],
+        extras: [
+          { field: 'context', value: 'Cook' },
+          { field: 'context', value: 'run' }
+        ],
+        songTags: [{ field: 'picks', value: 'Once' }],
+        minSongs: 2
+      });
+      expect(
+        listed.map(({ field, value, pinned }) => [field, value, Boolean(pinned)])
+      ).to.deep.equal([
+        ['context', 'Study', true],
+        ['picks', 'Hot', false],
+        ['picks', 'Once', false],
+        ['context', 'Run', false],
+        ['context', 'Cook', false]
+      ]);
     });
   });
 
@@ -147,6 +215,13 @@ describe('Menu song actions', () => {
       const entry = entries.find(candidate => candidate.key === key);
       return { entry, run: () => entry.run(), entries };
     };
+    // a tag of the tags submenu (e), by its caption
+    const tagChoice = async (context, label) => {
+      const { entry } = await press(context, 'e');
+      const choices = await entry.choices();
+      const choice = choices.find(candidate => candidate.label === label);
+      return { entry: choice, run: () => choice.run(), choices, tags: entry };
+    };
 
     beforeEach(() => {
       db = openDatabase(':memory:');
@@ -172,6 +247,16 @@ describe('Menu song actions', () => {
           .run(file);
         grouping.run(id, i < 2 ? 'Rock.Singles' : 'Jazz');
       });
+      // context: Study on 3 songs (one spelled study), Run on 1; picks: Hot on 2
+      const tag = db.prepare('INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, ?, ?)');
+      [
+        [1, 'TXXX.context', 'Study'],
+        [2, 'TXXX.context', 'Study'],
+        [3, 'TXXX.context', 'study'],
+        [1, 'TXXX.context', 'Run'],
+        [2, 'TXXX.picks', 'Hot'],
+        [3, 'TXXX.picks', 'Hot']
+      ].forEach(row => tag.run(...row));
       likedOnSpotify = null;
     });
 
@@ -193,10 +278,10 @@ describe('Menu song actions', () => {
     };
 
     it('should show the local tags of an MPD song and toggle them with + and -', async () => {
-      const study1 = await press(mpd, 'a');
+      const study1 = await tagChoice(mpd, 'Study');
       expect(study1.entry.active).to.equal(true);
       await study1.run();
-      const hot1 = await press(mpd, 's');
+      const hot1 = await tagChoice(mpd, 'Hot');
       expect(hot1.entry.active).to.equal(false);
       await hot1.run();
       expect(writes).to.deep.equal([
@@ -223,7 +308,7 @@ describe('Menu song actions', () => {
         study,
         'ta'
       );
-      const { entry, run } = await press(linked, 'a');
+      const { entry, run } = await tagChoice(linked, 'Study');
       expect(entry.active).to.equal(true);
       const result = await run();
       expect(writes).to.deep.equal([['/music/a.mp3', { context: ['-Study'] }]]);
@@ -235,7 +320,7 @@ describe('Menu song actions', () => {
     });
 
     it('should add a Spotify song not in the library to the playlist of a button, and remove it again', async () => {
-      const add = await press(remote, 's');
+      const add = await tagChoice(remote, 'Hot');
       expect(add.entry).to.include({ active: false, disabled: false });
       await add.run();
       expect(requests).to.deep.equal([
@@ -244,7 +329,7 @@ describe('Menu song actions', () => {
       expect(tracksIn(hot)).to.deep.equal(['tz']);
       const synced = db.prepare('SELECT * FROM spotify_synced').all();
       expect(synced).to.be.empty;
-      const remove = await press(remote, 's');
+      const remove = await tagChoice(remote, 'Hot');
       expect(remove.entry.active).to.equal(true);
       await remove.run();
       expect(requests[1]).to.deep.equal([
@@ -270,7 +355,8 @@ describe('Menu song actions', () => {
     it('should like and ignore Spotify songs not in the library, and disable buttons without a playlist', async () => {
       const { entries } = await press(remote, 'y');
       const byKey = key => entries.find(entry => entry.key === key);
-      expect(byKey('d')).to.include({ disabled: true });
+      const nick = await tagChoice(remote, "Nick's Picks");
+      expect(nick.entry).to.include({ disabled: true });
       await byKey('y').run();
       await byKey('x').run();
       expect(requests).to.deep.equal([
@@ -310,7 +396,12 @@ describe('Menu song actions', () => {
 
     it('should pick the grouping of a library song from the groupings in use, most used first', async () => {
       const { entry } = await press(mpd, 'g');
-      expect(entry).to.include({ caption: 'Ambient.Artists', active: true, disabled: false });
+      expect(entry).to.include({
+        label: 'genre',
+        caption: 'Ambient.Artists',
+        active: true,
+        disabled: false
+      });
       const choices = await entry.choices();
       expect(choices.map(({ label, active, disabled }) => [label, active, disabled])).to.deep.equal(
         [
@@ -349,12 +440,106 @@ describe('Menu song actions', () => {
 
     it('should describe songs in and out of the library', async () => {
       const menu = actions();
-      expect((await menu.song(linked)).details).to.deep.equal([
-        '★★★★  4.0',
-        'context  <b>Run, Study</b>'
-      ]);
+      const [rating, chips] = (await menu.song(linked)).details;
+      expect(rating).to.match(/^<span foreground="#f5c542">★★★★<\/span> {2}4\.0 .*Ambient\.Artists/);
+      expect(chips).to.include(' Run </span>').and.include(' Study </span>');
       expect((await menu.song(remote)).status).to.deep.equal(['not in library']);
       expect(stars('4.5')).to.equal('★★★★½');
+      expect(songDetails({}, ['context'])).to.deep.equal(['<span alpha="50%">unrated</span>']);
+    });
+
+    it('should put details, genre, tags, ratings, like and ignore on the main menu, without tag buttons', async () => {
+      const { entries } = await press(mpd, 'e');
+      expect(entries.map(({ key, label }) => [key, label])).to.deep.equal([
+        ['i', 'details'],
+        ['g', 'genre'],
+        ['e', 'tags'],
+        ['1', 'rating 4.0'],
+        ['2', 'rating 4.5'],
+        ['3', 'rating 5.0'],
+        ['y', 'like'],
+        ['x', 'ignore']
+      ]);
+    });
+
+    it('should list the tags submenu with pinned tags on Alt keys, and stay open after a pick', async () => {
+      const { choices, tags } = await tagChoice(mpd, 'Study');
+      expect(tags).to.include({ caption: 'tags  2', active: true, stay: true, columns: 6 });
+      expect(choices.map(({ label, key, active }) => [label, key, active])).to.deep.equal([
+        ['Study', 'Alt+a', true],
+        ['Hot', 'Alt+s', false],
+        ["Nick's Picks", 'Alt+d', false],
+        // Cook is an extra tag; Run is on one song only, listed since the song has it
+        ['Cook', undefined, false],
+        ['Run', undefined, true]
+      ]);
+    });
+
+    it('should count tag values in the library case-insensitively, most used first', () => {
+      expect(
+        libraryTagValues(db, [
+          { name: 'context', id: 'TXXX.context' },
+          { name: 'picks', id: 'TXXX.picks' }
+        ])
+      ).to.deep.equal([
+        { field: 'context', value: 'Study', count: 3 },
+        { field: 'picks', value: 'Hot', count: 2 },
+        { field: 'context', value: 'Run', count: 1 }
+      ]);
+      expect(libraryTagValues(db, [])).to.deep.equal([]);
+    });
+
+    it('should show the details of a library song: file, every tag, Spotify link and playlists', async () => {
+      cache(study, ['ta']);
+      const { entry } = await press(linked, 'i');
+      expect(entry).to.include({ columns: 1, align: 'left' });
+      const rows = (await entry.choices()).map(({ label }) => label.replace(/\s+/, ' '));
+      expect(rows).to.deep.equal([
+        'file /music/a.mp3',
+        'size file not found',
+        'rating 4.0',
+        'context Run, Study',
+        'grouping Ambient.Artists',
+        'spotify https://open.spotify.com/track/ta',
+        'uri spotify:track:ta',
+        `playlists ${study}`
+      ]);
+    });
+  });
+
+  describe('songInfo', () => {
+    it('should show size and modified time of the file', () => {
+      const rows = songInfo({
+        track: {},
+        file: '/m/a.mp3',
+        meta: { title: 'A', picks: ',' },
+        playlists: [],
+        stat: () => ({ size: 3145728, mtime: new Date('2026-01-02T03:04:00Z') })
+      }).map(({ label }) => label.replace(/\s+/, ' '));
+      expect(rows).to.deep.equal([
+        'file /m/a.mp3',
+        'size 3.0 MB',
+        'modified 2026-01-02 03:04',
+        'title A'
+      ]);
+    });
+
+    it('should describe a Spotify track not in the library', () => {
+      const rows = songInfo({
+        track: { trackId: 'tz', title: 'Z', artist: 'Y', duration: 125 },
+        file: null,
+        meta: null,
+        playlists: ['Liked Songs']
+      }).map(({ label }) => label.replace(/\s+/, ' '));
+      expect(rows).to.deep.equal([
+        'title Z',
+        'artist Y',
+        'length 2:05',
+        'library not in the library',
+        'spotify https://open.spotify.com/track/tz',
+        'uri spotify:track:tz',
+        'playlists Liked Songs'
+      ]);
     });
   });
 });

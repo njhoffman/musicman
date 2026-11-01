@@ -6,7 +6,7 @@ const { parseMpdReply } = require('musicman-common/mpd/utils.js');
 const { connectMpd } = require('../clients/mpd.js');
 
 // seconds seek moves and volume steps (percent), for both players
-const seekStep = 10;
+const seekStep = 30;
 const volumeStep = 5;
 
 // one MPD command on its own connection, resolving to the parsed reply

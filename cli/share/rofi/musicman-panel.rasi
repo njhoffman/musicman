@@ -1,8 +1,9 @@
 /*
- * musicman menu: the source and song in the title, the cover beside the song's details and the menu's
- * status (player, state, volume, whether the song is in the library), and a grid of buttons. musicman
- * sets the cover, the status, the accent color (Spotify green or MPD amber) and the grid size per menu
- * with -theme-str. Override anything through menu.rofiArgs, or replace the theme with menu.theme.
+ * musicman menu: the source in the title, the cover beside the song's details and the menu's status
+ * (player, state, volume, whether the song is in the library), and a grid of buttons. musicman sets the
+ * cover, the status, the accent color (Spotify green or MPD amber), the grid size, and in submenus a
+ * filter box per menu with -theme-str. Override anything through menu.rofiArgs, or replace the theme
+ * with menu.theme.
  */
 
 configuration {
@@ -10,14 +11,14 @@ configuration {
 }
 
 * {
-    background:     #1e222a;
-    background-alt: #2a2f3a;
-    foreground:     #c8ccd4;
-    muted:          #7f8796;
-    accent:         #61afef;
-    active:         #98c379;
-    urgent:         #e06c75;
-    font:           "FiraCode Nerd Font 10";
+    background:       #1b1e25;
+    background-dark:  #15171d;
+    background-alt:   #262b35;
+    background-hover: #303644;
+    foreground:       #c8ccd4;
+    muted:            #5c6370;
+    accent:           #61afef;
+    font:             "FiraCode Nerd Font 10";
     background-color: transparent;
     text-color:       @foreground;
 }
@@ -25,22 +26,24 @@ configuration {
 window {
     location:         center;
     anchor:           center;
-    width:            900px;
+    width:            1040px;
     border:           2px solid;
     border-color:     @accent;
-    border-radius:    12px;
+    border-radius:    14px;
     background-color: @background;
+    background-image: linear-gradient(to bottom, #1f232b, #16181e);
 }
 
 mainbox {
     orientation: vertical;
     children:    [ "inputbar", "info", "listview" ];
-    padding:     16px;
-    spacing:     12px;
+    padding:     18px;
+    spacing:     14px;
 }
 
 inputbar {
     children: [ "prompt" ];
+    spacing:  0;
 }
 
 prompt {
@@ -48,22 +51,38 @@ prompt {
     text-color: @accent;
 }
 
+/* shown in submenus, where typing filters the buttons */
+textbox-sep {
+    expand:     false;
+    content:    "   ";
+    text-color: @muted;
+}
+
+entry {
+    placeholder:       "type to filter";
+    placeholder-color: @muted;
+    cursor-color:      @accent;
+}
+
 /* The cover, the song's details, and the status right-aligned beside them */
 info {
     expand:           false;
     orientation:      horizontal;
     children:         [ "icon-cover", "message", "textbox-status" ];
-    spacing:          14px;
-    padding:          10px 12px;
-    border-radius:    8px;
-    background-color: @background-alt;
+    spacing:          18px;
+    padding:          12px 16px;
+    border:           0 0 0 3px solid;
+    border-color:     @accent;
+    border-radius:    10px;
+    background-color: @background-dark;
 }
 
 /* musicman sets filename to the song's cover; without one the square stays empty */
 icon-cover {
     expand:         false;
-    size:           112px;
+    size:           132px;
     vertical-align: 0.5;
+    border-radius:  8px;
 }
 
 message {
@@ -77,6 +96,7 @@ textbox-status {
     markup:           true;
     horizontal-align: 1;
     vertical-align:   0.5;
+    text-color:       @muted;
 }
 
 textbox {
@@ -85,8 +105,8 @@ textbox {
 }
 
 listview {
-    columns:      8;
-    lines:        3;
+    columns:      9;
+    lines:        2;
     flow:         horizontal;
     fixed-height: true;
     cycle:        true;
@@ -95,10 +115,17 @@ listview {
     spacing:      8px;
 }
 
+scrollbar {
+    handle-color: @accent;
+    handle-width: 4px;
+}
+
 element {
     orientation:      vertical;
-    padding:          4px;
-    border-radius:    8px;
+    padding:          6px 4px;
+    border:           2px solid;
+    border-color:     transparent;
+    border-radius:    10px;
     background-color: @background-alt;
     cursor:           pointer;
 }
@@ -110,10 +137,15 @@ element-text {
     cursor:           inherit;
 }
 
+/* highlighted: the song has the tag, the mode is on */
 element normal.active,
 element alternate.active   { text-color: @accent; }
+/* urgent marks buttons that do not apply in submenus (the main menu fades them with markup) */
 element normal.urgent,
-element alternate.urgent   { text-color: @urgent; }
-element selected.normal    { background-color: @accent; text-color: @background; }
-element selected.active    { background-color: @accent; text-color: @background; }
-element selected.urgent    { background-color: @urgent; text-color: @background; }
+element alternate.urgent   { text-color: @muted; }
+/* the selected button keeps its colored icon, framed in accent */
+element selected.normal,
+element selected.active,
+element selected.urgent    { background-color: @background-hover; border-color: @accent; }
+element selected.active    { text-color: @accent; }
+element selected.urgent    { text-color: @muted; }
