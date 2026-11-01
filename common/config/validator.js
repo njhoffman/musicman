@@ -184,7 +184,11 @@ const configSchema = {
             properties: {
               fg: { type: 'string', required: false },
               bg: { type: 'string', required: false },
-              gui: { type: 'string', enum: ['normal', 'bold', 'italic', 'underline'], required: false }
+              gui: {
+                type: 'string',
+                enum: ['normal', 'bold', 'italic', 'underline'],
+                required: false
+              }
             },
             required: false
           },
@@ -193,7 +197,11 @@ const configSchema = {
             properties: {
               fg: { type: 'string', required: false },
               bg: { type: 'string', required: false },
-              gui: { type: 'string', enum: ['normal', 'bold', 'italic', 'underline'], required: false }
+              gui: {
+                type: 'string',
+                enum: ['normal', 'bold', 'italic', 'underline'],
+                required: false
+              }
             },
             required: false
           },
@@ -202,7 +210,11 @@ const configSchema = {
             properties: {
               fg: { type: 'string', required: false },
               bg: { type: 'string', required: false },
-              gui: { type: 'string', enum: ['normal', 'bold', 'italic', 'underline'], required: false }
+              gui: {
+                type: 'string',
+                enum: ['normal', 'bold', 'italic', 'underline'],
+                required: false
+              }
             },
             required: false
           },
@@ -211,7 +223,11 @@ const configSchema = {
             properties: {
               fg: { type: 'string', required: false },
               bg: { type: 'string', required: false },
-              gui: { type: 'string', enum: ['normal', 'bold', 'italic', 'underline'], required: false }
+              gui: {
+                type: 'string',
+                enum: ['normal', 'bold', 'italic', 'underline'],
+                required: false
+              }
             },
             required: false
           },
@@ -220,7 +236,11 @@ const configSchema = {
             properties: {
               fg: { type: 'string', required: false },
               bg: { type: 'string', required: false },
-              gui: { type: 'string', enum: ['normal', 'bold', 'italic', 'underline'], required: false }
+              gui: {
+                type: 'string',
+                enum: ['normal', 'bold', 'italic', 'underline'],
+                required: false
+              }
             },
             required: false
           },
@@ -229,7 +249,11 @@ const configSchema = {
             properties: {
               fg: { type: 'string', required: false },
               bg: { type: 'string', required: false },
-              gui: { type: 'string', enum: ['normal', 'bold', 'italic', 'underline'], required: false }
+              gui: {
+                type: 'string',
+                enum: ['normal', 'bold', 'italic', 'underline'],
+                required: false
+              }
             },
             required: false
           },
@@ -238,7 +262,11 @@ const configSchema = {
             properties: {
               fg: { type: 'string', required: false },
               bg: { type: 'string', required: false },
-              gui: { type: 'string', enum: ['normal', 'bold', 'italic', 'underline'], required: false }
+              gui: {
+                type: 'string',
+                enum: ['normal', 'bold', 'italic', 'underline'],
+                required: false
+              }
             },
             required: false
           }
@@ -339,7 +367,7 @@ function validateValue(value, schema, path = '') {
 
   // Object property validation
   if (schema.type === 'object' && schema.properties && typeof value === 'object') {
-    Object.keys(value).forEach((key) => {
+    Object.keys(value).forEach(key => {
       const keyPath = `${path}.${key}`;
       if (legacyOptions[keyPath]) {
         result.errors.push(`${keyPath} is no longer supported (${legacyOptions[keyPath]})`);
@@ -362,7 +390,7 @@ function validateValue(value, schema, path = '') {
 function validateConfig(config) {
   const result = { errors: [], warnings: [] };
 
-  Object.keys(config).forEach((key) => {
+  Object.keys(config).forEach(key => {
     if (!configSchema[key]) {
       result.warnings.push(`${key} is not a valid configuration option`);
     } else {
@@ -389,7 +417,9 @@ function validateConfig(config) {
     if (!_.isPlainObject(entry) || !_.isString(entry.filter) || !_.isString(entry.playlist)) {
       result.errors.push(`sync.playlists[${i}] must have a filter and a playlist`);
     } else if (!parsePlaylistId(entry.playlist)) {
-      result.errors.push(`sync.playlists[${i}].playlist '${entry.playlist}' is not a Spotify playlist URL or id`);
+      result.errors.push(
+        `sync.playlists[${i}].playlist '${entry.playlist}' is not a Spotify playlist URL or id`
+      );
     }
   });
 
@@ -398,21 +428,29 @@ function validateConfig(config) {
     if (!_.isPlainObject(field) || !_.isString(field.path) || !_.isString(field.name)) {
       result.errors.push(`spotify.fields[${i}] must have a path and a name`);
     } else if (!/^(track|album|artist)\./.test(field.path)) {
-      result.errors.push(`spotify.fields[${i}].path '${field.path}' must start with track., album., or artist.`);
+      result.errors.push(
+        `spotify.fields[${i}].path '${field.path}' must start with track., album., or artist.`
+      );
     } else if (!/^[\w-]+$/.test(field.name)) {
-      result.errors.push(`spotify.fields[${i}].name '${field.name}' can only contain letters, digits, _ and -`);
+      result.errors.push(
+        `spotify.fields[${i}].name '${field.name}' can only contain letters, digits, _ and -`
+      );
     } else if (reservedFields.includes(field.name)) {
-      result.errors.push(`spotify.fields[${i}].name '${field.name}' is always written and cannot be mapped`);
+      result.errors.push(
+        `spotify.fields[${i}].name '${field.name}' is always written and cannot be mapped`
+      );
     }
-    _.each(['scope', 'fallbackScope'], (key) => {
+    _.each(['scope', 'fallbackScope'], key => {
       if (_.isPlainObject(field) && _.has(field, key) && field[key] !== 'album') {
         result.errors.push(`spotify.fields[${i}].${key} '${field[key]}' must be album`);
       }
     });
   });
 
-  if (_.some(config.tags, (tag) => _.has(tag, 'tableOrder'))) {
-    result.errors.push('tags[].tableOrder is no longer supported (column order is set by views.<format>.tags)');
+  if (_.some(config.tags, tag => _.has(tag, 'tableOrder'))) {
+    result.errors.push(
+      'tags[].tableOrder is no longer supported (column order is set by views.<format>.tags)'
+    );
   }
 
   return result;
@@ -425,12 +463,12 @@ function validateConfig(config) {
 function validateLibrary(config, missingTags = []) {
   const errors = _.map(
     missingTags,
-    (name) => `Tag '${name}' defined in library.tags but not found in user tags or global tags.json`
+    name => `Tag '${name}' defined in library.tags but not found in user tags or global tags.json`
   );
   const libraryTags = _.get(config, 'library.tags', []);
 
   // Library tags are read and written as strings, so only text and custom text frames are supported
-  const isTextFrame = (id) => /^T(?!XXX$)[A-Z0-9]{3}$/.test(id) || /^TXXX\..+/.test(id);
+  const isTextFrame = id => /^T(?!XXX$)[A-Z0-9]{3}$/.test(id) || /^TXXX\..+/.test(id);
   _.each(libraryTags, ({ name, id }) => {
     if (!isTextFrame(id)) {
       errors.push(
@@ -454,9 +492,13 @@ function validateLibrary(config, missingTags = []) {
     }
     const tag = _.find(knownTags, { name: fallback });
     if (!tag) {
-      errors.push(`Fallback '${fallback}' of Spotify field '${name}' is not a tag in tags or tags.json`);
+      errors.push(
+        `Fallback '${fallback}' of Spotify field '${name}' is not a tag in tags or tags.json`
+      );
     } else if (/^TXXX\./.test(tag.id)) {
-      errors.push(`Fallback '${fallback}' of Spotify field '${name}' must be a standard tag, not ${tag.id}`);
+      errors.push(
+        `Fallback '${fallback}' of Spotify field '${name}' must be a standard tag, not ${tag.id}`
+      );
     }
   });
 
@@ -465,7 +507,9 @@ function validateLibrary(config, missingTags = []) {
   _.each(config.views, (view, viewName) => {
     _.each(view.tags, ({ name }) => {
       if (!viewableTags.includes(name)) {
-        errors.push(`Tag '${name}' defined in views.${viewName}.tags but not found in library.tags`);
+        errors.push(
+          `Tag '${name}' defined in views.${viewName}.tags but not found in library.tags`
+        );
       }
     });
   });
@@ -503,7 +547,9 @@ function readUserConfig(userConfigPath = getUserConfigPath()) {
   try {
     return yaml.load(fs.readFileSync(userConfigPath, 'utf8')) || {};
   } catch (error) {
-    throw new Error(`Failed to parse user config file ${userConfigPath}: ${error.message}`, { cause: error });
+    throw new Error(`Failed to parse user config file ${userConfigPath}: ${error.message}`, {
+      cause: error
+    });
   }
 }
 

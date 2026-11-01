@@ -1,7 +1,7 @@
-const js = require('@eslint/js')
-const n = require('eslint-plugin-n')
-const prettier = require('eslint-config-prettier')
-const globals = require('globals')
+const js = require('@eslint/js');
+const n = require('eslint-plugin-n');
+const prettier = require('eslint-config-prettier');
+const globals = require('globals');
 
 module.exports = [
   {
@@ -36,7 +36,13 @@ module.exports = [
     files: ['**/*.spec.js', 'cli/test/**/*.js'],
     // test/setup.js puts chai and sinon helpers on global
     languageOptions: {
-      globals: { ...globals.mocha, expect: 'readonly', assert: 'readonly', should: 'readonly', sinon: 'readonly' }
+      globals: {
+        ...globals.mocha,
+        expect: 'readonly',
+        assert: 'readonly',
+        should: 'readonly',
+        sinon: 'readonly'
+      }
     }
   },
   {
@@ -47,4 +53,4 @@ module.exports = [
   },
   // formatting is left to prettier (pnpm format)
   prettier
-]
+];
