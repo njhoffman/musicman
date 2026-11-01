@@ -6,6 +6,23 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman ui` serves a management page on `127.0.0.1` (`ui.port`, 6660) until ctrl-c. It lists the
+  Spotify matches waiting for review, those accepted in review, and the tracks rejected for a song; picking
+  one shows the local file and the Spotify track side by side with their differences marked, plays the
+  file in the page and the track in Spotify's embedded player (full tracks when the browser is logged in
+  to Spotify, else previews) or the desktop app, and accepts or rejects. Accepted matches can be rejected
+  and rejected tracks accepted after all. Each action is an archived `ui` run whose tag changes
+  `musicman undo` restores, like `sync --review`. It also lists, as of the last sync, the tracks in mapped Spotify playlists missing from the
+  library and the songs that belong on Spotify but have no Spotify id.
+- Rejecting a match keeps the candidate's title, artists, album, and length, so the rejected list can
+  show it after the song is looked up again; older rejections are looked up on Spotify once.
+
+### Changed
+
+- Accepting a track takes it off the song's rejected tracks.
+
 ## [1.39.0] - 2026-11-01
 
 ### Added

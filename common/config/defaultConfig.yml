@@ -162,6 +162,10 @@ status:
 shuffle:
   playlist: musicman shuffle
 
+# musicman ui: the management page, served on 127.0.0.1 at this port
+ui:
+  port: 6660
+
 # rofi menu for the playing song (musicman menu), for MPD and Spotify
 menu:
   # rofi theme, defaults to the musicman panel theme in cli/share/rofi

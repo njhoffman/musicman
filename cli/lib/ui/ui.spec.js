@@ -1,0 +1,376 @@
+const _ = require('lodash');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const NodeId3 = require('node-id3');
+const { expect } = require('chai');
+
+const { getMeta, openDatabase } = require('../db/database.js');
+const { syncTagDefinitions } = require('../db/tags.js');
+const { updateDatabase } = require('../db/update.js');
+const { rejectedCandidatesKey } = require('../sync/match.js');
+const { acceptedList, rejectedList, reviewList, transferLists } = require('./data.js');
+const { reviewActions } = require('./actions.js');
+const { createHandler, startServer } = require('./server.js');
+
+const trackA = '0Q7a3AbWpEr162RRDyz5u6';
+const trackB = '77exqyiyvw4D2BBmFNMUur';
+
+describe('musicman ui', () => {
+  let db;
+  let library;
+  let runs;
+  let config;
+  const file = name => path.join(library, name);
+  const customTags = name =>
+    Object.fromEntries(
+      (NodeId3.read(file(name)).raw.TXXX || []).map(t => [t.description, t.value])
+    );
+  const songId = name => db.prepare('SELECT id FROM songs WHERE path = ?').get(name).id;
+  const match = name =>
+    db.prepare('SELECT * FROM spotify_matches WHERE song_id = ?').get(songId(name));
+  const candidate = (id, name) => ({
+    id,
+    name,
+    artists: 'Spotify Artist',
+    album: 'Spotify Album',
+    durationMs: 200000
+  });
+  // a Spotify client answering track batches from a table of id -> track
+  const fakeClient = tracks => ({
+    requests: [],
+    get(url) {
+      this.requests.push(url);
+      const ids = url.match(/^\/tracks\?ids=(.*)$/)[1].split(',');
+      return Promise.resolve({ tracks: ids.map(id => tracks[id] || null) });
+    }
+  });
+  const webTrack = (id, name) => ({
+    id,
+    name,
+    artists: [{ name: 'Spotify Artist' }],
+    album: { name: 'Spotify Album' },
+    duration_ms: 200000
+  });
+
+  beforeEach(async () => {
+    library = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-ui-'));
+    runs = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-ui-runs-'));
+    fs.cpSync(path.join(process.cwd(), 'test/data/source/dir1'), library, { recursive: true });
+    config = {
+      mpd: { baseDirectory: library },
+      rating: { tag: 'POPM', max: 5 },
+      library: {
+        tags: [
+          { id: 'TPE1', name: 'artist' },
+          { id: 'TIT2', name: 'title' }
+        ]
+      },
+      tags: [],
+      sync: {},
+      logger: { archive: { directory: runs } }
+    };
+    db = openDatabase(':memory:');
+    syncTagDefinitions(db, config);
+    await updateDatabase(db, { config, target: library });
+  });
+
+  afterEach(() => {
+    db.close();
+    fs.rmSync(library, { recursive: true, force: true });
+    fs.rmSync(runs, { recursive: true, force: true });
+  });
+
+  const insertMatch = (name, fields) => {
+    const row = {
+      status: 'match',
+      track_id: null,
+      source: 'search',
+      candidate: null,
+      reviewed_at: null,
+      rejected: null,
+      ...fields
+    };
+    db.prepare(
+      `INSERT INTO spotify_matches (song_id, status, track_id, source, candidate, reviewed_at, rejected)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      songId(name),
+      row.status,
+      row.track_id,
+      row.source,
+      row.candidate,
+      row.reviewed_at,
+      row.rejected
+    );
+  };
+
+  // testFile01 waits for review, testFile02 was accepted, testFile03 had trackB rejected
+  const seed = async () => {
+    insertMatch('testFile01.mp3', {
+      status: 'review',
+      candidate: JSON.stringify(candidate(trackA, 'Candidate One'))
+    });
+    NodeId3.update(
+      {
+        userDefinedText: [
+          { description: 'sp_track_id', value: trackA },
+          { description: 'sp_title', value: 'Accepted Title' },
+          { description: 'sp_artist', value: 'Spotify Artist' },
+          { description: 'sp_duration_ms', value: '180000' }
+        ]
+      },
+      file('testFile02.mp3')
+    );
+    await updateDatabase(db, { config, target: library });
+    insertMatch('testFile02.mp3', { track_id: trackA, reviewed_at: '2026-11-01 10:00:00' });
+    insertMatch('testFile03.mp3', { status: 'missing', rejected: JSON.stringify([trackB]) });
+  };
+
+  describe('lists', () => {
+    beforeEach(seed);
+
+    it('should list songs waiting for review with their candidate and similarity', () => {
+      const [item] = reviewList(db, config);
+      expect(item.song).to.include({ id: songId('testFile01.mp3'), path: 'testFile01.mp3' });
+      expect(item.track).to.deep.include({ id: trackA, name: 'Candidate One' });
+      expect(item.similarity).to.have.keys('percent', 'details');
+      expect(item.linked).to.equal(false);
+    });
+
+    it('should list accepted matches with the linked track from the file fields', () => {
+      const [item] = acceptedList(db);
+      expect(item.song.path).to.equal('testFile02.mp3');
+      expect(item.track).to.deep.equal({
+        id: trackA,
+        name: 'Accepted Title',
+        artists: 'Spotify Artist',
+        album: null,
+        durationMs: 180000
+      });
+      expect(item.reviewedAt).to.equal('2026-11-01 10:00:00');
+    });
+
+    it('should list rejected tracks, with details once they are stored', () => {
+      const [unknown] = rejectedList(db);
+      expect(unknown.song.path).to.equal('testFile03.mp3');
+      expect(unknown.current).to.equal(null);
+      expect(unknown.rejected).to.deep.equal([
+        {
+          track: { id: trackB, name: null, artists: null, album: null, durationMs: null },
+          similarity: null
+        }
+      ]);
+    });
+
+    it('should group the tracks to pull and the songs without an id by playlist', () => {
+      const plan = [
+        {
+          name: 'Liked Songs',
+          pull: [{ track_id: trackA, name: 'One', artists: 'A', album: 'X' }],
+          noId: [{ file: file('testFile03.mp3') }]
+        },
+        {
+          name: 'Study',
+          pull: [{ track_id: trackA, name: 'One', artists: 'A', album: 'X' }],
+          noId: [{ file: file('testFile03.mp3') }]
+        }
+      ];
+      const lists = transferLists(db, config, plan);
+      expect(lists.toLocal).to.deep.equal([
+        {
+          track: { id: trackA, name: 'One', artists: 'A', album: 'X' },
+          playlists: ['Liked Songs', 'Study']
+        }
+      ]);
+      expect(lists.toSpotify).to.have.length(1);
+      expect(lists.toSpotify[0]).to.deep.include({
+        status: 'missing',
+        playlists: ['Liked Songs', 'Study']
+      });
+      expect(lists.toSpotify[0].song.path).to.equal('testFile03.mp3');
+    });
+  });
+
+  describe('actions', () => {
+    beforeEach(seed);
+
+    const runReports = () =>
+      fs
+        .readdirSync(runs)
+        .filter(name => name.endsWith('.json'))
+        .map(name => JSON.parse(fs.readFileSync(path.join(runs, name), 'utf8')));
+
+    it('should accept a review match as a ui run with its tag changes recorded for undo', async () => {
+      const client = fakeClient({ [trackA]: webTrack(trackA, 'Candidate One') });
+      const actions = reviewActions({ db, config, getClient: () => client });
+      const result = await actions.accept(songId('testFile01.mp3'), trackA);
+      expect(result.failed).to.be.empty;
+      expect(customTags('testFile01.mp3')).to.include({ sp_track_id: trackA });
+      expect(match('testFile01.mp3')).to.include({ status: 'match', track_id: trackA });
+      expect(match('testFile01.mp3').reviewed_at).to.be.a('string');
+      const [report] = runReports();
+      expect(report).to.include({ command: 'ui', status: 'ok' });
+      expect(report.args).to.deep.equal(['accept', 'testFile01.mp3', trackA]);
+      const changes = db
+        .prepare('SELECT frame FROM tag_changes WHERE run_id = ?')
+        .all(report.id)
+        .map(({ frame }) => frame);
+      expect(changes).to.include('TXXX.sp_track_id');
+    });
+
+    it('should reject an accepted match: unlink the file and remember the track', async () => {
+      const actions = reviewActions({ db, config, getClient: () => null });
+      await actions.reject(songId('testFile02.mp3'), trackA);
+      expect(_.keys(customTags('testFile02.mp3')).filter(key => key.startsWith('sp_'))).to.be.empty;
+      expect(JSON.parse(match('testFile02.mp3').rejected)).to.deep.equal([trackA]);
+      expect(getMeta(db, rejectedCandidatesKey)[trackA]).to.include({ name: 'Accepted Title' });
+    });
+
+    it('should accept a rejected track after all and take it off the rejected tracks', async () => {
+      const client = fakeClient({ [trackB]: webTrack(trackB, 'Second Look') });
+      const actions = reviewActions({ db, config, getClient: () => client });
+      await actions.accept(songId('testFile03.mp3'), trackB);
+      expect(customTags('testFile03.mp3')).to.include({ sp_track_id: trackB });
+      expect(match('testFile03.mp3')).to.include({ status: 'match', rejected: null });
+    });
+
+    it('should run actions one after another and fail for an unknown song', async () => {
+      const actions = reviewActions({ db, config, getClient: () => null });
+      expect(() => actions.accept(99999, trackA)).to.throw('No song 99999');
+      await Promise.all([
+        actions.reject(songId('testFile01.mp3'), trackA),
+        actions.reject(songId('testFile02.mp3'), trackA)
+      ]);
+      expect(runReports()).to.have.length(2);
+    });
+  });
+
+  describe('server', () => {
+    let server;
+    let base;
+    const calls = [];
+
+    beforeEach(async () => {
+      await seed();
+      calls.length = 0;
+      const handler = createHandler({
+        db,
+        config,
+        actions: {
+          accept: async (id, trackId) => {
+            calls.push(['accept', id, trackId]);
+            return { accepted: [{}], failed: [] };
+          },
+          reject: async (id, trackId) => {
+            calls.push(['reject', id, trackId]);
+            return { rejected: [], failed: [{ error: 'could not write tags' }] };
+          }
+        },
+        getClient: () => fakeClient({ [trackB]: webTrack(trackB, 'Fetched Name') }),
+        librarySongs: async () => [],
+        plan: () => [{ name: 'Liked Songs', pull: [], noId: [] }],
+        player: { open: async uri => calls.push(['open', uri]) }
+      });
+      server = await startServer(handler, { port: 0 });
+      base = `http://127.0.0.1:${server.address().port}`;
+    });
+
+    afterEach(async () => {
+      const closed = new Promise(resolve => server.close(resolve));
+      server.closeAllConnections();
+      await closed;
+    });
+
+    const post = (url, body) =>
+      fetch(`${base}${url}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+    it('should serve the page and its files, and nothing outside them', async () => {
+      const page = await fetch(`${base}/`);
+      expect(page.status).to.equal(200);
+      expect(page.headers.get('content-type')).to.include('text/html');
+      expect(await page.text()).to.include('<script type="module" src="/app.js">');
+      expect((await fetch(`${base}/app.js`)).headers.get('content-type')).to.include(
+        'text/javascript'
+      );
+      expect((await fetch(`${base}/%2e%2e/ui.spec.js`)).status).to.equal(404);
+      expect((await fetch(`${base}/api/nothing`)).status).to.equal(404);
+    });
+
+    it('should list the review lists and look up rejected tracks known only by id', async () => {
+      const body = await (await fetch(`${base}/api/review`)).json();
+      expect(body.review).to.have.length(1);
+      expect(body.accepted).to.have.length(1);
+      expect(body.rejected[0].rejected[0].track).to.include({ id: trackB, name: 'Fetched Name' });
+      expect(getMeta(db, rejectedCandidatesKey)[trackB]).to.include({ name: 'Fetched Name' });
+    });
+
+    it('should list the transfers with the time of the last sync', async () => {
+      const body = await (await fetch(`${base}/api/transfers`)).json();
+      expect(body).to.have.keys('syncedAt', 'toLocal', 'toSpotify');
+    });
+
+    it('should stream a song whole or by byte range', async () => {
+      const id = songId('testFile01.mp3');
+      const size = fs.statSync(file('testFile01.mp3')).size;
+      const whole = await fetch(`${base}/api/songs/${id}/audio`);
+      expect(whole.status).to.equal(200);
+      expect(whole.headers.get('content-type')).to.equal('audio/mpeg');
+      expect((await whole.arrayBuffer()).byteLength).to.equal(size);
+      const part = await fetch(`${base}/api/songs/${id}/audio`, {
+        headers: { Range: 'bytes=10-19' }
+      });
+      expect(part.status).to.equal(206);
+      expect(part.headers.get('content-range')).to.equal(`bytes 10-19/${size}`);
+      expect((await part.arrayBuffer()).byteLength).to.equal(10);
+      const tail = await fetch(`${base}/api/songs/${id}/audio`, { headers: { Range: 'bytes=-5' } });
+      expect(tail.headers.get('content-range')).to.equal(`bytes ${size - 5}-${size - 1}/${size}`);
+      const beyond = await fetch(`${base}/api/songs/${id}/audio`, {
+        headers: { Range: `bytes=${size}-` }
+      });
+      expect(beyond.status).to.equal(416);
+      expect((await fetch(`${base}/api/songs/99999/audio`)).status).to.equal(404);
+    });
+
+    it('should refuse a song whose path leaves the library', async () => {
+      db.prepare("UPDATE songs SET path = '../outside.mp3' WHERE path = 'testFile01.mp3'").run();
+      const response = await fetch(`${base}/api/songs/${songId('../outside.mp3')}/audio`);
+      expect(response.status).to.equal(403);
+    });
+
+    it('should accept and reject with a track id, and report a failed write', async () => {
+      const id = songId('testFile01.mp3');
+      const accepted = await post(`/api/songs/${id}/accept`, { trackId: trackA });
+      expect(accepted.status).to.equal(200);
+      expect(await accepted.json()).to.include({ ok: true, action: 'accept', trackId: trackA });
+      const rejected = await post(`/api/songs/${id}/reject`, { trackId: trackA });
+      expect(rejected.status).to.equal(500);
+      expect(await rejected.json()).to.deep.equal({ error: 'could not write tags' });
+      expect(calls).to.deep.equal([
+        ['accept', id, trackA],
+        ['reject', id, trackA]
+      ]);
+    });
+
+    it('should refuse track ids that are not Spotify ids and bodies that are not JSON', async () => {
+      const id = songId('testFile01.mp3');
+      expect((await post(`/api/songs/${id}/accept`, { trackId: 'x; rm' })).status).to.equal(400);
+      const notJson = await fetch(`${base}/api/songs/${id}/accept`, {
+        method: 'POST',
+        body: '{'
+      });
+      expect(notJson.status).to.equal(400);
+      expect(calls).to.be.empty;
+    });
+
+    it('should play a track in the Spotify app', async () => {
+      const response = await post('/api/spotify/open', { trackId: trackB });
+      expect(response.status).to.equal(200);
+      expect(calls).to.deep.equal([['open', `spotify:track:${trackB}`]]);
+    });
+  });
+});

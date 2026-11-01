@@ -82,6 +82,12 @@ const configSchema = {
       playlist: { type: 'string', required: false }
     }
   },
+  ui: {
+    type: 'object',
+    properties: {
+      port: { type: 'number', min: 1, max: 65535, required: false }
+    }
+  },
   spotify: {
     type: 'object',
     properties: {

@@ -21,7 +21,7 @@ const {
 const { artistImageDirectory, cacheArtistImages } = require('../spotify/images.js');
 const { songLayout } = require('../beets/layout.js');
 const { ignoredTracks } = require('./targets.js');
-const { transaction } = require('../db/database.js');
+const { getMeta, setMeta, transaction } = require('../db/database.js');
 const { updateDatabase } = require('../db/update.js');
 const { rewriteTags, updateTags } = require('../metadata/write.js');
 const logger = require('../utils/logger.js');
@@ -555,6 +555,35 @@ const recheckMatches = ({ db, config, songs, dryRun = false }) => {
   return moved;
 };
 
+// Spotify details of rejected candidates by track id, kept since a new lookup replaces the candidate
+const rejectedCandidatesKey = 'review.rejectedCandidates';
+
+// stores the details of candidates ({ id, name, artists, album, durationMs }) by track id
+const rememberRejected = (db, candidates) => {
+  const named = _.filter(candidates, candidate => candidate && candidate.id && candidate.name);
+  if (named.length === 0) {
+    return;
+  }
+  const known = getMeta(db, rejectedCandidatesKey) || {};
+  _.each(named, ({ id, name, artists = null, album = null, durationMs = null }) => {
+    known[id] = { name, artists, album, durationMs };
+  });
+  setMeta(db, rejectedCandidatesKey, known);
+};
+
+// takes a track off a song's rejected tracks, when it is accepted after all
+const unreject = (db, songId, trackId) => {
+  const row = db.prepare('SELECT rejected FROM spotify_matches WHERE song_id = ?').get(songId);
+  if (!row || !row.rejected) {
+    return;
+  }
+  const rejected = _.without(JSON.parse(row.rejected), trackId);
+  db.prepare('UPDATE spotify_matches SET rejected = ? WHERE song_id = ?').run(
+    rejected.length > 0 ? JSON.stringify(rejected) : null,
+    songId
+  );
+};
+
 const markReviewed = (db, songId, status, trackId) =>
   db
     .prepare(
@@ -610,7 +639,13 @@ const acceptReview = async ({ db, config, client, items, layouts = [], now = new
       return;
     }
     written.push(item.file);
+    // a match the page accepts may not have been looked up into spotify_matches yet
+    db.prepare(
+      `INSERT INTO spotify_matches (song_id, status, track_id, source, candidate, checked_at)
+       VALUES (?, 'match', ?, 'review', ?, datetime('now')) ON CONFLICT (song_id) DO NOTHING`
+    ).run(item.songId, item.candidate.id, JSON.stringify(item.candidate));
     markReviewed(db, item.songId, 'match', item.candidate.id);
+    unreject(db, item.songId, item.candidate.id);
   });
   if (written.length > 0) {
     await updateDatabase(db, { config, files: written, record: false });
@@ -650,6 +685,7 @@ const rejectReview = async ({ db, config, items }) => {
     const before = _.get(select.get(item.songId), 'rejected');
     const rejected = _.uniq([...(before ? JSON.parse(before) : []), item.candidate.id]);
     update.run(JSON.stringify(rejected), item.songId);
+    rememberRejected(db, [item.candidate]);
   });
   if (written.length > 0) {
     await updateDatabase(db, { config, files: written, record: false });
@@ -679,6 +715,9 @@ module.exports = {
   recheckMatches,
   rejectReview,
   rejectedTracks,
+  rejectedCandidatesKey,
+  rememberRejected,
   reviewItems,
+  songFields,
   spotifyIdFrame
 };

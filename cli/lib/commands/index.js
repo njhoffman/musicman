@@ -14,6 +14,7 @@ const spotifyCommand = require('./spotify.js');
 const playerCommand = require('./player.js');
 const checkCommand = require('./check.js');
 const statusCommand = require('./status.js');
+const uiCommand = require('./ui.js');
 
 module.exports = [
   viewCommand,
@@ -31,5 +32,6 @@ module.exports = [
   spotifyCommand,
   playerCommand,
   checkCommand,
-  statusCommand
+  statusCommand,
+  uiCommand
 ];

@@ -40,6 +40,12 @@ module.exports = [
       globals: { ...globals.mocha, expect: 'readonly', assert: 'readonly', should: 'readonly', sinon: 'readonly' }
     }
   },
+  {
+    // the musicman ui page runs in the browser as an ES module
+    files: ['cli/lib/ui/public/**/*.js'],
+    languageOptions: { sourceType: 'module', globals: globals.browser },
+    rules: { 'n/no-unsupported-features/node-builtins': 'off' }
+  },
   // formatting is left to prettier (pnpm format)
   prettier
 ]

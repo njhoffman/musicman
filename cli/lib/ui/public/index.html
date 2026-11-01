@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>musicman</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>musicman</h1>
+      <nav id="tabs" aria-label="Lists"></nav>
+      <input id="filter" type="search" placeholder="Filter by artist, title, album, or path" />
+    </header>
+    <p id="message" role="status" hidden></p>
+    <main>
+      <section id="list" aria-label="Songs"></section>
+      <aside id="compare" aria-label="Compare" hidden></aside>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

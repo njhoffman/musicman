@@ -100,6 +100,14 @@ Reviewed: 2026-11-01
       filled from the database and from `--files` reads alike (20 min, 21 MB for `Rap-R&B/Singles` both ways), so
       no switch is needed.
 
+- [ ] **`musicman ui` transfer actions.** (p2) [feature] the Spotify to local and local to Spotify lists only
+      display; add downloading (`sync --pull`) and the upload export from the page, and a refresh of the cached
+      playlists so the lists are not as old as the last sync.
+- [ ] **Cache the `musicman ui` transfer lists.** (p3) [perf] each load reads the library and computes the sync
+      plan, about 5 s; keep the result until the database or the playlist cache changes.
+- [ ] **Remove the `server/` and `client/` placeholders.** (p3) [chore] the 2019 Express and React scaffolds
+      are unused now that `musicman ui` serves the page from the cli.
+
 ## 5. Artwork
 
 - [ ] **Fetch missing artwork for singles.** (p2) [feature] find songs tagged as singles without an embedded cover (no

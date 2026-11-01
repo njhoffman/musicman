@@ -1,0 +1,267 @@
+:root {
+  --bg: #16181d;
+  --panel: #1e2128;
+  --row: #22262e;
+  --row-hover: #2a2f39;
+  --line: #313744;
+  --text: #d6dae2;
+  --dim: #8a92a3;
+  --accent: #7fb0e0;
+  --good: #6cc48a;
+  --bad: #e08a6c;
+  --warn: #ddcc44;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    14px/1.4 system-ui,
+    sans-serif;
+}
+
+header {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+h1 {
+  font-size: 1.1rem;
+  margin: 0;
+  color: var(--accent);
+}
+
+nav {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+nav button {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--dim);
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  font: inherit;
+}
+
+nav button[aria-selected='true'] {
+  color: var(--text);
+  border-color: var(--line);
+  background: var(--row);
+}
+
+nav .count {
+  color: var(--dim);
+  margin-left: 0.3rem;
+  font-size: 0.85em;
+}
+
+#filter {
+  margin-left: auto;
+  width: 22rem;
+  max-width: 40vw;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.3rem 0.5rem;
+  font: inherit;
+}
+
+#message {
+  margin: 0;
+  padding: 0.4rem 1rem;
+  background: var(--row);
+  border-bottom: 1px solid var(--line);
+}
+
+#message.error {
+  color: var(--bad);
+}
+
+main {
+  display: flex;
+  align-items: flex-start;
+}
+
+#list {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 1rem 2rem;
+}
+
+.note {
+  color: var(--dim);
+  margin: 0.3rem 0 0.6rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  color: var(--dim);
+  font-weight: normal;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 3rem;
+  background: var(--bg);
+}
+
+td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+tbody tr {
+  cursor: pointer;
+}
+
+tbody tr:hover {
+  background: var(--row-hover);
+}
+
+tbody tr.selected {
+  background: var(--row);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.dim {
+  color: var(--dim);
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.percent.high {
+  color: var(--good);
+}
+
+.percent.mid {
+  color: var(--warn);
+}
+
+.percent.low {
+  color: var(--bad);
+}
+
+#compare {
+  width: 30rem;
+  flex-shrink: 0;
+  position: sticky;
+  top: 3rem;
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+  padding: 0.8rem 1rem 2rem;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+}
+
+#compare h2 {
+  font-size: 1rem;
+  margin: 0 0 0.6rem;
+}
+
+.version {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.6rem;
+  margin-bottom: 0.8rem;
+  background: var(--row);
+}
+
+.version h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  color: var(--dim);
+  font-weight: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.version dl {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.15rem 0.5rem;
+  margin: 0 0 0.6rem;
+}
+
+.version dt {
+  color: var(--dim);
+}
+
+.version dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.version dd.differs {
+  color: var(--warn);
+}
+
+audio,
+iframe {
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  display: block;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.actions button {
+  font: inherit;
+  padding: 0.3rem 0.8rem;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.actions button.accept {
+  border-color: var(--good);
+  color: var(--good);
+}
+
+.actions button.reject {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+.actions button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.similarity {
+  margin: 0 0 0.8rem;
+}
