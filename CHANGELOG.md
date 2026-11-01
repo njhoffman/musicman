@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.40.1] - 2026-11-01
+
 ### Fixed
 
 - `musicman ui` only answers its own page. Before, a web page open in the browser could accept or reject
@@ -785,7 +787,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.40.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.40.1...HEAD
+[1.40.1]: https://github.com/njhoffman/musicman/compare/v1.40.0...v1.40.1
 [1.40.0]: https://github.com/njhoffman/musicman/compare/v1.39.0...v1.40.0
 [1.39.0]: https://github.com/njhoffman/musicman/compare/v1.38.0...v1.39.0
 [1.38.0]: https://github.com/njhoffman/musicman/compare/v1.37.1...v1.38.0

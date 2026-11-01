@@ -1,11 +1,11 @@
 {
   "name": "musicman",
-  "version": "1.40.0",
+  "version": "1.40.1",
   "description": "Music Manager",
   "main": "index.js",
   "scripts": {
     "release": "commit-and-tag-version",
-    "todos": "leasot -x 'cli/lib/**/*.js' 'cli/test/**/*.js' 'cli/config/**/*.js' 'server/lib/**/*.js' 'server/test/**/*.js'",
+    "todos": "leasot -x 'cli/lib/**/*.js' 'cli/test/**/*.js' 'cli/config/**/*.js'",
     "test": "pnpm --filter musicman-cli test && node --test 'scripts/*.test.js'",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
