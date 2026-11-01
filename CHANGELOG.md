@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.39.0] - 2026-11-01
+
 ### Added
 
 - zsh completion of tag values after `field:` and `field=` (one more after each comma, and after `+` or
@@ -745,7 +747,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.38.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.39.0...HEAD
+[1.39.0]: https://github.com/njhoffman/musicman/compare/v1.38.0...v1.39.0
 [1.38.0]: https://github.com/njhoffman/musicman/compare/v1.37.1...v1.38.0
 [1.37.1]: https://github.com/njhoffman/musicman/compare/v1.37.0...v1.37.1
 [1.37.0]: https://github.com/njhoffman/musicman/compare/v1.36.0...v1.37.0
