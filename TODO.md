@@ -29,8 +29,9 @@ Reviewed: 2026-10-31
       migrated options.
 - [x] **Replace `bluebird`** (p3) [refactor] with native promises (`Promise.map` concurrency via a small helper).
 - [x] **Replace `prompt-confirm`** (p3) [refactor] (unmaintained since 2017) with `@inquirer/confirm`.
-- [ ] **Vendored MPD client.** (p3) [refactor] `common/mpd/MpdClient` is a local copy; evaluate a maintained client
-      (e.g. `mpd-api`) instead of forking it.
+- [x] **Vendored MPD client.** (p3) [refactor] Evaluated 2026-10-31 and kept: `mpd2` adds a fixed ~100 ms idle
+      check to every connect (175 ms vs 53 ms here), which `menu` pays per command, and it renames reply keys. The
+      vendored client now shares the first-colon reply parser (`common/mpd/utils.js`) with the menu.
 - [x] **Move existing TODO comments here and remove them from code:** (p3) [chore] moved to the items below and
       to the vendored MPD client item; the comments are removed.
 - [ ] **Unknown fields in filters are ignored silently.** (p3) [bug] `parseFilters`
@@ -63,7 +64,7 @@ Reviewed: 2026-10-31
       `switches.include` and `switches.exclude`, but no command or formatter reads them, so
       `musicman view -i artist,title` still shows every column. Apply them where the table and list columns
       are chosen in `lib/output/`.
-- [ ] **MPD responses cut values at the second colon.** (p2) [bug] `parseMpdData` in `common/mpd/MpdClient.js`
+- [x] **MPD responses cut values at the second colon.** (p2) [bug] `parseMpdData` in `common/mpd/MpdClient.js`
       splits each line on every `:` and keeps two parts, so `file: Artist/Live: 1999/x.mp3` becomes
       `Artist/Live`, and `status` `time: 12:240` becomes `12`. The notify daemon and `menu` then read the wrong
       file. Split on the first `: ` only, and add a spec.

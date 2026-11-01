@@ -2,22 +2,12 @@ const _ = require('lodash');
 const path = require('path');
 const { execFile } = require('child_process');
 
+const { parseMpdReply } = require('musicman-common/mpd/utils.js');
 const { connectMpd } = require('../clients/mpd.js');
 
 // seconds seek moves and volume steps (percent), for both players
 const seekStep = 10;
 const volumeStep = 5;
-
-// "key: value" lines of an MPD reply; only the first colon separates, titles can hold more
-const parseMpdReply = text =>
-  _.fromPairs(
-    _.compact(
-      _.map(String(text).split('\n'), line => {
-        const at = line.indexOf(': ');
-        return at > 0 ? [line.slice(0, at), line.slice(at + 2)] : null;
-      })
-    )
-  );
 
 // one MPD command on its own connection, resolving to the parsed reply
 const mpdCommand = async (mpdConfig, command, connect = connectMpd) => {
@@ -182,7 +172,6 @@ const choosePlayer = async (players, { preferred } = {}) => {
 module.exports = {
   choosePlayer,
   mpdPlayer,
-  parseMpdReply,
   seekStep,
   spotifyPlayer,
   spotifyTrackId,

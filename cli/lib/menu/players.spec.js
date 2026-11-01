@@ -1,21 +1,8 @@
 const { expect } = require('chai');
 
-const {
-  choosePlayer,
-  mpdPlayer,
-  parseMpdReply,
-  spotifyPlayer,
-  spotifyTrackId
-} = require('./players.js');
+const { choosePlayer, mpdPlayer, spotifyPlayer, spotifyTrackId } = require('./players.js');
 
 describe('Menu players', () => {
-  it('should split MPD replies on the first colon only', () => {
-    expect(parseMpdReply('Title: Foo: Bar\nfile: a/b.mp3\nOK')).to.deep.equal({
-      Title: 'Foo: Bar',
-      file: 'a/b.mp3'
-    });
-  });
-
   it('should read Spotify track ids from URLs and URIs', () => {
     expect(spotifyTrackId('https://open.spotify.com/track/65iXgVBjiF7oOORNWo0hRV')).to.equal(
       '65iXgVBjiF7oOORNWo0hRV'

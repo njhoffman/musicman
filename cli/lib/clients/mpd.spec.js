@@ -149,7 +149,30 @@ describe('MPD Client', () => {
 
   describe('MPD commands', () => {
     const { cmd } = require('musicman-common/mpd/MpdClient.js');
-    const { argEscape } = require('musicman-common/mpd/utils.js');
+    const { argEscape, parseMpdReply } = require('musicman-common/mpd/utils.js');
+
+    it('should split MPD replies on the first colon only', () => {
+      expect(
+        parseMpdReply('file: Artist/Live: 1999/01 - Intro: Part 1.mp3\nTitle: Intro: Part 1\nOK\n')
+      ).to.deep.equal({
+        file: 'Artist/Live: 1999/01 - Intro: Part 1.mp3',
+        Title: 'Intro: Part 1'
+      });
+      expect(parseMpdReply('state: play\ntime: 12:240\nOK')).to.deep.equal({
+        state: 'play',
+        time: '12:240'
+      });
+    });
+
+    it('should keep the full value when a reply goes through the client', async () => {
+      const { MpdClient } = require('musicman-common/mpd/MpdClient.js');
+      const client = new MpdClient();
+      client.sendCommand = (command, callback) =>
+        callback(null, 'file: Artist/Live: 1999/x.mp3\nOK\n');
+      expect(await client.sendCommandAsync('currentsong')).to.deep.equal({
+        file: 'Artist/Live: 1999/x.mp3'
+      });
+    });
 
     it('should escape backslashes and double quotes in arguments', () => {
       expect(argEscape('a "b" c\\d')).to.equal('"a \\"b\\" c\\\\d"');

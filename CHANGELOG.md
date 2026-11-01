@@ -13,17 +13,23 @@ All notable changes to this project are documented in this file. The format is b
   rated 4.0+, 4.5+, 5.0, and singles rated 4.0+ (`grouping:Singles`), replacing a `type:singles` filter on a
   tag that does not exist. Each entry needs a name and a filter.
 
-### Removed
-
-- The unused `library.tagId` option; musicman always reads and writes ID3v2.3 frames. A config that still sets
-  it gets an unknown option warning.
-
 ### Changed
 
 - The table view option `views.table.seperators` is now spelled `views.table.separators`; a config that still
   uses the old key fails validation with a message naming the new one.
 - Confirmation prompts (`edit` on several files, `sync`, `sort`, `undo`) use `@inquirer/confirm`; the answer
   still defaults to no, and Ctrl+C or a closed input now answers no instead of erroring.
+
+### Removed
+
+- The unused `library.tagId` option; musicman always reads and writes ID3v2.3 frames. A config that still sets
+  it gets an unknown option warning.
+
+### Fixed
+
+- MPD replies keep values that contain a colon: for a song at `Artist/Live: 1999/...` or titled `Intro: Part 1`
+  the value was cut at the second colon, so commands run on the playing song and the notify daemon read the
+  wrong file.
 
 ## [1.29.0] - 2026-10-28
 

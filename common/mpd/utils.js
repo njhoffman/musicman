@@ -1,47 +1,17 @@
-const parseKeyValueMessage = (msg) => {
-  const result = {};
+const _ = require('lodash');
 
-  msg.split('\n').forEach((p) => {
-    if (p.length === 0) {
-      return;
-    }
-    const keyMatch = p.match(/([^ ]+): (.*)/);
-    if (keyMatch === null) {
-      throw new Error(`Could not parse entry "${p}"`);
-    }
-    const [key, value] = keyMatch;
-    result[key] = value;
-  });
-  return result;
-};
+// "key: value" lines of an MPD reply; only the first ": " separates, values (titles, paths, times) can hold more
+const parseMpdReply = text =>
+  _.fromPairs(
+    _.compact(
+      _.map(String(text).split('\n'), line => {
+        const at = line.indexOf(': ');
+        return at > 0 ? [line.slice(0, at), line.slice(at + 2)] : null;
+      })
+    )
+  );
 
-const parseArrayMessage = (msg) => {
-  const results = [];
-  let obj = {};
-
-  msg.split('\n').forEach((p) => {
-    if (p.length === 0) {
-      return;
-    }
-    const keyMatch = p.match(/([^ ]+): (.*)/);
-    if (keyMatch === null) {
-      throw new Error(`Could not parse entry "${p}"`);
-    }
-    const [key, value] = keyMatch;
-
-    if (obj[key] !== undefined) {
-      results.push(obj);
-      obj = {};
-      obj[key] = value;
-    } else {
-      obj[key] = value;
-    }
-  });
-  results.push(obj);
-  return results;
-};
-
-const argEscape = (arg) =>
+const argEscape = arg =>
   // MPD arguments are double quoted with backslashes and double quotes escaped
   `"${arg.toString().replace(/[\\"]/g, '\\$&')}"`;
-module.exports = { parseKeyValueMessage, parseArrayMessage, argEscape };
+module.exports = { parseMpdReply, argEscape };
