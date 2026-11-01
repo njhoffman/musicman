@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.35.0] - 2026-11-01
+
 ### Added
 
 - `musicman player` controls whichever of MPD and the Spotify desktop app is active, or the one named
@@ -686,7 +688,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.34.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.35.0...HEAD
+[1.35.0]: https://github.com/njhoffman/musicman/compare/v1.34.0...v1.35.0
 [1.34.0]: https://github.com/njhoffman/musicman/compare/v1.33.0...v1.34.0
 [1.33.0]: https://github.com/njhoffman/musicman/compare/v1.32.1...v1.33.0
 [1.32.1]: https://github.com/njhoffman/musicman/compare/v1.32.0...v1.32.1
