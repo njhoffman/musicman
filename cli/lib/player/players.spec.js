@@ -4,6 +4,7 @@ const {
   choosePlayer,
   mpdPlayer,
   nextRepeat,
+  parseMpdSongs,
   spotifyPlayer,
   spotifyTrackId
 } = require('./players.js');
@@ -33,6 +34,44 @@ describe('Menu players', () => {
       return { sent, connect };
     };
     const config = { mpd: { baseDirectory: '/music' } };
+
+    it('should play, pause, stop, seek to a position, and set the volume', async () => {
+      const { sent, connect } = fakeConnect({ status: 'state: play\nvolume: 40\n' });
+      const player = mpdPlayer(config, { connect });
+      await player.play();
+      await player.pause();
+      await player.stop();
+      await player.seekTo(90);
+      await player.seekTo(-5);
+      await player.setVolume(140);
+      expect(sent).to.deep.equal([
+        'play',
+        'pause 1',
+        'stop',
+        'seekcur 90',
+        'seekcur 0',
+        'status',
+        'setvol 100'
+      ]);
+    });
+
+    it('should list the queue after the song playing', async () => {
+      const { sent, connect } = fakeConnect({
+        status: 'state: play\nsong: 4\nplaylistlength: 9\n',
+        playlistinfo:
+          'file: a/b.mp3\nTitle: B\nArtist: X\nduration: 61.2\nPos: 5\nfile: c.mp3\nPos: 6\nTime: 30\n'
+      });
+      expect(await mpdPlayer(config, { connect }).queue(2)).to.deep.equal({
+        length: 9,
+        current: 5,
+        tracks: [
+          { position: 6, file: '/music/a/b.mp3', title: 'B', artist: 'X', duration: 61.2 },
+          { position: 7, file: '/music/c.mp3', title: 'c', artist: '', duration: 30 }
+        ]
+      });
+      expect(sent).to.deep.equal(['status', 'playlistinfo 5:7']);
+      expect(parseMpdSongs('OK')).to.deep.equal([]);
+    });
 
     it('should report the playing song with its file under mpd.baseDirectory', async () => {
       const { connect } = fakeConnect({
@@ -223,6 +262,23 @@ describe('Menu players', () => {
         throw new Error('No players found');
       };
       expect((await spotifyPlayer({ run }).state()).state).to.equal(null);
+    });
+
+    it('should play, pause, stop, seek to a position, and set the volume with playerctl', async () => {
+      const { calls, run } = fakeRun('');
+      const player = spotifyPlayer({ run });
+      await player.play();
+      await player.pause();
+      await player.stop();
+      await player.seekTo(90);
+      await player.setVolume(40);
+      expect(calls.map(call => call.slice(3))).to.deep.equal([
+        ['play'],
+        ['pause'],
+        ['stop'],
+        ['position', '90'],
+        ['volume', '0.4']
+      ]);
     });
 
     it('should seek and step the volume with relative playerctl arguments', async () => {

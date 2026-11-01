@@ -13,6 +13,8 @@ musicman edit some/dir mood=+Upbeat         # add a value to a multi value field
 musicman search artist "Mazzy Star" --play  # replace the MPD queue with the results
 musicman sync --push                        # push Liked Songs and mapped playlists to Spotify
 musicman shuffle "Nick's Picks"             # play a playlist in a real random order (below)
+musicman player next                        # skip in whichever player is active
+musicman player play context:Study rating:5 # play search results (MPD, or the active Spotify)
 musicman spotify repeat next                # step Spotify's repeat mode
 musicman --help                             # every command and switch
 ```
@@ -24,6 +26,25 @@ position, or the Spotify playlist, album, or artist), and its file. `musicman` w
 while a player plays or is paused, and views the current directory otherwise. `--format json` prints the
 same data for status bars; `--watch` (`-W`) redraws it every second until `q`, looking a song's tags up
 again when the track changes. `status.icons: false` leaves out the Nerd Font icons.
+
+`musicman player` controls whichever of MPD and the Spotify desktop app is active (the one playing,
+Spotify when both play, else a paused one, else a stopped MPD), or the one named first
+(`musicman player mpd next`). Without an action it prints the player's state in one line.
+
+| Action                                          | Does                                                          |
+| ----------------------------------------------- | ------------------------------------------------------------- |
+| `toggle`, `play`, `pause`, `stop`               | playback                                                      |
+| `next`, `prev`                                  | skip                                                          |
+| `seek -30`, `seek +30`, `seek 90`, `seek 1:30`  | relative, or to a position                                    |
+| `vol -5`, `vol +5`, `vol 40`                    | relative, or a percent                                        |
+| `shuffle on\|off\|toggle`, `repeat off\|playlist\|track\|next` | the player's modes (MPD: random, repeat, single) |
+| `queue [count]`                                 | the next tracks (10): MPD's queue, Spotify's (Web API)        |
+| `play <terms>`, `add <terms>`                   | play (replacing the queue) or queue the songs `search` finds  |
+
+`play` and `add` take `search` terms (`field:value`, `field value`, free text) and go to the active
+player, MPD when none is; on Spotify they use the songs' Spotify ids through the Web API (Premium and a
+Connect device), leaving out songs never matched to Spotify. Everything else controls Spotify through
+MPRIS, so only the desktop app on this machine.
 
 Configuration: defaults in `common/config/defaultConfig.yml`, your overrides in `~/.musicmanrc.yml`.
 
@@ -108,7 +129,8 @@ the old order may play first.
 ### Shuffle and repeat
 
 `musicman spotify` shows Spotify's shuffle and repeat; `musicman spotify shuffle on|off|toggle` and
-`musicman spotify repeat off|playlist|track|next` change them. In `musicman menu`, `u` toggles shuffle and
+`musicman spotify repeat off|playlist|track|next` change them (the same as `musicman player spotify
+shuffle ...`, which also works for MPD). In `musicman menu`, `u` toggles shuffle and
 `r` steps repeat through off, playlist, and track. Both control the desktop app through MPRIS
 (`playerctl`), so they need no Spotify permissions beyond the app itself. Smart Shuffle cannot be turned
 on or off this way: neither MPRIS nor Spotify's Web API exposes it, so switch it off in the app.

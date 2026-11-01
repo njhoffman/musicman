@@ -185,7 +185,7 @@ menu:
   # entry for that exact rating, e.g. rating:4.5-4.5
   ratings: [4, 4.5, 5]
 
-# Notification daemon settings for desktop notifications
+# Song change notifications for MPD and the Spotify desktop app (musicman-notify service)
 daemon:
   # Display duration for notifications in milliseconds
   duration: 5000
@@ -193,13 +193,13 @@ daemon:
   bin: "/usr/bin/notify-send"
   # Notification urgency level (LOW, NORMAL, CRITICAL)
   urgency: LOW
-  # Whether to show an icon with notifications
-  icon: false
-  # Metadata fields to include in notifications
+  # Whether to show the song's cover as the notification icon (the file's, else Spotify's)
+  icon: true
+  # Tags shown under the artist and album, colored per field
   fields:
-  - artist
   - context
   - mood
+  - picks
 
 # Rating system configuration
 rating:

@@ -124,6 +124,20 @@ sync never lists to pull or download and never matches a song to; it is disabled
 Each press that changes something is its own archived run (`musicman logs menu`), so `musicman undo`
 takes back one press at a time: the tag change and what it pushed.
 
+### Song change notifications
+
+The `musicman-notify` user service (`pnpm daemon:install`, then
+`systemctl --user enable --now musicman-notify`) shows a notification when a new track starts in MPD or
+the Spotify desktop app; pausing, seeking, or the volume never notify, and each notification replaces the
+last. The summary is the rating as stars and the title; the body the artist and album, then the song's
+`daemon.fields` (context, mood, picks by default) as tags colored like the menu's, or `not in library`
+for a Spotify song without a library match (by its Spotify id). The icon is the cover (`daemon.icon`), the
+same one the menu shows, and the app name is the player (`MPD` or `Spotify`), for notification server
+rules per player.
+
+MPD is watched over its idle connection, reconnecting when MPD restarts; Spotify through MPRIS
+(`playerctl -p spotify --follow`), which keeps waiting while Spotify is closed.
+
 ### Look
 
 `cli/share/rofi/musicman-panel.rasi`; replace it with `menu.theme`, or add rofi arguments with

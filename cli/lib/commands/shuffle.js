@@ -245,5 +245,7 @@ module.exports = {
   lastSource,
   lastSourceKey,
   playlistIdKey,
-  librarySourceTracks
+  librarySourceTracks,
+  playDevice,
+  playTracks
 };

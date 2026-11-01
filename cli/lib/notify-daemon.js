@@ -2,8 +2,10 @@ const PrettyError = require('pretty-error');
 
 const { loadConfig } = require('musicman-common/config');
 const logger = require('./utils/logger.js');
-const { connectMpd } = require('./clients/mpd.js');
-const { watchSongs } = require('./notify/notification.js');
+const { getFilteredFiles } = require('./commands/common.js');
+const { openLibrary } = require('./db/index.js');
+const { libraryDb, watchSongs } = require('./notify/notification.js');
+const { mpdPlayer, spotifyPlayer } = require('./player/players.js');
 
 const pe = new PrettyError();
 
@@ -12,10 +14,19 @@ logger.configure(config.output);
 logger.configureLogFile(config.logger.file);
 logger.configureColors(config.logger.colors);
 
-const run = async () => {
-  const mpdClient = await connectMpd(config.mpd);
-  await watchSongs(mpdClient, config);
+// the parsed tags of one file, read from the file
+const readSong = async file => {
+  const [[, meta] = []] = await getFilteredFiles({ options: {}, config }, [file]);
+  return meta || null;
 };
+
+// notifies about each new track in MPD or the Spotify desktop app until stopped
+const run = () =>
+  watchSongs(config, {
+    players: { mpd: mpdPlayer(config), spotify: spotifyPlayer() },
+    openDb: libraryDb(config, openLibrary),
+    readSong
+  });
 
 run();
 

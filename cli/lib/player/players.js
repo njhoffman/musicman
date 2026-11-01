@@ -9,12 +9,14 @@ const { connectMpd } = require('../clients/mpd.js');
 const seekStep = 30;
 const volumeStep = 5;
 
-// one MPD command on its own connection, resolving to the parsed reply
-const mpdCommand = async (mpdConfig, command, connect = connectMpd) => {
+// one MPD command on its own connection, resolving to the parsed reply (the raw text with raw)
+const mpdCommand = async (mpdConfig, command, connect = connectMpd, { raw = false } = {}) => {
   const client = await connect(mpdConfig);
   try {
     return await new Promise((resolve, reject) =>
-      client.sendCommand(command, (err, msg) => (err ? reject(err) : resolve(parseMpdReply(msg))))
+      client.sendCommand(command, (err, msg) =>
+        err ? reject(err) : resolve(raw ? msg : parseMpdReply(msg))
+      )
     );
   } finally {
     client.socket.destroy();
@@ -22,6 +24,22 @@ const mpdCommand = async (mpdConfig, command, connect = connectMpd) => {
 };
 
 const mpdStates = { play: 'playing', pause: 'paused', stop: 'stopped' };
+
+// the songs of an MPD playlistinfo reply, one record per file: line
+const parseMpdSongs = text =>
+  _.map(
+    _.filter(String(text).split(/\n(?=file: )/), chunk => chunk.startsWith('file: ')),
+    parseMpdReply
+  );
+
+// an MPD song as a queue entry: its place (1-based), file, title, artist, and length
+const queueEntry = (config, song) => ({
+  position: Number(song.Pos) + 1,
+  file: path.join(config.mpd.baseDirectory, song.file),
+  title: song.Title || path.basename(song.file, path.extname(song.file)),
+  artist: song.Artist || '',
+  duration: Number(song.duration || song.Time) || 0
+});
 
 // MPD's repeat and single as off, playlist, or track; null when the status leaves them out
 const mpdRepeat = ({ repeat, single }) => {
@@ -84,9 +102,35 @@ const mpdPlayer = (config, { connect = connectMpd } = {}) => {
       const { state } = await send('status');
       return send(state === 'play' ? 'pause 1' : 'play');
     },
+    play: () => send('play'),
+    pause: () => send('pause 1'),
+    stop: () => send('stop'),
     next: () => send('next'),
     prev: () => send('previous'),
     seek: seconds => send(`seekcur ${seconds >= 0 ? '+' : ''}${seconds}`),
+    // to a position in seconds from the start of the song
+    seekTo: seconds => send(`seekcur ${Math.max(0, seconds)}`),
+    setVolume: async percent => {
+      const volume = Number((await send('status')).volume);
+      if (!(volume >= 0)) {
+        throw new Error('MPD has no mixer, the volume cannot be changed');
+      }
+      return send(`setvol ${_.clamp(Math.round(percent), 0, 100)}`);
+    },
+    // the next count songs of the queue after the one playing (from the start when stopped)
+    queue: async count => {
+      const status = await send('status');
+      const current = Number.isNaN(Number(status.song)) ? -1 : Number(status.song);
+      const start = current + 1;
+      const text = await mpdCommand(config.mpd, `playlistinfo ${start}:${start + count}`, connect, {
+        raw: true
+      });
+      return {
+        length: Number(status.playlistlength) || 0,
+        current: current >= 0 ? current + 1 : null,
+        tracks: _.map(parseMpdSongs(text), song => queueEntry(config, song))
+      };
+    },
     volume: async delta => {
       const volume = Number((await send('status')).volume);
       if (!(volume >= 0)) {
@@ -205,10 +249,16 @@ const spotifyPlayer = ({ run = runFile } = {}) => {
       };
     },
     toggle: () => playerctl('play-pause'),
+    play: () => playerctl('play'),
+    pause: () => playerctl('pause'),
+    stop: () => playerctl('stop'),
     next: () => playerctl('next'),
     prev: () => playerctl('previous'),
     seek: seconds => playerctl('position', `${Math.abs(seconds)}${seconds >= 0 ? '+' : '-'}`),
+    // to a position in seconds from the start of the track
+    seekTo: seconds => playerctl('position', `${Math.max(0, seconds)}`),
     volume: delta => playerctl('volume', `${Math.abs(delta) / 100}${delta >= 0 ? '+' : '-'}`),
+    setVolume: percent => playerctl('volume', `${_.clamp(Math.round(percent), 0, 100) / 100}`),
     // shuffle on, off, or toggle
     shuffle: mode => {
       const value = { on: 'On', off: 'Off', toggle: 'Toggle' }[mode];
@@ -250,6 +300,7 @@ const choosePlayer = async (players, { preferred } = {}) => {
 module.exports = {
   choosePlayer,
   mpdPlayer,
+  parseMpdSongs,
   nextRepeat,
   repeatCycle,
   seekStep,

@@ -51,6 +51,21 @@ const matchesWords =
     return _.every(words, word => text.includes(word));
   };
 
+/**
+ * The songs matching search terms (filters, mpc style pairs, free text) as [file, metadata]: the database
+ * narrows the candidates, the same filters as view decide the results.
+ */
+const findSongs = async ({ terms, target, options = { switches: {} }, config }) => {
+  const { filters, words } = parseTerms(terms, config);
+  const matched = await getFilteredFiles({
+    target: target || config.mpd.baseDirectory,
+    options: { ...options, switches: { ...options.switches, recursive: true }, filters },
+    config,
+    prefilter: db => matchingPaths(db, { config, filters, words })
+  });
+  return _.filter(matched, matchesWords(words));
+};
+
 const searchCommand = async ({ target, options, config }) => {
   const terms = options.terms || [];
   if (terms.length === 0) {
@@ -60,15 +75,7 @@ const searchCommand = async ({ target, options, config }) => {
     return { results: [] };
   }
 
-  const { filters, words } = parseTerms(terms, config);
-  // the database narrows the candidates, the same filters as view decide the results
-  const matched = await getFilteredFiles({
-    target,
-    options: { ...options, switches: { ...options.switches, recursive: true }, filters },
-    config,
-    prefilter: db => matchingPaths(db, { config, filters, words })
-  });
-  const results = _.filter(matched, matchesWords(words));
+  const results = await findSongs({ terms, target, options, config });
 
   if (results.length === 0) {
     logger.info('No songs found');
@@ -125,5 +132,6 @@ module.exports = {
   func: searchCommand,
   defaultTarget,
   targetArgs: false,
+  findSongs,
   parseTerms
 };

@@ -1,7 +1,7 @@
 const _ = require('lodash');
 const fs = require('fs');
 
-const { chipColors, clock, defaultChip, icons, tones } = require('./menu.js');
+const { chipColors, clock, defaultChip, icons, stars, tones } = require('./menu.js');
 const { escapeMarkup } = require('./rofi.js');
 const parseFilters = require('../parser/options/filters.js');
 const { libraryFileForTrack } = require('../player/library.js');
@@ -195,11 +195,6 @@ const hasValue = (meta, { field, value }) =>
     `${(meta && meta[field]) || ''}`.split(','),
     item => _.toLower(item.trim()) === _.toLower(value)
   );
-
-const stars = rating => {
-  const value = Number(rating) || 0;
-  return `${'★'.repeat(Math.floor(value))}${value % 1 ? '½' : ''}`;
-};
 
 // the values of a multi value field; stored values can carry empty items (a trailing comma)
 const valuesOf = (meta, field) =>

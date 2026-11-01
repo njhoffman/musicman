@@ -6,6 +6,22 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman player` controls whichever of MPD and the Spotify desktop app is active, or the one named
+  first: play, pause, stop, skip, seek (relative or to a position), volume (relative or a percent),
+  shuffle, repeat, the upcoming queue, and playing or queueing `search` results (`player play
+  context:Study`), on Spotify by the songs' Spotify ids.
+- Song change notifications for the Spotify desktop app as well as MPD (`musicman-notify`): the rating as
+  stars, the title, artist and album, the song's tags colored per field, and the cover; Spotify songs
+  without a library match say so. Each notification replaces the last one.
+
+### Changed
+
+- Notifications fire only when a new track starts, not on pause or seek, and the daemon reconnects when
+  MPD restarts instead of exiting. `daemon.icon` (the cover) is on by default, and `daemon.fields`
+  defaults to context, mood, and picks.
+
 ## [1.34.0] - 2026-11-01
 
 ### Added

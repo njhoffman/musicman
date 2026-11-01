@@ -80,6 +80,12 @@ const trackKey = active =>
     ? `${active.player.source}:${active.status.track.trackId || active.status.track.file}`
     : null;
 
+// a rating as stars, a half star for .5
+const stars = rating => {
+  const value = Number(rating) || 0;
+  return `${'★'.repeat(Math.floor(value))}${value % 1 ? '½' : ''}`;
+};
+
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 const clock = seconds => {
@@ -424,5 +430,6 @@ module.exports = {
   notifyError,
   progressBar,
   quitKey,
+  stars,
   tones
 };

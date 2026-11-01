@@ -61,7 +61,8 @@ const defaultTarget = baseDirectory => baseDirectory;
 
 module.exports = {
   name: 'spotify',
-  description: 'Show or set shuffle and repeat in the Spotify desktop app',
+  description:
+    'Show or set shuffle and repeat in the Spotify desktop app (the same as musicman player spotify shuffle|repeat)',
   usage,
   switches: [],
   completes: [],

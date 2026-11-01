@@ -222,13 +222,6 @@ Reviewed: 2026-11-01
 
 ## 9. Playback, menu, and shuffle (`docs/07-menu.md`, README "Spotify shuffle")
 
-- [ ] **Own song change notifications.** (p2) [feature] replace the mpDris2 notifications (unreliable now) by extending
-      `lib/notify/notification.js`: show the source (Spotify or MPD), the rating when there is one, context and mood
-      labels, and the album cover; watch Spotify through MPRIS PropertiesChanged as well as MPD.
-- [ ] **Playback controls for MPD and Spotify.** (p2) [feature] one set of mpc style commands (play, pause, next,
-      previous, seek, volume, queue) that acts on whichever player is active, plus musicman features such as playing
-      a search result or a filter. `musicman spotify` covers shuffle and repeat; the Web API player scopes are
-      granted now, and `shuffle`'s device choice (`playDevice` in `lib/commands/shuffle.js`) can be reused.
 - [ ] **Menu: control Spotify on other devices.** (p3) [feature] menu playback goes through MPRIS, so only the
       desktop app; the Web API player endpoints (scopes granted since 1.31.0) would cover the phone and speakers.
 - [ ] **Keep playing past the first 1000 shuffled tracks.** (p3) [feature] `musicman shuffle` starts at most 1000
@@ -240,6 +233,13 @@ Reviewed: 2026-11-01
       Bind the free letters to nothing (`-kb-custom-N` to a no-op key) or show the filter there too.
 - [ ] **Menu details: copy a line.** (p3) [feature] Enter on a line of the details screen (`i`) could copy its value
       (the Spotify link, the file path) with `xclip`/`wl-copy` instead of going back.
+- [x] **Playback controls for MPD and Spotify.** (p2) [feature] one set of mpc style commands (play, pause, next,
+      previous, seek, volume, queue) that acts on whichever player is active, plus musicman features such as playing
+      a search result or a filter. `musicman spotify` covers shuffle and repeat; the Web API player scopes are
+      granted now, and `shuffle`'s device choice (`playDevice` in `lib/commands/shuffle.js`) can be reused.
+- [x] **Own song change notifications.** (p2) [feature] replace the mpDris2 notifications (unreliable now) by extending
+      `lib/notify/notification.js`: show the source (Spotify or MPD), the rating when there is one, context and mood
+      labels, and the album cover; watch Spotify through MPRIS PropertiesChanged as well as MPD.
 - [x] **Menu: details, genre, and tags submenus.** (p2) [feature] the details screen (`i`), the grouping button
       renamed genre, and a tags submenu (`e`) of every picks, context, and mood value replace the tag buttons on the
       main screen; `menu.tagFields`, `menu.tagMinSongs`, and `menu.extraTags` configure it. Opens on next, seek 30s,

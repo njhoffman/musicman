@@ -441,7 +441,9 @@ describe('Menu song actions', () => {
     it('should describe songs in and out of the library', async () => {
       const menu = actions();
       const [rating, chips] = (await menu.song(linked)).details;
-      expect(rating).to.match(/^<span foreground="#f5c542">★★★★<\/span> {2}4\.0 .*Ambient\.Artists/);
+      expect(rating).to.match(
+        /^<span foreground="#f5c542">★★★★<\/span> {2}4\.0 .*Ambient\.Artists/
+      );
       expect(chips).to.include(' Run </span>').and.include(' Study </span>');
       expect((await menu.song(remote)).status).to.deep.equal(['not in library']);
       expect(stars('4.5')).to.equal('★★★★½');
