@@ -23,7 +23,7 @@ Reviewed: 2026-10-31
       `logger.stdout.level` was removed.
 - [x] **Logger ignores `logger.colors`.** (p3) Terminal log lines now start with a level badge colored with
       the level's `fg`, `bg`, and `gui`; the log file is unchanged.
-- [ ] **Make the notify daemon testable.** (p3) [refactor] `notify-daemon.js` runs on require; split notification building
+- [x] **Make the notify daemon testable.** (p3) [refactor] `notify-daemon.js` runs on require; split notification building
       and sending from the MPD loop so `sendNotification` can be unit tested.
 - [x] **Rename `seperators` to `separators`** (p3) [refactor] in `views.table`, with a legacy-key error like the other
       migrated options.
@@ -100,7 +100,7 @@ Reviewed: 2026-10-31
 ## Testing
 
 - [ ] (p3) [test] Tests for `utils/logger.js` verbosity levels and padding.
-- [ ] (p3) [test] Tests for `notify-daemon` notification arguments after the refactor above.
+- [x] (p3) [test] Tests for `notify-daemon` notification arguments after the refactor above.
 
 ## Features
 

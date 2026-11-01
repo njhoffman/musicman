@@ -37,7 +37,7 @@ This is a Node.js CLI application for MP3 metadata management that integrates wi
 - **node-id3**: MP3 metadata reading/writing
 - **node:sqlite**: Built-in SQLite (Node 24) for the planned library database, no native dependency
 - **cli-table3**: Column layout for table, list, and differences output via `lib/output/render.js` (cells are truncated before colors are applied)
-- **Notify daemon**: `lib/notify-daemon.js` runs as a systemd user service (`pnpm daemon:install`, then `systemctl --user enable --now musicman-notify`)
+- **Notify daemon**: `lib/notify-daemon.js` (setup only; notification building, sending and the MPD watch are in `lib/notify/notification.js`) runs as a systemd user service (`pnpm daemon:install`, then `systemctl --user enable --now musicman-notify`)
 
 ### Testing Setup
 
