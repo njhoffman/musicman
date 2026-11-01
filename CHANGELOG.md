@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.40.3] - 2026-11-01
+
 ### Changed
 
 - Development tooling only, nothing changes for users: tests run on mocha 12, chai 6, sinon 22, and
@@ -801,7 +803,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.40.2...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.40.3...HEAD
+[1.40.3]: https://github.com/njhoffman/musicman/compare/v1.40.2...v1.40.3
 [1.40.2]: https://github.com/njhoffman/musicman/compare/v1.40.1...v1.40.2
 [1.40.1]: https://github.com/njhoffman/musicman/compare/v1.40.0...v1.40.1
 [1.40.0]: https://github.com/njhoffman/musicman/compare/v1.39.0...v1.40.0
