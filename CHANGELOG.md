@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.33.0] - 2026-11-01
+
 ### Added
 
 - `musicman menu` has a grouping button (`g`): a second menu of the groupings used in the library sets
@@ -646,7 +648,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.32.1...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.33.0...HEAD
+[1.33.0]: https://github.com/njhoffman/musicman/compare/v1.32.1...v1.33.0
 [1.32.1]: https://github.com/njhoffman/musicman/compare/v1.32.0...v1.32.1
 [1.32.0]: https://github.com/njhoffman/musicman/compare/v1.31.0...v1.32.0
 [1.31.0]: https://github.com/njhoffman/musicman/compare/v1.30.0...v1.31.0
