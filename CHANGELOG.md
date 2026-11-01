@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.32.1] - 2026-11-01
+
 ### Changed
 
 - A copy of `.musicmanrc.yml` in the repository root is ignored by git; the user config is
@@ -627,7 +629,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.32.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.32.1...HEAD
+[1.32.1]: https://github.com/njhoffman/musicman/compare/v1.32.0...v1.32.1
 [1.32.0]: https://github.com/njhoffman/musicman/compare/v1.31.0...v1.32.0
 [1.31.0]: https://github.com/njhoffman/musicman/compare/v1.30.0...v1.31.0
 [1.30.0]: https://github.com/njhoffman/musicman/compare/v1.29.0...v1.30.0
