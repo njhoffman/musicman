@@ -8,6 +8,7 @@ const { panelTheme, panelView } = require('../menu/rofi.js');
 const { lazyUserClient } = require('../spotify/userClient.js');
 const { autoBackup, getMeta, openLibrary } = require('../db/index.js');
 const shuffleCommand = require('./shuffle.js');
+const { spotifyContextOf } = require('../status/context.js');
 const { beginJournal, endJournal } = require('../history/journal.js');
 const { finishRun, startRun } = require('../utils/runs.js');
 const {
@@ -54,18 +55,46 @@ const openDb = config => () => {
   return openLibrary(config);
 };
 
-// the menu's reshuffle button: the last musicman shuffle source, shuffled again
+/**
+ * The source the menu's reshuffle button shuffles for a Spotify track: the playlist or Liked Songs it
+ * plays from (contextOf), unless that is the shuffle playlist itself; else the last musicman shuffle
+ * source. Resolves to { name, terms } or null.
+ */
+const reshuffleSource = async ({ track, contextOf, lastSource, shufflePlaylistId }) => {
+  const context = await contextOf(track).catch(() => null);
+  if (context && context.type === 'collection') {
+    return { name: 'Liked Songs', terms: ['liked'] };
+  }
+  if (
+    context &&
+    context.type === 'playlist' &&
+    context.uri &&
+    context.uri !== `spotify:playlist:${shufflePlaylistId}`
+  ) {
+    return { name: context.name || 'this playlist', terms: [context.uri] };
+  }
+  return lastSource ? { name: lastSource.name, terms: lastSource.terms } : null;
+};
+
+// the menu's reshuffle button: the source reshuffleSource picks when the menu is drawn, shuffled again
 const reshuffle = (config, env) => {
   let db = null;
+  let picked = null;
+  const contextOf = spotifyContextOf(lazyUserClient(config, env));
   return {
-    source: () => {
-      if (!db && !fs.existsSync(config.db.path)) {
-        return null;
+    source: async track => {
+      if (!db && fs.existsSync(config.db.path)) {
+        db = openLibrary(config);
       }
-      db = db || openLibrary(config);
-      return _.get(getMeta(db, shuffleCommand.lastSourceKey), 'name') || null;
+      picked = await reshuffleSource({
+        track,
+        contextOf,
+        lastSource: db && getMeta(db, shuffleCommand.lastSourceKey),
+        shufflePlaylistId: db && getMeta(db, shuffleCommand.playlistIdKey)
+      });
+      return picked ? picked.name : null;
     },
-    run: () => shuffleCommand.run({ options: { terms: [] }, config, env })
+    run: () => shuffleCommand.run({ options: { terms: picked ? picked.terms : [] }, config, env })
   };
 };
 
@@ -125,6 +154,7 @@ module.exports = {
   defaultTarget,
   targetArgs: false,
   readSongs,
+  reshuffleSource,
   withRun,
   writeSong
 };

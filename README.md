@@ -102,7 +102,8 @@ the old order may play first.
 - Spotify makes playlists created through its API public, whatever musicman asks for, and ignores later
   changes. Since the same playlist is reused, choose "Remove from profile" on it in the app once.
 - The shuffle playlist is not a `sync.playlists` target, so `sync` never touches it.
-- In `musicman menu`, `o` (reshuffle) shuffles the last source again.
+- In `musicman menu`, `o` (reshuffle) shuffles the playlist or Liked Songs that is playing, else the last
+  source again.
 
 ### Shuffle and repeat
 

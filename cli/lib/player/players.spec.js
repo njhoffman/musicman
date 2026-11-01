@@ -84,6 +84,35 @@ describe('Menu players', () => {
       expect(off.repeat).to.equal('off');
     });
 
+    it('should set random and repeat, repeat track through single', async () => {
+      const { sent, connect } = fakeConnect({ status: 'state: play\nrandom: 1\n' });
+      const player = mpdPlayer(config, { connect });
+      await player.shuffle('toggle');
+      await player.shuffle('on');
+      await player.repeat('track');
+      await player.repeat('playlist');
+      await player.repeat('off');
+      expect(sent).to.deep.equal([
+        'status',
+        'random 0',
+        'random 1',
+        'repeat 1',
+        'single 1',
+        'repeat 1',
+        'single 0',
+        'repeat 0',
+        'single 0'
+      ]);
+      await player.shuffle('smart').then(
+        () => expect.fail('should reject'),
+        err => expect(err.message).to.include("Unknown shuffle mode 'smart'")
+      );
+      await player.repeat('all').then(
+        () => expect.fail('should reject'),
+        err => expect(err.message).to.include("Unknown repeat mode 'all'")
+      );
+    });
+
     it('should report a state of null when MPD cannot be reached', async () => {
       const connect = async () => {
         throw new Error('connect ECONNREFUSED');

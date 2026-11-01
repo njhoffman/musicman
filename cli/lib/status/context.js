@@ -1,7 +1,7 @@
 const _ = require('lodash');
 
 /**
- * A contextOf(track) for nowPlaying: what the Spotify track plays from, as { type, name } (playlist,
+ * A contextOf(track) for nowPlaying: what the Spotify track plays from, as { type, name, uri } (playlist,
  * album, artist, or collection for Liked Songs), from GET /me/player. Resolves to null when Spotify
  * plays a list of tracks without a context (musicman shuffle), plays something else than track (another
  * device), or reports nothing.
@@ -25,7 +25,7 @@ const spotifyContextOf = getClient => async track => {
     collection: async () => 'Liked Songs'
   };
   const name = names[context.type] ? await names[context.type]() : null;
-  return { type: context.type, name: name || null };
+  return { type: context.type, name: name || null, uri: context.uri };
 };
 
 module.exports = { spotifyContextOf };

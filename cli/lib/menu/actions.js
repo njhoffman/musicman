@@ -9,11 +9,33 @@ const { refreshPlaylist } = require('../sync/cache.js');
 const { cachedIn, changeTrack, pushSong } = require('../sync/song.js');
 const { ignorePlaylistId, likedId, playlistTargets } = require('../sync/targets.js');
 
-// keys the playback controls, shuffle (u), repeat (r), reshuffle (o), ratings, like and ignore use; tag
-// buttons without a key get the next free one of buttonKeys
+// keys the playback controls, shuffle (u), repeat (r), reshuffle (o), grouping (g), ratings, like and
+// ignore use; tag buttons without a key get the next free one of buttonKeys
 const likeKey = 'y';
 const ignoreKey = 'x';
-const buttonKeys = 'asdfgjkzcvbmwe'.split('');
+const groupingKey = 'g';
+const buttonKeys = 'asdfjkzcvbmwe'.split('');
+
+// grouping values used in the library, most used first
+const libraryGroupings = (db, frameId) =>
+  _.map(
+    db
+      .prepare(
+        `SELECT value, COUNT(*) AS count FROM song_tags WHERE frame_id = ?
+         GROUP BY value ORDER BY count DESC, value`
+      )
+      .all(frameId),
+    'value'
+  );
+
+// the sync.playlists targets of exactly one grouping (filter grouping:<value>), as { value, id }
+const groupingTargets = config =>
+  _.compact(
+    _.map(playlistTargets(config), ({ id, filter }) => {
+      const match = /^grouping:(\S+)$/i.exec(_.trim(filter));
+      return match ? { value: match[1], id } : null;
+    })
+  );
 
 const sameTag = (a, b) =>
   Boolean(a && b) && a.field === b.field && _.toLower(a.value) === _.toLower(b.value);
@@ -104,6 +126,14 @@ const songActions = ({ config, openDb, client, readSongs, writeSong, withRun }) 
   const likedRating = _.get(config, 'sync.likedRating', 4.5);
   const ignoreId = ignorePlaylistId(config);
   const fields = _.uniq(_.map(buttons.tags, 'field'));
+  const groupingFrame = _.get(_.find(_.get(config, 'library.tags'), { name: 'grouping' }), 'id');
+  const groupings = groupingTargets(config);
+  const groupingPlaylist = value =>
+    _.get(
+      _.find(groupings, ({ value: mapped }) => _.toLower(mapped) === _.toLower(value)),
+      'id',
+      null
+    );
 
   const withDb = async fn => {
     const db = openDb();
@@ -163,6 +193,40 @@ const songActions = ({ config, openDb, client, readSongs, writeSong, withRun }) 
     });
   };
 
+  /**
+   * Whether Spotify has the track in Liked Songs now, with the cached Liked Songs corrected to match;
+   * null (the cache stays as it is) when Spotify cannot be asked. The cache is refreshed only by sync,
+   * so a song liked in the app since would show as not liked, and pressing like would record an add
+   * that undo then removes.
+   */
+  const likedNow = async (db, trackId) => {
+    let liked;
+    try {
+      [liked] = await client().get(`/me/tracks/contains?ids=${encodeURIComponent(trackId)}`);
+    } catch {
+      return null;
+    }
+    if (!_.isBoolean(liked)) {
+      return null;
+    }
+    if (liked !== cachedIn(db, likedId, trackId)) {
+      try {
+        if (liked) {
+          db.prepare(
+            'INSERT INTO spotify_playlist_tracks (playlist_id, track_id) VALUES (?, ?)'
+          ).run(likedId, trackId);
+        } else {
+          db.prepare(
+            'DELETE FROM spotify_playlist_tracks WHERE playlist_id = ? AND track_id = ?'
+          ).run(likedId, trackId);
+        }
+      } catch {
+        // no cached Liked Songs yet (no sync has run), the live answer still counts
+      }
+    }
+    return liked;
+  };
+
   // adds a Spotify-only track to a target or removes it, the playlist refreshed first so it is never
   // added twice
   const toggleRemote = (track, targetId, add, label) =>
@@ -172,7 +236,8 @@ const songActions = ({ config, openDb, client, readSongs, writeSong, withRun }) 
         if (targetId !== likedId) {
           await refreshPlaylist(db, spotify, targetId);
         }
-        const present = cachedIn(db, targetId, track.trackId);
+        const live = targetId === likedId ? await likedNow(db, track.trackId) : null;
+        const present = live === null ? cachedIn(db, targetId, track.trackId) : live;
         if (present === add) {
           return { unchanged: targetId };
         }
@@ -195,11 +260,13 @@ const songActions = ({ config, openDb, client, readSongs, writeSong, withRun }) 
       const ids = _.compact([
         ..._.map(buttons.tags, 'playlistId'),
         ..._.map(buttons.ratings, 'playlistId'),
+        ..._.map(groupings, 'id'),
         likedId,
         ignoreId
       ]);
       return remote ? new Set(_.filter(ids, id => cachedIn(db, id, track.trackId))) : new Set();
     });
+    const likedLive = remote ? await withDb(db => likedNow(db, track.trackId)) : null;
 
     const tagEntries = _.map(buttons.tags, button => {
       const active = local ? hasValue(current.meta, button) : inTarget.has(button.playlistId);
@@ -223,6 +290,45 @@ const songActions = ({ config, openDb, client, readSongs, writeSong, withRun }) 
               )
       };
     });
+
+    // the grouping: the tag of a library song, or the grouping playlist a Spotify-only song is in
+    const currentGrouping = local
+      ? _.get(current, 'meta.grouping') || null
+      : _.get(
+          _.find(groupings, ({ id }) => inTarget.has(id)),
+          'value',
+          null
+        );
+    const sameGrouping = value => _.toLower(value) === _.toLower(currentGrouping || '');
+    const groupingEntry = {
+      icon: icons.grouping,
+      label: 'grouping',
+      caption: currentGrouping || 'grouping',
+      key: groupingKey,
+      active: Boolean(currentGrouping),
+      disabled: !track || !groupingFrame || (!local && !remote),
+      // picked from the groupings used in the library; Spotify-only songs move between grouping playlists
+      choices: async () =>
+        _.map(await withDb(db => libraryGroupings(db, groupingFrame)), value => {
+          const playlistId = groupingPlaylist(value);
+          return {
+            icon: icons.grouping,
+            label: value,
+            active: sameGrouping(value),
+            disabled: sameGrouping(value) || (!local && !playlistId),
+            run: async () => {
+              if (local) {
+                return writeLocal({ player, track, song: current }, { grouping: value });
+              }
+              const others = _.filter(groupings, ({ id }) => id !== playlistId && inTarget.has(id));
+              for (const other of others) {
+                await toggleRemote(track, other.id, false, `grouping=-${other.value}`);
+              }
+              return toggleRemote(track, playlistId, true, `grouping=${value}`);
+            }
+          };
+        })
+    };
 
     const ratingEntries = _.map(buttons.ratings, button => {
       const active = local
@@ -255,10 +361,13 @@ const songActions = ({ config, openDb, client, readSongs, writeSong, withRun }) 
 
     const liked = local
       ? Number(_.get(current, 'meta.rating')) >= likedRating
-      : inTarget.has(likedId);
+      : likedLive === null
+        ? inTarget.has(likedId)
+        : likedLive;
     const ignored = inTarget.has(ignoreId);
     return [
       ...tagEntries,
+      groupingEntry,
       ...ratingEntries,
       {
         icon: icons.like,
@@ -285,4 +394,13 @@ const songActions = ({ config, openDb, client, readSongs, writeSong, withRun }) 
   return { song, entries, buttons };
 };
 
-module.exports = { exactRating, hasValue, menuButtons, songActions, songDetails, stars };
+module.exports = {
+  exactRating,
+  groupingTargets,
+  hasValue,
+  libraryGroupings,
+  menuButtons,
+  songActions,
+  songDetails,
+  stars
+};

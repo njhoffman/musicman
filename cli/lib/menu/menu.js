@@ -24,7 +24,8 @@ const icons = {
   ignore: '',
   shuffle: '\uf074',
   repeat: '\uf01e',
-  reshuffle: '\uf021'
+  reshuffle: '\uf021',
+  grouping: '\uf07b'
 };
 
 // keys of the shuffle, repeat, and reshuffle buttons
@@ -39,6 +40,18 @@ const switchKey = 'Tab';
 
 // time for a player to report the next song after a skip, before the menu is drawn again
 const settleMs = 400;
+
+// buttons per row in a menu of choices
+const choiceColumns = 4;
+
+// how often the open menu checks whether the song changed, to draw it again
+const followMs = 1000;
+
+// what identifies the song a menu shows: its player and track
+const trackKey = active =>
+  active && active.status.track
+    ? `${active.player.source}:${active.status.track.trackId || active.status.track.file}`
+    : null;
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -62,7 +75,8 @@ const notifyError = (message, { exec = execFile } = {}) =>
  * songActions (optional) adds buttons that act on the song: { entries(context) } where context is
  * { player, status, track } and each entry has run().
  * Players with shuffle and repeat (Spotify) get buttons for them; reshuffle (optional) is
- * { source(): name of the last musicman shuffle source or null, run() }.
+ * { source(track): name of the source it would shuffle, or null, run() }. An entry with choices()
+ * opens a second menu of them (see choose).
  */
 class Menu {
   constructor({
@@ -72,7 +86,8 @@ class Menu {
     reshuffle = null,
     cover = coverFor,
     notify = notifyError,
-    settle = settleMs
+    settle = settleMs,
+    follow = followMs
   }) {
     this.players = players;
     this.view = view;
@@ -81,6 +96,7 @@ class Menu {
     this.cover = cover;
     this.notify = notify;
     this.settle = settle;
+    this.follow = follow;
     this.forced = null;
   }
 
@@ -205,7 +221,9 @@ class Menu {
     const canShuffle = Boolean(player.shuffle) && _.isBoolean(status.shuffle);
     const canRepeat = Boolean(player.repeat) && Boolean(status.repeat);
     const source =
-      this.reshuffle && player.source === 'spotify' ? await this.reshuffle.source() : null;
+      this.reshuffle && player.source === 'spotify' && status.track
+        ? await this.reshuffle.source(status.track)
+        : null;
     return [
       {
         icon: icons.shuffle,
@@ -237,6 +255,62 @@ class Menu {
     ];
   }
 
+  /**
+   * Shows menu and resolves to the pick; while it is open, checks every follow ms whether the song
+   * changed (another track, or another player taking over) and then closes it to be drawn again.
+   */
+  async show(menu, shownKey) {
+    if (!this.follow) {
+      return this.view(menu);
+    }
+    const controller = new AbortController();
+    let timer;
+    const check = async () => {
+      try {
+        const { active } = await this.current();
+        if (trackKey(active) !== shownKey) {
+          controller.abort();
+          return;
+        }
+      } catch {
+        // a player that cannot be asked right now changes nothing
+      }
+      if (!controller.signal.aborted) {
+        timer = setTimeout(check, this.follow);
+      }
+    };
+    timer = setTimeout(check, this.follow);
+    try {
+      return await this.view({ ...menu, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+      controller.abort();
+    }
+  }
+
+  /**
+   * A second menu for an entry with choices() (e.g. groupings): the same song panel with the choices as
+   * buttons; picking one runs it, Escape or q goes back to the main menu.
+   */
+  async choose(entry, item) {
+    const choices = await entry.choices();
+    const picked = await this.view({
+      ...item,
+      title: `${item.title}  ·  ${entry.label}`,
+      entries: choices,
+      keys: [quitKey],
+      columns: choiceColumns
+    });
+    if (picked === null || picked.key === quitKey || picked.redraw) {
+      return {};
+    }
+    const choice = picked.key ? _.find(choices, { key: picked.key }) : choices[picked];
+    if (!choice || choice.disabled) {
+      return {};
+    }
+    return (await choice.run()) || {};
+  }
+
   async mainMenu() {
     const { active, running } = await this.current();
     if (!active) {
@@ -249,18 +323,22 @@ class Menu {
     const modes = await this.modes(active);
     const actions = this.songActions ? await this.songActions.entries({ ...context, song }) : [];
     const entries = [...controls, ...modes, ...actions];
-    const picked = await this.view({
-      ...item,
-      entries,
-      keys: [quitKey],
-      columns: controls.length
-    });
+    const picked = await this.show(
+      { ...item, entries, keys: [quitKey], columns: controls.length },
+      trackKey(active)
+    );
     if (picked === null || picked.key === quitKey) {
       return { quit: true };
+    }
+    if (picked.redraw) {
+      return {};
     }
     const entry = picked.key ? _.find(entries, { key: picked.key }) : entries[picked];
     if (!entry || entry.disabled) {
       return {};
+    }
+    if (entry.choices) {
+      return this.attempt(() => this.choose(entry, item));
     }
     return this.attempt(entry.run);
   }

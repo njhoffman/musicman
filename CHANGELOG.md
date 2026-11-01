@@ -6,6 +6,23 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman menu` has a grouping button (`g`): a second menu of the groupings used in the library sets
+  the song's grouping, or moves a Spotify song not in the library between grouping playlists.
+- The menu follows the song: when another track starts while it is open, it opens again with the new one.
+- The menu's shuffle (`u`) and repeat (`r`) buttons work for MPD (random, repeat, single).
+
+### Changed
+
+- The menu's reshuffle button (`o`) shuffles the Spotify playlist or Liked Songs that is playing, and only
+  falls back to the last `musicman shuffle` source for albums, artists, and track lists.
+
+### Fixed
+
+- The menu's like button shows whether Spotify has the track in Liked Songs now, not as of the last sync,
+  so liking a song already liked in the app no longer records an add that undo would remove.
+
 ## [1.32.1] - 2026-11-01
 
 ### Changed

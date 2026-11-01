@@ -26,7 +26,42 @@ describe('Menu rofi', () => {
     return { calls, spawnProcess };
   };
 
+  // a rofi that stays open until killed, then closes like a process ended by a signal
+  const openRofi = () => {
+    const killed = [];
+    const spawnProcess = () => {
+      const child = new EventEmitter();
+      child.stdout = new EventEmitter();
+      child.stdin = { end: () => {} };
+      child.kill = () => {
+        killed.push(true);
+        setImmediate(() => child.emit('close', null));
+      };
+      return child;
+    };
+    return { killed, spawnProcess };
+  };
+
   describe('runRofi', () => {
+    it('should close rofi and resolve to redraw when the signal aborts', async () => {
+      const rofi = openRofi();
+      const controller = new AbortController();
+      const shown = runRofi([], 'a', {
+        spawnProcess: rofi.spawnProcess,
+        signal: controller.signal
+      });
+      controller.abort();
+      expect(await shown).to.deep.equal({ redraw: true });
+      expect(rofi.killed).to.deep.equal([true]);
+
+      const late = openRofi();
+      const aborted = new AbortController();
+      aborted.abort();
+      expect(
+        await runRofi([], 'a', { spawnProcess: late.spawnProcess, signal: aborted.signal })
+      ).to.deep.equal({ redraw: true });
+    });
+
     it('should resolve to the picked index, a bound key, or null when dismissed', async () => {
       expect(await runRofi([], 'a', { spawnProcess: fakeSpawn(0, '2\n').spawnProcess })).to.equal(
         2

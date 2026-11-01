@@ -198,19 +198,23 @@ describe('Spotify context', () => {
     const of = context => spotifyContextOf(client(routes(context)))(track);
     expect(await of({ type: 'playlist', uri: 'spotify:playlist:p1' })).to.deep.equal({
       type: 'playlist',
-      name: 'Study'
+      name: 'Study',
+      uri: 'spotify:playlist:p1'
     });
     expect(await of({ type: 'album', uri: 'spotify:album:x' })).to.deep.equal({
       type: 'album',
-      name: 'Album'
+      name: 'Album',
+      uri: 'spotify:album:x'
     });
     expect(await of({ type: 'artist', uri: 'spotify:artist:a1' })).to.deep.equal({
       type: 'artist',
-      name: 'Mazzy Star'
+      name: 'Mazzy Star',
+      uri: 'spotify:artist:a1'
     });
     expect(await of({ type: 'collection', uri: 'spotify:user:me:collection' })).to.deep.equal({
       type: 'collection',
-      name: 'Liked Songs'
+      name: 'Liked Songs',
+      uri: 'spotify:user:me:collection'
     });
   });
 

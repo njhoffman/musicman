@@ -93,6 +93,23 @@ const mpdPlayer = (config, { connect = connectMpd } = {}) => {
         throw new Error('MPD has no mixer, the volume cannot be changed');
       }
       return send(`setvol ${_.clamp(volume + delta, 0, 100)}`);
+    },
+    // random on, off, or toggle
+    shuffle: async mode => {
+      if (!['on', 'off', 'toggle'].includes(mode)) {
+        throw new Error(`Unknown shuffle mode '${mode}', use on, off, or toggle`);
+      }
+      const on = mode === 'toggle' ? (await send('status')).random !== '1' : mode === 'on';
+      return send(`random ${on ? 1 : 0}`);
+    },
+    // repeat off, playlist (the queue), or track (repeat with single)
+    repeat: async mode => {
+      const settings = { off: [0, 0], playlist: [1, 0], track: [1, 1] }[mode];
+      if (!settings) {
+        throw new Error(`Unknown repeat mode '${mode}', use ${repeatCycle.join(', ')}`);
+      }
+      await send(`repeat ${settings[0]}`);
+      return send(`single ${settings[1]}`);
     }
   };
   return player;

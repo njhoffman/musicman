@@ -208,6 +208,81 @@ describe('Menu', () => {
     expect(ran).to.deep.equal(['a']);
   });
 
+  it('should draw the menu again when the song changes while it is open', async () => {
+    const tracks = [
+      { ...track, title: 'First', trackId: 't1' },
+      { ...track, title: 'Second', trackId: 't2' }
+    ];
+    let calls = 0;
+    const player = {
+      ...fakePlayer('spotify', 'playing'),
+      // the first draw and its first checks see the first track, later ones the second
+      state: async () => {
+        calls += 1;
+        return { state: 'playing', volume: 50, track: tracks[calls < 4 ? 0 : 1] };
+      }
+    };
+    const menus = [];
+    // stays open until aborted for a redraw, the second menu is dismissed
+    const view = menu =>
+      new Promise(resolve => {
+        menus.push(menu);
+        if (menus.length > 1) {
+          resolve(null);
+        } else {
+          menu.signal.addEventListener('abort', () => resolve({ redraw: true }));
+        }
+      });
+    await new Menu({
+      players: [player],
+      view,
+      cover: async () => null,
+      settle: 0,
+      follow: 2,
+      notify: async () => {}
+    }).open();
+    expect(menus.map(menu => menu.title.split('·')[1].trim())).to.deep.equal(['First', 'Second']);
+  });
+
+  it('should leave the menu open without following when follow is 0', async () => {
+    const { menus, view } = fakeView([]);
+    await menuWith({ players: [fakePlayer('mpd', 'playing')], view, follow: 0 }).open();
+    expect(menus[0].signal).to.equal(undefined);
+  });
+
+  it('should open the choices of an entry as a second menu, and go back on Escape', async () => {
+    const ran = [];
+    const songActions = {
+      song: async () => ({}),
+      entries: async () => [
+        {
+          label: 'grouping',
+          key: 'g',
+          choices: async () => [
+            { label: 'Rock', run: async () => ran.push('Rock') },
+            { label: 'Jazz', disabled: true, run: async () => ran.push('Jazz') }
+          ]
+        }
+      ]
+    };
+    // g opens the choices, 0 picks Rock; g again, Escape (null) goes back; g, the disabled Jazz
+    const { menus, view } = fakeView([
+      { key: 'g' },
+      0,
+      { key: 'g' },
+      null,
+      { key: 'g' },
+      1,
+      { key: 'q' }
+    ]);
+    await menuWith({ players: [fakePlayer('mpd', 'playing')], view, songActions }).open();
+    expect(ran).to.deep.equal(['Rock']);
+    expect(menus[1].title).to.match(/grouping$/);
+    expect(menus[1].entries.map(({ label }) => label)).to.deep.equal(['Rock', 'Jazz']);
+    expect(menus[1].columns).to.equal(4);
+    expect(menus).to.have.length(7);
+  });
+
   it('should format times as m:ss', () => {
     expect(clock(0)).to.equal('0:00');
     expect(clock(354.44)).to.equal('5:54');

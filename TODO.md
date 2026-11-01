@@ -235,19 +235,19 @@ Reviewed: 2026-11-01
       tracks as a list (a rewritten playlist plays its previous order for a minute or more), so playback stops after
       them although the playlist holds the rest. Options: start the playlist at track 1001 once the list ends
       (needs a watcher), or queue the next tracks from the notify daemon.
-- [ ] **Reshuffle the playing playlist.** (p3) [feature] the menu's reshuffle button repeats the last
+- [x] **Reshuffle the playing playlist.** (p3) [feature] the menu's reshuffle button repeats the last
       `musicman shuffle` source, because MPRIS does not say which playlist is playing. `GET /me/player` gives the
       context (`user-read-playback-state` is granted), so it could shuffle what is playing instead.
-- [ ] **Menu: MPD random and repeat.** (p3) [feature] the menu's shuffle and repeat buttons are disabled for MPD; MPD
+- [x] **Menu: MPD random and repeat.** (p3) [feature] the menu's shuffle and repeat buttons are disabled for MPD; MPD
       has `random`, `repeat`, and `single`, so `mpdPlayer` (`cli/lib/menu/players.js`) could offer the same shuffle
       and repeat functions and report them from `status`.
-- [ ] **Menu: Liked Songs state comes from the cache.** (p3) [bug] the like button of a Spotify song not in the
+- [x] **Menu: Liked Songs state comes from the cache.** (p3) [bug] the like button of a Spotify song not in the
       library is highlighted from the cached Liked Songs, refreshed by sync runs; a song liked in the app since shows
       as not liked until then, and undo of a second press would remove it. One `GET /me/library/contains` (or
       `/me/tracks/contains`) request per drawn song would make it current.
-- [ ] **Menu: grouping buttons.** (p3) [feature] `menu.buttons` only takes one value of a multi value field
+- [x] **Menu: grouping buttons.** (p3) [feature] `menu.buttons` only takes one value of a multi value field
       (context, mood, picks); grouping is single valued, so setting it would need a picker submenu.
-- [ ] **Menu: redraw when the song changes.** (p3) [feature] the menu shows the song as it was when drawn; a song that
+- [x] **Menu: redraw when the song changes.** (p3) [feature] the menu shows the song as it was when drawn; a song that
       ends while it is open stays shown until the next press. rofi has no timer, so this would need closing and
       reopening it from a player event (MPD idle, MPRIS PropertiesChanged).
 - [ ] **Lyrics.** (p3) [feature] fetch lyrics for the playing song (embedded USLT first, then an online source) and

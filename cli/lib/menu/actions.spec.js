@@ -2,7 +2,7 @@ const { expect } = require('chai');
 
 const { openDatabase } = require('../db/database.js');
 const { mergeAssignments } = require('../metadata/write.js');
-const { menuButtons, songActions, stars } = require('./actions.js');
+const { groupingTargets, menuButtons, songActions, stars } = require('./actions.js');
 
 describe('Menu song actions', () => {
   const study = 'StudyPlaylist000000000';
@@ -10,6 +10,8 @@ describe('Menu song actions', () => {
   const rated4 = 'Rated4Playlist00000000';
   const rated45 = 'Rated45Playlist0000000';
   const ignore = 'IgnorePlaylist00000000';
+  const ambient = 'AmbientPlaylist0000000';
+  const rock = 'RockPlaylist0000000000';
   const config = {
     mpd: { baseDirectory: '/music' },
     library: {
@@ -26,7 +28,10 @@ describe('Menu song actions', () => {
         { filter: 'context:Study', playlist: study },
         { filter: 'picks:Hot', playlist: hot },
         { filter: 'rating:4.0-4.0', playlist: rated4 },
-        { filter: 'rating:4.5-4.5', playlist: rated45 }
+        { filter: 'rating:4.5-4.5', playlist: rated45 },
+        { filter: 'grouping:Ambient.Artists', playlist: ambient },
+        { filter: 'grouping:Rock.Singles', playlist: rock },
+        { filter: 'grouping:Jazz rating:4.5', playlist: hot }
       ]
     },
     menu: {
@@ -92,8 +97,18 @@ describe('Menu song actions', () => {
         .all(playlistId)
         .map(row => row.track_id);
 
+    // tracks Spotify has in Liked Songs; null makes the live check fail, leaving the cache
+    let likedOnSpotify = null;
     const client = {
-      get: async () => ({ name: 'x', snapshot_id: 's1' }),
+      get: async url => {
+        if (url.startsWith('/me/tracks/contains')) {
+          if (!likedOnSpotify) {
+            throw new Error('Spotify unavailable');
+          }
+          return [likedOnSpotify.has(decodeURIComponent(url.split('ids=')[1]))];
+        }
+        return { name: 'x', snapshot_id: 's1' };
+      },
       paginate: async () => [],
       request: async (method, url, body) => {
         requests.push([method, url, body]);
@@ -101,7 +116,12 @@ describe('Menu song actions', () => {
       }
     };
     const metas = {
-      '/music/a.mp3': { rating: '4.0', context: 'Run,Study', picks: '' }
+      '/music/a.mp3': {
+        rating: '4.0',
+        context: 'Run,Study',
+        picks: '',
+        grouping: 'Ambient.Artists'
+      }
     };
     const actions = () =>
       songActions({
@@ -140,7 +160,19 @@ describe('Menu song actions', () => {
         "INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, 'TXXX.sp_track_id', 'ta')"
       ).run(lastInsertRowid);
       cache('liked', []);
-      [study, hot, rated4, rated45, ignore].forEach(id => cache(id, []));
+      [study, hot, rated4, rated45, ignore, ambient, rock].forEach(id => cache(id, []));
+      // groupings in the library: Rock.Singles twice, Ambient.Artists (song a) and Jazz once
+      const grouping = db.prepare(
+        "INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, 'TIT1', ?)"
+      );
+      grouping.run(lastInsertRowid, 'Ambient.Artists');
+      ['r1.mp3', 'r2.mp3', 'j.mp3'].forEach((file, i) => {
+        const { lastInsertRowid: id } = db
+          .prepare('INSERT INTO songs (path, mtime, size) VALUES (?, 1, 1)')
+          .run(file);
+        grouping.run(id, i < 2 ? 'Rock.Singles' : 'Jazz');
+      });
+      likedOnSpotify = null;
     });
 
     afterEach(() => {
@@ -248,6 +280,71 @@ describe('Menu song actions', () => {
       expect(tracksIn('liked')).to.deep.equal(['tz']);
       const again = await press(remote, 'y');
       expect(again.entry).to.include({ label: 'unlike', active: true });
+    });
+
+    it('should show Liked Songs as Spotify has it now and correct the cache', async () => {
+      likedOnSpotify = new Set(['tz']);
+      const liked = await press(remote, 'y');
+      expect(liked.entry).to.include({ label: 'unlike', active: true });
+      expect(tracksIn('liked')).to.deep.equal(['tz']);
+      // pressing it removes the track, it never adds it a second time
+      await liked.run();
+      expect(requests).to.deep.equal([['DELETE', '/me/tracks', { ids: ['tz'] }]]);
+
+      likedOnSpotify = new Set();
+      cache('liked', ['tz']);
+      const unliked = await press(remote, 'y');
+      expect(unliked.entry).to.include({ label: 'like', active: false });
+      expect(tracksIn('liked')).to.be.empty;
+    });
+
+    it('should not record a like that Spotify already has', async () => {
+      const { entry } = await press(remote, 'y');
+      expect(entry.active).to.equal(false);
+      // liked in the app after the menu was drawn
+      likedOnSpotify = new Set(['tz']);
+      const result = await entry.run();
+      expect(result).to.deep.equal({ unchanged: 'liked' });
+      expect(requests).to.be.empty;
+    });
+
+    it('should pick the grouping of a library song from the groupings in use, most used first', async () => {
+      const { entry } = await press(mpd, 'g');
+      expect(entry).to.include({ caption: 'Ambient.Artists', active: true, disabled: false });
+      const choices = await entry.choices();
+      expect(choices.map(({ label, active, disabled }) => [label, active, disabled])).to.deep.equal(
+        [
+          ['Rock.Singles', false, false],
+          ['Ambient.Artists', true, true],
+          ['Jazz', false, false]
+        ]
+      );
+      await choices[0].run();
+      expect(writes).to.deep.equal([['/music/a.mp3', { grouping: 'Rock.Singles' }]]);
+      expect(runs).to.deep.equal(['grouping=Rock.Singles X - A']);
+    });
+
+    it('should move a Spotify song not in the library between grouping playlists', async () => {
+      cache(ambient, ['tz']);
+      const { entry } = await press(remote, 'g');
+      expect(entry).to.include({ caption: 'Ambient.Artists', active: true });
+      const choices = await entry.choices();
+      // Jazz has no playlist of its own (its only entry also filters on rating)
+      expect(choices.find(choice => choice.label === 'Jazz').disabled).to.equal(true);
+      await choices.find(choice => choice.label === 'Rock.Singles').run();
+      expect(requests.map(([method, url]) => [method, url])).to.deep.equal([
+        ['DELETE', `/playlists/${ambient}/items`],
+        ['POST', `/playlists/${rock}/items`]
+      ]);
+      expect(tracksIn(rock)).to.deep.equal(['tz']);
+      expect(writes).to.be.empty;
+    });
+
+    it('should map only single grouping filters to grouping playlists', () => {
+      expect(groupingTargets(config)).to.deep.equal([
+        { value: 'Ambient.Artists', id: ambient },
+        { value: 'Rock.Singles', id: rock }
+      ]);
     });
 
     it('should describe songs in and out of the library', async () => {

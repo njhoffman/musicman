@@ -244,5 +244,6 @@ module.exports = {
   isFilterTerms,
   lastSource,
   lastSourceKey,
+  playlistIdKey,
   librarySourceTracks
 };

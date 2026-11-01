@@ -30,9 +30,9 @@ const rasiMarkup = text => {
  * Runs rofi -dmenu on input and resolves to the picked index, { key } for one of keys, or null when
  * dismissed. -format i returns the index, so labels are never parsed back; -no-custom rejects typed
  * text. keys are bound to kb-custom-1.., which make rofi exit with 10..; Tab moves between entries by
- * default, so it is unbound first.
+ * default, so it is unbound first. Aborting signal closes rofi and resolves to { redraw: true }.
  */
-const runRofi = (args, input, { spawnProcess = spawn, keys = [] } = {}) => {
+const runRofi = (args, input, { spawnProcess = spawn, keys = [], signal = null } = {}) => {
   const keyArgs = _.flatMap(keys, (key, index) => [`-kb-custom-${index + 1}`, key]);
   if (keys.includes('Tab')) {
     keyArgs.unshift('-kb-element-next', '');
@@ -44,6 +44,18 @@ const runRofi = (args, input, { spawnProcess = spawn, keys = [] } = {}) => {
       { stdio: ['pipe', 'pipe', 'ignore'] }
     );
     let output = '';
+    let aborted = false;
+    const abort = () => {
+      aborted = true;
+      child.kill();
+    };
+    if (signal) {
+      if (signal.aborted) {
+        abort();
+      } else {
+        signal.addEventListener('abort', abort, { once: true });
+      }
+    }
     child.stdout.on('data', chunk => {
       output += chunk;
     });
@@ -51,8 +63,13 @@ const runRofi = (args, input, { spawnProcess = spawn, keys = [] } = {}) => {
       reject(err.code === 'ENOENT' ? new Error('rofi is not installed') : err)
     );
     child.on('close', code => {
-      // rofi exits 1 when dismissed with Escape
-      if (code === 1) {
+      if (signal) {
+        signal.removeEventListener('abort', abort);
+      }
+      if (aborted) {
+        resolve({ redraw: true });
+      } else if (code === 1) {
+        // rofi exits 1 when dismissed with Escape
         resolve(null);
       } else if (code >= 10 && code < 10 + keys.length) {
         resolve({ key: keys[code - 10] });
@@ -96,7 +113,7 @@ const buttonMarkup = entry => {
  * song's details and the menu's status, all set per menu with -theme-str. Entries hold a line break, so
  * they are separated by | instead; three lines of height fit the large icon and caption.
  * Menus are { title, message, status, cover, accent, columns, entries: [{ icon, label, caption, key,
- * active, disabled }], keys }.
+ * active, disabled }], keys, signal }; aborting signal closes the menu to redraw it.
  */
 const panelView =
   ({ args = [], theme = panelTheme, spawnProcess = spawn } = {}) =>
@@ -128,7 +145,7 @@ const panelView =
         ...args
       ],
       _.map(menu.entries, buttonMarkup).join('|'),
-      { spawnProcess, keys: menuKeys(menu) }
+      { spawnProcess, keys: menuKeys(menu), signal: menu.signal || null }
     );
   };
 
