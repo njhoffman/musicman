@@ -272,6 +272,22 @@ describe('Config Tests', () => {
       ]);
     });
 
+    it('should reject a scope or fallbackScope other than album', () => {
+      const result = captureFatal(() =>
+        loadConfig(
+          withFields([
+            { path: 'album.label', name: 'sp_label', scope: 'albums' },
+            { path: 'track.album.name', name: 'sp_album', fallbackScope: 'single' }
+          ])
+        )
+      );
+      expect(result.exitCalled).to.be.true;
+      expect(result.messages.slice(0, 2)).to.deep.equal([
+        "Fatal error: spotify.fields[0].scope 'albums' must be album",
+        "Fatal error: spotify.fields[1].fallbackScope 'single' must be album"
+      ]);
+    });
+
     it('should reject fallbacks that are unknown or custom tags', () => {
       const result = captureFatal(() =>
         loadConfig(

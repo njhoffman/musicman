@@ -65,17 +65,22 @@ const wrapPairs = (label, pairs, indent) => {
   );
 };
 
-// subtle counts of what was written to a song: custom fields, standard tags filled, and tags kept
+// album fields removed from a song outside an album, none in writes from before they were removed
+const removedOf = writes => writes.removed || [];
+
+// subtle counts of what was written to a song: custom fields, standard tags filled, tags kept, and
+// album fields removed
 const writeCounts = writes =>
   [
     chalk.hex('#55AA77')(`+${writes.custom.length} fields`),
     writes.filled.length > 0 && chalk.hex('#5599BB')(`~${writes.filled.length} filled`),
-    writes.kept.length > 0 && chalk.hex('#777788')(`=${writes.kept.length} kept`)
+    writes.kept.length > 0 && chalk.hex('#777788')(`=${writes.kept.length} kept`),
+    removedOf(writes).length > 0 && chalk.hex('#BB7755')(`-${removedOf(writes).length} removed`)
   ]
     .filter(Boolean)
     .join(' ');
 
-// field lines under a song for --verbose: custom fields written, standard tags filled, and kept
+// field lines under a song for --verbose: custom fields written, standard tags filled, kept, and removed
 const writeLines = (writes, indent) => [
   ...wrapPairs(
     'fields',
@@ -89,7 +94,8 @@ const writeLines = (writes, indent) => [
         indent
       )
     : []),
-  ...(writes.kept.length > 0 ? wrapPairs('kept', _.map(writes.kept, 'name'), indent) : [])
+  ...(writes.kept.length > 0 ? wrapPairs('kept', _.map(writes.kept, 'name'), indent) : []),
+  ...(removedOf(writes).length > 0 ? wrapPairs('removed', removedOf(writes), indent) : [])
 ];
 
 /**

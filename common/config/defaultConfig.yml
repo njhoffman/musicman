@@ -55,30 +55,32 @@ spotify:
   # track, album (the track's full album), or artist (the track's first artist); [] collects every item
   # of an array. multi stores one value per item, otherwise items are joined with separator (', ').
   # fallback is a tag that gets the value only when the song has none, existing standard tags are never
-  # overwritten.
+  # overwritten. scope: album writes the field only to songs organized in albums (the beets path rule
+  # of the song's folder has $album) and removes it from the others; fallbackScope: album writes the
+  # field to every song, but its fallback only to songs in albums.
   fields:
   - { path: 'track.name', name: sp_title, fallback: title }
   - { path: 'track.artists[].name', name: sp_artist, fallback: artist }
   - { path: 'track.artists[].id', name: sp_artist_id, multi: true }
-  - { path: 'track.album.name', name: sp_album, fallback: album }
+  - { path: 'track.album.name', name: sp_album, fallback: album, fallbackScope: album }
   - { path: 'track.album.id', name: sp_album_id }
-  - { path: 'track.album.artists[].name', name: sp_album_artist, fallback: album_artist }
-  - { path: 'track.album.artists[].id', name: sp_album_artist_id, multi: true }
+  - { path: 'track.album.artists[].name', name: sp_album_artist, fallback: album_artist, scope: album }
+  - { path: 'track.album.artists[].id', name: sp_album_artist_id, multi: true, scope: album }
   - { path: 'track.album.album_type', name: sp_album_type }
   - { path: 'track.album.release_date', name: sp_release_date, fallback: year }
-  - { path: 'track.album.total_tracks', name: sp_total_tracks }
-  - { path: 'track.track_number', name: sp_track_number, fallback: track }
-  - { path: 'track.disc_number', name: sp_disc_number, fallback: disc }
+  - { path: 'track.album.total_tracks', name: sp_total_tracks, scope: album }
+  - { path: 'track.track_number', name: sp_track_number, fallback: track, scope: album }
+  - { path: 'track.disc_number', name: sp_disc_number, fallback: disc, scope: album }
   - { path: 'track.duration_ms', name: sp_duration_ms }
   - { path: 'track.explicit', name: sp_explicit }
   - { path: 'track.popularity', name: sp_popularity }
   - { path: 'track.external_ids.isrc', name: sp_isrc, fallback: isrc_code }
-  - { path: 'album.label', name: sp_label, fallback: publisher }
-  - { path: 'album.external_ids.upc', name: sp_upc }
-  - { path: 'album.copyrights[].text', name: sp_copyright, fallback: copyright, separator: '; ' }
-  - { path: 'album.popularity', name: sp_album_popularity }
-  - { path: 'album.images[0].url', name: sp_album_image }
-  - { path: 'album.genres[]', name: sp_album_genres, multi: true }
+  - { path: 'album.label', name: sp_label, fallback: publisher, scope: album }
+  - { path: 'album.external_ids.upc', name: sp_upc, scope: album }
+  - { path: 'album.copyrights[].text', name: sp_copyright, fallback: copyright, separator: '; ', scope: album }
+  - { path: 'album.popularity', name: sp_album_popularity, scope: album }
+  - { path: 'album.images[0].url', name: sp_album_image, scope: album }
+  - { path: 'album.genres[]', name: sp_album_genres, multi: true, scope: album }
   - { path: 'artist.genres[]', name: sp_genres, multi: true }
   - { path: 'artist.popularity', name: sp_artist_popularity }
   - { path: 'artist.followers.total', name: sp_artist_followers }

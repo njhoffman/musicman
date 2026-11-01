@@ -23,12 +23,14 @@ const rawValue = (raw, frame) => {
 
 /**
  * Tags written to a download: the Spotify fields (when the track details could be fetched), standard
- * tags the file has no value for, and the tags of the playlists the manifest track is in. Returns
+ * tags the file has no value for, and the tags of the playlists the manifest track is in. Downloads are
+ * imported as singletons, so they get no album fields (scope: album); sync --match adds them once the
+ * song is sorted into an album folder. Returns
  * { custom, filled, playlist } with frame ids, and the response paths no field covers.
  */
 const importTags = ({ raw, entry, objects, config, now }) => {
   const assignment = objects
-    ? assignFields(objects, config, now)
+    ? assignFields(objects, config, now, { album: false })
     : { custom: [{ name: 'sp_track_id', value: entry.trackId }], fallbacks: [], unassigned: [] };
   const filled = _.compact(
     _.map(assignment.fallbacks, ({ name, value }) => {
@@ -132,7 +134,10 @@ const importDownloads = async ({
   let details = new Map();
   let detailsError = null;
   try {
-    details = await fetchDetails(client, _.map(toImport, 'trackId'), config);
+    const trackIds = _.map(toImport, 'trackId');
+    details = await fetchDetails(client, trackIds, config, new Map(), {
+      singles: new Set(trackIds)
+    });
   } catch (err) {
     detailsError = err.message;
   }

@@ -41,7 +41,12 @@ musicman sync --match             # writes TXXX.sp_* tags to the files
 ```
 
 - Each song is one line: status (`MATCH`, `REVIEW`, `MISSING`, `REFRESH`, `FAILED`; `dry` in a dry run),
-  source (beets, isrc, search), the Spotify track, and `+N fields ~N filled =N kept`. `-v` lists every field.
+  source (beets, isrc, search), the Spotify track, and `+N fields ~N filled =N kept -N removed`. `-v` lists
+  every field.
+- Album fields (`scope: album` in `spotify.fields`: album artist, track and disc numbers, label, album image,
+  ...) only go to songs in album folders, by the beets path rule the song's folder matches (`$album` in it).
+  Singles lose them when their fields are refreshed; `sp_album`, `sp_album_id`, `sp_album_type`, and the
+  release date stay on every song.
 - A first full run is about 6440 songs: roughly 45 to 60 minutes. Later runs only look up new songs, recheck
   misses after 30 days, and refresh fields older than `spotify.refreshDays` (30); `--refresh` refreshes all.
 - Standard tags (artist, title, year, ...) are only filled when empty, never overwritten.

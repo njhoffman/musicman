@@ -5,7 +5,7 @@ const path = require('path');
 const NodeId3 = require('node-id3');
 const { expect } = require('chai');
 
-const { importDownloads, parseBeetsLog } = require('./import.js');
+const { importDownloads, importTags, parseBeetsLog } = require('./import.js');
 
 describe('Download Import', () => {
   const idA = 'AAAAAAAAAAAAAAAAAAAAAA';
@@ -191,6 +191,37 @@ describe('Download Import', () => {
     expect(runBeet).to.not.have.been.called;
     expect(fs.readFileSync(download(idA, 'A - One')).equals(before)).to.be.true;
     expect(manifest.tracks[0]).to.not.have.property('importedAt');
+  });
+
+  it('should tag downloads as singles, without album fields or album fallbacks', () => {
+    const tags = importTags({
+      raw: {},
+      entry: { trackId: idA, tags: {} },
+      objects: { track: { id: idA, name: 'One', album: { name: 'Hits', total_tracks: 18 } } },
+      config: {
+        tags: [{ id: 'TALB', name: 'album' }],
+        spotify: {
+          fields: [
+            { path: 'track.name', name: 'sp_title' },
+            {
+              path: 'track.album.name',
+              name: 'sp_album',
+              fallback: 'album',
+              fallbackScope: 'album'
+            },
+            { path: 'track.album.total_tracks', name: 'sp_total_tracks', scope: 'album' }
+          ]
+        }
+      },
+      now: new Date('2026-10-21T10:00:00Z')
+    });
+    expect(_.map(tags.custom, 'name')).to.deep.equal([
+      'sp_track_id',
+      'sp_fetched_at',
+      'sp_title',
+      'sp_album'
+    ]);
+    expect(tags.filled).to.deep.equal([]);
   });
 
   it('should parse the files beets imported as is or skipped from its log', () => {

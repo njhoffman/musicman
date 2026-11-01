@@ -55,6 +55,16 @@ describe('Sync Output', () => {
     );
   });
 
+  it('should count and list the album fields removed from a single', () => {
+    const writes = { ...matched.writes, removed: ['sp_label', 'sp_upc'] };
+    const result = { ...matched, writes };
+    expect(stripAnsi(formatSongResult('refresh', item, result))).to.match(/=2 kept -2 removed$/);
+    const lines = stripAnsi(formatSongResult('refresh', item, result, { verbose: true })).split(
+      '\n'
+    );
+    expect(lines[lines.length - 1]).to.equal('  removed sp_label  sp_upc');
+  });
+
   it('should mark the songs of a dry run', () => {
     expect(stripAnsi(formatSongResult('match', item, matched, { dryRun: true }))).to.match(
       /^MATCH {3}dry isrc {3}Radiohead - Karma Police/

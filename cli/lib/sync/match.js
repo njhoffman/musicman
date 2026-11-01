@@ -19,6 +19,7 @@ const {
   trackIdName
 } = require('../spotify/fields.js');
 const { artistImageDirectory, cacheArtistImages } = require('../spotify/images.js');
+const { songLayout } = require('../beets/layout.js');
 const { ignoredTracks } = require('./targets.js');
 const { transaction } = require('../db/database.js');
 const { updateDatabase } = require('../db/update.js');
@@ -93,9 +94,14 @@ const lookup = async ({ client, song, beetsId, rejected = new Set() }) => {
 const tagFrame = (config, name) =>
   _.get(_.find(config.tags || [], { name }) || _.find(globalTags, { name }), 'id');
 
+// whether a song (path relative to mpd.baseDirectory) is organized in an album by the beets path rules
+// (pathLayouts), true when no rule matches it so its fields are written as before
+const inAlbum = (layouts, songPath) => songLayout(layouts, songPath) !== 'single';
+
 /**
- * Splits assigned fields into what is written: every custom field, and fallbacks only for standard
- * tags the song has no value for (the others are kept, never overwritten).
+ * Splits assigned fields into what is written: every custom field, fallbacks only for standard tags
+ * the song has no value for (the others are kept, never overwritten), and the album fields the song
+ * has but should not keep (removed).
  */
 const plannedWrites = (db, config, songId, assignment) => {
   const fallbacks = _.map(assignment.fallbacks, fallback => {
@@ -106,7 +112,8 @@ const plannedWrites = (db, config, songId, assignment) => {
   return {
     custom: assignment.custom,
     filled: _.filter(fallbacks, 'filled'),
-    kept: _.reject(fallbacks, 'filled')
+    kept: _.reject(fallbacks, 'filled'),
+    removed: _.filter(assignment.removed || [], name => frameValue(db, songId, `TXXX.${name}`))
   };
 };
 
@@ -124,14 +131,31 @@ const idOnlyWrites = (song, candidate) => ({
   kept: []
 });
 
-const writeFields = (file, { custom, filled }) =>
-  updateTags(
-    {
-      userDefinedText: _.map(custom, ({ name, value }) => ({ description: name, value })),
-      ..._.fromPairs(_.map(filled, ({ frame, value }) => [frame, value]))
-    },
-    file
-  );
+// written with node-id3 update, or as one rewrite of the tag when custom fields are removed (update
+// cannot remove frames), so a run records each frame's change once for undo
+// track ids only songs outside albums are matched to, whose albums no album field needs
+const singleTracks = results => {
+  const [inAlbums, outside] = _.partition(results, ({ item }) => item.album);
+  const albumIds = new Set(_.map(inAlbums, 'candidate.id'));
+  return new Set(_.reject(_.map(outside, 'candidate.id'), id => albumIds.has(id)));
+};
+
+const writeFields = (file, { custom, filled, removed = [] }) => {
+  const userDefinedText = _.map(custom, ({ name, value }) => ({ description: name, value }));
+  const standard = _.fromPairs(_.map(filled, ({ frame, value }) => [frame, value]));
+  if (removed.length === 0) {
+    return updateTags({ userDefinedText, ...standard }, file);
+  }
+  const replaced = new Set([...removed, ..._.map(custom, 'name')]);
+  return rewriteTags(file, raw => ({
+    ...raw,
+    ...standard,
+    TXXX: [
+      ..._.reject([].concat(raw.TXXX || []), ({ description }) => replaced.has(description)),
+      ...userDefinedText
+    ]
+  }));
+};
 
 // writes a song's fields, returning why it failed instead of stopping the run (null when written)
 const tryWrite = (file, writes) => {
@@ -153,6 +177,9 @@ const tryWrite = (file, writes) => {
  * cached match is not searched for again; dryRun writes nothing else (no files, no song tags). Results
  * are saved after every chunk of songs, so an interrupted run keeps what it did.
  *
+ * Songs not organized in albums (layouts, the beets path rules of pathLayouts, put them in folders
+ * without $album) get no album fields (spotify.fields with scope: album), and lose those they have.
+ *
  * The photos of matched songs' first artists are saved to artistImageDirectory (spotify.artistImageDirectory)
  * for offline use, except in a dry run; artistImages in the result has the ids saved and failed.
  *
@@ -171,6 +198,7 @@ const matchSongs = async ({
   songs,
   client,
   beetsIds = new Map(),
+  layouts = [],
   dryRun = false,
   refresh = false,
   recheckDays = defaultRecheckDays,
@@ -215,19 +243,21 @@ const matchSongs = async ({
       return;
     }
     counts.targets += 1;
-    const row = selectSong.get(path.relative(baseDirectory, file));
+    const songPath = path.relative(baseDirectory, file);
+    const row = selectSong.get(songPath);
     if (!row) {
       counts.notInDatabase += 1;
       return;
     }
     const song = { ...songFields(db, row), isrc: frameValue(db, row.id, 'TSRC') };
+    const album = inAlbum(layouts, songPath);
     const trackId = frameValue(db, row.id, spotifyIdFrame);
     if (trackId) {
       const fetchedAt = frameValue(db, row.id, fetchedAtFrame);
       if (!refresh && fetchedAt && new Date(fetchedAt) > refreshBefore) {
         counts.tagged += 1;
       } else {
-        items.push({ file, songId: row.id, song, trackId });
+        items.push({ file, songId: row.id, song, album, trackId });
       }
       return;
     }
@@ -239,6 +269,7 @@ const matchSongs = async ({
         file,
         songId: row.id,
         song,
+        album,
         cachedMatch: { id: cached.track_id, source: cached.source }
       });
       return;
@@ -255,7 +286,7 @@ const matchSongs = async ({
       }
       return;
     }
-    items.push({ file, songId: row.id, song, rejected });
+    items.push({ file, songId: row.id, song, album, rejected });
   });
 
   let done = 0;
@@ -330,7 +361,9 @@ const matchSongs = async ({
       const known = new Map(
         _.compact(_.map(withFields, ({ track }) => track && [track.id, track]))
       );
-      details = await fetchDetails(client, _.map(withFields, 'candidate.id'), config, known);
+      details = await fetchDetails(client, _.map(withFields, 'candidate.id'), config, known, {
+        singles: singleTracks(withFields)
+      });
     } catch (err) {
       detailsError = err.message;
       if (err.rateLimited) {
@@ -377,7 +410,7 @@ const matchSongs = async ({
         finish(status, item, { ...result, writes, error });
         return;
       }
-      const assignment = assignFields(objects, config, now);
+      const assignment = assignFields(objects, config, now, { album: item.album });
       assignment.custom.push(...similarityOf(item.song, objects.track));
       _.each(assignment.unassigned, fieldPath => {
         unassigned[fieldPath] = (unassigned[fieldPath] || 0) + 1;
@@ -533,16 +566,22 @@ const markReviewed = (db, songId, status, trackId) =>
 /**
  * Accepts review items: a linked one (already tagged with the candidate) only gets its similarity
  * (TXXX.sp_diff_percent, TXXX.sp_diff_details), others get the candidate's id, Spotify fields, and
- * similarity written like a match. Returns { accepted, failed } items.
+ * similarity written like a match (album fields only for songs in albums by layouts, like matchSongs).
+ * Returns { accepted, failed } items.
  */
-const acceptReview = async ({ db, config, client, items, now = new Date() }) => {
-  const unlinked = _.reject(items, 'linked');
+const acceptReview = async ({ db, config, client, items, layouts = [], now = new Date() }) => {
+  const unlinked = _.map(_.reject(items, 'linked'), item => ({
+    item: { album: inAlbum(layouts, item.path) },
+    candidate: item.candidate
+  }));
   // without details (e.g. a network error) the id alone is written, sync --match fills the fields later
   let details = new Map();
   let detailsError = null;
   if (unlinked.length > 0) {
     try {
-      details = await fetchDetails(client, _.map(unlinked, 'candidate.id'), config);
+      details = await fetchDetails(client, _.map(unlinked, 'candidate.id'), config, new Map(), {
+        singles: singleTracks(unlinked)
+      });
     } catch (err) {
       detailsError = err.message;
     }
@@ -557,7 +596,9 @@ const acceptReview = async ({ db, config, client, items, now = new Date() }) => 
     if (item.linked) {
       writes = { custom: similarity, filled: [], kept: [] };
     } else if (objects) {
-      const assignment = assignFields(objects, config, now);
+      const assignment = assignFields(objects, config, now, {
+        album: inAlbum(layouts, item.path)
+      });
       assignment.custom.push(...similarity);
       writes = plannedWrites(db, config, item.songId, assignment);
     } else {

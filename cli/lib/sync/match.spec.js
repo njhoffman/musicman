@@ -319,6 +319,116 @@ describe('Spotify Id Matching', () => {
       expect(await run(true)).to.include({ refresh: 3, tagged: 0 });
     });
 
+    describe('songs outside albums', () => {
+      const { pathLayouts } = require('../beets/layout.js');
+      const singles = pathLayouts({ default: 'test$title' });
+      const albums = pathLayouts({ default: 'test$album' });
+      const album = { id: 'album-1', label: 'Spotify Label' };
+
+      beforeEach(async () => {
+        config.tags = [{ id: 'TALB', name: 'album' }];
+        config.spotify = {
+          fields: [
+            { path: 'track.name', name: 'sp_title' },
+            {
+              path: 'track.album.name',
+              name: 'sp_album',
+              fallback: 'album',
+              fallbackScope: 'album'
+            },
+            { path: 'album.label', name: 'sp_label', scope: 'album' },
+            { path: 'track.album.id', name: 'sp_total_tracks', scope: 'album' }
+          ],
+          ignore: ['album', 'artists', 'id']
+        };
+        NodeId3.removeTags(file('testFile01.mp3'));
+        NodeId3.write(
+          {
+            title: 'Song',
+            userDefinedText: [
+              { description: 'sp_track_id', value: 'beets-id' },
+              { description: 'sp_label', value: 'Compilation Label' },
+              { description: 'sp_total_tracks', value: '18' },
+              { description: 'own_field', value: 'kept' }
+            ]
+          },
+          file('testFile01.mp3')
+        );
+        await updateDatabase(db, { config, target: library });
+      });
+
+      const run = (layouts, onSong = _.noop) =>
+        matchSongs({
+          db,
+          config,
+          client: fakeClient({}, { 'beets-id': fullTrack, 'album-1': album }),
+          songs: songs(['testFile01.mp3']),
+          layouts,
+          refresh: true,
+          now,
+          onSong
+        });
+
+      it('should remove album fields from a single and not fill its album fallback', async () => {
+        const results = [];
+        const summary = await run(singles, (status, item, result) => results.push(result.writes));
+        expect(summary).to.include({ refresh: 1, failed: 0 });
+        const fields = custom('testFile01.mp3');
+        expect(fields).to.include({
+          sp_track_id: 'beets-id',
+          sp_title: 'Spotify Title',
+          sp_album: 'Spotify Album',
+          own_field: 'kept'
+        });
+        expect(fields).to.not.have.any.keys('sp_label', 'sp_total_tracks');
+        expect(NodeId3.read(file('testFile01.mp3')).raw.TALB).to.equal(undefined);
+        expect(results[0].removed).to.deep.equal(['sp_label', 'sp_total_tracks']);
+        // the database follows the file
+        const frames = db
+          .prepare(
+            `SELECT frame_id FROM song_tags t JOIN songs s ON s.id = t.song_id WHERE s.path = ?`
+          )
+          .all('testFile01.mp3')
+          .map(({ frame_id: frame }) => frame);
+        expect(frames).to.include('TXXX.sp_album').and.not.include('TXXX.sp_label');
+      });
+
+      it('should write album fields and fallbacks to a song in an album', async () => {
+        const results = [];
+        await run(albums, (status, item, result) => results.push(result.writes));
+        expect(custom('testFile01.mp3')).to.include({
+          sp_label: 'Spotify Label',
+          sp_total_tracks: 'album-1',
+          own_field: 'kept'
+        });
+        expect(NodeId3.read(file('testFile01.mp3')).raw.TALB).to.equal('Spotify Album');
+        expect(results[0].removed).to.deep.equal([]);
+      });
+
+      it('should accept a review match for a single without album fields', async () => {
+        const items = [
+          {
+            songId: db.prepare('SELECT id FROM songs WHERE path = ?').get('testFile01.mp3').id,
+            file: file('testFile01.mp3'),
+            path: 'testFile01.mp3',
+            song: { title: 'Song' },
+            candidate: { id: 'beets-id', name: 'Spotify Title' },
+            linked: false
+          }
+        ];
+        const { failed } = await acceptReview({
+          db,
+          config,
+          client: fakeClient({}, { 'beets-id': fullTrack, 'album-1': album }),
+          items,
+          layouts: singles
+        });
+        expect(failed).to.be.empty;
+        expect(custom('testFile01.mp3')).to.include({ sp_album: 'Spotify Album' });
+        expect(custom('testFile01.mp3')).to.not.have.any.keys('sp_label', 'sp_total_tracks');
+      });
+    });
+
     it('should write the id alone when the track details cannot be fetched', async () => {
       const results = [];
       const summary = await matchSongs({

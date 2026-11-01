@@ -124,6 +124,55 @@ describe('Spotify Fields', () => {
       const { custom } = assignFields({ track }, config, now);
       expect(custom.map(({ name }) => name)).to.not.include('sp_genres');
     });
+
+    describe('album scope', () => {
+      const scoped = {
+        spotify: {
+          fields: [
+            { path: 'track.name', name: 'sp_title', fallback: 'title' },
+            {
+              path: 'track.album.name',
+              name: 'sp_album',
+              fallback: 'album',
+              fallbackScope: 'album'
+            },
+            { path: 'track.album.release_date', name: 'sp_release_date', fallback: 'year' },
+            { path: 'album.label', name: 'sp_label', fallback: 'publisher', scope: 'album' },
+            { path: 'artist.genres[]', name: 'sp_genres', multi: true }
+          ]
+        }
+      };
+      const objects = { track, album, artist };
+      const names = list => list.map(({ name }) => name);
+
+      it('should write album fields and fallbacks to songs in albums by default', () => {
+        const { custom, fallbacks, removed } = assignFields(objects, scoped, now);
+        expect(names(custom)).to.include.members(['sp_album', 'sp_label']);
+        expect(names(fallbacks)).to.deep.equal(['title', 'album', 'year', 'publisher']);
+        expect(removed).to.deep.equal([]);
+      });
+
+      it('should leave album fields out of songs outside albums and list them as removed', () => {
+        const { custom, removed } = assignFields(objects, scoped, now, { album: false });
+        expect(names(custom)).to.deep.equal([
+          'sp_track_id',
+          'sp_fetched_at',
+          'sp_title',
+          'sp_album',
+          'sp_release_date',
+          'sp_genres'
+        ]);
+        expect(removed).to.deep.equal(['sp_label']);
+      });
+
+      it('should keep a fallbackScope album field but not fill its fallback outside albums', () => {
+        const { fallbacks } = assignFields(objects, scoped, now, { album: false });
+        expect(fallbacks).to.deep.equal([
+          { name: 'title', value: 'Karma Police' },
+          { name: 'year', value: '1997' }
+        ]);
+      });
+    });
   });
 
   describe('fetchDetails', () => {
@@ -164,6 +213,33 @@ describe('Spotify Fields', () => {
       const client = fakeClient({ 'track-1': track });
       await fetchDetails(client, ['track-1'], { spotify: { fields: [{ path: 'track.name' }] } });
       expect(client.urls).to.deep.equal(['/tracks?ids=track-1']);
+    });
+
+    it('should not request the albums of singles when only album fields need them', async () => {
+      const other = { ...track, id: 'track-2', album: { id: 'album-2' } };
+      const client = fakeClient({ 'track-1': track, 'track-2': other, 'album-1': album });
+      const config = {
+        spotify: { fields: [{ path: 'album.label', name: 'sp_label', scope: 'album' }] }
+      };
+      const details = await fetchDetails(client, ['track-1', 'track-2'], config, new Map(), {
+        singles: new Set(['track-2'])
+      });
+      expect(client.urls).to.deep.equal(['/tracks?ids=track-1,track-2', '/albums?ids=album-1']);
+      expect(details.get('track-2').album).to.equal(undefined);
+    });
+
+    it('should still request the albums of singles for fields every song gets', async () => {
+      const client = fakeClient({ 'track-1': track, 'album-1': album });
+      const config = {
+        spotify: {
+          fields: [
+            { path: 'album.label', name: 'sp_label', scope: 'album' },
+            { path: 'album.popularity', name: 'sp_album_popularity' }
+          ]
+        }
+      };
+      await fetchDetails(client, ['track-1'], config, new Map(), { singles: new Set(['track-1']) });
+      expect(client.urls).to.deep.equal(['/tracks?ids=track-1', '/albums?ids=album-1']);
     });
 
     it('should request tracks in batches of 50', async () => {

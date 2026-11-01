@@ -6,6 +6,19 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- Spotify album metadata only goes to songs organized in albums. `sync --match` tells albums from
+  singles by the beets path rule the song's folder matches (an album rule has `$album`). Singles no longer
+  get album artist, track and disc numbers, total tracks, label, UPC, copyright, album popularity, album
+  image, or album genres, and lose those frames on their next field refresh (`sync --match --refresh` for
+  all of them now). Every song keeps `sp_album`, `sp_album_id`, `sp_album_type`, and the release date
+  with its year fallback, but singles no longer get the `album` tag filled from Spotify. Downloads
+  tagged by `sync --import` count as singles until beets sorts them into an album folder.
+- `spotify.fields` entries take `scope: album` (field only on songs in albums) and `fallbackScope: album`
+  (field on every song, fallback only on songs in albums).
+- `sync --match` shows album fields it removed (`-N removed`, and the names with `--verbose`).
+
 ## [1.36.0] - 2026-11-01
 
 ### Added

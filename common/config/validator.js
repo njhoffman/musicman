@@ -410,6 +410,11 @@ function validateConfig(config) {
     } else if (reservedFields.includes(field.name)) {
       result.errors.push(`spotify.fields[${i}].name '${field.name}' is always written and cannot be mapped`);
     }
+    _.each(['scope', 'fallbackScope'], (key) => {
+      if (_.isPlainObject(field) && _.has(field, key) && field[key] !== 'album') {
+        result.errors.push(`spotify.fields[${i}].${key} '${field[key]}' must be album`);
+      }
+    });
   });
 
   if (_.some(config.tags, (tag) => _.has(tag, 'tableOrder'))) {

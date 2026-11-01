@@ -36,6 +36,11 @@ const {
   stopReviewPlayback
 } = require('../output/review.js');
 const { unsortedFolder } = require('../beets/sort.js');
+const { pathLayouts } = require('../beets/layout.js');
+
+// the beets path rules, which tell songs organized in albums from singles (none without a beets config)
+const beetsLayouts = config =>
+  pathLayouts(_.get(readBeetsConfig(config.sync.beetsConfig), 'paths'));
 const { formatClock, formatWait, progressBar } = require('../output/progress.js');
 const {
   backupColors,
@@ -437,7 +442,13 @@ const runAutoAccept = async ({ db, config, client, items, threshold, dryRun, con
     logger.info(`Nothing accepted, ${items.length} matches stay in review (sync --review)`);
     return 0;
   }
-  const result = await acceptReview({ db, config, client, items: accept });
+  const result = await acceptReview({
+    db,
+    config,
+    client,
+    items: accept,
+    layouts: beetsLayouts(config)
+  });
   result.failed.forEach(({ path: songPath, error }) =>
     logger.warn(`FAILED  ${songPath}: ${error}`)
   );
@@ -498,6 +509,7 @@ const runMatch = async ({
       songs,
       client,
       beetsIds: readBeetsSpotifyIds(config.sync.beetsConfig),
+      layouts: beetsLayouts(config),
       dryRun,
       refresh,
       onProgress: ({ done, total, ...counts }) =>
@@ -859,7 +871,8 @@ const decideReview = async ({ db, config, items, accept, credentials, fetchImpl,
         db,
         config,
         client: createClient({ getToken: appTokenGetter(credentials, { fetchImpl }), fetchImpl }),
-        items: picked
+        items: picked,
+        layouts: beetsLayouts(config)
       })
     : await rejectReview({ db, config, items: picked });
   const done = accept ? result.accepted : result.rejected;

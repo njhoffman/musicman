@@ -22,11 +22,20 @@ const batchSizes = { track: 50, album: 20, artist: 50 };
 
 const fieldDefinitions = config => _.get(config, 'spotify.fields', []);
 
-// sources other than the track that a field needs, each costs batched requests
-const neededSources = config =>
-  _.uniq(_.map(fieldDefinitions(config), ({ path }) => path.split('.')[0])).filter(
-    source => source !== 'track'
-  );
+// scope: album writes a field only to songs organized in albums, fallbackScope: album only its fallback
+const albumOnly = field => field.scope === 'album';
+const albumOnlyFallback = field => albumOnly(field) || field.fallbackScope === 'album';
+
+// field definitions written to a song, without the album fields of a song that is not in an album
+const songFields = (config, album = true) =>
+  album ? fieldDefinitions(config) : _.reject(fieldDefinitions(config), albumOnly);
+
+// names of the album fields, removed from songs that are not organized in albums
+const albumFieldNames = config => _.map(_.filter(fieldDefinitions(config), albumOnly), 'name');
+
+// sources other than the track that the fields need, each costs batched requests
+const neededSources = fields =>
+  _.uniq(_.map(fields, ({ path }) => path.split('.')[0])).filter(source => source !== 'track');
 
 /**
  * Values at a field path like track.artists[].name, where [] collects every item of an array.
@@ -79,20 +88,22 @@ const formatValue = (values, { multi, separator = ', ' }, tagName) => {
  * Tag values for a matched track from objects { track, album, artist } (album and artist are the full
  * Web API objects, either may be missing). Returns the custom fields to write as TXXX.<name>, the
  * standard tags to fill when they are empty, and the response paths no field or ignore entry covers.
+ * A song that is not organized in an album (album false) gets no album fields (scope: album) and no
+ * album fallbacks (fallbackScope: album); removed has the names of the album fields it should not keep.
  */
-const assignFields = (objects, config, now = new Date()) => {
+const assignFields = (objects, config, now = new Date(), { album = true } = {}) => {
   const custom = [
     { name: trackIdName, value: objects.track.id },
     { name: fetchedAtName, value: now.toISOString() }
   ];
   const fallbacks = [];
-  _.each(fieldDefinitions(config), field => {
+  _.each(songFields(config, album), field => {
     const values = valuesAt(objects, field.path);
     if (values.length === 0) {
       return;
     }
     custom.push({ name: field.name, value: formatValue(values, field) });
-    if (field.fallback) {
+    if (field.fallback && (album || !albumOnlyFallback(field))) {
       fallbacks.push({
         name: field.fallback,
         value: formatValue(values, _.omit(field, 'multi'), field.fallback)
@@ -105,15 +116,22 @@ const assignFields = (objects, config, now = new Date()) => {
     _.flatMap(sources, source => (objects[source] ? leafPaths(objects[source], source) : [])),
     fieldPath => !mapped.has(fieldPath) && !isIgnored(fieldPath, ignore)
   );
-  return { custom, fallbacks, unassigned };
+  return { custom, fallbacks, unassigned, removed: album ? [] : albumFieldNames(config) };
 };
 
 /**
  * Full Web API objects { track, album, artist } for track ids, keyed by track id. Tracks already known
  * (from a search) are not requested again; albums and artists are only requested when a field needs
- * them, each id once.
+ * them, each id once. Tracks in singles are only for songs not organized in albums, so their albums
+ * are requested only for fields that are not album fields.
  */
-const fetchDetails = async (client, trackIds, config, known = new Map()) => {
+const fetchDetails = async (
+  client,
+  trackIds,
+  config,
+  known = new Map(),
+  { singles = new Set() } = {}
+) => {
   const batches = async (type, ids) => {
     const found = new Map();
     const chunks = _.chunk(_.uniq(_.compact(ids)), batchSizes[type]);
@@ -130,9 +148,12 @@ const fetchDetails = async (client, trackIds, config, known = new Map()) => {
   );
   fetched.forEach((track, id) => tracks.set(id, track));
 
-  const needed = neededSources(config);
+  const needed = neededSources(fieldDefinitions(config));
+  const albumTracks = neededSources(songFields(config, false)).includes('album')
+    ? [...tracks.values()]
+    : _.reject([...tracks.values()], ({ id }) => singles.has(id));
   const albums = needed.includes('album')
-    ? await batches('album', _.map([...tracks.values()], 'album.id'))
+    ? await batches('album', _.map(albumTracks, 'album.id'))
     : new Map();
   const artists = needed.includes('artist')
     ? await batches('artist', _.map([...tracks.values()], 'artists[0].id'))
@@ -158,6 +179,7 @@ const fetchDetails = async (client, trackIds, config, known = new Map()) => {
 };
 
 module.exports = {
+  albumFieldNames,
   assignFields,
   diffDetailsName,
   diffPercentName,
