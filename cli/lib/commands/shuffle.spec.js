@@ -132,6 +132,7 @@ describe('Shuffle Command', () => {
       terms: ['liked'],
       name: 'Liked Songs'
     });
+    expect(getMeta(db, shuffle.orderKey)).to.deep.equal(['b', 'c', 'd', 'e', 'a']);
   });
 
   it('should shuffle the last source again without one', async () => {

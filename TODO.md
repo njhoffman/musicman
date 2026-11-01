@@ -98,9 +98,9 @@ Reviewed: 2026-11-01
 - [ ] **`status --watch` misses tag changes until the track changes.** (p3) [feature] watch mode reads a song's tags
       and Spotify context once per track, so a rating set from the menu while it is open shows on the next track.
       Re-read them when the file's mtime changes, or every few seconds.
-- [ ] **Show the playing track list of `musicman shuffle` in status.** (p3) [feature] Spotify reports no context
-      for a list of tracks, so a `musicman shuffle` playback shows no "from"; status could name the last shuffle
-      source (database meta `shuffle.lastSource`) when the playing track is in the shuffle playlist.
+- [x] **Show the playing track list of `musicman shuffle` in status.** (p3) [feature] `shuffle` stores its order
+      (meta `shuffle.order`); status shows `shuffle "<source>"` for a track in it played without a context, or
+      when the shuffle playlist plays.
 - [x] **Duration and size in `stats`.** (p3) [feature] checked 2026-11-01: `total_duration` and `total_size` are
       filled from the database and from `--files` reads alike (20 min, 21 MB for `Rap-R&B/Singles` both ways), so
       no switch is needed.

@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman status` names the source of a `musicman shuffle` as where the song plays from (`shuffle
+  "Liked Songs"`), both while the shuffled tracks play as a list without a Spotify context and when the
+  shuffle playlist itself plays. `shuffle` keeps the shuffled track ids in the database for this.
+
 ## [1.37.1] - 2026-11-01
 
 ### Changed

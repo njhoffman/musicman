@@ -21,6 +21,8 @@ const logger = require('../utils/logger.js');
 // menu), and the id of the playlist written to
 const lastSourceKey = 'shuffle.lastSource';
 const playlistIdKey = 'shuffle.playlistId';
+// the track ids of the last shuffle, so status can tell its playback (a list without a context) apart
+const orderKey = 'shuffle.order';
 
 const defaultPlaylistName = 'musicman shuffle';
 
@@ -213,6 +215,7 @@ const shuffleCommand = async ({
   await replaceTracks(client, playlist.id, order);
   setMeta(db, playlistIdKey, playlist.id);
   setMeta(db, lastSourceKey, { terms, name: source.name });
+  setMeta(db, orderKey, order);
   logger.info(
     `Wrote ${order.length} tracks of ${source.name} in random order to '${playlistName}'`
   );
@@ -244,6 +247,7 @@ module.exports = {
   isFilterTerms,
   lastSource,
   lastSourceKey,
+  orderKey,
   playlistIdKey,
   librarySourceTracks,
   playDevice,

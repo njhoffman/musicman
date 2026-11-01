@@ -2,6 +2,8 @@ const { expect } = require('chai');
 const { EventEmitter } = require('events');
 
 const status = require('./status.js');
+const shuffle = require('./shuffle.js');
+const { openDatabase, setMeta } = require('../db/database.js');
 
 const config = { mpd: { baseDirectory: '/music' }, db: { path: ':memory:' }, stats: {} };
 
@@ -42,7 +44,7 @@ describe('Status Command', () => {
     status.run({
       options: { switches: deps.switches || {} },
       config,
-      db: null,
+      db: deps.db || null,
       players: deps.players || [player('spotify', [spotifyTrack])],
       readSong: deps.readSong || (async () => null),
       contextOf: deps.contextOf || (async () => null),
@@ -56,6 +58,24 @@ describe('Status Command', () => {
     const result = await run({ out, switches: { format: 'json' } });
     expect(JSON.parse(out.written.join(''))).to.deep.equal(JSON.parse(JSON.stringify(result)));
     expect(result.player).to.deep.equal({ source: 'spotify', name: 'Spotify' });
+  });
+
+  it('should name the source of a musicman shuffle the track plays from', async () => {
+    const db = openDatabase(':memory:');
+    try {
+      setMeta(db, shuffle.lastSourceKey, { terms: ['liked'], name: 'Liked Songs' });
+      setMeta(db, shuffle.orderKey, ['t0', 't1']);
+      const result = await run({ db, switches: { format: 'json' } });
+      expect(result.from).to.deep.equal({ type: 'shuffle', name: 'Liked Songs', uri: null });
+      const other = await run({
+        db,
+        switches: { format: 'json' },
+        players: [player('spotify', [{ ...spotifyTrack, trackId: 'elsewhere' }])]
+      });
+      expect(other.from).to.equal(null);
+    } finally {
+      db.close();
+    }
   });
 
   it('should refuse other formats, and --watch outside a terminal', async () => {

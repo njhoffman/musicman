@@ -7,7 +7,9 @@ const { openLibrary } = require('../db/index.js');
 const { outputFormat } = require('../output/formats.js');
 const { renderStatus } = require('../output/status.js');
 const { choosePlayer, mpdPlayer, spotifyPlayer } = require('../player/players.js');
-const { spotifyContextOf } = require('../status/context.js');
+const { spotifyContextOf, withShuffleSource } = require('../status/context.js');
+const { getMeta } = require('../db/database.js');
+const shuffleCommand = require('./shuffle.js');
 const { nowPlaying } = require('../status/nowPlaying.js');
 const { lazyUserClient } = require('../spotify/userClient.js');
 const { availableWidth, consoleLog } = require('../utils/logger.js');
@@ -126,7 +128,17 @@ const statusCommand = async ({
     });
   // --watch looks a song's tags and Spotify context up again only when the track changes
   const songReader = switches.watch ? lastOf(readSong, _.identity) : readSong;
-  const contextReader = switches.watch ? lastOf(contextOf, track => track.trackId) : contextOf;
+  // a musicman shuffle plays a list of tracks without a Spotify context, named from its source
+  const shuffleContextOf = db
+    ? withShuffleSource(contextOf, () => ({
+        source: getMeta(db, shuffleCommand.lastSourceKey),
+        playlistId: getMeta(db, shuffleCommand.playlistIdKey),
+        order: getMeta(db, shuffleCommand.orderKey)
+      }))
+    : contextOf;
+  const contextReader = switches.watch
+    ? lastOf(shuffleContextOf, track => track.trackId)
+    : shuffleContextOf;
   const gather = () =>
     nowPlaying({ config, players, db, readSong: songReader, contextOf: contextReader });
   try {

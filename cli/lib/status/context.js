@@ -28,4 +28,26 @@ const spotifyContextOf = getClient => async track => {
   return { type: context.type, name: name || null, uri: context.uri };
 };
 
-module.exports = { spotifyContextOf };
+/**
+ * A contextOf(track) that names the source of a musicman shuffle: when Spotify plays the shuffle playlist,
+ * or plays a list without a context and the track is one of the last shuffle's, the context is
+ * { type: 'shuffle', name } with the name of the shuffled source. readShuffle() gives { source, playlistId,
+ * order } (the last source, the shuffle playlist id, and the shuffled track ids), each null when unknown.
+ * Other contexts, and every context when no shuffle is known, are those of contextOf.
+ */
+const withShuffleSource = (contextOf, readShuffle) => async track => {
+  const context = await contextOf(track).catch(() => null);
+  const { source, playlistId, order } = readShuffle() || {};
+  if (!source || !source.name) {
+    return context;
+  }
+  const shufflePlaylist = Boolean(
+    context && playlistId && context.uri === `spotify:playlist:${playlistId}`
+  );
+  const shuffledList = !context && Boolean(track.trackId) && _.includes(order || [], track.trackId);
+  return shufflePlaylist || shuffledList
+    ? { type: 'shuffle', name: source.name, uri: context ? context.uri : null }
+    : context;
+};
+
+module.exports = { spotifyContextOf, withShuffleSource };
