@@ -150,6 +150,11 @@ backup:
   - .musicman/download/**
   - .musicman/upload/**
 
+# musicman shuffle: writes a source in random order to this playlist of yours (created when missing,
+# rewritten on each run) and plays the new order with Spotify's shuffle off
+shuffle:
+  playlist: musicman shuffle
+
 # rofi menu for the playing song (musicman menu), for MPD and Spotify
 menu:
   # rofi theme, defaults to the musicman panel theme in cli/share/rofi

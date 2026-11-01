@@ -9,6 +9,8 @@ const sortCommand = require('./sort.js');
 const logsCommand = require('./logs.js');
 const undoCommand = require('./undo.js');
 const menuCommand = require('./menu.js');
+const shuffleCommand = require('./shuffle.js');
+const spotifyCommand = require('./spotify.js');
 
 module.exports = [
   viewCommand,
@@ -21,5 +23,7 @@ module.exports = [
   sortCommand,
   logsCommand,
   undoCommand,
-  menuCommand
+  menuCommand,
+  shuffleCommand,
+  spotifyCommand
 ];

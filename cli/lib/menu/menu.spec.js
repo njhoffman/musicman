@@ -68,8 +68,76 @@ describe('Menu', () => {
       'l',
       'minus',
       'equal',
-      'Tab'
+      'Tab',
+      'u',
+      'r',
+      'o'
     ]);
+  });
+
+  describe('shuffle, repeat, and reshuffle', () => {
+    // a Spotify player with shuffle and repeat, recording the modes set
+    const modePlayer = (shuffle, repeat) => {
+      const player = fakePlayer('spotify', 'playing', { shuffle, repeat });
+      player.shuffle = async mode => player.calls.push(['shuffle', mode]);
+      player.repeat = async mode => player.calls.push(['repeat', mode]);
+      return player;
+    };
+    const modesOf = menu => menu.entries.filter(({ key }) => ['u', 'r', 'o'].includes(key));
+
+    it('should show the shuffle and repeat state and highlight modes that are on', async () => {
+      const { menus, view } = fakeView([]);
+      await menuWith({ players: [modePlayer(true, 'playlist')], view }).open();
+      const [shuffle, repeat] = modesOf(menus[0]);
+      expect(shuffle).to.include({ label: 'shuffle on', active: true, disabled: false });
+      expect(repeat).to.include({ label: 'repeat playlist', active: true, disabled: false });
+
+      const off = fakeView([]);
+      await menuWith({ players: [modePlayer(false, 'off')], view: off.view }).open();
+      const [shuffleOff, repeatOff] = modesOf(off.menus[0]);
+      expect(shuffleOff).to.include({ label: 'shuffle off', active: false });
+      expect(repeatOff).to.include({ label: 'repeat off', active: false });
+    });
+
+    it('should toggle shuffle and step repeat to the next mode', async () => {
+      const player = modePlayer(true, 'playlist');
+      const { view } = fakeView([{ key: 'u' }, { key: 'r' }]);
+      await menuWith({ players: [player], view }).open();
+      expect(player.calls).to.deep.equal([
+        ['shuffle', 'toggle'],
+        ['repeat', 'track']
+      ]);
+    });
+
+    it('should disable the modes for a player without them (MPD)', async () => {
+      const { menus, view } = fakeView([{ key: 'u' }]);
+      const reshuffle = { source: async () => 'Liked Songs', run: async () => {} };
+      await menuWith({ players: [fakePlayer('mpd', 'playing')], view, reshuffle }).open();
+      expect(modesOf(menus[0]).map(({ disabled }) => disabled)).to.deep.equal([true, true, true]);
+    });
+
+    it('should reshuffle the last source, disabled until there is one', async () => {
+      const runs = [];
+      const none = fakeView([]);
+      await menuWith({
+        players: [modePlayer(false, 'off')],
+        view: none.view,
+        reshuffle: { source: async () => null, run: async () => runs.push('run') }
+      }).open();
+      expect(modesOf(none.menus[0])[2]).to.include({ disabled: true });
+
+      const { menus, view } = fakeView([{ key: 'o' }]);
+      await menuWith({
+        players: [modePlayer(false, 'off')],
+        view,
+        reshuffle: { source: async () => "Nick's Picks", run: async () => runs.push('run') }
+      }).open();
+      expect(modesOf(menus[0])[2]).to.include({
+        caption: "reshuffle Nick's Picks",
+        disabled: false
+      });
+      expect(runs).to.deep.equal(['run']);
+    });
   });
 
   it('should run the control picked by index or key and stay open until q', async () => {
@@ -124,7 +192,7 @@ describe('Menu', () => {
     expect(notes).to.deep.equal(['Neither MPD nor Spotify is running']);
   });
 
-  it('should add the song buttons and details of songActions after the controls', async () => {
+  it('should add the song buttons and details of songActions after the controls and modes', async () => {
     const ran = [];
     const songActions = {
       song: async () => ({ file: '/m/a.mp3', details: ['★★★★  4.0'], status: ['in library'] }),
@@ -136,7 +204,7 @@ describe('Menu', () => {
     await menuWith({ players: [fakePlayer('spotify', 'playing')], view, songActions }).open();
     expect(menus[0].message).to.include('★★★★  4.0');
     expect(menus[0].status).to.include('in library');
-    expect(menus[0].entries[8]).to.include({ label: 'tag /m/a.mp3' });
+    expect(menus[0].entries[11]).to.include({ label: 'tag /m/a.mp3' });
     expect(ran).to.deep.equal(['a']);
   });
 

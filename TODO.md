@@ -320,6 +320,13 @@ Reviewed: 2026-10-31
 - [ ] **Menu: redraw when the song changes.** (p3) [feature] the menu shows the song as it was when drawn; a song that
       ends while it is open stays shown until the next press. rofi has no timer, so this would need closing and
       reopening it from a player event (MPD idle, MPRIS PropertiesChanged).
+- [ ] **Menu: MPD random and repeat.** (p3) [feature] the menu's shuffle and repeat buttons are disabled for
+      MPD; MPD has `random`, `repeat`, and `single`, so `mpdPlayer` (`cli/lib/menu/players.js`) could offer the
+      same shuffle and repeat functions and report them from `status`.
+- [ ] **Reshuffle the playing playlist.** (p3) [feature] the menu's reshuffle button repeats the last
+      `musicman shuffle` source, because MPRIS does not say which playlist is playing. `GET /me/player` gives
+      the context (the login now asks for `user-read-playback-state`), so it could shuffle what is playing
+      instead.
 - [ ] **Menu: control Spotify on other devices.** (p3) [feature] playback goes through MPRIS, so only the desktop app;
       a Web API fallback (needs `user-modify-playback-state` and a new login) would cover the phone and speakers.
 - [ ] **Menu: Liked Songs state comes from the cache.** (p3) [bug] the like button of a Spotify song not in the library
@@ -374,6 +381,7 @@ backups (`db.autoBackup`) have no restore command.
 
 ## Housekeeping
 
+- [ ] (p3) [chore] Remove `install.sh`: it is a copy of the nvm installer, unrelated to musicman.
 - [ ] (p3) [chore] Remove stale tracked files: `cli/test_output.txt`, `cli/test_output2.txt`, `cli/SESSION_SUMMARY.md`,
       `cli/CONTEXT.md` (superseded by root `CONTEXT.md`).
 - [ ] (p3) [chore] Remove or update the untracked repo copy of `.musicmanrc.yml` (old config format).

@@ -6,6 +6,26 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman shuffle` plays a Spotify source in a uniformly random order: Liked Songs (`liked`), one of your
+  playlists by name, a playlist URL, or library filters (`rating:4.5 grouping:Dubstep`). It writes the
+  tracks in random order to your own playlist `musicman shuffle` (`shuffle.playlist`, created on first
+  use, rewritten each run) and plays the first tracks of that order (up to 1000) with Spotify's shuffle
+  off on the active device, so Spotify's artist spreading and reused queue orders no longer apply. Your
+  playlists are never reordered. Without a source it shuffles the last one again; `--dry-run` only counts
+  the tracks. Playback needs Premium; `sync --login` now also asks for the playback scopes.
+- `musicman spotify` shows Spotify's shuffle and repeat, and sets them: `shuffle on|off|toggle`,
+  `repeat off|playlist|track|next`.
+- `musicman menu` has shuffle (`u`), repeat (`r`), and reshuffle (`o`, the last `musicman shuffle`
+  source) buttons for Spotify, drawn disabled for MPD.
+- A README with an overview, links to the docs, and why Spotify's shuffle repeats itself.
+
+### Fixed
+
+- Spotify API calls that succeed with a plain text body (player commands) no longer fail with a JSON
+  parse error.
+
 ## [1.30.0] - 2026-10-31
 
 ### Added

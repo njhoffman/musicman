@@ -1,6 +1,12 @@
 const { expect } = require('chai');
 
-const { choosePlayer, mpdPlayer, spotifyPlayer, spotifyTrackId } = require('./players.js');
+const {
+  choosePlayer,
+  mpdPlayer,
+  nextRepeat,
+  spotifyPlayer,
+  spotifyTrackId
+} = require('./players.js');
 
 describe('Menu players', () => {
   it('should read Spotify track ids from URLs and URIs', () => {
@@ -93,13 +99,15 @@ describe('Menu players', () => {
       return { calls, run };
     };
 
-    it('should read the track, its cover, position and volume from playerctl', async () => {
+    it('should read the track, its cover, position, volume, shuffle and repeat from playerctl', async () => {
       const { run } = fakeRun(
-        'Playing\thttps://open.spotify.com/track/65iXgVBjiF7oOORNWo0hRV\tFull Moon Rising\tNeil Halstead\tPalindrome Hunches\thttps://i.scdn.co/image/abc\t354440000\t216739029\t0.5\n'
+        'Playing\thttps://open.spotify.com/track/65iXgVBjiF7oOORNWo0hRV\tFull Moon Rising\tNeil Halstead\tPalindrome Hunches\thttps://i.scdn.co/image/abc\t354440000\t216739029\t0.5\ttrue\tPlaylist\n'
       );
       expect(await spotifyPlayer({ run }).state()).to.deep.equal({
         state: 'playing',
         volume: 50,
+        shuffle: true,
+        repeat: 'playlist',
         track: {
           trackId: '65iXgVBjiF7oOORNWo0hRV',
           title: 'Full Moon Rising',
@@ -110,6 +118,46 @@ describe('Menu players', () => {
           duration: 354.44
         }
       });
+    });
+
+    it('should report shuffle and repeat as null when playerctl leaves them out', async () => {
+      const { run } = fakeRun('Paused\t\t\t\t\t\t\t\t\t\t\n');
+      const state = await spotifyPlayer({ run }).state();
+      expect(state).to.include({ shuffle: null, repeat: null });
+      const off = await spotifyPlayer({
+        run: fakeRun('Paused\t\t\t\t\t\t\t\t\tfalse\tNone\n').run
+      }).state();
+      expect(off).to.include({ shuffle: false, repeat: 'off' });
+    });
+
+    it('should set shuffle, repeat, and open URIs with playerctl', async () => {
+      const { calls, run } = fakeRun('');
+      const player = spotifyPlayer({ run });
+      await player.shuffle('off');
+      await player.shuffle('toggle');
+      await player.repeat('track');
+      await player.repeat('off');
+      await player.open('spotify:playlist:37i9dQZF1DXcBWIGoYBM5M');
+      expect(calls).to.deep.equal([
+        ['playerctl', '-p', 'spotify', 'shuffle', 'Off'],
+        ['playerctl', '-p', 'spotify', 'shuffle', 'Toggle'],
+        ['playerctl', '-p', 'spotify', 'loop', 'Track'],
+        ['playerctl', '-p', 'spotify', 'loop', 'None'],
+        ['playerctl', '-p', 'spotify', 'open', 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M']
+      ]);
+    });
+
+    it('should refuse unknown shuffle and repeat modes', () => {
+      const player = spotifyPlayer({ run: fakeRun('').run });
+      expect(() => player.shuffle('smart')).to.throw("Unknown shuffle mode 'smart'");
+      expect(() => player.repeat('all')).to.throw("Unknown repeat mode 'all'");
+    });
+
+    it('should cycle repeat from off to playlist to track and back', () => {
+      expect(nextRepeat('off')).to.equal('playlist');
+      expect(nextRepeat('playlist')).to.equal('track');
+      expect(nextRepeat('track')).to.equal('off');
+      expect(nextRepeat(null)).to.equal('off');
     });
 
     it('should report a state of null when Spotify is not running', async () => {

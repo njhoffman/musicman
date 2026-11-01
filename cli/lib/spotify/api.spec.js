@@ -15,7 +15,12 @@ describe('Spotify API Client', () => {
         status: next.status,
         ok: next.status < 400,
         headers: { get: name => (name === 'retry-after' ? next.retryAfter : null) },
-        text: async () => (next.body === undefined ? '' : JSON.stringify(next.body))
+        text: async () => {
+          if (next.text !== undefined) {
+            return next.text;
+          }
+          return next.body === undefined ? '' : JSON.stringify(next.body);
+        }
       };
     };
     return { impl, calls };
@@ -37,6 +42,22 @@ describe('Spotify API Client', () => {
       })
     };
   };
+
+  it('should take a success with a text body (player commands) as null', async () => {
+    const { api } = client([{ status: 200, text: 'c-4IGE3J8d' }]);
+    expect(await api.request('PUT', '/me/player/shuffle?state=false')).to.equal(null);
+  });
+
+  it('should report a failure with a text body', async () => {
+    const { api } = client([{ status: 403, text: 'Forbidden' }]);
+    await api.request('PUT', '/me/player/play').then(
+      () => expect.fail('should reject'),
+      err => {
+        expect(err.message).to.include('(403): Forbidden');
+        expect(err.status).to.equal(403);
+      }
+    );
+  });
 
   it('should return the JSON body and send the token with a timeout', async () => {
     const { api, fetch } = client([{ status: 200, body: { id: 'me' } }]);

@@ -2,7 +2,7 @@ const _ = require('lodash');
 const { execFile } = require('child_process');
 
 const { coverFor } = require('./cover.js');
-const { choosePlayer, seekStep, volumeStep } = require('./players.js');
+const { choosePlayer, nextRepeat, seekStep, volumeStep } = require('./players.js');
 const { escapeMarkup } = require('./rofi.js');
 
 // Nerd Font glyphs (Font Awesome code points); the star is the plain Unicode one
@@ -21,8 +21,14 @@ const icons = {
   tag: '',
   rating: '★',
   like: '',
-  ignore: ''
+  ignore: '',
+  shuffle: '\uf074',
+  repeat: '\uf01e',
+  reshuffle: '\uf021'
 };
+
+// keys of the shuffle, repeat, and reshuffle buttons
+const modeKeys = { shuffle: 'u', repeat: 'r', reshuffle: 'o' };
 
 // accent colors per source, so which player the menu controls shows at a glance
 const accents = { spotify: '#1db954', mpd: '#e5c07b' };
@@ -55,12 +61,15 @@ const notifyError = (message, { exec = execFile } = {}) =>
  * open after each action until q or Escape. Tab switches to the other player when both are running.
  * songActions (optional) adds buttons that act on the song: { entries(context) } where context is
  * { player, status, track } and each entry has run().
+ * Players with shuffle and repeat (Spotify) get buttons for them; reshuffle (optional) is
+ * { source(): name of the last musicman shuffle source or null, run() }.
  */
 class Menu {
   constructor({
     players,
     view,
     songActions = null,
+    reshuffle = null,
     cover = coverFor,
     notify = notifyError,
     settle = settleMs
@@ -68,6 +77,7 @@ class Menu {
     this.players = players;
     this.view = view;
     this.songActions = songActions;
+    this.reshuffle = reshuffle;
     this.cover = cover;
     this.notify = notify;
     this.settle = settle;
@@ -189,6 +199,44 @@ class Menu {
     ];
   }
 
+  // shuffle, repeat, and reshuffle; drawn for every player so the layout stays the same, disabled
+  // where the player has no such mode (MPD)
+  async modes({ player, status }) {
+    const canShuffle = Boolean(player.shuffle) && _.isBoolean(status.shuffle);
+    const canRepeat = Boolean(player.repeat) && Boolean(status.repeat);
+    const source =
+      this.reshuffle && player.source === 'spotify' ? await this.reshuffle.source() : null;
+    return [
+      {
+        icon: icons.shuffle,
+        label: canShuffle ? `shuffle ${status.shuffle ? 'on' : 'off'}` : 'shuffle',
+        key: modeKeys.shuffle,
+        active: canShuffle && status.shuffle,
+        disabled: !canShuffle,
+        run: () => player.shuffle('toggle')
+      },
+      {
+        icon: icons.repeat,
+        label: canRepeat ? `repeat ${status.repeat}` : 'repeat',
+        key: modeKeys.repeat,
+        active: canRepeat && status.repeat !== 'off',
+        disabled: !canRepeat,
+        run: () => player.repeat(nextRepeat(status.repeat))
+      },
+      {
+        icon: icons.reshuffle,
+        label: 'reshuffle',
+        caption: source ? `reshuffle ${source}` : 'reshuffle',
+        key: modeKeys.reshuffle,
+        disabled: !source,
+        run: async () => {
+          await this.reshuffle.run();
+          await wait(this.settle);
+        }
+      }
+    ];
+  }
+
   async mainMenu() {
     const { active, running } = await this.current();
     if (!active) {
@@ -198,8 +246,9 @@ class Menu {
     const song = this.songActions ? await this.songActions.song(context) : {};
     const item = await this.describe(active, song);
     const controls = this.controls(active, running);
+    const modes = await this.modes(active);
     const actions = this.songActions ? await this.songActions.entries({ ...context, song }) : [];
-    const entries = [...controls, ...actions];
+    const entries = [...controls, ...modes, ...actions];
     const picked = await this.view({
       ...item,
       entries,
@@ -217,4 +266,4 @@ class Menu {
   }
 }
 
-module.exports = { Menu, accents, clock, icons, notifyError, quitKey, switchKey };
+module.exports = { Menu, accents, clock, icons, modeKeys, notifyError, quitKey, switchKey };

@@ -9,11 +9,11 @@ const { localSpotifyIds } = require('../sync/plan.js');
 const { cachedIn, changeTrack, pushSong } = require('../sync/song.js');
 const { ignorePlaylistId, likedId, playlistTargets } = require('../sync/targets.js');
 
-// keys the playback controls, ratings, like and ignore use; tag buttons without a key get the next free
-// one of buttonKeys
+// keys the playback controls, shuffle (u), repeat (r), reshuffle (o), ratings, like and ignore use; tag
+// buttons without a key get the next free one of buttonKeys
 const likeKey = 'y';
 const ignoreKey = 'x';
-const buttonKeys = 'asdfgjkzcvbmoweru'.split('');
+const buttonKeys = 'asdfgjkzcvbmwe'.split('');
 
 const sameTag = (a, b) =>
   Boolean(a && b) && a.field === b.field && _.toLower(a.value) === _.toLower(b.value);

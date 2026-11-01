@@ -85,8 +85,27 @@ const spotifyFields = [
   'mpris:artUrl',
   'mpris:length',
   'position',
-  'volume'
+  'volume',
+  'shuffle',
+  'loop'
 ];
+
+// repeat modes by their MPRIS LoopStatus, and the order the repeat button cycles through them
+const repeatModes = { None: 'off', Playlist: 'playlist', Track: 'track' };
+const repeatCycle = ['off', 'playlist', 'track'];
+const loopStatus = _.invert(repeatModes);
+
+// the repeat mode after mode, off again after track
+const nextRepeat = mode => repeatCycle[(repeatCycle.indexOf(mode) + 1) % repeatCycle.length];
+
+// MPRIS shuffle as true or false, null when the player does not report it
+const parseShuffle = value => {
+  const text = _.toLower(value);
+  if (['true', 'on'].includes(text)) {
+    return true;
+  }
+  return ['false', 'off'].includes(text) ? false : null;
+};
 
 const runFile = (bin, args) =>
   new Promise((resolve, reject) =>
@@ -129,6 +148,8 @@ const spotifyPlayer = ({ run = runFile } = {}) => {
       return {
         state: _.toLower(values.status) || null,
         volume: _.isNaN(volume) ? null : Math.round(volume * 100),
+        shuffle: parseShuffle(values.shuffle),
+        repeat: repeatModes[values.loop] || null,
         track: trackId
           ? {
               trackId,
@@ -147,7 +168,24 @@ const spotifyPlayer = ({ run = runFile } = {}) => {
     next: () => playerctl('next'),
     prev: () => playerctl('previous'),
     seek: seconds => playerctl('position', `${Math.abs(seconds)}${seconds >= 0 ? '+' : '-'}`),
-    volume: delta => playerctl('volume', `${Math.abs(delta) / 100}${delta >= 0 ? '+' : '-'}`)
+    volume: delta => playerctl('volume', `${Math.abs(delta) / 100}${delta >= 0 ? '+' : '-'}`),
+    // shuffle on, off, or toggle
+    shuffle: mode => {
+      const value = { on: 'On', off: 'Off', toggle: 'Toggle' }[mode];
+      if (!value) {
+        throw new Error(`Unknown shuffle mode '${mode}', use on, off, or toggle`);
+      }
+      return playerctl('shuffle', value);
+    },
+    // repeat off, playlist (the whole context), or track
+    repeat: mode => {
+      if (!loopStatus[mode]) {
+        throw new Error(`Unknown repeat mode '${mode}', use ${repeatCycle.join(', ')}`);
+      }
+      return playerctl('loop', loopStatus[mode]);
+    },
+    // plays a Spotify URI (spotify:playlist:...) in the desktop app
+    open: spotifyUri => playerctl('open', spotifyUri)
   };
 };
 
@@ -172,6 +210,8 @@ const choosePlayer = async (players, { preferred } = {}) => {
 module.exports = {
   choosePlayer,
   mpdPlayer,
+  nextRepeat,
+  repeatCycle,
   seekStep,
   spotifyPlayer,
   spotifyTrackId,

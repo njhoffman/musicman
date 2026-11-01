@@ -67,6 +67,12 @@ const configSchema = {
       ratings: { type: 'array', required: false }
     }
   },
+  shuffle: {
+    type: 'object',
+    properties: {
+      playlist: { type: 'string', required: false }
+    }
+  },
   spotify: {
     type: 'object',
     properties: {

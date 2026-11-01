@@ -4,6 +4,18 @@ const apiUrl = 'https://api.spotify.com/v1';
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+// a JSON response body; a text body is null for a success, the error message for a failure
+const parseBody = (text, ok) => {
+  if (!text) {
+    return null;
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return ok ? null : { message: text };
+  }
+};
+
 // a 429 whose Retry-After is too long to wait for, e.g. Spotify's multi-hour app bans
 class RateLimitError extends Error {
   constructor(retryAfter) {
@@ -84,7 +96,8 @@ const createClient = ({
         }
       }
       const text = await res.text();
-      const json = text ? JSON.parse(text) : null;
+      // some endpoints answer a success with a bare text body (player commands), kept as null
+      const json = parseBody(text, res.ok);
       if (!res.ok) {
         const error = json && json.error;
         // errors come as { error: { status, message } }, { error: 'code' }, or { message }

@@ -5,10 +5,9 @@ const { Menu, notifyError } = require('../menu/menu.js');
 const { songActions: createSongActions } = require('../menu/actions.js');
 const { mpdPlayer, spotifyPlayer } = require('../menu/players.js');
 const { panelTheme, panelView } = require('../menu/rofi.js');
-const { createClient } = require('../spotify/api.js');
-const { userAccessToken } = require('../spotify/auth.js');
-const { getCredentials, missingCredentials, tokenPath } = require('../spotify/credentials.js');
-const { autoBackup, openLibrary } = require('../db/index.js');
+const { lazyUserClient } = require('../spotify/userClient.js');
+const { autoBackup, getMeta, openLibrary } = require('../db/index.js');
+const shuffleCommand = require('./shuffle.js');
 const { beginJournal, endJournal } = require('../history/journal.js');
 const { finishRun, startRun } = require('../utils/runs.js');
 const {
@@ -55,22 +54,18 @@ const openDb = config => () => {
   return openLibrary(config);
 };
 
-// the Spotify user client, created on first use so the menu opens without Spotify credentials
-const lazyClient = (config, env) => {
-  let client = null;
-  return () => {
-    if (!client) {
-      const credentials = getCredentials(config, env);
-      const missing = missingCredentials(credentials);
-      if (missing.length > 0) {
-        throw new Error(`Spotify credentials missing: ${missing.join(', ')}`);
+// the menu's reshuffle button: the last musicman shuffle source, shuffled again
+const reshuffle = (config, env) => {
+  let db = null;
+  return {
+    source: () => {
+      if (!db && !fs.existsSync(config.db.path)) {
+        return null;
       }
-      client = createClient({
-        getToken: () => userAccessToken({ credentials, file: tokenPath(env) }),
-        requestsPerSecond: _.get(config, 'spotify.requestsPerSecond')
-      });
-    }
-    return client;
+      db = db || openLibrary(config);
+      return _.get(getMeta(db, shuffleCommand.lastSourceKey), 'name') || null;
+    },
+    run: () => shuffleCommand.run({ options: { terms: [] }, config, env })
   };
 };
 
@@ -97,6 +92,7 @@ const menuCommand = async ({
 
 const createMenu = ({ config, players, view, songActions, env }) =>
   new Menu({
+    reshuffle: reshuffle(config, env),
     players: players || [spotifyPlayer(), mpdPlayer(config)],
     view:
       view ||
@@ -109,7 +105,7 @@ const createMenu = ({ config, players, view, songActions, env }) =>
       createSongActions({
         config,
         openDb: openDb(config),
-        client: lazyClient(config, env),
+        client: lazyUserClient(config, env),
         readSongs: readSongs(config),
         writeSong: writeSong(config),
         withRun: withRun(config)

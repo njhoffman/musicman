@@ -94,4 +94,4 @@ const refreshCache = async (db, client, playlistIds, { onTarget = _.noop } = {})
   return summary;
 };
 
-module.exports = { refreshCache, refreshPlaylist, toRow };
+module.exports = { itemFields, refreshCache, refreshPlaylist, toRow };

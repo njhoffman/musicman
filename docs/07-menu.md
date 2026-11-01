@@ -14,8 +14,8 @@ action until `q` or Escape. i3 binds it to `$mod+Shift+m`.
 │        │ ★★★★★  5.0   context Study   picks Nick    │  in library │
 └────────┴────────────────────────────────────────────┴─────────────┘
  prev  pause  next  -10s  +10s  vol -  vol +  to MPD          p t n h l - = Tab
- Study  Hot  Nick's Picks                                     a s d
- 4.0  4.5  5.0  like  ignore                                  1 2 3 y x
+ shuffle on  repeat off  reshuffle Liked Songs  Study  Hot      u r o a s
+ Nick's Picks  4.0  4.5  5.0  like  ignore                       d 1 2 3 y x
 ```
 
 ### Which player
@@ -25,6 +25,21 @@ works). `Tab` switches to the other player while both run.
 
 Spotify is controlled through MPRIS (`playerctl -p spotify`), so only the desktop app on this machine:
 no Web API player scopes, no Premium requirement. MPD through its protocol (`mpd.host`, `mpd.port`).
+
+### Shuffle, repeat, and reshuffle
+
+After the playback controls, for Spotify:
+
+- `u` shuffle: toggles Spotify's shuffle; highlighted when on.
+- `r` repeat: steps through off, playlist, and track; highlighted when not off.
+- `o` reshuffle: runs `musicman shuffle` again for the last source (Liked Songs, a playlist, or library
+  filters), writing a new random order to the shuffle playlist and playing it with shuffle off. Disabled
+  until `musicman shuffle` has run once. Why this beats Spotify's own shuffle: the README's
+  "Spotify shuffle" section.
+
+They are drawn for MPD too, disabled, so the layout stays the same. Smart Shuffle cannot be controlled
+from here: neither MPRIS nor the Web API exposes it. The keys `u`, `r`, and `o` are not given to tag
+buttons without a `key`.
 
 ### Song buttons
 

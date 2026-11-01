@@ -141,11 +141,24 @@ const libraryScanOptions = options => {
   return { ...options, switches: { ..._.get(options, 'switches'), recursive } };
 };
 
+// a command function whose errors are reported as one line with exit code 1, like the parser's, instead
+// of a stack trace; callers that handle errors themselves (the menu) use the function directly
+const reportErrors = func => async args => {
+  try {
+    return await func(args);
+  } catch (err) {
+    logger.error(err.message);
+    process.exitCode = 1;
+    return { error: err.message };
+  }
+};
+
 module.exports = {
   assignMetadata,
-  libraryScanOptions,
   getFilteredFiles,
+  libraryScanOptions,
   parseFileMetadata,
+  reportErrors,
   saveMetadata,
   updateLibraryFiles
 };

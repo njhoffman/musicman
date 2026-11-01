@@ -3,14 +3,17 @@ const path = require('path');
 
 const accountsUrl = 'https://accounts.spotify.com';
 
-// read and change playlists and Liked Songs
+// read and change playlists and Liked Songs, and start playback
 const scopes = [
   'playlist-read-private',
   'playlist-read-collaborative',
   'playlist-modify-private',
   'playlist-modify-public',
   'user-library-read',
-  'user-library-modify'
+  'user-library-modify',
+  // musicman shuffle starts its playlist from the first track
+  'user-read-playback-state',
+  'user-modify-playback-state'
 ];
 
 // refresh tokens this long before they expire
