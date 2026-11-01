@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `stats` counts the songs matching each `stats.filters` entry (name and filter, in the view/search filter syntax)
+  in a Filters section, with the share of the scanned files; also in `--format` output. The defaults count songs
+  rated 4.0+, 4.5+, 5.0, and singles rated 4.0+ (`grouping:Singles`), replacing a `type:singles` filter on a
+  tag that does not exist. Each entry needs a name and a filter.
+
 ### Removed
 
 - The unused `library.tagId` option; musicman always reads and writes ID3v2.3 frames. A config that still sets

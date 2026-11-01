@@ -70,6 +70,7 @@ const songTargets = (songs, config) => {
 };
 
 module.exports = {
+  filterMatcher,
   ignorePlaylistId,
   ignoredTracks,
   likedId,

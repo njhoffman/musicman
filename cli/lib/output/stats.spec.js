@@ -18,6 +18,10 @@ describe('Stats Output', () => {
     size: 2048,
     duration: 600,
     total: 4,
+    filters: [
+      { name: 'Rated 4.0+', filter: 'rating:4.0', count: 3 },
+      { name: 'Sad', filter: 'mood:Sad', count: 1 }
+    ],
     tags: [
       { id: 'TPE1', name: 'artist', count: 4 },
       { id: 'TXXX.Mood', name: 'mood', count: 3 },
@@ -79,6 +83,27 @@ describe('Stats Output', () => {
     expect(output.trim().endsWith('Tags (0 files)')).to.be.true;
   });
 
+  it('should render filter counts with percentages in config order', () => {
+    const output = stripAnsi(outputStats({ stats }));
+    const rows = output
+      .split('Filters (4 files)\n')[1]
+      .split('\n')
+      .slice(0, 2)
+      .map(line => line.trim().split(/\s{2,}/));
+    expect(rows).to.deep.equal([
+      ['Rated 4.0+', '3', '75%', 'rating:4.0'],
+      ['Sad', '1', '25%', 'mood:Sad']
+    ]);
+  });
+
+  it('should leave out the filters section without stats.filters', () => {
+    const output = stripAnsi(outputStats({ stats: { ...stats, filters: [] } }));
+    expect(output).not.to.include('Filters');
+    expect(statsSections({ ...stats, filters: [] }).map(({ heading }) => heading)).not.to.include(
+      'Filters'
+    );
+  });
+
   it('should render totals', () => {
     const output = stripAnsi(outputStats({ stats }));
     expect(output).to.include('tracks_rated 3');
@@ -94,6 +119,7 @@ describe('Stats Output', () => {
       'Picks',
       'Ratings',
       'Overall',
+      'Filters',
       'Tags'
     ]);
     expect(sections[2].records).to.deep.equal([
@@ -101,6 +127,12 @@ describe('Stats Output', () => {
       { value: 'Sad', count: 1 }
     ]);
     expect(sections[5].records[2]).to.deep.equal({ value: 'total_duration_min', count: 10 });
+    expect(sections[6].records[0]).to.deep.equal({
+      value: 'Rated 4.0+',
+      filter: 'rating:4.0',
+      count: 3,
+      percent: '75%'
+    });
   });
 
   it('should key stats oneline lines by section and value', () => {

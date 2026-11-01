@@ -6,6 +6,7 @@ const { outputStats } = require('../output/index.js');
 const { emitFormatted } = require('../output/emit.js');
 const { outputFormat } = require('../output/formats.js');
 const { statsOneline, statsSections } = require('../output/stats.js');
+const { filterMatcher } = require('../sync/targets.js');
 const logger = require('../utils/logger.js');
 
 const calculateMultifield = (multiField, allFiles) => {
@@ -47,9 +48,17 @@ const calculateSizes = (totals, [, file]) => {
   });
 };
 
+// number of scanned files matching each stats.filters entry, in config order
+const calculateFilters = (filters, allFiles, config) =>
+  _.map(filters, ({ name, filter }) => ({
+    name,
+    filter,
+    count: _.filter(allFiles, filterMatcher(filter, config)).length
+  }));
+
 const statsCommand = async ({ options, config, target }) => {
   const { baseDirectory } = config.mpd;
-  const { multiFields } = config.stats;
+  const { multiFields, filters = [] } = config.stats;
 
   // without a target argument the whole library is scanned, recursively unless --norecursive
   const scanOptions = libraryScanOptions(options);
@@ -82,7 +91,14 @@ const statsCommand = async ({ options, config, target }) => {
   // number of files with each populated id3 frame, including custom TXXX fields
   const tags = countTags(_.map(allFiles, 2), config);
 
-  const stats = { fields, tags, total: allFiles.length, ...ratingsOutput, ...sizesOutput };
+  const stats = {
+    fields,
+    tags,
+    filters: calculateFilters(filters, allFiles, config),
+    total: allFiles.length,
+    ...ratingsOutput,
+    ...sizesOutput
+  };
 
   if (outputFormat(options.switches) !== 'default') {
     const { selected } = emitFormatted({

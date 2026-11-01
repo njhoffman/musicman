@@ -19,6 +19,18 @@ describe('validateConfig', () => {
     ]);
   });
 
+  it('should require a name and a filter for each stats.filters entry', () => {
+    const { errors } = validateConfig({
+      stats: {
+        filters: [{ name: 'Rated 4.0+', filter: 'rating:4.0' }, { name: 'No filter' }, 'rating:5']
+      }
+    });
+    expect(errors).to.deep.equal([
+      'stats.filters[1] must have a name and a filter',
+      'stats.filters[2] must have a name and a filter'
+    ]);
+  });
+
   it('should still report options moved into views', () => {
     const { errors } = validateConfig({ output: { table: {} } });
     expect(errors).to.deep.equal(['output.table is no longer supported (moved to views.table)']);

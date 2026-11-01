@@ -43,6 +43,28 @@ const outputTags = (tags, total) => {
   return `\n${chalk.hex('#8888FF')(`Tags (${total} files)`)}\n${lines.join('\n')}\n`;
 };
 
+// match counts of the stats.filters entries, in config order, with their filter last
+const outputFilters = (filters, total) => {
+  if (_.isEmpty(filters)) {
+    return '';
+  }
+  const rows = _.map(filters, ({ name, filter, count }) => [
+    name,
+    `${count}`,
+    formatPercent(count, total),
+    filter
+  ]);
+  const columns = [{}, { align: 'right' }, { align: 'right' }, {}];
+  const table = renderColumns({
+    rows,
+    columns,
+    splitter: '  ',
+    maxLineWidth: availableWidth() - 2
+  });
+  const lines = _.map(table.split('\n'), line => `  ${line}`);
+  return `\n${chalk.hex('#8888FF')(`Filters (${total} files)`)}\n${lines.join('\n')}\n`;
+};
+
 const outputStats = ({ stats, config }) => {
   let output = '';
   const { genre, grouping, ...multiFields } = stats.fields;
@@ -58,11 +80,12 @@ const outputStats = ({ stats, config }) => {
     total_duration: `${Math.round(stats.duration / 60)} min`,
     total_size: `${Math.round(stats.size / 1024)} MB`
   });
+  output += outputFilters(stats.filters, stats.total);
   output += outputTags(stats.tags, stats.total);
   return consoleLog(output);
 };
 
-// stats as record sections for --format: value counts per field, ratings, overall totals, and tags
+// stats as record sections for --format: value counts per field, ratings, overall totals, filters, and tags
 const statsSections = stats => {
   const { genre, grouping, ...multiFields } = stats.fields;
   const counts = (heading, values) => ({
@@ -85,6 +108,20 @@ const statsSections = stats => {
         { value: 'total_size_mb', count: Math.round(stats.size / 1024) }
       ]
     },
+    ...(_.isEmpty(stats.filters)
+      ? []
+      : [
+          {
+            heading: 'Filters',
+            columns: ['value', 'filter', 'count', 'percent'],
+            records: _.map(stats.filters, ({ name, filter, count }) => ({
+              value: name,
+              filter,
+              count,
+              percent: formatPercent(count, stats.total)
+            }))
+          }
+        ]),
     {
       heading: 'Tags',
       columns: ['value', 'id', 'count', 'percent'],

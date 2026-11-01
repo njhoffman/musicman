@@ -102,6 +102,21 @@ describe('Stats Command', () => {
     expect(artistRow.split(/\s+/)).to.deep.equal(['artist', `${total}`, '100%', 'TPE1']);
     expect(tagRows.some(line => line.startsWith('mood '))).to.be.true;
   });
+  it('Should count the files matching each stats.filters entry', async () => {
+    const output = stripAnsi(await statsFunc({ target: dirTarget, options, config }));
+    const lines = output.split('\n').map(line => line.trim());
+    const header = lines.find(line => /^Filters \(\d+ files\)$/.test(line));
+    const rows = lines
+      .slice(lines.indexOf(header) + 1, lines.indexOf(header) + 1 + config.stats.filters.length)
+      .map(line => line.split(/\s{2,}/));
+    expect(rows.map(([name]) => name)).to.deep.equal(config.stats.filters.map(({ name }) => name));
+    const count = name => Number(rows.find(([n]) => n === name)[1]);
+    // every 5.0 song is also 4.0 and up, and the upbeat filter narrows 4.5 and up
+    expect(count('All Songs > 4.0')).to.be.at.least(count('All Songs > 5.0'));
+    expect(count('All Songs > 4.0')).to.be.greaterThan(0);
+    expect(count('Upbeat > 4.5')).to.be.at.most(count('All Songs > 4.0'));
+  });
+
   describe('target', () => {
     const fileCount = async scanOptions => {
       const output = stripAnsi(

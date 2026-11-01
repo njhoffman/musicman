@@ -370,6 +370,12 @@ function validateConfig(config) {
     );
   }
 
+  _.each(_.get(config, 'stats.filters', []), (entry, i) => {
+    if (!_.isPlainObject(entry) || !_.isString(entry.name) || !_.isString(entry.filter)) {
+      result.errors.push(`stats.filters[${i}] must have a name and a filter`);
+    }
+  });
+
   _.each(_.get(config, 'sync.playlists', []), (entry, i) => {
     if (!_.isPlainObject(entry) || !_.isString(entry.filter) || !_.isString(entry.playlist)) {
       result.errors.push(`sync.playlists[${i}] must have a filter and a playlist`);

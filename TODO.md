@@ -16,7 +16,7 @@ Reviewed: 2026-10-31
       `String.replace`, which matches anywhere in the path. Use `path.relative`.
 - [x] **`edit` asks for confirmation before checking for zero matches** (p3): zero matches now report and
       return before a prompt is built; the prompt is only created when editing several files.
-- [ ] **`stats.filters` is never used.** (p3) [bug] The predefined filter sets in config ("All Songs > 4.0", ...) are
+- [x] **`stats.filters` is never used.** (p3) [bug] The predefined filter sets in config ("All Songs > 4.0", ...) are
       validated but `commands/stats.js` does not compute them.
 - [x] **Logging levels use different scales.** `output.verbosity` (default `info`) and `logger.file.level`
       (default `debug`) now take level names (error, warn, info, debug, trace); the unused
@@ -33,6 +33,9 @@ Reviewed: 2026-10-31
       (e.g. `mpd-api`) instead of forking it.
 - [x] **Move existing TODO comments here and remove them from code:** (p3) [chore] moved to the items below and
       to the vendored MPD client item; the comments are removed.
+- [ ] **Unknown fields in filters are ignored silently.** (p3) [bug] `parseFilters`
+      (`cli/lib/parser/options/filters.js`) skips a `field:value` whose field is not a configured tag, so a typo in
+      `stats.filters` or `sync.playlists` matches every song. Validate configured filters at load time and warn.
 - [ ] **Combine `filterInclude` and `filterExclude`.** (p3) [refactor] `cli/lib/metadata/filter.js` repeats the same
       walk twice. Not a plain negation: for multi-value fields exclude means none of the values is present, while
       include means all are, so a shared helper needs a per-mode predicate.
@@ -64,7 +67,7 @@ Reviewed: 2026-10-31
       splits each line on every `:` and keeps two parts, so `file: Artist/Live: 1999/x.mp3` becomes
       `Artist/Live`, and `status` `time: 12:240` becomes `12`. The notify daemon and `menu` then read the wrong
       file. Split on the first `: ` only, and add a spec.
-- [ ] **Default `stats.filters` use a field that does not exist.** (p3) [bug] `Singles > 4.0` filters on
+- [x] **Default `stats.filters` use a field that does not exist.** (p3) [bug] `Singles > 4.0` filters on
       `type:singles` (no `type` tag is configured) and `Total` is `rating:5.0`. Fix them with the
       `stats.filters` item above.
 
