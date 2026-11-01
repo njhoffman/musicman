@@ -310,15 +310,6 @@ views:
     - name: year
 
 # WebSocket server settings for real-time communication
-websocket:
-  # Port for WebSocket connections
-  port: 8999
-
-# HTTP server settings
-server:
-  # Port for HTTP server
-  port: 3000
-
 # Logging configuration
 logger:
   # Color schemes for different log levels (hex color codes)

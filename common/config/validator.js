@@ -173,18 +173,6 @@ const configSchema = {
       }
     }
   },
-  websocket: {
-    type: 'object',
-    properties: {
-      port: { type: 'number', min: 1, max: 65535, required: false }
-    }
-  },
-  server: {
-    type: 'object',
-    properties: {
-      port: { type: 'number', min: 1, max: 65535, required: false }
-    }
-  },
   logger: {
     type: 'object',
     properties: {

@@ -1,4 +1,3 @@
-# client and server are placeholders and are not part of the workspace yet
 packages:
   - cli
   - common

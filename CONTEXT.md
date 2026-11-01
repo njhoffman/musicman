@@ -24,7 +24,8 @@
 # Session Progress
 
 ## Session Summary (2026-10-20, later)
-- pnpm workspace (`cli`, `common`); `client` and `server` are placeholders outside the workspace
+- pnpm workspace (`cli`, `common`); the `musicman ui` page is served from `cli/lib/ui` (the old `client` and
+  `server` placeholders were removed in 1.40.1)
 - All cli files are `.js` CommonJS (no `"type": "module"`); ESM-only deps load through `require(esm)` with `.default`
 - Config is loaded explicitly with `loadConfig()` from `musicman-common/config`, always from `~/.musicmanrc.yml`;
   nothing is read or created on require, tests inject configs

@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Removed
+
+- The `server.port` and `websocket.port` options of the removed placeholders; a config that still sets
+  them gets an unknown option warning.
+
+### Added
+
+- README section for `musicman ui`.
+
 ## [1.40.1] - 2026-11-01
 
 ### Fixed
@@ -20,12 +29,7 @@ All notable changes to this project are documented in this file. The format is b
 ### Removed
 
 - The unused `server/` and `client/` placeholders (a 2019 Express server and React app that no longer
-  started) and their `server.port` and `websocket.port` options; a config that still sets them gets an
-  unknown option warning. `musicman ui` serves the page from the cli.
-
-### Added
-
-- README section for `musicman ui`.
+  started). `musicman ui` serves the page from the cli.
 
 ## [1.40.0] - 2026-11-01
 

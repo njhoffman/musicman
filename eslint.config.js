@@ -5,8 +5,7 @@ const globals = require('globals')
 
 module.exports = [
   {
-    // client and server are placeholders outside the workspace
-    ignores: ['**/node_modules/**', 'client/**', 'server/**', 'cli/test/data/**', 'cli/reports/**', '**/coverage/**']
+    ignores: ['**/node_modules/**', 'cli/test/data/**', 'cli/reports/**', '**/coverage/**']
   },
   js.configs.recommended,
   n.configs['flat/recommended-script'],

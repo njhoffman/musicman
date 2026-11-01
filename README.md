@@ -17,6 +17,7 @@ musicman player next                        # skip in whichever player is active
 musicman player play context:Study rating:5 # play search results (MPD, or the active Spotify)
 musicman spotify repeat next                # step Spotify's repeat mode
 musicman check                              # report library problems (below), changes nothing
+musicman ui                                 # the management page at http://127.0.0.1:6660/ (below)
 musicman --help                             # every command and switch
 ```
 
@@ -51,6 +52,14 @@ MPRIS, so only the desktop app on this machine.
 frames a rewrite would lose, custom field names that differ by case or duplicate standard frames, leftover
 Spotify id frames, multi value formatting, ratings off the half step scale, garbled text, and duplicate
 songs. It exits 1 when it finds something; [docs/08-check.md](docs/08-check.md) lists the checks.
+
+`musicman ui` serves a management page on 127.0.0.1 (`ui.port`, 6660) until ctrl-c. It lists the Spotify
+matches waiting for review, accepted in review, and rejected; picking a song shows the local file and the
+Spotify track side by side with their differences marked, plays both (the file in the page, the track in
+Spotify's embedded player, full length when the browser is logged in to Spotify, or in the desktop app),
+and accepts or rejects. Each action is a `ui` run in `musicman logs` whose tag changes `musicman undo`
+restores. It also lists, as of the last `sync`, the tracks in mapped playlists missing from the library
+and the songs that belong on Spotify but have no Spotify id.
 
 Configuration: defaults in `common/config/defaultConfig.yml`, your overrides in `~/.musicmanrc.yml`.
 
