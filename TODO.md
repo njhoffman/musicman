@@ -312,24 +312,16 @@ database backups (`db.autoBackup`) have no restore command.
 
 ## 12. Tooling
 
-- [ ] **Test tooling.** (p3) [chore] `cli` is on mocha 8, chai 4, sinon 10, sinon-chai 3, and nyc 15
-      (`test:coverage`); move to current mocha, chai (ESM only from 5, so check `require` support), sinon,
-      sinon-chai, and c8. Replace `cli/.mocharc.yml`, which is the full example config with placeholder values,
-      with the few settings used (`spec`, `require: test/setup.js`).
-- [ ] **Package versions.** (p3) [chore] releases bump only the root `package.json` (1.31.0, shown by
-      `musicman --version`), while `cli/package.json` says 1.2.0 and `common/package.json` 1.0.0. Drop the
-      version field from the private workspace packages, or have `pnpm release` bump them with the root.
-- [ ] **Commit hooks.** (p3) [chore] `husky` and commitlint are installed; `.husky/post-commit` only runs
-      `scripts/publish-local.sh`, and `.commitlintrc.js` is not run by any hook. Either wire commitlint into a
-      `commit-msg` hook or remove it, and decide between gitmoji (`commitlint-config-gitmoji`) and plain
-      conventional commits (`@commitlint/config-conventional`, what the history uses); both are installed.
-- [ ] **Prettier config at the root.** (p3) [chore] only `cli/` has a `.prettierrc`, so root files (`scripts/`,
-      `README.md`, `common/`) format with whatever global config is found; they were formatted with
-      `--config cli/.prettierrc`. Move the config to the root and add `scripts/` to `pnpm format`.
-- [ ] **`todos` script.** (p3) [chore] `pnpm todos` runs `leasot` on `cli/config` and `server/`, both gone; the
-      code has no TODO comments left, so remove the script and the `leasot` devDependency.
-- [ ] **Stray `vnull` tag.** (p3) [chore] an annotated tag `vnull` ("chore(release): null", 2025-07-27, 25cadb8)
-      from a broken release, locally and on the remote; delete it (`git tag -d vnull`, `git push origin :vnull`).
+- [x] **Test tooling.** (p3) [chore] mocha 12, chai 6 and sinon-chai 4 (ES modules through `require(esm)`), sinon 22,
+      and c8 (`.c8rc.json`); `.mocharc.yml` keeps the settings used, with `retries: 0` and a 20 s timeout.
+- [x] **Package versions.** (p3) [chore] `cli` and `common` dropped their `version` and are marked private; only
+      the root version is released.
+- [x] **Commit hooks.** (p3) [chore] `.husky/commit-msg` runs commitlint with `@commitlint/config-conventional`
+      (gitmoji removed); headers over 72 characters warn, `subject-case` is off for names like Spotify.
+- [x] **Prettier config at the root.** (p3) [chore] `.prettierrc` at the root replaces those of `cli` and `common`
+      (120 columns, reflowed to 100); `pnpm format` covers `scripts/`.
+- [x] **`todos` script.** (p3) [chore] removed with `leasot`.
+- [x] **Stray `vnull` tag.** (p3) [chore] deleted locally and on the remote (it pointed at 25cadb8).
 - [x] **ESLint migration.** (p2) [chore] ESLint 10 flat config, `eslint-config-prettier`, Prettier 3 separately.
 - [x] **Release tooling.** (p3) [chore] `pnpm release` runs `commit-and-tag-version` (`.versionrc.json`).
 - [x] **CHANGELOG.md format.** (p3) [docs] Keep a Changelog, written by hand under `[Unreleased]`;

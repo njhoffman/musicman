@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- Development tooling only, nothing changes for users: tests run on mocha 12, chai 6, sinon 22, and
+  sinon-chai 4, with coverage from c8 instead of nyc; the mocha config is down to the settings used, with no
+  retries and a 20 s timeout. One Prettier config at the root formats every package. Commit messages are
+  checked against conventional commits by a `commit-msg` hook. The private workspace packages no longer
+  carry their own version, and the unused `todos` script is gone.
+
 ## [1.40.2] - 2026-11-01
 
 ### Removed
