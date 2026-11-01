@@ -23,6 +23,17 @@ const mpdCommand = async (mpdConfig, command, connect = connectMpd) => {
 
 const mpdStates = { play: 'playing', pause: 'paused', stop: 'stopped' };
 
+// MPD's repeat and single as off, playlist, or track; null when the status leaves them out
+const mpdRepeat = ({ repeat, single }) => {
+  if (repeat === undefined) {
+    return null;
+  }
+  if (repeat !== '1') {
+    return 'off';
+  }
+  return single === '1' ? 'track' : 'playlist';
+};
+
 /**
  * MPD through its protocol. state() resolves to { state, track, volume } with the track's file (absolute,
  * under mpd.baseDirectory), or to { state: null } when MPD cannot be reached.
@@ -42,9 +53,21 @@ const mpdPlayer = (config, { connect = connectMpd } = {}) => {
         return { state: null, error: err.message };
       }
       const volume = Number(status.volume);
+      const position = Number(status.song);
       return {
         state: mpdStates[status.state] || null,
         volume: volume >= 0 ? volume : null,
+        // MPD's random and repeat (single makes repeat play one track), reported like Spotify's
+        shuffle: status.random === undefined ? null : status.random === '1',
+        repeat: mpdRepeat(status),
+        // the place of the song in the queue, 1-based
+        queue:
+          status.playlistlength === undefined
+            ? null
+            : {
+                position: Number.isNaN(position) ? null : position + 1,
+                length: Number(status.playlistlength)
+              },
         track: song.file
           ? {
               file: path.join(config.mpd.baseDirectory, song.file),

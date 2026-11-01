@@ -3,9 +3,9 @@ const _ = require('lodash');
 const { icons } = require('./menu.js');
 const { escapeMarkup } = require('./rofi.js');
 const parseFilters = require('../parser/options/filters.js');
+const { libraryFileForTrack } = require('../player/library.js');
 const { filterTag } = require('../sync/membership.js');
 const { refreshPlaylist } = require('../sync/cache.js');
-const { localSpotifyIds } = require('../sync/plan.js');
 const { cachedIn, changeTrack, pushSong } = require('../sync/song.js');
 const { ignorePlaylistId, likedId, playlistTargets } = require('../sync/targets.js');
 
@@ -122,12 +122,7 @@ const songActions = ({ config, openDb, client, readSongs, writeSong, withRun }) 
     const file =
       player.source === 'mpd'
         ? track.file
-        : await withDb(db => {
-            const ids = localSpotifyIds(db, config);
-            return (
-              _.find([...ids.keys()], candidate => ids.get(candidate) === track.trackId) || null
-            );
-          });
+        : await withDb(db => libraryFileForTrack(db, config, track.trackId));
     if (!file) {
       return {
         file: null,

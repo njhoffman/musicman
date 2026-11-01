@@ -1,6 +1,6 @@
 const _ = require('lodash');
 
-const { nextRepeat, repeatCycle, spotifyPlayer } = require('../menu/players.js');
+const { nextRepeat, repeatCycle, spotifyPlayer } = require('../player/players.js');
 const { reportErrors } = require('./common.js');
 const logger = require('../utils/logger.js');
 

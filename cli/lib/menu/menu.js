@@ -2,7 +2,7 @@ const _ = require('lodash');
 const { execFile } = require('child_process');
 
 const { coverFor } = require('./cover.js');
-const { choosePlayer, nextRepeat, seekStep, volumeStep } = require('./players.js');
+const { choosePlayer, nextRepeat, seekStep, volumeStep } = require('../player/players.js');
 const { escapeMarkup } = require('./rofi.js');
 
 // Nerd Font glyphs (Font Awesome code points); the star is the plain Unicode one

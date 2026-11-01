@@ -5,7 +5,7 @@ const os = require('os');
 const { getFilteredFiles, reportErrors } = require('./common.js');
 const { getMeta, openLibrary, setMeta } = require('../db/index.js');
 const { matchingPaths } = require('../db/search.js');
-const { spotifyPlayer } = require('../menu/players.js');
+const { spotifyPlayer } = require('../player/players.js');
 const parseFilters = require('../parser/options/filters.js');
 const {
   ensurePlaylist,

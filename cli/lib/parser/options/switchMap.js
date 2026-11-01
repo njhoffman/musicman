@@ -107,6 +107,11 @@ module.exports = {
     alias: '-R',
     func: () => ({ review: true })
   },
+  watch: {
+    description: 'With status, redraw the screen every second until q',
+    alias: '-W',
+    func: () => ({ watch: true })
+  },
   'dry-run': {
     description:
       'Show what would change without writing files or Spotify (sync --match still caches its lookups)',

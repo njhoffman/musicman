@@ -150,6 +150,11 @@ backup:
   - .musicman/download/**
   - .musicman/upload/**
 
+# musicman status (and musicman alone while a song plays): the now playing screen
+status:
+  # Nerd Font icons before the player and each field
+  icons: true
+
 # musicman shuffle: writes a source in random order to this playlist of yours (created when missing,
 # rewritten on each run) and plays the new order with Spotify's shuffle off
 shuffle:

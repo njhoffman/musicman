@@ -6,6 +6,8 @@ syncs ratings and tags with Spotify Liked Songs and playlists, and has a rofi me
 MPD or Spotify.
 
 ```sh
+musicman                                    # the song playing in MPD or Spotify (musicman status)
+musicman status --watch                     # the same, redrawn every second until q
 musicman rating:4.5 grouping:Dubstep        # view songs rated 4.5 and up in a grouping
 musicman edit some/dir mood=+Upbeat         # add a value to a multi value field
 musicman search artist "Mazzy Star" --play  # replace the MPD queue with the results
@@ -14,6 +16,14 @@ musicman shuffle "Nick's Picks"             # play a playlist in a real random o
 musicman spotify repeat next                # step Spotify's repeat mode
 musicman --help                             # every command and switch
 ```
+
+`musicman status` shows the song playing in MPD or Spotify (Spotify when both play): the player with its
+volume, shuffle, and repeat, a progress bar, the song's rating, grouping, and multi value fields from the
+library, the Spotify playlists that hold it (from the sync cache), where it plays from (the MPD queue
+position, or the Spotify playlist, album, or artist), and its file. `musicman` without arguments shows it
+while a player plays or is paused, and views the current directory otherwise. `--format json` prints the
+same data for status bars; `--watch` (`-W`) redraws it every second until `q`, looking a song's tags up
+again when the track changes. `status.icons: false` leaves out the Nerd Font icons.
 
 Configuration: defaults in `common/config/defaultConfig.yml`, your overrides in `~/.musicmanrc.yml`.
 

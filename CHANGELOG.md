@@ -6,6 +6,22 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman status`: the now playing screen for MPD or Spotify, with the player's volume, shuffle, and
+  repeat, a progress bar, the song's rating, grouping, and multi value fields, the Spotify playlists that
+  hold it, where it plays from (MPD queue position, or the Spotify playlist, album, or artist), and its
+  file. `--watch` (`-W`) redraws it every second until `q`; `--format json` prints it as data;
+  `status.icons: false` drops the Nerd Font icons.
+
+### Changed
+
+- `musicman` without arguments shows `musicman status` while MPD or Spotify plays or is paused, including
+  Spotify songs, instead of the tag list of the MPD song; with nothing playing it still views the current
+  directory. `musicman view` still lists the playing MPD song's tags.
+- Commands that never act on the playing song (`sync`, `sort`, `logs`, `undo`, `search`, `menu`,
+  `shuffle`, `spotify`, `status`) no longer wait for MPD to report it, up to 2 seconds when MPD is down.
+
 ## [1.31.0] - 2026-11-01
 
 ### Added

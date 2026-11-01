@@ -1,388 +1,352 @@
 # TODO
 
-Tracks known issues, refactoring, and planned features. Check items off (`- [x]`) in the commit that
-resolves them; `/todo` and `/todo-pop` (from `~/.shell`) show open/done counts and pick items. Tag an item
-`(p1)` (high) or `(p3)` (low); untagged items are `p2` (normal). `(due YYYY-MM-DD)` adds a date and an
-OVERDUE flag. Feature specs live in `docs/`.
+Tracks known issues, refactoring, and planned features, grouped by area; open items first in each section.
+Check items off (`- [x]`) in the commit that resolves them; `/todo` and `/todo-pop` (from `~/.shell`) show
+open/done counts and pick items. Every item has a priority, `(p1)` high, `(p2)` normal, or `(p3)` low, and a
+category: bug, feature, refactor, docs, test, chore, or perf. `(due YYYY-MM-DD)` adds a date and an OVERDUE
+flag. Feature specs live in `docs/`.
 
-Reviewed: 2026-10-31
+Reviewed: 2026-11-01
 
-## Bugs
+## 1. Bugs
 
-- [x] **`pnpm lint` fails with 103 errors.** Fixed by the ESLint migration.
-- [x] **`term-size` spawns `resize`**, which prints `resize: can't open terminal /dev/tty` outside a TTY
-      (visible in test output). Use `process.stdout.columns` with a fallback and drop the dependency.
-- [x] **Playlist paths use string replace.** `commands/playlist.js` strips `mpd.baseDirectory` with
-      `String.replace`, which matches anywhere in the path. Use `path.relative`.
-- [x] **`edit` asks for confirmation before checking for zero matches** (p3): zero matches now report and
-      return before a prompt is built; the prompt is only created when editing several files.
-- [x] **`stats.filters` is never used.** (p3) [bug] The predefined filter sets in config ("All Songs > 4.0", ...) are
-      validated but `commands/stats.js` does not compute them.
-- [x] **Logging levels use different scales.** `output.verbosity` (default `info`) and `logger.file.level`
-      (default `debug`) now take level names (error, warn, info, debug, trace); the unused
-      `logger.stdout.level` was removed.
-- [x] **Logger ignores `logger.colors`.** (p3) Terminal log lines now start with a level badge colored with
-      the level's `fg`, `bg`, and `gui`; the log file is unchanged.
-- [x] **Make the notify daemon testable.** (p3) [refactor] `notify-daemon.js` runs on require; split notification building
-      and sending from the MPD loop so `sendNotification` can be unit tested.
-- [x] **Rename `seperators` to `separators`** (p3) [refactor] in `views.table`, with a legacy-key error like the other
-      migrated options.
-- [x] **Replace `bluebird`** (p3) [refactor] with native promises (`Promise.map` concurrency via a small helper).
-- [x] **Replace `prompt-confirm`** (p3) [refactor] (unmaintained since 2017) with `@inquirer/confirm`.
-- [x] **Vendored MPD client.** (p3) [refactor] Evaluated 2026-10-31 and kept: `mpd2` adds a fixed ~100 ms idle
-      check to every connect (175 ms vs 53 ms here), which `menu` pays per command, and it renames reply keys. The
-      vendored client now shares the first-colon reply parser (`common/mpd/utils.js`) with the menu.
-- [x] **Move existing TODO comments here and remove them from code:** (p3) [chore] moved to the items below and
-      to the vendored MPD client item; the comments are removed.
 - [ ] **Unknown fields in filters are ignored silently.** (p3) [bug] `parseFilters`
       (`cli/lib/parser/options/filters.js`) skips a `field:value` whose field is not a configured tag, so a typo in
       `stats.filters` or `sync.playlists` matches every song. Validate configured filters at load time and warn.
-- [ ] **Combine `filterInclude` and `filterExclude`.** (p3) [refactor] `cli/lib/metadata/filter.js` repeats the same
-      walk twice. Not a plain negation: for multi-value fields exclude means none of the values is present, while
-      include means all are, so a shared helper needs a per-mode predicate.
 - [ ] **Memory use when reading many files.** (p3) [bug] an old comment in `getFilteredFiles`
       (`cli/lib/commands/common.js`) reported memory overflow reading the whole library from disk. Check peak memory
       of `stats --files` on the full library; reading in batches (as `db/update.js` does) would bound it.
+- [x] **`-i`/`--include` and `-x`/`--exclude` do nothing.** (p2) [bug] Stale: checked 2026-11-01, `view` applies
+      them to the table, the single file list, and `--format` columns (`commands/view.js`, `songColumns`).
+- [x] **MPD responses cut values at the second colon.** (p2) [bug] `common/mpd/utils.js` `parseMpdReply` splits on
+      the first `: ` only, shared by the client and the menu.
+- [x] **`stats.filters` is never used.** (p3) [bug] `stats` shows a Filters section; the defaults no longer filter on
+      a `type` tag that does not exist.
+- [x] **`--include=`, `--exclude=` and `--write=` are not parsed.** (p2) [bug] they now have a `value` key.
+- [x] **Rating ranges compared as strings.** (p2) [bug] `filterRating` compares numbers, so `rating:4-4` matches.
+- [x] **`edit` asks for confirmation before checking for zero matches.** (p3) [bug] zero matches return first.
+- [x] **Playlist paths use string replace.** (p2) [bug] `commands/playlist.js` uses `path.relative`.
+- [x] **`term-size` spawns `resize`.** (p3) [bug] replaced by `process.stdout.columns` with a fallback.
+- [x] **`pnpm lint` fails with 103 errors.** (p2) [bug] fixed by the ESLint migration.
+- [x] **Logging levels use different scales.** (p3) [bug] `output.verbosity` and `logger.file.level` take level
+      names; the unused `logger.stdout.level` was removed.
+- [x] **Logger ignores `logger.colors`.** (p3) [bug] terminal lines start with a level badge in the level's colors.
 
-- [x] **`library.tagId` is not used.** (p3) [chore] Removed: musicman stays on ID3v2.3 (all sampled files, beets
-      `id3v23: true`, and node-id3 use v2.3; `year` maps to `TYER`). The placeholder server route that read it now
-      uses `ID3v2.3` directly. Revisit v2.4 only together with beets `id3v23: false` and a v2.4-capable writer.
-- [ ] **Clean up duplicate TXXX fields.** (p2) [chore] `stats` shows case and spelling variants of the same field
-      (`Comment`/`COMMENT`, `ALBUMARTISTS`/`ALBUM_ARTISTS`, `ARTISTS`/`Artists`) from different taggers.
-      Decide which to keep and consolidate them, possibly through beets.
-- [x] **Clean up context and mood values.** (p2) [chore] Fixed the typo `mood:Ubpeat`, moved `mood:Study` to
-      context, `context:Mellow` and `context:Upbeat` to mood, and `context:FixEnding` and `context:Instrumental`
-      to picks, removed `mood:Dirt`, and renamed `mood:Very Mellow` to `Placid` (every Placid song is also Mellow).
-- [ ] **Unmapped and empty grouping playlists.** (p2) [chore] `grouping:Dubstep.Singles` (34 songs rated 4.5+)
-      has no `sync.playlists` entry, while `Ambient.Artists`, `ElectronicFunk.Artists`, and
-      `ContemporaryInstrumental` have entries but few or no songs in scope, so their playlists push empty.
-- [x] **`--include=`, `--exclude=` and `--write=` are not parsed.** (p2) [bug] Only switches with a `value`
-      key expand `--name=value`, and only `format` had one; `include`, `exclude` and `write` now do.
-- [x] **Rating ranges compared as strings.** (p2) [bug] `filterRating` in `cli/lib/metadata/filter.js` compared
-      `'4.0' <= '4'` as text, so `rating:4-4` matched nothing; it now compares numbers.
-- [ ] **`-i`/`--include` and `-x`/`--exclude` do nothing.** (p2) [bug] `switchMap.js` parses them into
-      `switches.include` and `switches.exclude`, but no command or formatter reads them, so
-      `musicman view -i artist,title` still shows every column. Apply them where the table and list columns
-      are chosen in `lib/output/`.
-- [x] **MPD responses cut values at the second colon.** (p2) [bug] `parseMpdData` in `common/mpd/MpdClient.js`
-      splits each line on every `:` and keeps two parts, so `file: Artist/Live: 1999/x.mp3` becomes
-      `Artist/Live`, and `status` `time: 12:240` becomes `12`. The notify daemon and `menu` then read the wrong
-      file. Split on the first `: ` only, and add a spec.
-- [x] **Default `stats.filters` use a field that does not exist.** (p3) [bug] `Singles > 4.0` filters on
-      `type:singles` (no `type` tag is configured) and `Total` is `rating:5.0`. Fix them with the
-      `stats.filters` item above.
+## 2. Code quality
 
-## Tooling
+- [ ] **Combine `filterInclude` and `filterExclude`.** (p3) [refactor] `cli/lib/metadata/filter.js` repeats the same
+      walk twice. Not a plain negation: for multi-value fields exclude means none of the values is present, while
+      include means all are, so a shared helper needs a per-mode predicate.
+- [x] **Skip the MPD lookup for commands without targets.** (p3) [perf] `cli/lib/cli.js` asks MPD for the playing
+      song before parsing every command, so `shuffle`, `spotify`, `sync`, `logs`, and `undo` wait for it too, up to
+      the 2 s connect timeout when MPD is down. Done: commands with `targetArgs: false` skip it.
+- [x] **Make the notify daemon testable.** (p3) [refactor] `lib/notify/notification.js` builds and sends
+      notifications; `notify-daemon.js` only loads config.
+- [x] **Rename `seperators` to `separators`.** (p3) [refactor] with a legacy-key error.
+- [x] **Replace `bluebird`.** (p3) [refactor] native promises and `utils/promise.js` `mapLimit`.
+- [x] **Replace `prompt-confirm`.** (p3) [refactor] `utils/confirm.js` on `@inquirer/confirm`.
+- [x] **Vendored MPD client.** (p3) [refactor] evaluated 2026-10-31 and kept: `mpd2` adds a fixed ~100 ms idle check
+      to every connect (175 ms vs 53 ms here), which `menu` pays per command, and it renames reply keys.
+- [x] **Move TODO comments out of the code.** (p3) [chore] moved into this file.
+- [x] **`library.tagId` is not used.** (p3) [chore] removed; musicman stays on ID3v2.3 (beets `id3v23: true`,
+      node-id3). Revisit v2.4 only together with beets `id3v23: false` and a v2.4-capable writer.
 
-- [x] **ESLint migration:** ESLint 10 flat config (`eslint.config.js` at the root) with `@eslint/js`
-      recommended, `eslint-plugin-n`, and `eslint-config-prettier`; Prettier 3 runs separately
-      (`pnpm format`, `pnpm format:check`); airbnb, babel, eslint-watch, and the unused `common` ESLint
-      dependencies removed.
-- [ ] **Test tooling:** (p3) [chore] mocha 12, chai 6, sinon 22, sinon-chai 4, nyc to c8. Clean up
-      `.mocharc.yml` (it is the full example config with placeholder values).
-- [x] **Release tooling:** (p3) [chore] `pnpm release` runs `commit-and-tag-version` (`.versionrc.json`) instead
-      of the deprecated `standard-version`.
-- [x] **CHANGELOG.md format.** (p3) [docs] Keep a Changelog, written by hand under `[Unreleased]`; the
-      `scripts/release-changelog.js` lifecycle scripts refuse a release without entries and move them into the
-      new version's section. The version numbers in the two items below are stale (1.24.x now).
-- [ ] **Stray `vnull` tag.** (p3) [chore] an annotated tag `vnull` ("chore(release): null", 2025-07-27, 25cadb8)
-      from a broken release; delete it locally and on the remote (`git tag -d vnull`, `git push origin :vnull`).
-- [ ] **Prettier config for `scripts/`.** (p3) [chore] only `cli/` has a `.prettierrc`, so root files format with
-      whatever global config is found; `scripts/*.js` was formatted with `--config cli/.prettierrc`. Move the config
-      to the root and add `scripts/` to `pnpm format`.
-- [ ] **Commit hooks:** (p3) [chore] `husky` and `commitlint` are installed; `.husky/post-commit` only runs
-      `scripts/publish-local.sh`, and `.commitlintrc.js` is not run by any hook. Either wire commitlint into a
-      `commit-msg` hook or remove it. Decide between gitmoji and plain conventional commits; both configs are
-      installed.
-- [ ] **`todos` script** (p3) [chore] points `leasot` at `.js` files and `server/`; update or remove.
-- [ ] **`cli/package.json` version is stale.** (p3) [chore] It says 1.2.0 while releases bump only the root
-      `package.json` (1.13.0, shown by `musicman --version`). Remove the field or have releases bump it.
-- [ ] **Versioning:** (p3) [chore] root is 1.4.x, `cli` is 1.2.0, `common` is 1.0.0. Decide whether packages are versioned
-      independently or with the root.
+## 3. Library data
 
-## Testing
-
-- [ ] (p3) [test] Tests for `utils/logger.js` verbosity levels and padding.
-- [x] (p3) [test] Tests for `notify-daemon` notification arguments after the refactor above.
-
-## Features
-
-- [ ] **Complete tag values and run ids in zsh.** (p3) [feature] `lib/completion/zsh.js` stops after `field:` and
-      `field=`, and offers only `latest` for `undo` and `logs`. Values from the library database and run ids
-      from `listRuns` need a fast hidden path (`musicman completion values <field>`) called at Tab time;
-      measure the node startup cost first.
-- [ ] **Unquoted `~field:` exclusions do not complete in zsh.** (p3) [feature] zsh sends a word that starts with an
-      unquoted `~` to the `-tilde-` context, so `_musicman` never runs; `\~mood:` and `'~mood:` complete.
-      A fix binds a `-tilde-` wrapper that calls `_musicman_fields` for musicman and `_tilde` otherwise,
-      which touches every command's tilde completion.
-- [ ] **Smarter terminal fitting** (p3) [feature] for the table view: shrink the widest columns instead of dropping the
-      rightmost ones.
-- [ ] (p3) [feature] Honor `views.list.headers.visible` (currently ignored) and implement `views.table.separators.horizontal`
-      or remove it.
-- [ ] **Divider above the status line:** (p3) [feature] draw a dim full width rule above the footer progress line so it
-      stands apart from the log lines scrolling above it (redrawn with the footer, cut to the terminal width).
-- [ ] **Fetch missing artwork for singles:** (p2) [feature] find songs tagged as singles without an embedded cover (no
-      APIC frame) and embed one: the Spotify album image (from `sp_album_id`) first, then beets fetchart sources. Report
-      what was found and from where; `--dry-run` to preview. Decide whether this is its own command or part of `check
-      --fix`.
-- [ ] **Duration and size in `stats`.** (p3) [feature] `stats` prints `total_duration` and `total_size`, summed from
-      `file.duration` and `file.size`; an old comment asked for an option to include them. Check that both are
-      filled for files read from disk as well as from the database, and decide whether they belong behind a switch.
-- [ ] **Generate artwork when none can be found:** (p3) [feature] for singles still without a cover, generate one (e.g.
-      artist and title over a color derived from the grouping), clearly marked as generated so a real cover can replace
-      it later.
-- [ ] **Revisit running spotDL from musicman:** (p3) [feature] downloads run as a separate script (`pnpm download`)
-      because they are long, resumable, and against YouTube's terms. Decide whether the planned `download` command
-      should start spotDL itself; if it does, keep it resumable and keep the manifest as the record of what to fetch.
-
-## Database (`docs/02-database.md`)
-
-- [x] **Backups:** back up the database to `db.backupDirectory` every `db.backupInterval` (before writes,
-      `db --backup` on demand, `db.backupCount` kept).
-- [x] **`search` command:** field syntax as used here (`rating:5.0 title:"some title"`) and mpc style
-      (`rating 5.0 title "some title"`); free text searches title and artist; exact matches on multi-value
-      fields.
-- [x] **`search --add` and `--play`:** append results to the playlist, or create a new playlist from the
-      results and play it.
-- [x] **Faster `search`:** a SQL prefilter narrows candidates (superset of the JavaScript filters), about
-      200-500ms instead of 1-2s on 6,445 songs with identical results.
-- [x] **Log file:** `logger.file.name` (default `musicman.log` in `mpd.baseDirectory`) at `logger.file.level`
-      (default 5 = debug); per-file `db --update` actions go to the log only.
-- [x] **Database tests and error handling** for backups, `search`, and the database-backed commands.
-
-## Spotify sync (`docs/03-spotify-id.md`)
-
-- [x] **Spotify credentials:** `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI` (or `_URL`)
-      from the environment, falling back to `spotify.*` in the config; `sync --login` saves OAuth tokens to
-      `$XDG_STATE_HOME/musicman/spotify-token.json` (mode 0600).
-- [x] **Sync config:** (p1) `sync.likedRating`, `sync.playlists` (filter to playlist, your 38 mappings
-      moved from the doc), `sync.uploadDirectory`, `sync.downloadDirectory`, `sync.spotdlCommand`,
-      `sync.beetsConfig`.
-- [x] **`sync` command and cache:** (p1) refreshes the cache of Liked Songs and mapped playlists (playlists
-      skipped when their snapshot is unchanged) and reports per target: songs to add, songs without a
-      Spotify id, tracks to prune, and tracks to pull.
-- [x] **Beets integration:** `musicman sort` (`--dry-run` to preview) finds rated songs in beets' unsorted
-      folder (from its default path) with a grouping that has a beets path rule, runs `beet update -m` for
-      songs beets has and `beet import -s -q -A` for the others, then updates the database.
-- [x] **Spotify track ids:** (p1) `sync --match` (`--dry-run` to preview): beets ids, then ISRC, then scored
-      artist/title search; confident matches written as `TXXX.sp_track_id`, probable ones listed by
-      `sync --review`, misses rechecked after 30 days.
-- [x] **Spotify fields:** (p2) [feature] `sync --match` writes the `spotify.fields` mapping (track, album, and
-      artist fields) as `TXXX.sp_*` tags, fills empty standard tags from fallbacks, refreshes them after
-      `spotify.refreshDays` (or with `--refresh`), and reports response paths that are not mapped or ignored.
-- [ ] **Spotify audio features:** (p3) [feature] populate acousticness, danceability, energy, instrumentalness,
-      key, liveness, loudness, mode, speechiness, tempo, time_signature, valence. Blocked: `/audio-features`
-      and `/audio-analysis` return 403 for this app (checked 2026-10-20); needs another source.
-- [x] **Liked Songs:** (p1) `sync --push` saves every song rated at least `sync.likedRating` that has a
-      Spotify id; `--prune` removes liked tracks whose song is now rated lower.
-- [x] **Grouping playlists:** (p1) `sync --push` adds songs matching each `sync.playlists` filter to its
-      playlist; `--prune` removes tracks whose song no longer matches. Playlist add/remove use the
-      `/items` endpoints with a `/tracks` fallback, not yet verified against a real playlist.
-- [x] **Pull Spotify-side changes to songs already in the library:** (p1) [feature] every sync that is not a dry
-      run stores what each target and the tags agree on (`spotify_synced`); the plan compares Spotify, that state,
-      and the tags three ways. `sync --pull` adds or removes multi value filter tags (context, picks) for changes
-      made on Spotify and lists Liked Songs and grouping changes to decide; `--prune` only removes local changes.
-- [x] **Verify `sync --push` against Spotify** (p2) [test] the push of 2026-10-21 added 7757 tracks (1523 to Liked
-      Songs, the rest across 23 playlists), and the pushes of 2026-10-24 found nothing left to add.
-- [x] **Duplicate files sharing a Spotify id show up as prune.** (p1) [bug] a track is now extra (prune or
-      +Spotify) only when no copy of its song belongs, and `sync --pull` tags every copy. Took the prunes of
-      2026-10-24 from 158 to 71.
-- [x] **Multi value writes stored `undefined`.** (p1) [bug] `+`/`-` and list assignments (`sync --pull`,
-      `musicman edit`) handed node-id3 an array, which it writes as `undefined`, wiping the whole field; this
-      was the frame loss of 2026-10-21. `writeFiles` now joins arrays with commas.
-- [x] **Restore playlist tags lost on 2026-10-21.** (p1) [bug] the 99 files the `sync --pull` of 2026-10-21 16:50
-      wrote had 82 Picks and 69 Context frames reading `undefined` (in the NFS backup too); restored from the
-      database backup of 2026-10-20 21:19 (run `20261026-174457-repair`, undoable, database copy in
-      `.musicman/musicman-before-frame-repair-20261026.sqlite`), and the 56 `spotify_synced` rows still marking
-      them in sync were cleared, so they show as +Spotify for `sync --pull` instead of prune.
-- [x] **Run `sync --pull` for the repaired tags.** (p1) [chore] done 2026-10-26: the pull tagged the files,
-      `push` added 122 (Study 44, Nick's Picks 77, Relax 1), then `sync --backup`.
-- [x] **Decide the 9 Spotify changes `sync --pull` left.** (p2) [chore] done 2026-10-26: the 7 songs were
-      removed from the grouping playlists that do not match (run `20261026-214605-sync`), and My Morning Jacket
-      - Rocket Man was deleted from the library.
-- [ ] **Verify `sync --push --prune` and its undo** (p2) [test] no push has removed anything yet, so the remove
-      endpoints, the snapshot before them, and `musicman undo` putting tracks back at their old position have only
-      run in tests. Nothing is left to prune after the repair; test it with a deliberate removal.
-- [ ] **`sync --push` export:** (p2) [feature] export songs missing from Spotify to `sync.uploadDirectory`, one subfolder per
-      target playlist (hardlinks when possible), with a `README.md` checklist and printed summary. Verify first
-      how Spotify desktop Local Files sources handle subfolders.
-- [ ] **Verify pushed local files:** (p2) [feature] on `sync`, read local tracks in the mapped playlists, report songs still
-      missing, and remove completed ones from the export directory.
-- [x] **`sync --pull` manifest:** writes `manifest.json` to `sync.downloadDirectory` with each Spotify-only
-      track's URL, its targets, and the tags those targets' filters imply (`--dry-run` to preview).
-- [x] **spotDL download script:** (p2) [feature] `pnpm download` (in `cli/`) downloads the manifest with spotDL using
-      `{track-id}` in the output template; reruns skip downloaded and imported tracks.
-- [x] **`sync --import`:** (p2) [feature] matches downloads to the manifest by track id, writes the Spotify fields,
-      empty standard tags, and playlist tags, runs `beet import -s -q --quiet-fallback=asis -l <log>` into
-      `Sorted/Unrated/_Singles`, reports files imported as is or skipped, marks them imported in the manifest, and
-      updates the database.
-- [ ] **Verify `sync --pull`, `pnpm download`, and `sync --import` end to end** (p2) [test] on a real manifest once
-      the Spotify rate limit lifts; only the beets step was checked against real beets (2026-10-21).
-- [ ] **`import` command wrapping beets:** (p2) [feature] one command for newly downloaded files, reading the beets
-      config (paths, import settings) so it tags and renames like beets would:
-      - tell full albums from singles (album import vs `-s` singletons) and import each the right way
-      - for spotDL downloads, add the tags of every playlist the track is in (a song in several playlists gets all
-        their tags, multi value fields collect every value) plus all the `spotify.fields`
-      - files that did not come from Spotify go through the `sync --match` lookup (beets id, ISRC, search) first
-      - supersedes `sync --import`, which only handles manifest downloads as singletons
-- [x] **`sync --backup`:** (p1) [feature] mirror the library files to a backup location (`/mnt/nfs/Music` now).
-      Before changing anything, list the files to copy, update, and delete and confirm; deletions are opt-in and
-      listed separately. Refuse to overwrite a backup file whose tag has frames the library copy lacks (how the
-      frames lost on 2026-10-21 were recovered) and report those instead.
-- [x] **Progress feedback for `sync --backup`:** (p2) [feature] done in 1.27.0; the comparison (walking both trees over NFS and reading
-      the tags of changed mp3s for the frame check) runs for minutes with no output, so it looks hung. Show a status
-      line while comparing (files scanned on each side, changed files checked of total, elapsed time), and bytes
-      copied with rate and ETA while copying, not only file counts.
-- [ ] **`check` command:** (p2) [feature] report, and with `--fix` repair (recorded for `musicman undo <run>`): files
+- [ ] **`check` command.** (p2) [feature] report, and with `--fix` repair (recorded for `musicman undo <run>`): files
       that cannot be read or rewritten, frames node-id3 cannot keep, database drift, duplicate songs, custom tag
       names that differ only by case or punctuation (renamed to a `check.names` list seeded with beets names),
       custom tags duplicating standard frames, the leftover `spotify_track_id` frames, and multi value formatting.
       Also report ratings off the half step scale (e.g. Hollerado - Got to Loose is 2.8) and text that looks
       garbled by a wrong encoding (its copyright reads `20･･－－－0`). `lib/check/frames.js` (raw frame parsing)
       is done.
-- [x] **Stricter Spotify version matching:** (p2) [bug] matches (search and ISRC) need the same title words and the
-      same words in removed suffixes (Campfire mix vs Dub Mix, Early Version, Radio Edit, Happy Home II), otherwise
-      they go to review.
-- [x] **Recheck existing matches and review with accept and reject:** (p1) [feature] `sync --match --recheck` moves
-      matches failing the title rule to review without unlinking them (45 in scope on 2026-10-21); `sync --review
-      --accept` / `--reject` pick with fzf. Rejected tracks are removed by the next push (no `--prune` needed), are never
-      offered as downloads, and the song is looked up again without them (schema 4).
-- [x] **Match similarity percent:** (p2) [feature] `matchSimilarity` in `lib/spotify/match.js` scores a match
-      (100% identical) by duration (free up to 3s, above 95% up to 20s) and title (case and punctuation free, a
-      neutral suffix like a remaster -1, 2 per changed character, -10 per mix or version word such as Radio or
-      Rough, -25 per version marker such as live or remix). Shown as the first column of the `sync --review` list,
-      accept sorted most similar first and reject least similar first. Written as `TXXX.sp_diff_percent` and
-      `TXXX.sp_diff_details` on every match, accepted review, and refresh.
-- [x] **Auto-accept close matches:** (p2) [feature] `sync.autoAcceptPercent` (e.g. 95) matches review candidates at
-      least that similar without review; empty by default, so nothing changes until it is set.
-- [x] **Live recordings score as studio matches:** (p1) [bug] a song whose MusicBrainz album type is `live` or
-      whose album title names a live recording ("Live at ...", "(Live)", ": Live Recordings") now differs from a
-      studio candidate like a version marker (-25), and a Spotify album such as "[Live at the Pantages Theatre]"
-      counts as live. The 28 live songs at or above 95% on 2026-10-24 now score about 75%.
-- [x] **Changed numbers in a title cost more similarity:** (p2) [bug] done in 1.27.0 (-10 per differing number). `17 Ghosts II` -> `16 Ghosts II` and
-      `23 Ghosts III` -> `22 Ghosts III` (Nine Inch Nails) score 95-96% as one changed character (-2), so they are
-      offered for auto-accept; a number that differs is another track and should fall well below 95.
-- [ ] **Prefer the original album over compilations:** (p2) [feature] a match can be the right recording on the wrong
+- [ ] **Clean up duplicate TXXX fields.** (p2) [chore] `stats` shows case and spelling variants of the same field
+      (`Comment`/`COMMENT`, `ALBUMARTISTS`/`ALBUM_ARTISTS`, `ARTISTS`/`Artists`) from different taggers.
+      Decide which to keep and consolidate them, possibly through beets or `check --fix`.
+- [ ] **Unmapped and empty grouping playlists.** (p2) [chore] `grouping:Dubstep.Singles` (34 songs rated 4.5+)
+      has no `sync.playlists` entry, while `Ambient.Artists`, `ElectronicFunk.Artists`, and
+      `ContemporaryInstrumental` have entries but few or no songs in scope, so their playlists push empty.
+- [x] **Clean up context and mood values.** (p2) [chore] fixed `mood:Ubpeat`, moved values between context, mood,
+      and picks, removed `mood:Dirt`, renamed `mood:Very Mellow` to `Placid`.
+
+## 4. Command line and output
+
+- [ ] **Complete tag values and run ids in zsh.** (p3) [feature] `lib/completion/zsh.js` stops after `field:` and
+      `field=`, and offers only `latest` for `undo` and `logs`. Values from the library database and run ids
+      from `listRuns` need a fast hidden path (`musicman completion values <field>`) called at Tab time;
+      measure the node startup cost first (about 0.8 s for a command now).
+- [ ] **Complete `spotify` and `shuffle` arguments in zsh.** (p3) [feature] `musicman spotify` takes
+      `shuffle on|off|toggle` and `repeat off|playlist|track|next`, and `musicman shuffle` takes `liked`, playlist
+      names, or filters; the completion offers none of them. Settings are static; playlist names would come from the
+      cached `spotify_playlists` table through the hidden values path above.
+- [ ] **Unquoted `~field:` exclusions do not complete in zsh.** (p3) [feature] zsh sends a word that starts with an
+      unquoted `~` to the `-tilde-` context, so `_musicman` never runs; `\~mood:` and `'~mood:` complete.
+      A fix binds a `-tilde-` wrapper that calls `_musicman_fields` for musicman and `_tilde` otherwise,
+      which touches every command's tilde completion.
+- [ ] **Smarter terminal fitting.** (p3) [feature] for the table view: shrink the widest columns instead of dropping
+      the rightmost ones.
+- [ ] **List headers and table row separators.** (p3) [feature] honor `views.list.headers.visible` (the list view
+      ignores it; the table view honors `views.table.headers.visible`) and implement
+      `views.table.separators.horizontal`, or remove both options.
+- [ ] **Divider above the status line.** (p3) [feature] draw a dim full width rule above the footer progress line so
+      it stands apart from the log lines scrolling above it (redrawn with the footer, cut to the terminal width).
+- [x] **Now playing screen.** (p2) [feature] `musicman status` (and bare `musicman` while a player plays or is
+      paused): Nerd Font icons, a progress bar, the library fields, and for Spotify the cached playlists holding the
+      track; `--watch` redraws it, `--format json` for status bars.
+- [x] **`status` command.** (p2) [feature] the active player and its modes, the song with its rating and tags, and
+      where it plays from: the MPD queue position, or the Spotify context from `GET /me/player`.
+- [ ] **`status --watch` misses tag changes until the track changes.** (p3) [feature] watch mode reads a song's tags
+      and Spotify context once per track, so a rating set from the menu while it is open shows on the next track.
+      Re-read them when the file's mtime changes, or every few seconds.
+- [ ] **Show the playing track list of `musicman shuffle` in status.** (p3) [feature] Spotify reports no context
+      for a list of tracks, so a `musicman shuffle` playback shows no "from"; status could name the last shuffle
+      source (database meta `shuffle.lastSource`) when the playing track is in the shuffle playlist.
+- [x] **Duration and size in `stats`.** (p3) [feature] checked 2026-11-01: `total_duration` and `total_size` are
+      filled from the database and from `--files` reads alike (20 min, 21 MB for `Rap-R&B/Singles` both ways), so
+      no switch is needed.
+
+## 5. Artwork
+
+- [ ] **Fetch missing artwork for singles.** (p2) [feature] find songs tagged as singles without an embedded cover (no
+      APIC frame) and embed one: the Spotify album image (`sp_album_image`) first, then beets fetchart sources.
+      Report what was found and from where; `--dry-run` to preview. Decide whether this is its own command or part
+      of `check --fix`.
+- [ ] **Generate artwork when none can be found.** (p3) [feature] for singles still without a cover, generate one
+      (e.g. artist and title over a color derived from the grouping), clearly marked as generated so a real cover
+      can replace it later.
+
+## 6. Database (`docs/02-database.md`)
+
+- [x] **Backups.** (p2) [feature] the database is backed up to `db.backupDirectory` every `db.backupInterval`
+      (before writes, `db --backup` on demand, `db.backupCount` kept).
+- [x] **`search` command.** (p2) [feature] field syntax (`rating:5.0 title:"some title"`) and mpc style
+      (`rating 5.0 title "some title"`); free text searches title and artist; exact matches on multi-value fields.
+- [x] **`search --add` and `--play`.** (p2) [feature] append results to the MPD queue, or replace it and play.
+- [x] **Faster `search`.** (p2) [perf] a SQL prefilter narrows candidates, about 200-500ms instead of 1-2s.
+- [x] **Log file.** (p2) [feature] `logger.file.name` at `logger.file.level`; per-file `db --update` actions go to
+      the log only.
+- [x] **Database tests and error handling.** (p2) [test] for backups, `search`, and the database-backed commands.
+
+## 7. Spotify sync (`docs/03-spotify-id.md`, `docs/05-spotify-push.md`)
+
+- [ ] **Verify `sync --push --prune` and its undo.** (p2) [test] no push has removed anything yet, so the remove
+      endpoints, the snapshot before them, and `musicman undo` putting tracks back at their old position have only
+      run in tests. Nothing is left to prune after the repair; test it with a deliberate removal.
+- [ ] **Prefer the original album over compilations.** (p2) [feature] a match can be the right recording on the wrong
       release, e.g. Alice in Chains - Heaven Beside You matched to "Alternative Moments" (Various Artists) instead of
       their own album. When several candidates are the same recording, rank by the local album (TALB) first, then
       album_type album over single over compilation, and skip various artists releases. Add a `sync --match
       --recheck` pass (or a review reason) for existing matches on compilations whose song has its own album.
-- [x] **Icon for linked in the review list:** (p3) [feature] a nerd font link icon replaces `linked` and a unicode
-      arrow replaces `->`.
-- [x] **Listen to both versions in review:** (p3) [feature] in the review fzf list, ctrl-l plays the song with mpv
-      (pausing Spotify), ctrl-s plays the candidate in the Spotify desktop app through `playerctl open` (or its
-      `spotify:` URI handler when the app is not running), ctrl-x stops; closing the list stops mpv. Not tried in a
-      real review session yet; MPD is not paused.
-- [x] **Spotify artist metadata on tracks:** (p2) [feature] popularity (`sp_artist_popularity`), followers
-      (`sp_artist_followers`), and genres (`sp_genres`, kept under its existing name) were already mapped; added the
-      photo URL (`sp_artist_image`), and `sync --match` saves each first artist's photo to
-      `spotify.artistImageDirectory` (default `$XDG_CACHE_HOME/musicman/artists/<sp_artist_id>.jpg`) for offline use.
-      Only the first artist is fetched.
-- [ ] **Spotify artist metadata for every credited artist:** (p3) [feature] `fetchDetails` only fetches
+- [ ] **`sync --push` export.** (p2) [feature] export songs missing from Spotify to `sync.uploadDirectory`, one
+      subfolder per target playlist (hardlinks when possible), with a `README.md` checklist and printed summary.
+      Verify first how Spotify desktop Local Files sources handle subfolders.
+- [ ] **Verify pushed local files.** (p2) [feature] on `sync`, read local tracks in the mapped playlists, report
+      songs still missing, and remove completed ones from the export directory.
+- [ ] **Try the review listen keys in a real session.** (p3) [test] ctrl-l (mpv), ctrl-s (Spotify), and ctrl-x in the
+      `sync --review` list have only run in tests; MPD is not paused while they play.
+- [ ] **Spotify artist metadata for every credited artist.** (p3) [feature] `fetchDetails` only fetches
       `artists[0]`, so genres, popularity, and photos of featured or second artists are never stored. Decide whether
       the extra artist requests are worth it and how multi value fields would hold them.
-- [x] **Spotify album metadata on tracks:** (p2) [feature] `sp_album_popularity` was already mapped; added the
-      largest album image URL as `sp_album_image`. Embedding the image itself (APIC, for offline players) is part of
-      "Fetch missing artwork for singles".
-- [ ] **Guess the grouping of downloads:** (p2) [feature] for each track handed to spotDL, guess its grouping (genre) from
-      the library: groupings of the same artist's songs first, then songs whose Spotify artist genres overlap. Record the
-      guess (and why) in the manifest and download into a folder named after it, but never write it to the grouping
-      tag, whose presence marks a song as organized and rated.
-- [ ] **Assign the guessed grouping once a song is rated:** (p2) [feature] check whether beets can route imports into
+- [ ] **Spotify audio features.** (p3) [feature] populate acousticness, danceability, energy, instrumentalness,
+      key, liveness, loudness, mode, speechiness, tempo, time_signature, valence. Blocked: `/audio-features`
+      and `/audio-analysis` return 403 for this app (checked 2026-10-20); needs another source (see section 11).
+- [x] **Spotify credentials.** (p1) [feature] from the environment or `spotify.*`; `sync --login` saves OAuth tokens
+      to `$XDG_STATE_HOME/musicman/spotify-token.json` (mode 0600).
+- [x] **Sync config.** (p1) [feature] `sync.likedRating`, `sync.playlists`, `sync.uploadDirectory`,
+      `sync.downloadDirectory`, `sync.spotdlCommand`, `sync.beetsConfig`.
+- [x] **`sync` command and cache.** (p1) [feature] refreshes Liked Songs and mapped playlists (unchanged snapshots
+      skipped) and reports songs to add, songs without a Spotify id, tracks to prune, and tracks to pull.
+- [x] **Spotify track ids.** (p1) [feature] `sync --match`: beets ids, then ISRC, then scored artist/title search.
+- [x] **Spotify fields.** (p2) [feature] `sync --match` writes the `spotify.fields` mapping as `TXXX.sp_*` tags.
+- [x] **Liked Songs.** (p1) [feature] `sync --push` saves songs rated at least `sync.likedRating`.
+- [x] **Grouping playlists.** (p1) [feature] `sync --push` adds songs matching each `sync.playlists` filter; adds were
+      verified by the push of 2026-10-21, removes are the open prune item above.
+- [x] **Pull Spotify-side changes to songs already in the library.** (p1) [feature] three way plan with
+      `spotify_synced`; `sync --pull` applies filter tag changes made on Spotify.
+- [x] **Verify `sync --push` against Spotify.** (p2) [test] 7757 tracks added on 2026-10-21.
+- [x] **Duplicate files sharing a Spotify id show up as prune.** (p1) [bug] a track is extra only when no copy of
+      its song belongs.
+- [x] **Multi value writes stored `undefined`.** (p1) [bug] `writeFiles` joins arrays with commas.
+- [x] **Restore playlist tags lost on 2026-10-21.** (p1) [bug] restored from the database backup of 2026-10-20
+      (run `20261026-174457-repair`).
+- [x] **Run `sync --pull` for the repaired tags.** (p1) [chore] done 2026-10-26.
+- [x] **Decide the 9 Spotify changes `sync --pull` left.** (p2) [chore] done 2026-10-26.
+- [x] **Stricter Spotify version matching.** (p2) [bug] matches need the same title and suffix words.
+- [x] **Recheck existing matches and review with accept and reject.** (p1) [feature] `sync --match --recheck`,
+      `sync --review --accept` / `--reject`.
+- [x] **Match similarity percent.** (p2) [feature] `matchSimilarity`, written as `TXXX.sp_diff_percent`.
+- [x] **Auto-accept close matches.** (p2) [feature] `sync.autoAcceptPercent`.
+- [x] **Live recordings score as studio matches.** (p1) [bug] live albums now count as a version marker.
+- [x] **Changed numbers in a title cost more similarity.** (p2) [bug] -10 per differing number (1.27.0).
+- [x] **Icon for linked in the review list.** (p3) [feature] nerd font link icon and a unicode arrow.
+- [x] **Listen to both versions in review.** (p3) [feature] ctrl-l, ctrl-s, ctrl-x in the review list.
+- [x] **Spotify artist metadata on tracks.** (p2) [feature] popularity, followers, genres, and photo of the first
+      artist; photos cached in `spotify.artistImageDirectory`.
+- [x] **Spotify album metadata on tracks.** (p2) [feature] `sp_album_popularity` and `sp_album_image`.
+
+## 8. Downloads and import (`docs/04-spotify-pull.md`, `docs/06-spotify-sync-runbook.md`)
+
+- [ ] **Verify `sync --pull`, `pnpm download`, and `sync --import` end to end.** (p2) [test] on a real manifest once
+      the Spotify rate limit lifts; only the beets step was checked against real beets (2026-10-21).
+- [ ] **`import` command wrapping beets.** (p2) [feature] one command for newly downloaded files, reading the beets
+      config (paths, import settings) so it tags and renames like beets would:
+      - tell full albums from singles (album import vs `-s` singletons) and import each the right way
+      - for spotDL downloads, add the tags of every playlist the track is in (a song in several playlists gets all
+        their tags, multi value fields collect every value) plus all the `spotify.fields`
+      - files that did not come from Spotify go through the `sync --match` lookup (beets id, ISRC, search) first
+      - supersedes `sync --import`, which only handles manifest downloads as singletons
+- [ ] **Guess the grouping of downloads.** (p2) [feature] for each track handed to spotDL, guess its grouping (genre)
+      from the library: groupings of the same artist's songs first, then songs whose Spotify artist genres overlap.
+      Record the guess (and why) in the manifest and download into a folder named after it, but never write it to
+      the grouping tag, whose presence marks a song as organized and rated.
+- [ ] **Assign the guessed grouping once a song is rated.** (p2) [feature] check whether beets can route imports into
       `Unrated` by the absence of a rating instead of the absence of a grouping (a path query on a rating field, e.g.
-      through the types or mpdstats plugin). If it can, write the guessed grouping on import and let the rating decide
-      the folder; otherwise keep the guess out of the tag.
-- [ ] **`download` command:** (p2) [feature] search Spotify for artists and albums, pick results (fzf), add them to the
-      manifest, fetch them with spotDL (see "Revisit running spotDL from musicman"), and import them (the beets wrapping
-      `import` command), with the grouping guess above.
-- [ ] **`download --missing`:** (p2) [feature] scan the library for albums of wanted artists that are not in it and suggest
-      them. An artist with their own folder (`.../Artists/<artist>/`) means their full catalogue is wanted. Cache the
-      Spotify discographies so the check is quick, and say at the start of the command how much is missing, e.g.
-      "notice: 28 albums across 15 artists are not imported yet".
+      through the types or mpdstats plugin). If it can, write the guessed grouping on import and let the rating
+      decide the folder; otherwise keep the guess out of the tag.
+- [ ] **`download` command.** (p2) [feature] search Spotify for artists and albums, pick results (fzf), add them to
+      the manifest, fetch them with spotDL (see the next item), and import them (the `import` command above), with
+      the grouping guess.
+- [ ] **`download --missing`.** (p2) [feature] scan the library for albums of wanted artists that are not in it and
+      suggest them. An artist with their own folder (`.../Artists/<artist>/`) means their full catalogue is wanted.
+      Cache the Spotify discographies so the check is quick, and say at the start of the command how much is
+      missing, e.g. "notice: 28 albums across 15 artists are not imported yet".
+- [ ] **Revisit running spotDL from musicman.** (p3) [feature] downloads run as a separate script (`pnpm download`)
+      because they are long, resumable, and against YouTube's terms. Decide whether the `download` command should
+      start spotDL itself; if it does, keep it resumable and keep the manifest as the record of what to fetch.
+- [x] **`sync --pull` manifest.** (p2) [feature] `manifest.json` in `sync.downloadDirectory` with each Spotify-only
+      track's URL, targets, and implied tags.
+- [x] **spotDL download script.** (p2) [feature] `pnpm download` (in `cli/`); reruns skip downloaded and imported
+      tracks.
+- [x] **`sync --import`.** (p2) [feature] matches downloads to the manifest by track id, tags them, and imports them
+      with beets into `Sorted/Unrated/_Singles`.
 
-## Playback and integrations
+## 9. Playback, menu, and shuffle (`docs/07-menu.md`, README "Spotify shuffle")
 
-- [ ] **Now playing screen:** (p2) [feature] improve what `musicman` / `view` without arguments shows for the playing
-      song: Nerd Font icons for fields, a progress bar for the position in the track, and when Spotify is playing, its
-      track details and the names of the mapped playlists the song is in.
-- [ ] **Playback controls for MPD and Spotify:** (p2) [feature] one set of mpc style commands (play, pause, next, previous,
-      seek, volume, queue) that acts on whichever player is active, plus musicman features such as playing a search
-      result or a filter. Spotify control goes through the Web API player endpoints (needs the
-      `user-modify-playback-state` and `user-read-playback-state` scopes and a new login).
-- [ ] **`status` command:** (p2) [feature] show the active player (MPD or Spotify), the playing song with its rating and
-      tags, and the playlist or queue it is playing from.
-- [x] **Like or ignore the Spotify song that is playing:** (p2) [feature] `musicman menu` likes Spotify songs not in
-      the library and adds them to `sync.ignorePlaylist`, which sync never pulls, matches, or downloads.
-- [x] **rofi menu for the playing song:** (p2) [feature] `musicman menu` (`docs/07-menu.md`): playback controls for
-      MPD and Spotify, tag and rating buttons from `menu.buttons` and `menu.ratings`.
+- [ ] **Own song change notifications.** (p2) [feature] replace the mpDris2 notifications (unreliable now) by extending
+      `lib/notify/notification.js`: show the source (Spotify or MPD), the rating when there is one, context and mood
+      labels, and the album cover; watch Spotify through MPRIS PropertiesChanged as well as MPD.
+- [ ] **Playback controls for MPD and Spotify.** (p2) [feature] one set of mpc style commands (play, pause, next,
+      previous, seek, volume, queue) that acts on whichever player is active, plus musicman features such as playing
+      a search result or a filter. `musicman spotify` covers shuffle and repeat; the Web API player scopes are
+      granted now, and `shuffle`'s device choice (`playDevice` in `lib/commands/shuffle.js`) can be reused.
+- [ ] **Menu: control Spotify on other devices.** (p3) [feature] menu playback goes through MPRIS, so only the
+      desktop app; the Web API player endpoints (scopes granted since 1.31.0) would cover the phone and speakers.
+- [ ] **Keep playing past the first 1000 shuffled tracks.** (p3) [feature] `musicman shuffle` starts at most 1000
+      tracks as a list (a rewritten playlist plays its previous order for a minute or more), so playback stops after
+      them although the playlist holds the rest. Options: start the playlist at track 1001 once the list ends
+      (needs a watcher), or queue the next tracks from the notify daemon.
+- [ ] **Reshuffle the playing playlist.** (p3) [feature] the menu's reshuffle button repeats the last
+      `musicman shuffle` source, because MPRIS does not say which playlist is playing. `GET /me/player` gives the
+      context (`user-read-playback-state` is granted), so it could shuffle what is playing instead.
+- [ ] **Menu: MPD random and repeat.** (p3) [feature] the menu's shuffle and repeat buttons are disabled for MPD; MPD
+      has `random`, `repeat`, and `single`, so `mpdPlayer` (`cli/lib/menu/players.js`) could offer the same shuffle
+      and repeat functions and report them from `status`.
+- [ ] **Menu: Liked Songs state comes from the cache.** (p3) [bug] the like button of a Spotify song not in the
+      library is highlighted from the cached Liked Songs, refreshed by sync runs; a song liked in the app since shows
+      as not liked until then, and undo of a second press would remove it. One `GET /me/library/contains` (or
+      `/me/tracks/contains`) request per drawn song would make it current.
 - [ ] **Menu: grouping buttons.** (p3) [feature] `menu.buttons` only takes one value of a multi value field
       (context, mood, picks); grouping is single valued, so setting it would need a picker submenu.
 - [ ] **Menu: redraw when the song changes.** (p3) [feature] the menu shows the song as it was when drawn; a song that
       ends while it is open stays shown until the next press. rofi has no timer, so this would need closing and
       reopening it from a player event (MPD idle, MPRIS PropertiesChanged).
-- [ ] **Menu: MPD random and repeat.** (p3) [feature] the menu's shuffle and repeat buttons are disabled for
-      MPD; MPD has `random`, `repeat`, and `single`, so `mpdPlayer` (`cli/lib/menu/players.js`) could offer the
-      same shuffle and repeat functions and report them from `status`.
-- [ ] **Reshuffle the playing playlist.** (p3) [feature] the menu's reshuffle button repeats the last
-      `musicman shuffle` source, because MPRIS does not say which playlist is playing. `GET /me/player` gives
-      the context (the login now asks for `user-read-playback-state`), so it could shuffle what is playing
-      instead.
-- [ ] **Menu: control Spotify on other devices.** (p3) [feature] playback goes through MPRIS, so only the desktop app;
-      a Web API fallback (needs `user-modify-playback-state` and a new login) would cover the phone and speakers.
-- [ ] **Menu: Liked Songs state comes from the cache.** (p3) [bug] the like button of a Spotify song not in the library
-      is highlighted from the cached Liked Songs, refreshed by sync runs; a song liked in the app since shows as not
-      liked until then. Pressing like again is harmless (saving is idempotent), but undo would then remove it.
-- [ ] **Own song change notifications:** (p2) [feature] replace the mpDris2 notifications (unreliable now) by extending
-      `lib/notify-daemon.js`: show the source (Spotify or MPD), the rating when there is one, context and mood labels,
-      and the album cover. Follows the testability refactor above.
-- [ ] **Lyrics:** (p3) [feature] fetch lyrics for the playing song (embedded USLT first, then an online source) and show
-      them like Spotify's mini player, scrolling along with the playback position when the lyrics are synced (LRC).
-- [ ] **Smart playlists on Spotify:** (p3) [feature] generate playlists from the library's own metadata (context, mood,
-      picks, rating, grouping, Spotify genres and popularity) instead of only fixed filters, and push them like the
-      mapped playlists. First look into services or libraries that build better smart playlists from that kind of
-      metadata.
-- [ ] **Mood analysis services:** (p3) [feature] evaluate APIs that tag songs with moods (to fill or suggest the
-      `mood` tag and replace the blocked Spotify audio features): bridge.audio, SonoTeller, Cyanite.ai, Musiio, AIMS
-      API. Compare coverage, price, whether they analyze uploaded audio or only catalogue ids, and rate limits.
-- [ ] **Lyrics analysis and sources:** (p3) [feature] evaluate Musixmatch Pro, lyricsgenius (Genius), and
-      LRCLIB/lrcget (synced LRC lyrics, free and offline friendly) as sources for the Lyrics item and for lyric based
-      tags (themes, explicitness, language).
-- [ ] **Genre analysis services:** (p3) [feature] evaluate Every Noise at Once, Chosic music genre finder, PitchPlus,
-      and SubmitHub "What's my genre" for finer genres than Spotify's artist genres, to help guess groupings
-      ("Guess the grouping of downloads"). Several are websites without an API, so check what can be automated.
-- [ ] **Other music services:** (p3) [feature] support services besides Spotify (e.g. YouTube Music, SoundCloud) for
-      matching, playlist sync, and playback, starting with which ones have a usable API.
+- [ ] **Lyrics.** (p3) [feature] fetch lyrics for the playing song (embedded USLT first, then an online source) and
+      show them like Spotify's mini player, scrolling along with the playback position when the lyrics are synced
+      (LRC).
+- [x] **`musicman shuffle` and Spotify shuffle and repeat.** (p2) [feature] 1.31.0: a source in uniformly random
+      order written to one reused playlist and started as a track list through the Web API; `musicman spotify`
+      and the menu's `u`, `r`, and `o` buttons. Spotify keeps API-created playlists public (documented in the
+      README).
+- [x] **Like or ignore the Spotify song that is playing.** (p2) [feature] `musicman menu` likes Spotify songs not in
+      the library and adds them to `sync.ignorePlaylist`.
+- [x] **rofi menu for the playing song.** (p2) [feature] `musicman menu`: playback controls for MPD and Spotify,
+      tag and rating buttons from `menu.buttons` and `menu.ratings`.
 
-## Undo and history
+## 10. Undo, history, and backups
 
 Runs record their tag and Spotify changes for `musicman undo` (since 1.24.0). Still missing: `sync --backup` moves
-files deleted from the library to `.musicman-removed/<date>/` but overwrites changed ones, and the database
-backups (`db.autoBackup`) have no restore command.
+files deleted from the library to `.musicman-removed/<date>/` but overwrites changed ones, and the automatic
+database backups (`db.autoBackup`) have no restore command.
 
-- [x] **Tag change journal and `undo`:** (p1) [feature] every archived run records the frames each tag write
-      replaces (`tag_changes`, schema 5: the value before and a hash of the value after) through
-      `lib/history/journal.js`, hooked into `lib/metadata/write.js`. `musicman undo [<run> | --list] [--dry-run]
-      [--force]` restores them, holding back files changed since; the last `history.keep` (50) runs are kept.
-- [x] **Spotify change journal and undo:** (p1) [feature] `sync --push` records each add and remove
-      (`spotify_changes`) and the snapshot saved before it; `musicman undo <run>` reverses them (one command for tags
-      and Spotify rather than `sync --undo`), putting removed tracks back at their old playlist position and
-      updating `spotify_synced` so the next sync sees a local change.
-- [ ] **Follow moved files in the undo history:** (p2) [feature] the history keys files by path, so a write
+- [ ] **Follow moved files in the undo history.** (p2) [feature] the history keys files by path, so a write
       followed by a move (`sort`, the beets step of `sync --import`) makes undo report the file as missing. When
       `db --update` detects a move (same MusicBrainz track id), update `tag_changes.path` too.
-- [ ] **Record `check --fix` changes:** (p3) [feature] once `check --fix` exists it writes through
-      `lib/metadata/write.js` and is recorded automatically; make sure its run archives (the `archive` flag) so
-      `undo` covers it, replacing the planned `check --undo`.
-- [ ] **Keep replaced files in `sync --backup`:** (p2) [feature] move the backup copy of an updated file to
+- [ ] **Keep replaced files in `sync --backup`.** (p2) [feature] move the backup copy of an updated file to
       `.musicman-removed/<date>/` (or a versions folder) before overwriting it, like deleted files, so a bad tag
       write that reached the backup can still be recovered.
-- [ ] **Restore the database from a backup:** (p3) [feature] `db --restore [<backup>]` to list and restore the
-      automatic database backups; there is no command for it now.
+- [ ] **Restore the database from a backup.** (p3) [feature] `db --restore [<backup>]` to list and restore the
+      automatic database backups.
+- [ ] **Record `check --fix` changes.** (p3) [feature] once `check --fix` exists it writes through
+      `lib/metadata/write.js` and is recorded automatically; make sure its run archives (the `archive` flag) so
+      `undo` covers it.
+- [x] **Tag change journal and `undo`.** (p1) [feature] `tag_changes` (schema 5) through `lib/history/journal.js`;
+      `musicman undo [<run> | --list] [--dry-run] [--force]`.
+- [x] **Spotify change journal and undo.** (p1) [feature] `spotify_changes` and the snapshot before each push;
+      undo puts removed tracks back at their old position.
+- [x] **`sync --backup`.** (p1) [feature] mirrors the library to `/mnt/nfs/Music`, confirming first, deletions
+      opt-in, refusing to overwrite a backup file whose tag has frames the library copy lacks.
+- [x] **Progress feedback for `sync --backup`.** (p2) [feature] status line while comparing, bytes with rate and
+      ETA while copying (1.27.0).
 
-## Housekeeping
+## 11. Research and other services
 
-- [ ] (p3) [chore] Remove `install.sh`: it is a copy of the nvm installer, unrelated to musicman.
-- [ ] (p3) [chore] Remove stale tracked files: `cli/test_output.txt`, `cli/test_output2.txt`, `cli/SESSION_SUMMARY.md`,
-      `cli/CONTEXT.md` (superseded by root `CONTEXT.md`).
-- [ ] (p3) [chore] Remove or update the untracked repo copy of `.musicmanrc.yml` (old config format).
-- [ ] (p3) [docs] Update the stale "Current Session Context" section in `cli/CLAUDE.md`.
+- [ ] **Smart playlists on Spotify.** (p3) [feature] generate playlists from the library's own metadata (context,
+      mood, picks, rating, grouping, Spotify genres and popularity) instead of only fixed filters, and push them like
+      the mapped playlists. First look into services or libraries that build better smart playlists from that kind
+      of metadata.
+- [ ] **Mood analysis services.** (p3) [feature] evaluate APIs that tag songs with moods (to fill or suggest the
+      `mood` tag and replace the blocked Spotify audio features): bridge.audio, SonoTeller, Cyanite.ai, Musiio, AIMS
+      API. Compare coverage, price, whether they analyze uploaded audio or only catalogue ids, and rate limits.
+- [ ] **Lyrics analysis and sources.** (p3) [feature] evaluate Musixmatch Pro, lyricsgenius (Genius), and
+      LRCLIB/lrcget (synced LRC lyrics, free and offline friendly) as sources for the Lyrics item and for lyric based
+      tags (themes, explicitness, language).
+- [ ] **Genre analysis services.** (p3) [feature] evaluate Every Noise at Once, Chosic music genre finder, PitchPlus,
+      and SubmitHub "What's my genre" for finer genres than Spotify's artist genres, to help guess groupings.
+      Several are websites without an API, so check what can be automated.
+- [ ] **Other music services.** (p3) [feature] support services besides Spotify (e.g. YouTube Music, SoundCloud) for
+      matching, playlist sync, and playback, starting with which ones have a usable API.
+
+## 12. Tooling
+
+- [ ] **Test tooling.** (p3) [chore] `cli` is on mocha 8, chai 4, sinon 10, sinon-chai 3, and nyc 15
+      (`test:coverage`); move to current mocha, chai (ESM only from 5, so check `require` support), sinon,
+      sinon-chai, and c8. Replace `cli/.mocharc.yml`, which is the full example config with placeholder values,
+      with the few settings used (`spec`, `require: test/setup.js`).
+- [ ] **Package versions.** (p3) [chore] releases bump only the root `package.json` (1.31.0, shown by
+      `musicman --version`), while `cli/package.json` says 1.2.0 and `common/package.json` 1.0.0. Drop the
+      version field from the private workspace packages, or have `pnpm release` bump them with the root.
+- [ ] **Commit hooks.** (p3) [chore] `husky` and commitlint are installed; `.husky/post-commit` only runs
+      `scripts/publish-local.sh`, and `.commitlintrc.js` is not run by any hook. Either wire commitlint into a
+      `commit-msg` hook or remove it, and decide between gitmoji (`commitlint-config-gitmoji`) and plain
+      conventional commits (`@commitlint/config-conventional`, what the history uses); both are installed.
+- [ ] **Prettier config at the root.** (p3) [chore] only `cli/` has a `.prettierrc`, so root files (`scripts/`,
+      `README.md`, `common/`) format with whatever global config is found; they were formatted with
+      `--config cli/.prettierrc`. Move the config to the root and add `scripts/` to `pnpm format`.
+- [ ] **`todos` script.** (p3) [chore] `pnpm todos` runs `leasot` on `cli/config` (gone) and `server/`; the code
+      has no TODO comments left, so remove the script and the `leasot` devDependency.
+- [ ] **Stray `vnull` tag.** (p3) [chore] an annotated tag `vnull` ("chore(release): null", 2025-07-27, 25cadb8)
+      from a broken release, locally and on the remote; delete it (`git tag -d vnull`, `git push origin :vnull`).
+- [x] **ESLint migration.** (p2) [chore] ESLint 10 flat config, `eslint-config-prettier`, Prettier 3 separately.
+- [x] **Release tooling.** (p3) [chore] `pnpm release` runs `commit-and-tag-version` (`.versionrc.json`).
+- [x] **CHANGELOG.md format.** (p3) [docs] Keep a Changelog, written by hand under `[Unreleased]`;
+      `scripts/release-changelog.js` moves the entries into the new version's section.
+- [x] **Tests for `utils/logger.js` verbosity levels and padding.** (p3) [test] `logger.spec.js` covers verbosity,
+      the padding in `availableWidth`, the status line, the log file, and level badges.
+- [x] **Tests for the notify daemon's notification arguments.** (p3) [test] `lib/notify/notification.spec.js`.
+
+## 13. Housekeeping
+
+- [ ] **Remove stale tracked files.** (p3) [chore] `cli/test_output.txt`, `cli/test_output2.txt`,
+      `cli/SESSION_SUMMARY.md`, and `cli/CONTEXT.md` (superseded by the root `CONTEXT.md`); `docs/scratch.md` holds
+      early notes on `library.tags` that the config now implements.
+- [ ] **Placeholder `server/` and `client/`.** (p3) [chore] untouched since 2020, not in the pnpm workspace, and the
+      server no longer starts (`require('../../../common/config')` returns the module, not a config). Remove them,
+      or move them out of the repo until a server is planned.
+- [ ] **Refresh the developer docs.** (p3) [docs] `cli/CLAUDE.md` lists the commands as view, edit, playlist, stats,
+      quotes 91 passing tests and nyc coverage, and ends with a stale "Current Session Context"; root `CONTEXT.md`
+      says commits use gitmoji; `docs/01-outline.md` shows a 2020 layout without `db/`, `sync/`, `spotify/`,
+      `menu/`, or `history/`. Bring them in line with the code, or point them at the README.
+- [ ] **Delete the local `install.sh`.** (p3) [chore] an untracked copy of the nvm installer, ignored by a
+      `.gitignore` entry of its own; delete the file and that entry.
+- [ ] **Remove or update the untracked repo copy of `.musicmanrc.yml`.** (p3) [chore] it uses the old config format
+      and shows up in `git status`; the real config is `~/.musicmanrc.yml`.

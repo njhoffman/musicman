@@ -1,7 +1,11 @@
 const PrettyError = require('pretty-error');
 const { loadConfig } = require('musicman-common/config');
 
+const _ = require('lodash');
+
 const commandParser = require('./parser/index.js');
+const commands = require('./commands/index.js');
+const { defaultArgs } = require('./commands/status.js');
 const { getAvailableSong } = require('./clients/mpd.js');
 const { helpOutput } = require('./help.js');
 const { completionOutput } = require('./completion/index.js');
@@ -15,7 +19,8 @@ const { version } = require('../../package.json');
 
 const pe = new PrettyError();
 
-const run = async args => {
+const run = async givenArgs => {
+  let args = givenArgs;
   // help and version work before (and without) a config
   const help = helpOutput(args, version);
   if (help !== null) {
@@ -48,7 +53,11 @@ const run = async args => {
   logger.configureLogFile(config.logger.file);
   logger.configureColors(config.logger.colors);
 
-  const currentSong = await getAvailableSong(config.mpd);
+  args = await defaultArgs(args, config);
+  // only commands that can act on the playing song wait for MPD to name it
+  const named = _.find(commands, { name: args[0] });
+  const currentSong =
+    named && named.targetArgs === false ? false : await getAvailableSong(config.mpd);
   let parsed;
   try {
     parsed = commandParser({ args, currentSong, config });

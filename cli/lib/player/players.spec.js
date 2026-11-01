@@ -44,6 +44,9 @@ describe('Menu players', () => {
       expect(status).to.deep.equal({
         state: 'playing',
         volume: 40,
+        shuffle: null,
+        repeat: null,
+        queue: null,
         track: {
           file: '/music/Rated/a.mp3',
           title: 'Riders: on the Storm',
@@ -53,6 +56,32 @@ describe('Menu players', () => {
           duration: 200.1
         }
       });
+    });
+
+    it('should report random, repeat, single and the queue position like Spotify modes', async () => {
+      const reply = extra =>
+        fakeConnect({
+          status: `state: pause\nvolume: n/a\nsong: 11\nplaylistlength: 340\n${extra}`,
+          currentsong: 'file: a.mp3\n'
+        }).connect;
+      const playlist = await mpdPlayer(config, {
+        connect: reply('random: 1\nrepeat: 1\nsingle: 0\n')
+      }).state();
+      expect(playlist).to.include({
+        state: 'paused',
+        volume: null,
+        shuffle: true,
+        repeat: 'playlist'
+      });
+      expect(playlist.queue).to.deep.equal({ position: 12, length: 340 });
+      const track = await mpdPlayer(config, {
+        connect: reply('random: 0\nrepeat: 1\nsingle: 1\n')
+      }).state();
+      expect(track).to.include({ shuffle: false, repeat: 'track' });
+      const off = await mpdPlayer(config, {
+        connect: reply('random: 0\nrepeat: 0\nsingle: 1\n')
+      }).state();
+      expect(off.repeat).to.equal('off');
     });
 
     it('should report a state of null when MPD cannot be reached', async () => {

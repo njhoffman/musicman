@@ -67,6 +67,12 @@ const configSchema = {
       ratings: { type: 'array', required: false }
     }
   },
+  status: {
+    type: 'object',
+    properties: {
+      icons: { type: 'boolean', required: false }
+    }
+  },
   shuffle: {
     type: 'object',
     properties: {

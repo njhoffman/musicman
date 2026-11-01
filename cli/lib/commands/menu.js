@@ -3,7 +3,7 @@ const fs = require('fs');
 
 const { Menu, notifyError } = require('../menu/menu.js');
 const { songActions: createSongActions } = require('../menu/actions.js');
-const { mpdPlayer, spotifyPlayer } = require('../menu/players.js');
+const { mpdPlayer, spotifyPlayer } = require('../player/players.js');
 const { panelTheme, panelView } = require('../menu/rofi.js');
 const { lazyUserClient } = require('../spotify/userClient.js');
 const { autoBackup, getMeta, openLibrary } = require('../db/index.js');
