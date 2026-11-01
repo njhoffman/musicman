@@ -12,7 +12,7 @@ const { completionOutput } = require('./completion/index.js');
 const parseSwitches = require('./parser/options/switches.js');
 const { outputFormat } = require('./output/formats.js');
 const logger = require('./utils/logger.js');
-const { archives, finishRun, startRun } = require('./utils/runs.js');
+const { archives, finishRun, runsDirectory, startRun } = require('./utils/runs.js');
 const { beginJournal, endJournal } = require('./history/journal.js');
 const { autoBackup } = require('./db/index.js');
 const { version } = require('../../package.json');
@@ -32,7 +32,15 @@ const run = async givenArgs => {
   try {
     completion = completionOutput(args, {
       version,
-      fields: () => loadConfig().library.tags.map(({ name }) => name)
+      library: () => {
+        const config = loadConfig();
+        return {
+          tags: config.library.tags,
+          db: config.db.path,
+          runsDirectory: runsDirectory(config),
+          ratingMax: config.rating.max
+        };
+      }
     });
   } catch (err) {
     logger.error(err.message);

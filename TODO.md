@@ -71,18 +71,13 @@ Reviewed: 2026-11-01
 
 ## 4. Command line and output
 
-- [ ] **Complete tag values and run ids in zsh.** (p3) [feature] `lib/completion/zsh.js` stops after `field:` and
-      `field=`, and offers only `latest` for `undo` and `logs`. Values from the library database and run ids
-      from `listRuns` need a fast hidden path (`musicman completion values <field>`) called at Tab time;
-      measure the node startup cost first (about 0.8 s for a command now).
-- [ ] **Complete `spotify` and `shuffle` arguments in zsh.** (p3) [feature] `musicman spotify` takes
-      `shuffle on|off|toggle` and `repeat off|playlist|track|next`, and `musicman shuffle` takes `liked`, playlist
-      names, or filters; the completion offers none of them. Settings are static; playlist names would come from the
-      cached `spotify_playlists` table through the hidden values path above.
-- [ ] **Unquoted `~field:` exclusions do not complete in zsh.** (p3) [feature] zsh sends a word that starts with an
-      unquoted `~` to the `-tilde-` context, so `_musicman` never runs; `\~mood:` and `'~mood:` complete.
-      A fix binds a `-tilde-` wrapper that calls `_musicman_fields` for musicman and `_tilde` otherwise,
-      which touches every command's tilde completion.
+- [x] **Complete tag values and run ids in zsh.** (p3) [feature] node needed 0.35-1.9 s per Tab, so the script
+      reads values with the `sqlite3` command (about 20 ms) and globs the runs directory, both paths fixed at
+      generation like the field names.
+- [x] **Complete `spotify` and `shuffle` arguments in zsh.** (p3) [feature] `spotify` declares its setting
+      `pairs`; `shuffle` completes `liked`, the cached `spotify_playlists` names, and filters.
+- [x] **Unquoted `~field:` exclusions do not complete in zsh.** (p3) [feature] the script is `#compdef musicman
+      -tilde-`: fields for musicman, `_tilde` for other commands. Another plugin binding `-tilde-` later wins.
 - [ ] **Smarter terminal fitting.** (p3) [feature] for the table view: shrink the widest columns instead of dropping
       the rightmost ones.
 - [ ] **List headers and table row separators.** (p3) [feature] honor `views.list.headers.visible` (the list view

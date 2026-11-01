@@ -66,6 +66,8 @@ module.exports = {
   usage,
   switches: [],
   completes: [],
+  // each setting word is followed by one of its modes
+  pairs: { shuffle: shuffleModes, repeat: repeatModes },
   func: reportErrors(spotifyCommand),
   run: spotifyCommand,
   defaultTarget,

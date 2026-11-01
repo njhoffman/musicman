@@ -6,6 +6,22 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- zsh completion of tag values after `field:` and `field=` (one more after each comma, and after `+` or
+  `-` in an assignment), rating steps after `rating:`, run ids for `undo` and `logs`, `liked` and the
+  cached Spotify playlist names for `shuffle`, and `shuffle on|off|toggle` and `repeat
+  off|playlist|track|next` for `spotify`. Values and playlist names are read from the library database
+  with the `sqlite3` command when Tab is pressed (no node startup); without `sqlite3` only the field names
+  complete.
+
+### Fixed
+
+- Unquoted `~field:` exclusions complete in zsh. The script also completes the `-tilde-` context: field
+  names and values for `musicman`, the usual home directories for every other command.
+
+Generate the script again (`musicman completion zsh > ~/.zsh/completions/_musicman`) to get these.
+
 ## [1.38.0] - 2026-11-01
 
 ### Added

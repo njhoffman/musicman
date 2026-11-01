@@ -15,11 +15,11 @@ const completionCommand = {
 };
 
 /**
- * The completion script when args are musicman completion <shell>, otherwise null. fields() gives the
- * field names to complete and is only called when a script is generated. Throws for a missing or
- * unknown shell.
+ * The completion script when args are musicman completion <shell>, otherwise null. library() gives what
+ * the script completes from, { tags (library.tags), db, runsDirectory, ratingMax }, and is only called
+ * when a script is generated. Throws for a missing or unknown shell.
  */
-const completionOutput = (args, { version, fields }) => {
+const completionOutput = (args, { version, library }) => {
   if (args[0] !== completionCommand.name) {
     return null;
   }
@@ -27,7 +27,7 @@ const completionOutput = (args, { version, fields }) => {
   if (!render) {
     throw new Error(`musicman completion takes a shell: ${shells.join(', ')}`);
   }
-  return render(completionModel({ fields: fields(), shells, completionCommand }), { version });
+  return render(completionModel({ ...library(), shells, completionCommand }), { version });
 };
 
 module.exports = { completionCommand, completionOutput, shells };
