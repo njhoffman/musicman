@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Removed
+
+- The unused `library.tagId` option; musicman always reads and writes ID3v2.3 frames. A config that still sets
+  it gets an unknown option warning.
+
 ### Changed
 
 - The table view option `views.table.seperators` is now spelled `views.table.separators`; a config that still

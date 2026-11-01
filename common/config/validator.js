@@ -124,7 +124,6 @@ const configSchema = {
   library: {
     type: 'object',
     properties: {
-      tagId: { type: 'string', required: false },
       basePath: { type: 'string', required: false },
       tags: { type: 'array', required: false }
     }

@@ -8,6 +8,9 @@ const config = require('../../../common/config');
 
 const router = new Router();
 
+// musicman writes ID3v2.3 frames (node-id3, beets id3v23: true)
+const tagId = 'ID3v2.3';
+
 module.exports = modules => {
   router.get('/scan', async (req, res) => {
     const { basePath } = config.library;
@@ -15,7 +18,7 @@ module.exports = modules => {
     const filePaths = files.map(file => path.join(basePath, file));
 
     // const fileLookups = filePaths.map(filePath => parseFile(filePath));
-    const { tagId, tags } = config.library;
+    const { tags } = config.library;
     const metadata = await Promise.all(
       filePaths.map(filePath =>
         parseFile(filePath, { native: true }).then(({ native }) => {

@@ -40,10 +40,9 @@ Reviewed: 2026-10-31
       (`cli/lib/commands/common.js`) reported memory overflow reading the whole library from disk. Check peak memory
       of `stats --files` on the full library; reading in batches (as `db/update.js` does) would bound it.
 
-- [ ] **`library.tagId` is not used.** (p3) [chore] Decided to stay on ID3v2.3 (all sampled files, beets `id3v23: true`,
-      and node-id3 all use v2.3); `year` now maps to `TYER`. `library.tagId` is set to `ID3v2.3` but nothing
-      reads it. Either use it to pick v2.3/v2.4 frames for date tags or remove it. Revisit v2.4 only together
-      with beets `id3v23: false` and a v2.4-capable writer.
+- [x] **`library.tagId` is not used.** (p3) [chore] Removed: musicman stays on ID3v2.3 (all sampled files, beets
+      `id3v23: true`, and node-id3 use v2.3; `year` maps to `TYER`). The placeholder server route that read it now
+      uses `ID3v2.3` directly. Revisit v2.4 only together with beets `id3v23: false` and a v2.4-capable writer.
 - [ ] **Clean up duplicate TXXX fields.** (p2) [chore] `stats` shows case and spelling variants of the same field
       (`Comment`/`COMMENT`, `ALBUMARTISTS`/`ALBUM_ARTISTS`, `ARTISTS`/`Artists`) from different taggers.
       Decide which to keep and consolidate them, possibly through beets.

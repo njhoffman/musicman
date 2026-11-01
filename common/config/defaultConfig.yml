@@ -241,8 +241,6 @@ tags:
 
 # Music library settings
 library:
-  # ID3 tag version to use for metadata
-  tagId: ID3v2.3
   # Base path for music library scanning
   basePath: "/home/nicholas/Music"
   # Tags that are read, edited, filtered, and displayed - essential for playlists and basic info
