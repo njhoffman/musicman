@@ -115,7 +115,51 @@ describe('Library checks', () => {
 
   it('should group multi values that differ only in case', () => {
     expect(check(library.caseVariants)).to.deep.equal([
-      { file: null, detail: 'context: Study (2) / study (1)' }
+      {
+        file: null,
+        detail: 'context: Study (2) / study (1)',
+        field: 'context',
+        frame: 'TXXX.Context',
+        values: ['Study', 'study']
+      }
+    ]);
+  });
+
+  it('should measure edits between words, a swap of neighbors as one', () => {
+    expect(library.editDistance('Ubpeat', 'Upbeat')).to.equal(1);
+    expect(library.editDistance('Groovy', 'Gloomy')).to.equal(2);
+    expect(library.editDistance('Study', 'study')).to.equal(0);
+    expect(library.editDistance('', 'abc')).to.equal(3);
+  });
+
+  it('should report values few songs use, with a close common value when there is one', () => {
+    const rareConfig = {
+      ...config,
+      stats: { multiFields: ['mood'] },
+      check: { rareCount: 2 }
+    };
+    ['e', 'f', 'g'].forEach(name => addSong(`${name}.mp3`, { 'TXXX.Mood': 'Upbeat' }));
+    addSong('h.mp3', { 'TXXX.Mood': ['Ubpeat', 'Gloomy'] });
+    addSong('i.mp3', { 'TXXX.Mood': 'Gloomy', 'TXXX.Context': 'Lone' });
+    songs = db.prepare('SELECT id, path, duration, mb_track_id FROM songs').all();
+    const findings = library.withScope(db, songs, () =>
+      library.rare({ db, config: rareConfig, songs })
+    );
+    expect(
+      findings.map(({ field, value, files, suggestion }) => [field, value, files, suggestion])
+    ).to.deep.equal([
+      ['mood', 'Ubpeat', ['h.mp3'], 'Upbeat'],
+      ['mood', 'Gloomy', ['h.mp3', 'i.mp3'], null]
+    ]);
+    expect(findings[0].detail).to.equal('mood:Ubpeat (1 song), maybe Upbeat (3): h.mp3');
+    // counted over the whole library, listed only for the checked songs
+    const narrowed = library.withScope(
+      db,
+      songs.filter(({ path }) => path === 'i.mp3'),
+      () => library.rare({ db, config: rareConfig, songs })
+    );
+    expect(narrowed.map(({ value, files }) => [value, files])).to.deep.equal([
+      ['Gloomy', ['i.mp3']]
     ]);
   });
 

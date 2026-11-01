@@ -153,10 +153,93 @@ const caseVariants = ({ db, config }) => {
       _.groupBy(rows, ({ value }) => _.toLower(_.trim(value))),
       group => group.length > 1
     );
-    return _.map(groups, group => ({
-      file: null,
-      detail: `${name}: ${_.map(_.orderBy(group, 'count', 'desc'), ({ value, count }) => `${value} (${count})`).join(' / ')}`
-    }));
+    return _.map(groups, group => {
+      const ordered = _.orderBy(group, ['count', 'value'], ['desc', 'asc']);
+      return {
+        file: null,
+        detail: `${name}: ${_.map(ordered, ({ value, count }) => `${value} (${count})`).join(' / ')}`,
+        field: name,
+        frame: id,
+        // the most used casing first, the one a fix keeps
+        values: _.map(ordered, 'value')
+      };
+    });
+  });
+};
+
+// songs at most this many using a value make it rare (check.rareCount)
+const defaultRareCount = 3;
+
+// edits (insert, delete, change, swap of neighbors) between two words, compared without case
+const editDistance = (first, second) => {
+  const a = _.toLower(first);
+  const b = _.toLower(second);
+  const rows = _.range(a.length + 1).map(i => [i, ..._.fill(Array(b.length), 0)]);
+  _.range(1, b.length + 1).forEach(j => {
+    rows[0][j] = j;
+  });
+  _.range(1, a.length + 1).forEach(i =>
+    _.range(1, b.length + 1).forEach(j => {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      rows[i][j] = Math.min(rows[i - 1][j] + 1, rows[i][j - 1] + 1, rows[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        rows[i][j] = Math.min(rows[i][j], rows[i - 2][j - 2] + 1);
+      }
+    })
+  );
+  return rows[a.length][b.length];
+};
+
+// edits a value may be from a common one to suggest it: one for short words, two from 8 letters
+const closeEdits = value => (value.length >= 8 ? 2 : value.length > 3 ? 1 : 0);
+
+/**
+ * Values of the tagging fields (stats.multiFields: context, mood, picks) used by at most check.rareCount
+ * songs, counted over the whole library: new values, or mistyped or misplaced ones. Each finding lists
+ * the checked songs using it and, when a common value of the field is within two edits, suggests it.
+ */
+const rare = ({ db, config }) => {
+  const limit = _.get(config, 'check.rareCount', defaultRareCount);
+  const fields = _.filter(_.get(config, 'library.tags'), ({ name }) =>
+    _.includes(_.get(config, 'stats.multiFields', []), name)
+  );
+  return _.flatMap(fields, ({ name, id }) => {
+    const counts = db
+      .prepare(
+        'SELECT value, COUNT(DISTINCT song_id) AS count FROM song_tags WHERE frame_id = ? GROUP BY value'
+      )
+      .all(id);
+    const common = _.filter(counts, ({ count }) => count > limit);
+    const usedBy = db.prepare(
+      `SELECT songs.path FROM song_tags t JOIN check_scope s ON s.id = t.song_id
+       JOIN songs ON songs.id = t.song_id WHERE t.frame_id = ? AND t.value = ? ORDER BY songs.path`
+    );
+    return _.compact(
+      _.map(
+        _.sortBy(
+          _.filter(counts, ({ count }) => count <= limit),
+          ['count', 'value']
+        ),
+        ({ value, count }) => {
+          const files = _.map(usedBy.all(id, value), 'path');
+          if (files.length === 0) {
+            return null;
+          }
+          const close = _.minBy(
+            _.filter(common, other => editDistance(value, other.value) <= closeEdits(value)),
+            other => editDistance(value, other.value)
+          );
+          return {
+            file: null,
+            detail: `${name}:${value} (${plural(count, 'song')})${close ? `, maybe ${close.value} (${close.count})` : ''}: ${files.join('  |  ')}`,
+            field: name,
+            value,
+            files,
+            suggestion: close ? close.value : null
+          };
+        }
+      )
+    );
   });
 };
 
@@ -312,7 +395,10 @@ const duplicates = ({ db, songs }) => {
 };
 
 module.exports = {
+  standardFrames,
   caseVariants,
+  editDistance,
+  rare,
   duplicates,
   encoding,
   leftoverSpotifyFrame,

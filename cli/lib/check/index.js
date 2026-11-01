@@ -2,6 +2,7 @@ const _ = require('lodash');
 const path = require('path');
 
 const library = require('./library.js');
+const { exclusive } = require('./playlists.js');
 const { fileChecks } = require('./files.js');
 
 /**
@@ -52,6 +53,13 @@ const checks = [
     run: library.caseVariants
   },
   {
+    name: 'rare',
+    source: 'db',
+    unit: 'value',
+    description: 'context, mood, and picks values only a few songs have',
+    run: library.rare
+  },
+  {
     name: 'rating',
     source: 'db',
     unit: 'file',
@@ -71,6 +79,13 @@ const checks = [
     unit: 'group',
     description: 'the same song in more than one file',
     run: library.duplicates
+  },
+  {
+    name: 'exclusive',
+    source: 'db',
+    unit: 'song',
+    description: 'songs in more than one rating or grouping playlist',
+    run: exclusive
   }
 ];
 
