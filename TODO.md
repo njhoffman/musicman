@@ -287,9 +287,10 @@ Reviewed: 2026-11-01
 - [x] **Menu: redraw when the song changes.** (p3) [feature] the menu shows the song as it was when drawn; a song that
       ends while it is open stays shown until the next press. rofi has no timer, so this would need closing and
       reopening it from a player event (MPD idle, MPRIS PropertiesChanged).
-- [ ] **Lyrics.** (p3) [feature] fetch lyrics for the playing song (embedded USLT first, then an online source) and
+- [x] **Lyrics.** (p3) [feature] fetch lyrics for the playing song (embedded USLT first, then an online source) and
       show them like Spotify's mini player, scrolling along with the playback position when the lyrics are synced
-      (LRC).
+      (LRC). Moved to sleeve (`~/ghq/github.com/njhoffman/sleeve`), which reads the playing song itself and
+      finds library files for Spotify tracks through musicman's contract (docs/09-contract.md, 1.55.0).
 - [x] **`musicman shuffle` and Spotify shuffle and repeat.** (p2) [feature] 1.31.0: a source in uniformly random
       order written to one reused playlist and started as a track list through the Web API; `musicman spotify`
       and the menu's `u`, `r`, and `o` buttons. Spotify keeps API-created playlists public (documented in the
@@ -343,9 +344,9 @@ database backups (`db.autoBackup`) have no restore command.
 - [ ] **Mood analysis services.** (p3) [feature] evaluate APIs that tag songs with moods (to fill or suggest the
       `mood` tag and replace the blocked Spotify audio features): bridge.audio, SonoTeller, Cyanite.ai, Musiio, AIMS
       API. Compare coverage, price, whether they analyze uploaded audio or only catalogue ids, and rate limits.
-- [ ] **Lyrics analysis and sources.** (p3) [feature] evaluate Musixmatch Pro, lyricsgenius (Genius), and
-      LRCLIB/lrcget (synced LRC lyrics, free and offline friendly) as sources for the Lyrics item and for lyric based
-      tags (themes, explicitness, language).
+- [ ] **Lyrics analysis and sources.** (p3) [feature] lyric based tags (themes, explicitness, language). Fetching
+      lyrics belongs to sleeve, which has LRCLIB and NetEase; build on its lyrics (`sleeve lyrics --json`) rather
+      than evaluating sources again here.
 - [ ] **Genre analysis services.** (p3) [feature] evaluate Every Noise at Once, Chosic music genre finder, PitchPlus,
       and SubmitHub "What's my genre" for finer genres than Spotify's artist genres, to help guess groupings.
       Several are websites without an API, so check what can be automated.

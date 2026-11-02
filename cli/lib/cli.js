@@ -15,9 +15,19 @@ const logger = require('./utils/logger.js');
 const { archives, finishRun, runsDirectory, startRun } = require('./utils/runs.js');
 const { beginJournal, endJournal } = require('./history/journal.js');
 const { autoBackup } = require('./db/index.js');
+const { publishPaths } = require('./utils/paths.js');
 const { version } = require('../../package.json');
 
 const pe = new PrettyError();
+
+// paths.json for other programs (sleeve); a failure to write it never stops musicman
+const sharePaths = config => {
+  try {
+    publishPaths(config);
+  } catch (err) {
+    logger.warn(`Could not write paths.json: ${err.message}`);
+  }
+};
 
 const run = async givenArgs => {
   let args = givenArgs;
@@ -60,6 +70,7 @@ const run = async givenArgs => {
   }
   logger.configureLogFile(config.logger.file);
   logger.configureColors(config.logger.colors);
+  sharePaths(config);
 
   args = await defaultArgs(args, config);
   // only commands that can act on the playing song wait for MPD to name it

@@ -93,6 +93,28 @@ describe('Database', () => {
       }
     });
 
+    it('should list library files by Spotify track id in spotify_track_files, marking excluded copies', () => {
+      const song = db.prepare(
+        'INSERT INTO songs (path, mtime, size, duration) VALUES (?, 0, 0, ?)'
+      );
+      const tag = db.prepare('INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, ?, ?)');
+      const kept = song.run('A/kept.mp3', 201.5).lastInsertRowid;
+      const copy = song.run('A/copy.mp3', 201.4).lastInsertRowid;
+      tag.run(kept, 'TXXX.sp_track_id', 'track1');
+      tag.run(kept, 'TXXX.sp_album_id', 'album1');
+      tag.run(copy, 'TXXX.sp_track_id', 'track1');
+      db.prepare(
+        "INSERT INTO excluded_songs (path, track_id) VALUES ('A/copy.mp3', 'track1')"
+      ).run();
+      const rows = db
+        .prepare('SELECT * FROM spotify_track_files WHERE track_id = ? ORDER BY excluded, path')
+        .all('track1');
+      expect(rows.map(row => ({ ...row }))).to.deep.equal([
+        { track_id: 'track1', path: 'A/kept.mp3', duration: 201.5, excluded: 0 },
+        { track_id: 'track1', path: 'A/copy.mp3', duration: 201.4, excluded: 1 }
+      ]);
+    });
+
     it('should refuse a database with a newer schema version', () => {
       db.exec(`PRAGMA user_version = ${migrations.length + 1}`);
       expect(() => migrate(db)).to.throw('newer than this musicman supports');

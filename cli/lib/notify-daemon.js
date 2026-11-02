@@ -6,6 +6,7 @@ const { getFilteredFiles } = require('./commands/common.js');
 const { openLibrary } = require('./db/index.js');
 const { libraryDb, watchSongs } = require('./notify/notification.js');
 const { mpdPlayer, spotifyPlayer } = require('./player/players.js');
+const { publishPaths } = require('./utils/paths.js');
 
 const pe = new PrettyError();
 
@@ -13,6 +14,13 @@ const config = loadConfig({ create: true });
 logger.configure(config.output);
 logger.configureLogFile(config.logger.file);
 logger.configureColors(config.logger.colors);
+
+// paths.json for other programs (sleeve), also when only the daemon runs after a config change
+try {
+  publishPaths(config);
+} catch (err) {
+  logger.warn(`Could not write paths.json: ${err.message}`);
+}
 
 // the parsed tags of one file, read from the file
 const readSong = async file => {

@@ -98,6 +98,7 @@ Configuration: defaults in `common/config/defaultConfig.yml`, your overrides in 
 | Sync runbook               | [docs/06-spotify-sync-runbook.md](docs/06-spotify-sync-runbook.md) |
 | rofi menu                  | [docs/07-menu.md](docs/07-menu.md)                                 |
 | Library checks             | [docs/08-check.md](docs/08-check.md)                               |
+| Contract for other tools   | [docs/09-contract.md](docs/09-contract.md)                         |
 | Changes by version         | [CHANGELOG.md](CHANGELOG.md)                                       |
 | Known issues and plans     | [TODO.md](TODO.md)                                                 |
 

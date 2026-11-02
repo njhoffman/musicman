@@ -8,6 +8,8 @@
 // 7: spotify_playlist_tracks.isrc (other releases of a library song), cached playlists fetched again
 // 8: file_changes (files a run moved, e.g. duplicates to the trash, for musicman undo)
 // 9: excluded_songs (duplicate copies kept on disk but out of the library and Spotify)
+// 10: spotify_track_files, a view other programs (sleeve) read: the library files tagged with a Spotify
+//     track id. A contract, see docs/09-contract.md: keep its columns when the tables change.
 module.exports = [
   `
   CREATE TABLE songs (
@@ -151,5 +153,12 @@ module.exports = [
     excluded_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX excluded_songs_track ON excluded_songs (track_id);
+  `,
+  `
+  CREATE VIEW spotify_track_files AS
+    SELECT t.value AS track_id, s.path AS path, s.duration AS duration,
+      EXISTS (SELECT 1 FROM excluded_songs e WHERE e.path = s.path) AS excluded
+    FROM song_tags t JOIN songs s ON s.id = t.song_id
+    WHERE t.frame_id = 'TXXX.sp_track_id';
   `
 ];

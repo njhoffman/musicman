@@ -6,6 +6,18 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- A contract for programs that build on musicman, starting with sleeve (synced lyrics): `paths.json` in
+  `$XDG_STATE_HOME/musicman/` says where MPD, the library and its database are, rewritten by the cli and the
+  notify daemon when the config changes; the database's new `spotify_track_files` view lists the library files
+  for each Spotify track id. Both are described in `docs/09-contract.md`.
+
+### Changed
+
+- The database moves to schema 10 (the view) the first time this version opens it; older versions refuse it
+  afterwards, so update the notify daemon along with the cli.
+
 ## [1.54.0] - 2026-11-02
 
 ### Added
