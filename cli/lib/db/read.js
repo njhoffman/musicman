@@ -1,6 +1,7 @@
 const _ = require('lodash');
 const fs = require('fs');
 const path = require('path');
+const { excludedPaths } = require('./exclusions.js');
 
 // stored text frames are plain strings, other frames are JSON (cover art is a '1' marker)
 const toRawValue = (frameId, value) => {
@@ -68,8 +69,13 @@ const readStoredMetadata = (db, { config, files, onlyPaths = null }) => {
 
   const stored = [];
   const stale = [];
+  // songs taken out of the library (duplicate copies) are left out, though their files are on disk
+  const excluded = excludedPaths(db);
   _.each(files, file => {
     const relative = path.relative(baseDirectory, path.resolve(file));
+    if (excluded.has(relative)) {
+      return;
+    }
     const song = songs.get(relative);
     const stat = song && fs.statSync(file);
     if (!song || song.mtime !== Math.floor(stat.mtimeMs) || song.size !== stat.size) {

@@ -185,6 +185,18 @@ describe('Sync Cache and Plan', () => {
       expect(ids(liked.pull, 'track_id')).to.deep.equal(['elsewhere']);
     });
 
+    it('should remove the track of a song taken out of the library instead of pulling it', () => {
+      // 'elsewhere' was the track of a compilation copy dropped in favor of its album copy
+      db.prepare(
+        "INSERT INTO excluded_songs (path, track_id, kept) VALUES ('comp/e.mp3', 'elsewhere', 'a.mp3')"
+      ).run();
+      const [liked] = syncPlan(db, config, songs);
+      expect(liked.reject.map(track => [track.track_id, track.file])).to.deep.equal([
+        ['elsewhere', '/music/comp/e.mp3']
+      ]);
+      expect(liked.pull).to.be.empty;
+    });
+
     it('should list tracks rejected in review for removal instead of as downloads', () => {
       // 'elsewhere' was pushed for e.mp3, rejected in review, and e.mp3 is unlinked
       const songId = db.prepare("SELECT id FROM songs WHERE path = 'e.mp3'").get().id;

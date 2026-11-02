@@ -1,5 +1,6 @@
 const _ = require('lodash');
 const path = require('path');
+const { excludedPaths } = require('../db/exclusions.js');
 
 const library = require('./library.js');
 const { exclusive } = require('./playlists.js');
@@ -135,12 +136,16 @@ const runChecks = async ({ db, config, target, selected, listFiles, onProgress }
     );
   }
   const fromFiles = _.map(_.filter(selected, { source: 'files' }), 'name');
+  const excluded = fromFiles.length ? excludedPaths(db) : new Set();
   if (fromFiles.length) {
     Object.assign(
       results,
       await fileChecks({
         songs,
-        files: listFiles(path.resolve(target)),
+        // excluded songs (duplicate copies kept on disk) are not drift
+        files: _.reject(listFiles(path.resolve(target)), file =>
+          excluded.has(path.relative(baseDirectory, file))
+        ),
         baseDirectory,
         config,
         wanted: fromFiles,

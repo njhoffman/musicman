@@ -1,9 +1,11 @@
 const _ = require('lodash');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const NodeId3 = require('node-id3');
 
 const { execBeet } = require('../beets/sort.js');
+const { excludeSong } = require('../db/exclusions.js');
 const { journaledMatch, recordFileMove } = require('../history/journal.js');
 const { rewriteTags } = require('../metadata/write.js');
 const { rejectReview, spotifyIdFrame } = require('../sync/match.js');
@@ -39,8 +41,16 @@ const isNumbered = songPath => numberedKey(songPath) !== songPath;
 
 const unsorted = songPath => `${songPath}`.startsWith('Unrated/');
 
+// a copy in a Singles folder (or the unsorted _Singles), the only copies whose files are deleted
+const inSinglesFolder = songPath => /(^|\/)_?Singles\//.test(`${songPath}`);
+
+// an album copy filed under an artist (Rated/<genre>/<grouping>/Artists/<artist>/album/...)
+const artistAlbum = songPath =>
+  releaseType(songPath) === 'album' && /(^|\/)Artists\//.test(`${songPath}`);
+
 // version words in a file name that mark another recording of a song: Song (Arsenal mix).mp3
-const versionWords = /\b(re-?mix|mix|edit|live|acoustic|demo|instrumental|unplugged|session|vocal)\b/i;
+const versionWords =
+  /\b(re-?mix|mix|edit|live|acoustic|demo|instrumental|unplugged|session|vocal)\b/i;
 const versionOf = songPath => {
   const name = path.basename(`${songPath}`).replace(/\.mp3$/i, '');
   const qualifiers = name.match(/[([][^)\]]*[)\]]/g) || [];
@@ -65,24 +75,25 @@ const otherRecording = songPath => {
 };
 
 /**
- * What to do with one group of duplicates ({ path, mtime, rating }), by rules in order:
+ * What to do with one group of duplicates ({ path, mtime, rating, audio }), by rules in order:
  *   another recording (a live or remix release, or a version like a radio edit in the title) next to
- *   the song is a wrong match, not a duplicate: its match is cleared (clear), the file kept
+ *   the song is a wrong match, not a duplicate: its match is cleared so sync --match finds its own
+ *   track (clear), the file and the song stay
  *   a Rated copy wins over Unrated imports
- *   of numbered copies (Song.1.mp3 and Song.mp3 in one folder) the one without the number is kept,
- *   with the rating of the newer copy (mergedTags)
+ *   of numbered copies (Song.1.mp3 and Song.mp3) the one without the number wins when their audio is
+ *   the same; numbered copies with other audio are left to pick
  *   an album copy wins over an EP, an EP over a single, a single over a compilation (releaseRank)
- * Returns { keep, remove, clear, candidates, reasons }: keep is null when copies tie (the same single in
- * two grouping folders), and candidates lists the copies to pick the one to keep from.
+ * A losing copy's file goes to the trash only when it is a single in a Singles folder and an album copy
+ * under Artists is kept, or a numbered copy with the same audio (trash); any other losing copy leaves
+ * the library and Spotify but its file stays (exclude). Returns { keep, trash, exclude, clear,
+ * candidates, reasons }: keep is null when copies tie, and candidates lists the copies to pick from
+ * (the others are excluded, resolveGroup).
  */
 const planGroup = files => {
   const reasons = {};
-  const remove = [];
-  const drop = (items, reason) =>
-    _.each(items, item => {
-      remove.push(item.path);
-      reasons[item.path] = reason;
-    });
+  const trash = [];
+  const exclude = [];
+  const losers = [];
   let members = files;
   const [others, originals] = _.partition(members, item => otherRecording(item.path));
   const clear = others.length > 0 && originals.length > 0 ? _.map(others, 'path') : [];
@@ -94,7 +105,7 @@ const planGroup = files => {
   }
   const [imports, rated] = _.partition(members, item => unsorted(item.path));
   if (imports.length > 0 && rated.length > 0) {
-    drop(imports, 'Unrated import of a Rated song');
+    losers.push(..._.map(imports, item => ({ item, reason: 'Unrated import of a Rated song' })));
     members = rated;
   }
   _.each(
@@ -103,21 +114,61 @@ const planGroup = files => {
       group => group.length > 1
     ),
     group => {
+      const original = _.find(group, item => !isNumbered(item.path));
+      if (!original) {
+        return;
+      }
       // the file without the number keeps its name; the newer copy's rating reaches it (mergedTags)
-      const original = _.find(group, item => !isNumbered(item.path)) || _.minBy(group, 'path');
-      const copies = _.without(group, original);
-      drop(copies, 'numbered copy');
-      members = _.difference(members, copies);
+      const same = _.filter(
+        _.without(group, original),
+        item => item.audio && item.audio === original.audio
+      );
+      _.each(same, item => {
+        trash.push(item.path);
+        reasons[item.path] = 'numbered copy with the same audio';
+      });
+      members = _.difference(members, same);
     }
   );
   const rank = item => releaseRank[releaseType(item.path)];
   const best = _.min(_.map(members, rank));
   const [top, lower] = _.partition(members, item => rank(item) === best);
-  _.each(lower, item =>
-    drop([item], `${releaseType(item.path)} copy, the ${releaseType(top[0].path)} copy is kept`)
+  losers.push(
+    ..._.map(lower, item => ({
+      item,
+      reason: `${releaseType(item.path)} copy, the ${releaseType(top[0].path)} copy is kept`
+    }))
   );
+  const albumKept = top.length > 0 && _.every(top, item => artistAlbum(item.path));
+  _.each(losers, ({ item, reason }) => {
+    (inSinglesFolder(item.path) && albumKept ? trash : exclude).push(item.path);
+    reasons[item.path] = reason;
+  });
   const keep = top.length === 1 ? top[0].path : null;
-  return { keep, remove, clear, candidates: keep ? [] : _.map(top, 'path'), reasons };
+  return { keep, trash, exclude, clear, candidates: keep ? [] : _.map(top, 'path'), reasons };
+};
+
+/**
+ * A hash of a file's audio, without its ID3v2 tag at the start and ID3v1 tag at the end, so copies with
+ * other tags compare equal; null when it cannot be read.
+ */
+const audioHash = file => {
+  try {
+    const data = fs.readFileSync(file);
+    let start = 0;
+    if (data.length > 10 && data.toString('latin1', 0, 3) === 'ID3') {
+      // the tag size is syncsafe (7 bits per byte), plus the header and a footer when flagged
+      const size = (data[6] << 21) | (data[7] << 14) | (data[8] << 7) | data[9];
+      start = 10 + size + (data[5] & 0x10 ? 10 : 0);
+    }
+    const end =
+      data.length >= 128 && data.toString('latin1', data.length - 128, data.length - 125) === 'TAG'
+        ? data.length - 128
+        : data.length;
+    return crypto.createHash('sha1').update(data.subarray(start, end)).digest('hex');
+  } catch {
+    return null;
+  }
 };
 
 // file groups that share a file joined into one (a song duplicated by Spotify id and by MusicBrainz
@@ -135,9 +186,10 @@ const joinOverlapping = fileGroups => {
 
 /**
  * The duplicates findings of check (groups of files, overlapping ones joined) with the song rows the
- * plan needs: { files: [{ id, path, mtime, rating, trackId }] }.
+ * plan needs: { files: [{ id, path, mtime, rating, trackId, audio }] }, audio (audioHash) only for
+ * files with numbered copies, read from baseDirectory.
  */
-const duplicateGroups = (db, findings) => {
+const duplicateGroups = (db, findings, { baseDirectory, hash = audioHash } = {}) => {
   const select = db.prepare('SELECT id, path, mtime, rating FROM songs WHERE path = ?');
   const trackOf = db.prepare('SELECT value FROM song_tags WHERE song_id = ? AND frame_id = ?');
   return _.compact(
@@ -146,10 +198,20 @@ const duplicateGroups = (db, findings) => {
       if (rows.length < 2) {
         return null;
       }
+      const numbered = _.flatten(
+        _.filter(
+          _.groupBy(rows, row => numberedKey(row.path)),
+          group => group.length > 1
+        )
+      );
       return {
         files: _.map(rows, row => ({
           ...row,
-          trackId: _.get(trackOf.get(row.id, spotifyIdFrame), 'value') || null
+          trackId: _.get(trackOf.get(row.id, spotifyIdFrame), 'value') || null,
+          audio:
+            baseDirectory && numbered.includes(row)
+              ? hash(path.join(baseDirectory, row.path))
+              : null
         }))
       };
     })
@@ -157,16 +219,21 @@ const duplicateGroups = (db, findings) => {
 };
 
 /**
- * Plans every group: { groups: [{ files, keep, remove, clear, candidates, reasons }] }, groups with
- * nothing to do left out.
+ * Plans every group: [{ files, keep, trash, exclude, clear, candidates, reasons }], groups with nothing
+ * to do left out.
  */
 const planDuplicates = groups =>
   _.filter(
     _.map(groups, group => ({ ...group, ...planGroup(group.files) })),
-    ({ remove, clear, candidates }) => remove.length + clear.length + candidates.length > 0
+    ({ trash, exclude, clear, candidates }) =>
+      trash.length + exclude.length + clear.length + candidates.length > 0
   );
 
-// a group after the copy to keep was picked among its candidates (the others are removed)
+// the copies a group takes out of the library: trashed and excluded
+const removedCopies = group => [...group.trash, ...group.exclude];
+
+// a group after the copy to keep was picked among its candidates: the others leave the library, their
+// files stay (excluded)
 const resolveGroup = (group, keep) => {
   if (!keep) {
     return group;
@@ -176,10 +243,10 @@ const resolveGroup = (group, keep) => {
     ...group,
     keep,
     candidates: [],
-    remove: [...group.remove, ...others],
+    exclude: [...group.exclude, ...others],
     reasons: {
       ...group.reasons,
-      ..._.fromPairs(_.map(others, file => [file, 'picked to remove']))
+      ..._.fromPairs(_.map(others, file => [file, 'not the copy picked']))
     }
   };
 };
@@ -259,11 +326,13 @@ const moveFile = (from, to) => {
 };
 
 /**
- * Applies resolved groups (keep picked, no candidates left): merges the removed copies' multi value
- * fields and newer rating into the kept copy, clears the Spotify match of live copies (their id is
- * rejected for them, so sync --match looks them up again), and moves removed copies to the trash
- * (trashPath) after taking them out of beets, recorded for musicman undo. Removed songs leave the
- * database. Resolves to { merged, cleared, removed, failed } (failed: [{ file, error }]).
+ * Applies resolved groups (keep picked, no candidates left): merges the multi value fields and newer
+ * rating of the copies taken out into the kept copy, clears the Spotify match of other recordings
+ * (their id is rejected for them, so sync --match finds their own track), moves trashed copies to the
+ * trash (trashPath) after taking them out of beets, and excludes the others (out of the database and
+ * Spotify, files kept). Trashed and excluded songs are listed in excluded_songs with their Spotify
+ * track, which sync removes from the playlists. Everything is recorded for musicman undo. Resolves to
+ * { merged, cleared, removed, excluded, failed } (failed: [{ file, error }]).
  */
 const applyDuplicates = async ({
   db,
@@ -279,14 +348,13 @@ const applyDuplicates = async ({
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
   const absolute = songPath => path.join(baseDirectory, songPath);
   const descriptions = multiDescriptions(config);
-  const result = { merged: [], cleared: [], removed: [], failed: [] };
-  const deleteSong = db.prepare('DELETE FROM songs WHERE path = ?');
+  const result = { merged: [], cleared: [], removed: [], excluded: [], failed: [] };
   for (let i = 0; i < groups.length; i += 1) {
     const group = groups[i];
     const byPath = _.keyBy(group.files, 'path');
-    if (group.keep && group.remove.length > 0) {
+    if (group.keep && removedCopies(group).length > 0) {
       try {
-        const others = _.map(group.remove, file => ({
+        const others = _.map(removedCopies(group), file => ({
           raw: read(absolute(file)),
           mtime: byPath[file].mtime
         }));
@@ -341,7 +409,21 @@ const applyDuplicates = async ({
         }))
       );
     }
-    for (const file of group.remove) {
+    for (const file of group.exclude) {
+      try {
+        excludeSong(db, {
+          path: file,
+          trackId: byPath[file].trackId,
+          kept: group.keep,
+          reason: group.reasons[file]
+        });
+        recordFileMove({ action: 'exclude', file: absolute(file), to: absolute(group.keep) });
+        result.excluded.push({ file, reason: group.reasons[file] });
+      } catch (err) {
+        result.failed.push({ file, error: err.message });
+      }
+    }
+    for (const file of group.trash) {
       try {
         const from = absolute(file);
         const to = trashPath(config, runId, file);
@@ -356,7 +438,13 @@ const applyDuplicates = async ({
         fs.mkdirSync(path.dirname(to), { recursive: true });
         move(from, to);
         recordFileMove({ action: 'trash', file: from, to, beets: inBeets });
-        deleteSong.run(file);
+        // listed for its Spotify track, which sync removes in favor of the copy kept
+        excludeSong(db, {
+          path: file,
+          trackId: byPath[file].trackId,
+          kept: group.keep,
+          reason: group.reasons[file]
+        });
         result.removed.push({ file, to, reason: group.reasons[file] });
       } catch (err) {
         result.failed.push({ file, error: err.message });
@@ -369,12 +457,14 @@ const applyDuplicates = async ({
 
 module.exports = {
   applyDuplicates,
+  audioHash,
   duplicateGroups,
   isNumbered,
   mergedTags,
   planDuplicates,
   planGroup,
   releaseType,
+  removedCopies,
   resolveGroup,
   trashPath
 };

@@ -354,19 +354,21 @@ describe('musicman ui', () => {
       ]);
     });
 
-    it('should repair a picked group as a ui run that undo takes back', async () => {
+    it('should drop the copy not picked as a ui run that undo takes back, its file kept', async () => {
       const actions = reviewActions({ db, config, getClient: () => null, beet });
       await actions.duplicates([{ files: copies }]).then(
         () => expect.fail('should reject'),
         err => expect(err.status).to.equal(400)
       );
       const result = await actions.duplicates([{ files: copies, keep: copies[1] }]);
-      expect(result.removed.map(({ file: removed }) => removed)).to.deep.equal([copies[0]]);
-      expect(fs.existsSync(file(copies[0]))).to.be.false;
+      expect(result.excluded.map(({ file: dropped }) => dropped)).to.deep.equal([copies[0]]);
+      expect(result.removed).to.be.empty;
+      expect(fs.existsSync(file(copies[0]))).to.be.true;
+      expect(beetCalls).to.be.empty;
       expect(await duplicatesList(db, config)).to.be.empty;
       const [run] = historyList(db, config);
       expect(run.args).to.deep.equal(['duplicates', copies[1]]);
-      expect(run.moves).to.deep.equal([{ action: 'trash', path: copies[0], status: 'restore' }]);
+      expect(run.moves).to.deep.equal([{ action: 'exclude', path: copies[0], status: 'restore' }]);
       await actions.undo(run.id);
       expect(fs.existsSync(file(copies[0]))).to.be.true;
       expect((await duplicatesList(db, config)).length).to.equal(1);
@@ -427,7 +429,7 @@ describe('musicman ui', () => {
           remember: candidates => calls.push(['remember', _.map(candidates, 'id')]),
           duplicates: async groups => {
             calls.push(['duplicates', groups]);
-            return { removed: [{}], cleared: [], merged: [{}], failed: [] };
+            return { removed: [{}], excluded: [], cleared: [], merged: [{}], failed: [] };
           },
           undo: async (runId, options) => {
             calls.push(['undo', runId, options]);

@@ -96,6 +96,8 @@ const runTagFix = async ({ db, config, target, results, switches, confirm, quiet
   return { plan, written, failed };
 };
 
+const nothingDone = { removed: [], excluded: [], cleared: [], merged: [], failed: [] };
+
 // the copy to keep of each group no rule decides, picked in fzf one group at a time; a group left
 // without a pick (esc) keeps every copy, only its live matches are still cleared
 const pickKeeps = (groups, { config, pick }) => {
@@ -110,13 +112,13 @@ const pickKeeps = (groups, { config, pick }) => {
       {
         multi: false,
         prompt: 'keep',
-        header: `Duplicates ${open.indexOf(group) + 1}/${open.length}: pick the copy to keep, the others go to the trash (esc keeps them all)`,
+        header: `Duplicates ${open.indexOf(group) + 1}/${open.length}: pick the copy to keep, the others leave the library, their files stay (esc keeps them all)`,
         preview: previewCommand('view')
       }
     );
     return picked
       ? resolveGroup(group, path.relative(baseDirectory, picked))
-      : { ...group, keep: null, remove: [], candidates: [] };
+      : { ...group, keep: null, trash: [], exclude: [], candidates: [] };
   });
 };
 
@@ -124,13 +126,15 @@ const pickKeeps = (groups, { config, pick }) => {
 const groupLine = (group, index) => {
   const text = _.compact([
     group.keep && `keep ${group.keep}`,
-    group.remove.length > 0 && `remove ${group.remove.length}`,
-    group.clear.length > 0 && `clear ${group.clear.length}`
+    group.trash.length > 0 && `trash ${group.trash.length}`,
+    group.exclude.length > 0 && `drop ${group.exclude.length}`,
+    group.clear.length > 0 && `re-match ${group.clear.length}`
   ]).join('  ');
   const details = _.compact([
     group.keep && `keep    ${group.keep}`,
-    ..._.map(group.remove, file => `remove  ${file}  (${group.reasons[file]})`),
-    ..._.map(group.clear, file => `clear   ${file}  (${group.reasons[file]})`)
+    ..._.map(group.trash, file => `trash   ${file}  (${group.reasons[file]})`),
+    ..._.map(group.exclude, file => `drop    ${file}  (${group.reasons[file]}, file kept)`),
+    ..._.map(group.clear, file => `rematch ${file}  (${group.reasons[file]})`)
   ])
     .join('\\n')
     .replace(/\t/g, ' ');
@@ -139,27 +143,29 @@ const groupLine = (group, index) => {
 
 /**
  * check --fix for duplicates: plans each group (planDuplicates), shows the plan, lets the groups no rule
- * decides be picked and the plan be narrowed in fzf (all groups selected), and after confirm applies it:
- * removed copies go to the trash, recorded for musicman undo. Without a terminal, or with dryRun, only
- * the plan is shown.
+ * decides be picked and the plan be narrowed in fzf (all groups selected), and after confirm applies it
+ * (applyDuplicates), recorded for musicman undo. Without a terminal, or with dryRun, only the plan is
+ * shown.
  */
 const runDuplicateFix = async ({ db, config, results, switches, confirm, pick }) => {
   const findings = _.get(_.find(results, { name: 'duplicates' }), 'findings', []);
-  const planned = planDuplicates(duplicateGroups(db, findings));
+  const planned = planDuplicates(
+    duplicateGroups(db, findings, { baseDirectory: path.resolve(config.mpd.baseDirectory) })
+  );
   if (planned.length === 0) {
     return null;
   }
   _.each(renderDuplicatePlan(planned, { all: switches.all }), line => logger.consoleLog(line));
   if (switches.dryRun) {
-    return { groups: planned, removed: [], cleared: [], merged: [], failed: [], dryRun: true };
+    return { groups: planned, ...nothingDone, dryRun: true };
   }
   if (!confirm || !pick) {
     logger.warn('Not a terminal to pick in, no duplicates changed (check --fix asks first)');
-    return { groups: planned, removed: [], cleared: [], merged: [], failed: [] };
+    return { groups: planned, ...nothingDone };
   }
   const resolved = _.filter(
     pickKeeps(planned, { config, pick }),
-    ({ remove, clear }) => remove.length + clear.length > 0
+    ({ trash, exclude, clear }) => trash.length + exclude.length + clear.length > 0
   );
   const chosen = new Set(
     pick(_.map(resolved, groupLine), {
@@ -172,16 +178,17 @@ const runDuplicateFix = async ({ db, config, results, switches, confirm, pick })
     })
   );
   const groups = _.filter(resolved, (group, index) => chosen.has(`${index}`));
-  const removed = _.sumBy(groups, ({ remove }) => remove.length);
+  const trashed = _.sumBy(groups, ({ trash }) => trash.length);
+  const dropped = _.sumBy(groups, ({ exclude }) => exclude.length);
   const cleared = _.sumBy(groups, ({ clear }) => clear.length);
-  if (
-    groups.length === 0 ||
-    !(await confirm(
-      `Move ${plural(removed, 'copy', 'copies')} to the trash${cleared ? ` and clear ${plural(cleared, 'live match', 'live matches')}` : ''}?`
-    ))
-  ) {
+  const question = _.compact([
+    trashed && `move ${plural(trashed, 'file')} to the trash`,
+    dropped && `drop ${plural(dropped, 'copy', 'copies')} from the library (files kept)`,
+    cleared && `re-match ${plural(cleared, 'other recording')}`
+  ]).join(', ');
+  if (groups.length === 0 || !(await confirm(`${_.upperFirst(question)}?`))) {
     logger.info('No duplicates changed');
-    return { groups, removed: [], cleared: [], merged: [], failed: [] };
+    return { groups, ...nothingDone };
   }
   const runId =
     activeRun() ||
@@ -199,14 +206,17 @@ const runDuplicateFix = async ({ db, config, results, switches, confirm, pick })
   logger.progressDone();
   _.each(result.failed, ({ file, error }) => logger.warn(`FAILED  ${file}: ${error}`));
   logger.info(
-    `Moved ${plural(result.removed.length, 'copy', 'copies')} to the trash` +
-      (result.merged.length
-        ? `, merged tags into ${plural(result.merged.length, 'kept copy', 'kept copies')}`
-        : '') +
-      (result.cleared.length
-        ? `, cleared ${plural(result.cleared.length, 'live match', 'live matches')}`
-        : '') +
-      (result.removed.length ? `; musicman undo moves them back` : '')
+    `${_.upperFirst(
+      _.compact([
+        result.removed.length && `moved ${plural(result.removed.length, 'file')} to the trash`,
+        result.excluded.length &&
+          `dropped ${plural(result.excluded.length, 'copy', 'copies')} from the library (files kept)`,
+        result.cleared.length &&
+          `cleared ${plural(result.cleared.length, 'wrong match', 'wrong matches')} (sync --match finds their own tracks)`,
+        result.merged.length &&
+          `merged tags into ${plural(result.merged.length, 'kept copy', 'kept copies')}`
+      ]).join(', ')
+    )}; musicman undo takes it back, sync --push removes the dropped tracks from Spotify`
   );
   return { groups, ...result };
 };

@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { mapLimit } = require('../utils/promise.js');
 const { escape, globSync } = require('glob');
+const { excludedPaths } = require('./exclusions.js');
 
 const { readMetadataFull, parseMetadata } = require('../metadata/read.js');
 const { isPopulated } = require('../metadata/tags.js');
@@ -105,10 +106,15 @@ const updateDatabase = async (
   const listed = fileList
     ? [].concat(fileList).map(file => path.resolve(file))
     : listFiles(path.resolve(target));
-  const files = await mapLimit(listed, async file => {
-    const { mtimeMs, size } = await fs.promises.stat(file);
-    return { file, path: relativePath(file), mtime: Math.floor(mtimeMs), size };
-  });
+  // songs taken out of the library (duplicate copies) stay out while their files stay on disk
+  const excluded = excludedPaths(db);
+  const files = await mapLimit(
+    _.reject(listed, file => excluded.has(relativePath(file))),
+    async file => {
+      const { mtimeMs, size } = await fs.promises.stat(file);
+      return { file, path: relativePath(file), mtime: Math.floor(mtimeMs), size };
+    }
+  );
 
   const selectSongs = 'SELECT id, path, mtime, size FROM songs';
   let scopeRows;

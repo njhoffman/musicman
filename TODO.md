@@ -86,6 +86,10 @@ Reviewed: 2026-11-01
       rating, fzf picks and confirmation, trash with beets removal, undo (file_changes, migration 8), and
       the Duplicates tab of `musicman ui`. 2026-11-02 plan on the library: 271 groups, 183 copies removed,
       47 matches cleared, 47 groups to pick.
+- [ ] **Manage excluded songs.** (p3) [feature] songs `check --fix` took out of the library (table
+      `excluded_songs`, files kept) can only come back through `musicman undo`. A command or a page list
+      to show them and let one back in (e.g. `db --include <path>`) would help once the undo history is
+      pruned (`history.keep`).
 - [ ] **Rating conflicts use the file time.** (p3) [bug] `check --fix` gives the kept duplicate the rating of
       the newest copy by mtime, but any tag write (an artwork repair, a sync --match refresh) makes a file
       newer without a new rating. The POPM change times in the undo history (`tag_changes`) would tell when

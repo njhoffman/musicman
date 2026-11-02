@@ -104,17 +104,22 @@ const renderPlan = ({ files, skipped }, { all = false } = {}) => {
 };
 
 /**
- * One duplicates group as plan lines: the copy kept, the copies removed (with why), live copies whose
- * match is cleared, and the copies to pick from when no rule decides.
+ * One duplicates group as plan lines: the copy kept, the copies trashed and dropped from the library
+ * (file kept), with why, other recordings whose match is cleared, and the copies to pick from.
  */
 const duplicateGroupLines = group => {
   const lines = [];
   if (group.keep) {
     lines.push(`    ${paint('ok', 'keep  ')}  ${paint('muted', group.keep)}`);
   }
-  _.each(group.remove, file =>
+  _.each(group.trash, file =>
     lines.push(
-      `    ${chalk.hex(colors.remove).bold('remove')}  ${paint('muted', file)}  ${paint('dim', group.reasons[file] || '')}`
+      `    ${chalk.hex(colors.remove).bold('trash ')}  ${paint('muted', file)}  ${paint('dim', group.reasons[file] || '')}`
+    )
+  );
+  _.each(group.exclude, file =>
+    lines.push(
+      `    ${chalk.hex(colors.move).bold('drop  ')}  ${paint('muted', file)}  ${paint('dim', `${group.reasons[file] || ''} (file kept)`)}`
     )
   );
   _.each(group.clear, file =>
@@ -135,12 +140,14 @@ const renderDuplicatePlan = (groups, { all = false } = {}) => {
   if (groups.length === 0) {
     return [];
   }
-  const removed = _.sumBy(groups, ({ remove }) => remove.length);
+  const trashed = _.sumBy(groups, ({ trash }) => trash.length);
+  const dropped = _.sumBy(groups, ({ exclude }) => exclude.length);
   const cleared = _.sumBy(groups, ({ clear }) => clear.length);
   const picks = _.filter(groups, ({ candidates }) => candidates.length > 0).length;
   const counts = _.compact([
-    removed && `remove ${plural(removed, 'copy', 'copies')}`,
-    cleared && `clear ${plural(cleared, 'live match', 'live matches')}`,
+    trashed && `trash ${plural(trashed, 'file')}`,
+    dropped && `drop ${plural(dropped, 'copy', 'copies')} from the library (files kept)`,
+    cleared && `re-match ${plural(cleared, 'other recording')}`,
     picks && paint('left', `${plural(picks, 'group')} to pick`)
   ]).join(', ');
   const lines = [

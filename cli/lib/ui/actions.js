@@ -161,7 +161,11 @@ const reviewActions = ({ db, config, getClient, beet }) => {
      */
     duplicates: async groups => {
       const planned = _.map(groups, ({ files, keep }) => {
-        const [group] = planDuplicates(duplicateGroups(db, [{ files }]));
+        const [group] = planDuplicates(
+          duplicateGroups(db, [{ files }], {
+            baseDirectory: path.resolve(config.mpd.baseDirectory)
+          })
+        );
         if (!group) {
           throw fail(409, `${files.join(' | ')} has nothing to repair any more`);
         }
@@ -185,7 +189,10 @@ const reviewActions = ({ db, config, getClient, beet }) => {
       undoableRun(runId);
       return recorded(['undo', runId], async () => {
         const run = undoableRun(runId);
-        const plan = planUndo(db, findHistoryRun(listHistory(db), run.id), { force });
+        const plan = planUndo(db, findHistoryRun(listHistory(db), run.id), {
+          force,
+          baseDirectory: path.resolve(config.mpd.baseDirectory)
+        });
         const result = await applyUndo({ db, config, client: null, plan, beet });
         return { ...result, failed: [...result.moves.failed, ...result.tags.failed] };
       });

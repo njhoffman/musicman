@@ -150,7 +150,7 @@ const historyLimit = 100;
 const historyList = (db, config) => {
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
   return _.map(_.take(_.filter(listHistory(db), { command: 'ui' }), historyLimit), run => {
-    const plan = planUndo(db, run);
+    const plan = planUndo(db, run, { baseDirectory });
     return {
       id: run.id,
       args: run.args,
@@ -171,7 +171,7 @@ const historyList = (db, config) => {
       })),
       moves: _.map(plan.moves, ({ action, file, movedTo, status }) => ({
         action,
-        path: path.relative(baseDirectory, action === 'trash' ? file : movedTo),
+        path: path.relative(baseDirectory, action === 'restore' ? movedTo : file),
         status
       }))
     };
@@ -301,7 +301,8 @@ const changeMarkers = db => {
 /**
  * The duplicate groups of the library with what check --fix would do (planDuplicates), each copy with
  * its song fields to show and play: [{ key, copies: [{ song, action, reason }], keep, candidates }].
- * action is keep, remove, clear (a live copy's match), or pick (no rule decides), else none.
+ * action is keep, trash (file to the trash), exclude (out of the library, file kept), clear (another
+ * recording, matched again), or pick (no rule decides), else none.
  */
 const duplicatesList = async (db, config) => {
   const [result] = await runChecks({
@@ -312,13 +313,17 @@ const duplicatesList = async (db, config) => {
     listFiles: () => []
   });
   const select = db.prepare('SELECT id, path, duration FROM songs WHERE path = ?');
-  return _.map(planDuplicates(duplicateGroups(db, result.findings)), group => {
+  const baseDirectory = path.resolve(config.mpd.baseDirectory);
+  return _.map(planDuplicates(duplicateGroups(db, result.findings, { baseDirectory })), group => {
     const action = file => {
       if (group.keep === file) {
         return 'keep';
       }
-      if (group.remove.includes(file)) {
-        return 'remove';
+      if (group.trash.includes(file)) {
+        return 'trash';
+      }
+      if (group.exclude.includes(file)) {
+        return 'exclude';
       }
       if (group.clear.includes(file)) {
         return 'clear';

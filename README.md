@@ -53,9 +53,11 @@ frames a rewrite would lose, custom field names that differ by case or duplicate
 Spotify id frames, multi value formatting, ratings off the half step scale, garbled text, and duplicate
 songs, rare context, mood, and picks values, and songs in two rating or grouping playlists. It exits 1
 when it finds something. `musicman check --fix` repairs field names, fields duplicating standard frames,
-leftover Spotify ids, multi value formatting, case, and artwork after one confirmation, then removes
-duplicate copies by rules (album over single, Rated over Unrated) with fzf to pick and confirm, moving
-them to a trash folder; everything is recorded for `musicman undo`. [docs/08-check.md](docs/08-check.md)
+leftover Spotify ids, multi value formatting, case, and artwork after one confirmation, then repairs
+duplicates by rules (album over single, Rated over Unrated) with fzf to pick and confirm: Singles copies
+of album songs and identical numbered copies go to a trash folder, other copies leave the library and
+Spotify with their files kept, and live copies are matched to their own tracks; everything is recorded
+for `musicman undo`. [docs/08-check.md](docs/08-check.md)
 lists the checks and repairs.
 
 `musicman ui` serves a management page on 127.0.0.1 (`ui.port`, 6660) until ctrl-c. It lists the Spotify

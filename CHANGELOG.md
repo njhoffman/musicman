@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- `check --fix` deletes fewer duplicate files. Only a single in a `Singles` or `_Singles` folder whose
+  album copy (under `Artists`) is kept, and a numbered copy with the same audio, go to the trash. Other
+  copies (compilations, EPs, `single` releases, copies not picked) leave the library and the Spotify
+  playlists, but their files stay: they are listed as excluded, so `db --update`, the commands reading
+  the library, and the drift check skip them, and `sync --push` removes their Spotify tracks. Numbered
+  copies with other audio are picked instead of trashed. `musicman undo` lets excluded songs back in.
+
 ## [1.52.0] - 2026-11-02
 
 ### Added

@@ -4,6 +4,7 @@ const path = require('path');
 
 const { execBeet } = require('../beets/sort.js');
 const { transaction } = require('../db/database.js');
+const { excludeSong, exclusionOf, includeSong } = require('../db/exclusions.js');
 const { updateDatabase } = require('../db/update.js');
 const { rewriteTags } = require('../metadata/write.js');
 const { refreshCache } = require('../sync/cache.js');
@@ -71,7 +72,7 @@ const findHistoryRun = (runs, term) =>
  * (e.g. duplicates to the trash), each to be moved back, with status restore, changed (a file is at
  * the old path again), or missing (the moved file is gone).
  */
-const planUndo = (db, run, { force = false } = {}) => {
+const planUndo = (db, run, { force = false, baseDirectory } = {}) => {
   const rows = db
     .prepare('SELECT path, frame, before, after_hash FROM tag_changes WHERE run_id = ? ORDER BY id')
     .all(run.id);
@@ -136,6 +137,17 @@ const planUndo = (db, run, { force = false } = {}) => {
         movedTo: row.moved_to,
         beets: row.beets === 1
       };
+      // an exclusion keeps the file where it is: undoing it lets the song back in (include), and
+      // undoing an include excludes it again
+      if (row.action === 'exclude' || row.action === 'include') {
+        if (!fs.existsSync(row.path)) {
+          return { ...item, status: 'missing' };
+        }
+        const excluded = Boolean(
+          baseDirectory && exclusionOf(db, path.relative(baseDirectory, row.path))
+        );
+        return { ...item, status: excluded === (row.action === 'exclude') ? 'restore' : 'changed' };
+      }
       if (!fs.existsSync(row.moved_to)) {
         return { ...item, status: 'missing' };
       }
@@ -149,31 +161,78 @@ const planUndo = (db, run, { force = false } = {}) => {
 // would change its tags (lyrics, replaygain, scrub) or move it
 const beetsImportArgs = file => ['-p', 'types', 'import', '-q', '-s', '-A', '-C', '-M', '-I', file];
 
+// the Spotify track id the database holds for a song, null without one
+const songTrack = (db, songPath) =>
+  _.get(
+    db
+      .prepare(
+        `SELECT t.value FROM song_tags t JOIN songs s ON s.id = t.song_id
+         WHERE s.path = ? AND t.frame_id = 'TXXX.sp_track_id'`
+      )
+      .get(songPath),
+    'value'
+  ) || null;
+
+// what undoing each recorded action is recorded as, so the undo can be undone
+const reverseAction = {
+  trash: 'restore',
+  restore: 'trash',
+  exclude: 'include',
+  include: 'exclude'
+};
+
 /**
- * Moves the files of a plan with status restore back where they were. A file the run took out of beets
- * (a trash move) is imported again; a file the run imported (a restore move, when an undo is undone)
- * is taken out again. Each move is recorded for the active run so the undo can be undone. Returns {
- * restored, failed } (failed with error).
+ * Reverses the file changes of a plan with status restore: a trashed copy moves back (imported into
+ * beets again when the run took it out) and its exclusion is lifted; an excluded song is let back in;
+ * a restore (an undone trash) moves the file to the trash again, and an include excludes it again.
+ * Each reversal is recorded for the active run so the undo can be undone. Returns { restored, failed }
+ * (failed with error); restored files to read into the database are in back, those out of it in out.
  */
-const undoMoves = async ({ plan, beet = execBeet }) => {
+const undoMoves = async ({ db, config, plan, beet = execBeet }) => {
+  const baseDirectory = path.resolve(config.mpd.baseDirectory);
+  const relative = file => path.relative(baseDirectory, file);
   const restored = [];
   const failed = [];
   for (const item of _.filter(plan.moves, { status: 'restore' })) {
     try {
-      if (item.action === 'restore' && item.beets) {
-        await beet(['remove', '-f', `path:${item.movedTo}`]);
+      if (item.action === 'trash' || item.action === 'restore') {
+        if (item.action === 'restore') {
+          const trackId = songTrack(db, relative(item.movedTo));
+          if (item.beets) {
+            await beet(['remove', '-f', `path:${item.movedTo}`]);
+          }
+          excludeSong(db, {
+            path: relative(item.movedTo),
+            trackId,
+            reason: 'trashed again by undo'
+          });
+        }
+        fs.mkdirSync(path.dirname(item.file), { recursive: true });
+        fs.renameSync(item.movedTo, item.file);
+        if (item.action === 'trash') {
+          if (item.beets) {
+            await beet(beetsImportArgs(item.file));
+          }
+          includeSong(db, relative(item.file));
+        }
+        recordFileMove({
+          action: reverseAction[item.action],
+          file: item.movedTo,
+          to: item.file,
+          beets: item.beets
+        });
+      } else if (item.action === 'exclude') {
+        includeSong(db, relative(item.file));
+        recordFileMove({ action: 'include', file: item.file, to: item.movedTo });
+      } else {
+        excludeSong(db, {
+          path: relative(item.file),
+          trackId: songTrack(db, relative(item.file)),
+          kept: relative(item.movedTo),
+          reason: 'excluded again by undo'
+        });
+        recordFileMove({ action: 'exclude', file: item.file, to: item.movedTo });
       }
-      fs.mkdirSync(path.dirname(item.file), { recursive: true });
-      fs.renameSync(item.movedTo, item.file);
-      if (item.action === 'trash' && item.beets) {
-        await beet(beetsImportArgs(item.file));
-      }
-      recordFileMove({
-        action: item.action === 'trash' ? 'restore' : 'trash',
-        file: item.movedTo,
-        to: item.file,
-        beets: item.beets
-      });
       restored.push(item);
     } catch (err) {
       failed.push({ ...item, error: err.message });
@@ -365,19 +424,22 @@ const undoSpotify = async ({ db, config, client, plan }) => {
  * Returns { moves, tags, matches, spotify }.
  */
 const applyUndo = async ({ db, config, client, plan, beet }) => {
-  const moves = await undoMoves({ plan, beet });
+  const moves = await undoMoves({ db, config, plan, beet });
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
-  const back = _.filter(_.map(moves.restored, 'file'), file => {
-    const relative = path.relative(baseDirectory, file);
-    return !relative.startsWith('..') && !path.isAbsolute(relative) && fs.existsSync(file);
-  });
+  // songs back in the library (moved back from the trash, or no longer excluded) are read again
+  const back = _.filter(
+    _.map(
+      _.filter(moves.restored, ({ action }) => ['trash', 'exclude'].includes(action)),
+      'file'
+    ),
+    file => {
+      const relative = path.relative(baseDirectory, file);
+      return !relative.startsWith('..') && !path.isAbsolute(relative) && fs.existsSync(file);
+    }
+  );
   if (back.length > 0) {
     await updateDatabase(db, { config, files: back, record: false });
   }
-  // a file moved out of the library again (an undone undo) leaves the database
-  _.each(_.filter(moves.restored, { action: 'restore' }), ({ movedTo }) =>
-    db.prepare('DELETE FROM songs WHERE path = ?').run(path.relative(baseDirectory, movedTo))
-  );
   const tags = await undoTags({ db, config, plan });
   const matches = undoMatches({ db, plan });
   const spotify = client

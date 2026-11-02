@@ -35,8 +35,14 @@ const describePlan = (config, plan) => {
   const byStatus = _.groupBy(plan.files, 'status');
   // the recorded args start with the command name
   const lines = [`Undo ${plan.run.id} (${plan.run.args.join(' ')})`];
-  (plan.moves || []).forEach(({ file, movedTo, status }) => {
-    if (status === 'restore') {
+  (plan.moves || []).forEach(({ action, file, movedTo, status }) => {
+    if (status === 'restore' && (action === 'exclude' || action === 'include')) {
+      lines.push(
+        `  ${action === 'exclude' ? 'INCLUDE' : 'EXCLUDE'} ${shortPath(config, file)} ${dim(
+          action === 'exclude' ? 'back in the library' : 'out of the library again'
+        )}`
+      );
+    } else if (status === 'restore') {
       lines.push(
         `  MOVE    ${shortPath(config, file)} ${dim(`back from ${shortPath(config, movedTo)}`)}`
       );
@@ -137,7 +143,10 @@ const undoCommand = async ({
       process.exitCode = 1;
       return { run };
     }
-    const plan = planUndo(db, run, { force: Boolean(switches.force) });
+    const plan = planUndo(db, run, {
+      force: Boolean(switches.force),
+      baseDirectory: path.resolve(config.mpd.baseDirectory)
+    });
     logger.info(describePlan(config, plan));
     const restore =
       _.filter(plan.files, { status: 'restore' }).length +

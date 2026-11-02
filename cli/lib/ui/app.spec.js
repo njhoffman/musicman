@@ -105,7 +105,7 @@ const duplicatesFixture = () => ({
       candidates: [],
       copies: [
         copyOf(8, 'Hotel/album/01 - Song.mp3', 'keep'),
-        copyOf(9, 'Singles/Hotel - Song.mp3', 'remove', 'single copy, the album copy is kept')
+        copyOf(9, 'Singles/Hotel - Song.mp3', 'trash', 'single copy, the album copy is kept')
       ]
     },
     {
@@ -825,8 +825,15 @@ describe('musicman ui page', () => {
 
     it('should list each group with its plan, and repair only the decided ones from the head', async () => {
       expect(tab('duplicates').textContent).to.equal('Duplicates2');
-      expect(plans()).to.deep.equal(['remove 1', 'pick the copy to keep']);
-      routes['POST /api/duplicates'] = { ok: true, removed: 1, cleared: 0, merged: 1, failed: [] };
+      expect(plans()).to.deep.equal(['trash 1', 'pick the copy to keep']);
+      routes['POST /api/duplicates'] = {
+        ok: true,
+        removed: 1,
+        excluded: 0,
+        cleared: 0,
+        merged: 1,
+        failed: []
+      };
       click(button('#list-head button', 'Repair 1 group'));
       await settle();
       expect(requests.find(r => r.method === 'POST')).to.deep.equal({
@@ -842,7 +849,7 @@ describe('musicman ui page', () => {
         }
       });
       expect($('message').textContent).to.include(
-        'Moved 1 copies to the trash, merged tags into 1'
+        'Moved 1 files to the trash, dropped 0 copies from the library, merged tags into 1'
       );
     });
 
@@ -856,11 +863,18 @@ describe('musicman ui page', () => {
       expect(button('#compare button', 'Repair this group').disabled).to.be.true;
       click(all('#compare button.accept')[1]);
       expect(all('#compare .duplicate p').map(p => p.textContent)).to.deep.equal([
-        'Removed',
+        'Out of the library, file kept',
         'Kept (picked)'
       ]);
-      expect(plans()).to.deep.equal(['remove 1', 'remove 1']);
-      routes['POST /api/duplicates'] = { ok: true, removed: 1, cleared: 0, merged: 0, failed: [] };
+      expect(plans()).to.deep.equal(['trash 1', 'drop 1 (file kept)']);
+      routes['POST /api/duplicates'] = {
+        ok: true,
+        removed: 0,
+        excluded: 1,
+        cleared: 0,
+        merged: 0,
+        failed: []
+      };
       click(button('#compare button', 'Repair this group'));
       await settle();
       expect(requests.find(r => r.method === 'POST').body).to.deep.equal({

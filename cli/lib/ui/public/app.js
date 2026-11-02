@@ -206,12 +206,11 @@ const keptCopy = group => group.keep || state.keeps[group.key] || null;
 const duplicatePlan = group => {
   const count = action => group.copies.filter(copy => copy.action === action).length;
   const picked = keptCopy(group);
-  const removed = count('remove') + (group.keep ? 0 : picked ? group.candidates.length - 1 : 0);
+  const dropped = count('exclude') + (group.keep ? 0 : picked ? group.candidates.length - 1 : 0);
   return [
-    removed > 0 ? `remove ${removed}` : null,
-    count('clear') > 0
-      ? `clear ${count('clear')} live match${count('clear') > 1 ? 'es' : ''}`
-      : null,
+    count('trash') > 0 ? `trash ${count('trash')}` : null,
+    dropped > 0 ? `drop ${dropped} (file kept)` : null,
+    count('clear') > 0 ? `re-match ${count('clear')}` : null,
     !group.keep && !picked ? 'pick the copy to keep' : null
   ]
     .filter(Boolean)
@@ -464,7 +463,7 @@ const notes = {
   toSpotify:
     'Songs that belong in a Spotify playlist but have no Spotify id, so only a local file can bring them there.',
   duplicates:
-    'The same song in more than one file, with what check --fix does: an album copy is kept over EPs, singles, and compilations, a Rated copy over Unrated imports, and the file without a number over numbered copies; a live copy matched to the studio track has its match cleared. Removed copies go to the trash with their tags merged into the kept one; musicman undo moves them back.',
+    'The same song in more than one file, with what check --fix does: an album copy is kept over EPs, singles, and compilations, a Rated copy over Unrated imports, and a file over its numbered copies. Only a Singles copy of an album song, or a numbered copy with the same audio, goes to the trash; other copies leave the library and Spotify but their files stay. A live or remix copy is matched again to its own track. musicman undo takes it all back.',
   history:
     'Accepts, rejects, removed duplicates, and undos of this page, newest first. Undoing one puts back the tags, the Spotify match, and the moved files, as musicman undo does.'
 };
@@ -1076,12 +1075,17 @@ const duplicateDetails = group => {
   const picked = keptCopy(group);
   const label = copy => {
     if (copy.action === 'pick') {
-      return picked === copy.song.path ? 'Kept (picked)' : picked ? 'Removed' : 'Pick to keep';
+      return picked === copy.song.path
+        ? 'Kept (picked)'
+        : picked
+          ? 'Out of the library, file kept'
+          : 'Pick to keep';
     }
     return {
       keep: 'Kept',
-      remove: 'Removed',
-      clear: 'Match cleared, file kept',
+      trash: 'File moved to the trash',
+      exclude: 'Out of the library, file kept',
+      clear: 'Matched again to its own Spotify track',
       none: 'Left alone'
     }[copy.action];
   };
@@ -1092,7 +1096,7 @@ const duplicateDetails = group => {
         { className: 'duplicate' },
         h(
           'p',
-          { className: copy.action === 'remove' ? 'differs' : 'dim' },
+          { className: ['trash', 'exclude'].includes(copy.action) ? 'differs' : 'dim' },
           label(copy),
           copy.reason ? `: ${copy.reason}` : ''
         ),
@@ -1135,18 +1139,19 @@ const repairDuplicates = async groups => {
   if (state.busy || !confirmWhileRunning('duplicates')) {
     return;
   }
-  const removed = groups.reduce(
-    (total, group) =>
-      total +
-      group.copies.filter(copy => copy.action === 'remove').length +
-      (group.keep ? 0 : group.candidates.length - 1),
-    0
-  );
+  const count = action =>
+    groups.reduce(
+      (total, group) => total + group.copies.filter(copy => copy.action === action).length,
+      0
+    );
+  const dropped =
+    count('exclude') +
+    groups.reduce((total, group) => total + (group.keep ? 0 : group.candidates.length - 1), 0);
   if (
     !window.confirm(
-      `Repair ${groups.length} duplicate group${groups.length > 1 ? 's' : ''}: move ${removed} cop${
-        removed === 1 ? 'y' : 'ies'
-      } to the trash?`
+      `Repair ${groups.length} duplicate group${groups.length > 1 ? 's' : ''}: trash ${count(
+        'trash'
+      )} files, drop ${dropped} copies from the library (files kept), re-match ${count('clear')}?`
     )
   ) {
     return;
@@ -1160,9 +1165,9 @@ const repairDuplicates = async groups => {
       }))
     });
     showMessage(
-      `Moved ${result.removed} copies to the trash` +
+      `Moved ${result.removed} files to the trash, dropped ${result.excluded} copies from the library` +
         (result.merged ? `, merged tags into ${result.merged}` : '') +
-        (result.cleared ? `, cleared ${result.cleared} live matches` : '') +
+        (result.cleared ? `, cleared ${result.cleared} wrong matches` : '') +
         (result.failed.length
           ? `; ${result.failed.length} failed: ${result.failed[0].error}`
           : '') +
@@ -1186,7 +1191,12 @@ const historyDetails = run => {
         'li',
         { className: status === 'restore' ? null : 'differs' },
         {
-          restore: action === 'trash' ? `${file} back from the trash` : `${file} back to the trash`,
+          restore: {
+            trash: `${file} back from the trash`,
+            restore: `${file} back to the trash`,
+            exclude: `${file} back in the library`,
+            include: `${file} out of the library again`
+          }[action],
           changed: `A file is at ${file} again, so it is left where it is`,
           missing: `The moved copy of ${file} is gone`
         }[status]

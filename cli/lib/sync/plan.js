@@ -2,6 +2,7 @@ const _ = require('lodash');
 const path = require('path');
 
 const { transaction } = require('../db/database.js');
+const { excludedTracks } = require('../db/exclusions.js');
 const { rejectedTracks, spotifyIdFrame } = require('./match.js');
 const {
   conflictingTargets,
@@ -95,8 +96,16 @@ const syncPlan = (db, config, songs) => {
     ])
   );
   const inConflict = (trackId, id) => (conflicts.get(trackId) || new Set()).has(id);
-  // tracks rejected in review that no song is linked to any more, removed wherever they were pushed
-  const rejected = rejectedTracks(db, config);
+  // tracks rejected in review that no song is linked to any more, removed wherever they were pushed;
+  // so are the tracks of songs taken out of the library (duplicate copies), in favor of the copy kept
+  const baseDirectory = path.resolve(config.mpd.baseDirectory);
+  const rejected = new Map([
+    ..._.map([...excludedTracks(db)], ([trackId, songPath]) => [
+      trackId,
+      path.join(baseDirectory, songPath)
+    ]),
+    ...rejectedTracks(db, config)
+  ]);
   const isRejected = trackId => rejected.has(trackId) && !songByTrack.has(trackId);
   // sync.ignorePlaylist is cached like a target but is none, its tracks are never pulled
   const ignoreId = ignorePlaylistId(config);

@@ -88,30 +88,44 @@ decision per song and stay reports; `--fix` names them when they found something
 
 ### Duplicates
 
-After the tag repairs, `--fix` plans each duplicate group (groups that share a file are joined) by rules,
-in order:
+After the tag repairs, `--fix` plans each duplicate group (groups that share a file are joined). One copy
+is kept, by rules in order:
 
 1. Another recording is a wrong Spotify match, not a duplicate: a copy on a `live` or `remix` release, or
    with a version in its title (`(radio edit)`, `(acoustic)`, `(Arsenal mix)`, `(new vocal version)`),
-   next to the song keeps its file and has its match cleared: its Spotify id and fields are removed and
-   the track is rejected for it, so `sync --match` looks it up again.
+   stays in the library and is matched again: its studio Spotify id and fields are removed and that
+   track is rejected for it, so `sync --match` finds its own track and push adds it to the playlists.
 2. A Rated copy is kept over `Unrated/` imports.
-3. Of numbered copies (`Song.1.mp3` next to `Song.mp3`) the file without the number is kept.
-4. An album copy is kept over an EP, an EP over a single (a `single` release or a `Singles` folder:
-   singles are for songs on no album), a single over a compilation or soundtrack.
+3. Of numbered copies (`Song.1.mp3` next to `Song.mp3`) with the same audio (compared without the ID3
+   tags), the file without the number is kept. Numbered copies with other audio are picked.
+4. An album copy is kept over an EP, an EP over a single (a `single` release or a `Singles` folder), a
+   single over a compilation or soundtrack.
 
-The kept copy gets the context, picks, and mood values (multi value fields) of the removed copies, and the
-rating of the newest copy that has one (by file time) when it differs. Copies no rule decides (one single
-in two grouping folders, two album tracks matched to one track) are picked in fzf, one group at a time
-(esc keeps every copy). Then every group is listed in fzf, all selected: tab leaves one out, enter
-applies the rest after one confirmation.
+What happens to a copy that is not kept:
 
-Removed copies are taken out of beets (`beet remove`) and moved to `<db.backupDirectory>/trash/<run
-id>/<path>`, and leave the database. `musicman undo <run id>` moves them back, imports them into beets
-again where they are (only the `types` plugin loaded, so lyrics, replaygain, and scrub leave the file
-alone), and restores the kept copy's tags and the cleared matches. The trash is never emptied by
-musicman. The `Duplicates` tab of `musicman ui` shows the same plan with every copy to play, picks the
-copy to keep, and repairs one group or every decided one; its runs are undone from the `History` tab.
+| Copy | Database and Spotify | File |
+| ---- | -------------------- | ---- |
+| a single in a `Singles` or `_Singles` folder, when an album copy under `Artists` is kept | out | to the trash |
+| a numbered copy with the same audio | out | to the trash |
+| any other (compilation, EP, `single` release, the copies not picked) | out | stays where it is |
+
+Copies out of the library are listed in the `excluded_songs` table: `db --update`, the commands reading
+the library, and the drift check skip them, and `sync --push` removes their Spotify tracks from the
+playlists (like tracks rejected in review) instead of `sync --pull` fetching them again. The kept copy
+gets their context, picks, and mood values (multi value fields), and the rating of the newest copy that
+has one (by file time) when it differs.
+
+Copies no rule decides (one single in two grouping folders, two album tracks matched to one track) are
+picked in fzf, one group at a time (esc keeps every copy). Then every group is listed in fzf, all
+selected: tab leaves one out, enter applies the rest after one confirmation.
+
+Trashed files are taken out of beets (`beet remove`) and moved to `<db.backupDirectory>/trash/<run
+id>/<path>`. `musicman undo <run id>` takes it all back: trashed files move back and are imported into
+beets again where they are (only the `types` plugin loaded, so lyrics, replaygain, and scrub leave the
+file alone), excluded songs are let back in, and the kept copy's tags and the cleared matches are
+restored. The trash is never emptied by musicman. The `Duplicates` tab of `musicman ui` shows the same
+plan with every copy to play, picks the copy to keep, and repairs one group or every decided one; its
+runs are undone from the `History` tab.
 
 The first repair of a whole library rewrites a few thousand tags; back the files up first
 (`musicman sync --backup`), and try one directory before the rest.

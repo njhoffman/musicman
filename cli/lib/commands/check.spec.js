@@ -59,12 +59,12 @@ describe('Check command', () => {
   });
 
   describe('--fix with duplicates', () => {
-    // a numbered copy (decided by rule) and one single in two grouping folders (picked)
+    // a Singles copy of an album song (trashed by rule) and one single in two grouping folders (picked)
     const duplicatesDb = () => {
       const db = openDatabase(':memory:');
       [
+        ['Rated/G/Artists/A/album/2000 - Album/01 - Song.mp3', 't1'],
         ['Rated/G/Singles/A - Song.mp3', 't1'],
-        ['Rated/G/Singles/A - Song.1.mp3', 't1'],
         ['Rated/X/Singles/B - Tune.mp3', 't2'],
         ['Rated/Y/Singles/B - Tune.mp3', 't2']
       ].forEach(([file, trackId]) => {
@@ -91,9 +91,13 @@ describe('Check command', () => {
       });
       expect(fixed.duplicates.dryRun).to.be.true;
       expect(
-        fixed.duplicates.groups.map(({ keep, remove, candidates }) => [keep, remove, candidates])
+        fixed.duplicates.groups.map(({ keep, trash, candidates }) => [keep, trash, candidates])
       ).to.deep.equal([
-        ['Rated/G/Singles/A - Song.mp3', ['Rated/G/Singles/A - Song.1.mp3'], []],
+        [
+          'Rated/G/Artists/A/album/2000 - Album/01 - Song.mp3',
+          ['Rated/G/Singles/A - Song.mp3'],
+          []
+        ],
         [null, [], ['Rated/X/Singles/B - Tune.mp3', 'Rated/Y/Singles/B - Tune.mp3']]
       ]);
       expect(picks).to.be.empty;
@@ -117,15 +121,29 @@ describe('Check command', () => {
       expect(picks.map(({ settings }) => settings.prompt)).to.deep.equal(['keep', 'apply']);
       expect(picks[1].settings.binds).to.deep.equal(['start:select-all']);
       expect(picks[1].lines.map(line => line.split('\t')[1])).to.deep.equal([
-        'keep Rated/G/Singles/A - Song.mp3  remove 1',
-        'keep Rated/Y/Singles/B - Tune.mp3  remove 1'
+        'keep Rated/G/Artists/A/album/2000 - Album/01 - Song.mp3  trash 1',
+        'keep Rated/Y/Singles/B - Tune.mp3  drop 1'
       ]);
-      expect(fixed.duplicates.groups.map(({ keep, remove }) => [keep, remove])).to.deep.equal([
+      expect(fixed.duplicates.groups.map(({ keep, exclude }) => [keep, exclude])).to.deep.equal([
         ['Rated/Y/Singles/B - Tune.mp3', ['Rated/X/Singles/B - Tune.mp3']]
       ]);
-      expect(asked).to.deep.equal(['Move 1 copy to the trash?']);
-      expect(fixed.duplicates.removed).to.be.empty;
+      expect(asked).to.deep.equal(['Drop 1 copy from the library (files kept)?']);
+      expect(fixed.duplicates.excluded).to.be.empty;
     });
+  });
+
+  it('should not count songs taken out of the library as drift', async () => {
+    const db = libraryDb();
+    db.prepare("INSERT INTO excluded_songs (path) VALUES ('comp/c.mp3')").run();
+    const [drift] = await run({
+      config,
+      options: { switches: { only: 'drift' } },
+      openDb: () => db,
+      list: () => ['/music/comp/c.mp3', '/music/new.mp3']
+    });
+    const files = drift.findings.map(({ file }) => file);
+    expect(files).to.include('new.mp3');
+    expect(files).to.not.include('comp/c.mp3');
   });
 
   it('should fail without a library database', async () => {

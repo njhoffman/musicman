@@ -7,6 +7,7 @@
 // 6: match_changes (the spotify_matches rows review changed, for musicman undo)
 // 7: spotify_playlist_tracks.isrc (other releases of a library song), cached playlists fetched again
 // 8: file_changes (files a run moved, e.g. duplicates to the trash, for musicman undo)
+// 9: excluded_songs (duplicate copies kept on disk but out of the library and Spotify)
 module.exports = [
   `
   CREATE TABLE songs (
@@ -140,5 +141,15 @@ module.exports = [
     beets INTEGER NOT NULL DEFAULT 0
   );
   CREATE INDEX file_changes_run ON file_changes (run_id);
+  `,
+  `
+  CREATE TABLE excluded_songs (
+    path TEXT PRIMARY KEY,
+    track_id TEXT,
+    kept TEXT,
+    reason TEXT,
+    excluded_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX excluded_songs_track ON excluded_songs (track_id);
   `
 ];

@@ -457,6 +457,7 @@ const createHandler = ({
         return {
           ok: result.failed.length === 0,
           removed: result.removed.length,
+          excluded: result.excluded.length,
           cleared: result.cleared.length,
           merged: result.merged.length,
           failed: result.failed
