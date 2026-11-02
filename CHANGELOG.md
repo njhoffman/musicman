@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- `sync --push` no longer adds a track to a rating or grouping playlist when the files linked to it
+  disagree on which one it belongs in (e.g. one copy rated 4.0, another 4.5): it goes in none of those
+  playlists and stays where it already is until the copies agree. The plan's new `Conflict` column and a
+  warning count them (`check --only=exclusive` lists them). The menu's immediate push does the same and
+  says so in a notification.
+
 ## [1.41.1] - 2026-11-01
 
 ### Fixed

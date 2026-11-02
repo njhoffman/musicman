@@ -4,7 +4,7 @@ const path = require('path');
 const { refreshPlaylist } = require('./cache.js');
 const { localSpotifyIds } = require('./plan.js');
 const { playlistRequest, uri } = require('./push.js');
-const { likedId, songTargets } = require('./targets.js');
+const { conflictingTargets, exclusiveGroups, likedId, songTargets } = require('./targets.js');
 const { recordSpotify } = require('../history/journal.js');
 
 // whether the cache has a track in a target (Liked Songs or a playlist)
@@ -87,7 +87,9 @@ const changeTrack = async ({ db, client, targetId, trackId, action, meta, synced
  * whole sync: for each target the change moved the song into or out of (songTargets), its track is
  * added or removed, unless another copy of the song (readSongs reads them as [file, metadata]) keeps it
  * there. Playlists are refreshed first so a track is never added twice; Liked Songs is taken from the
- * cache. Songs without a Spotify id or outside sync.scope are left alone. Returns the changes made.
+ * cache. Songs without a Spotify id or outside sync.scope are left alone. A track is not added to a
+ * rating or grouping playlist its copies disagree on (conflictingTargets), like sync --push; that
+ * comes back as { action: 'skip' }. Returns the changes made.
  */
 const pushSong = async ({ db, client, config, file, before, after, readSongs }) => {
   const ids = localSpotifyIds(db, config);
@@ -111,11 +113,11 @@ const pushSong = async ({ db, client, config, file, before, after, readSongs }) 
     return [];
   }
   const copies = _.filter([...ids.keys()], copy => copy !== songFile && ids.get(copy) === trackId);
-  const kept = new Set(
-    copies.length
-      ? _.flatMap(_.reject(songTargets(await readSongs(copies), config), 'outOfScope'), 'targets')
-      : []
-  );
+  const copyTargets = copies.length
+    ? _.map(_.reject(songTargets(await readSongs(copies), config), 'outOfScope'), 'targets')
+    : [];
+  const kept = new Set(_.flatten(copyTargets));
+  const conflicts = conflictingTargets(exclusiveGroups(config), [now.targets, ...copyTargets]);
   const results = [];
   for (const targetId of changed) {
     const belongs = now.targets.includes(targetId) || kept.has(targetId);
@@ -123,7 +125,9 @@ const pushSong = async ({ db, client, config, file, before, after, readSongs }) 
       await refreshPlaylist(db, client, targetId);
     }
     const present = cachedIn(db, targetId, trackId);
-    if (belongs && !present) {
+    if (belongs && !present && conflicts.has(targetId)) {
+      results.push({ id: targetId, name: targetName(db, targetId), action: 'skip' });
+    } else if (belongs && !present) {
       results.push(
         await changeTrack({ db, client, targetId, trackId, action: 'add', meta: after })
       );

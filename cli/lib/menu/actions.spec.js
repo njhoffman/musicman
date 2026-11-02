@@ -319,6 +319,30 @@ describe('Menu song actions', () => {
       expect(tracksIn(study)).to.be.empty;
     });
 
+    it('should not move a Spotify song to a rating playlist another copy disagrees on, and say so', async () => {
+      const { lastInsertRowid } = db
+        .prepare("INSERT INTO songs (path, mtime, size) VALUES ('copy.mp3', 1, 1)")
+        .run();
+      db.prepare(
+        "INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, 'TXXX.sp_track_id', 'ta')"
+      ).run(lastInsertRowid);
+      metas['/music/copy.mp3'] = { rating: '4.0' };
+      cache(rated4, ['ta']);
+      try {
+        const { run } = await press(linked, '2');
+        const result = await run();
+        expect(writes).to.deep.equal([['/music/a.mp3', { rating: '4.5' }]]);
+        expect(requests.filter(([, url]) => url.includes(rated45))).to.be.empty;
+        expect(tracksIn(rated4)).to.deep.equal(['ta']);
+        expect(result.pushed).to.deep.include({ id: rated45, name: rated45, action: 'skip' });
+        expect(result.notice).to.equal(
+          `Not added to ${rated45} on Spotify: copies of this song belong in different playlists there (musicman check --only=exclusive)`
+        );
+      } finally {
+        delete metas['/music/copy.mp3'];
+      }
+    });
+
     it('should add a Spotify song not in the library to the playlist of a button, and remove it again', async () => {
       const add = await tagChoice(remote, 'Hot');
       expect(add.entry).to.include({ active: false, disabled: false });

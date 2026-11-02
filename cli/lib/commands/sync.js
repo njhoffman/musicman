@@ -281,6 +281,7 @@ const planColumns = [
   ['spotify', 'Spotify', target => target.remote],
   ['local', 'Local', target => target.local],
   ['add', 'Add', target => target.add.length],
+  ['conflict', 'Conflict', target => (target.conflict || []).length],
   ['noId', 'No id', target => target.noId.length],
   ['prune', 'Prune', target => target.prune.length],
   ['reject', 'Rejected', target => (target.reject || []).length],
@@ -302,7 +303,7 @@ const outputPlan = (plan, { config, switches, highlighted = [] }) => {
       oneline: record =>
         `${record.target}\t${chalk.bold(record.target)} ${dim(
           `spotify ${record.spotify}, local ${record.local}`
-        )} add ${record.add}, no id ${record.noId}, prune ${record.prune}, spotify +${
+        )} add ${record.add}, conflict ${record.conflict}, no id ${record.noId}, prune ${record.prune}, spotify +${
           record.spotifyAdded
         } -${record.spotifyRemoved}, pull ${record.pull}`
     });
@@ -323,6 +324,13 @@ const outputPlan = (plan, { config, switches, highlighted = [] }) => {
         'spotifyRemoved'
       )} (sync --pull), to pull: ${total('pull')}`
   );
+  const conflicts = _.uniq(_.flatMap(plan, target => _.map(target.conflict || [], 'trackId')));
+  if (conflicts.length > 0) {
+    logger.warn(
+      `Not added: ${conflicts.length} tracks whose copies belong in different rating or grouping ` +
+        'playlists (check --only=exclusive)'
+    );
+  }
 };
 
 const runPlan = async ({

@@ -69,7 +69,45 @@ const songTargets = (songs, config) => {
   });
 };
 
+/**
+ * Groups of mapped Spotify playlists a song belongs in at most one of: playlists whose sync.playlists
+ * filter is one field:value term on a field holding one value (grouping, rating; not multi value fields
+ * like context), grouped by that field. A playlist several filters map to (grouping:X.Artists and
+ * grouping:X.Singles) is one member. Groups with a single playlist are left out.
+ */
+const exclusiveGroups = config => {
+  const multi = new Set(_.map(_.filter(_.get(config, 'library.tags'), 'multi'), 'name'));
+  const single = _.compact(
+    _.map(playlistTargets(config), target => {
+      const match = /^([\w-]+):(\S+)$/.exec(`${target.filter}`.trim());
+      return match && !multi.has(match[1]) ? { ...target, field: match[1] } : null;
+    })
+  );
+  return _.compact(
+    _.map(_.groupBy(single, 'field'), (targets, field) =>
+      _.uniq(_.map(targets, 'id')).length > 1 ? { field, targets } : null
+    )
+  );
+};
+
+/**
+ * The playlists of exclusive groups (exclusiveGroups) the copies of one song disagree on: given the
+ * targets of each copy linked to one Spotify track, the ids of every group playlist some copy belongs
+ * in, for each group where the copies call for more than one. Push adds the track to none of them
+ * until the copies agree. Empty when they agree or there is one copy.
+ */
+const conflictingTargets = (groups, targetsPerCopy) =>
+  new Set(
+    _.flatMap(groups, ({ targets }) => {
+      const ids = new Set(_.map(targets, 'id'));
+      const wanted = _.uniq(_.flatMap(targetsPerCopy, copy => _.filter(copy, id => ids.has(id))));
+      return wanted.length > 1 ? wanted : [];
+    })
+  );
+
 module.exports = {
+  conflictingTargets,
+  exclusiveGroups,
   filterMatcher,
   ignorePlaylistId,
   ignoredTracks,

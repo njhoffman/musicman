@@ -3,7 +3,13 @@ const path = require('path');
 
 const { transaction } = require('../db/database.js');
 const { rejectedTracks, spotifyIdFrame } = require('./match.js');
-const { ignorePlaylistId, ignoredTracks, likedId } = require('./targets.js');
+const {
+  conflictingTargets,
+  exclusiveGroups,
+  ignorePlaylistId,
+  ignoredTracks,
+  likedId
+} = require('./targets.js');
 
 // Spotify track id of every stored song, keyed by absolute file path
 const localSpotifyIds = (db, config) => {
@@ -36,6 +42,8 @@ const syncedTracks = db =>
  * a track counts as belonging when any of them does.
  *   spotifyRemoved: belongs by its tags, is not in the target, and was in sync before (removed on Spotify)
  *   inSync: track ids in the target that belong there
+ *   conflict: would be add, but the copies of the song linked to the track belong in different
+ *     playlists of an exclusive group (conflictingTargets), so it is added to none of them
  * and noId (songs that belong without a Spotify id), reject (tracks rejected in review for a song, which
  * push removes), and pull (tracks in the target not in the library, nor in sync.ignorePlaylist).
  * Songs marked outOfScope (outside sync.scope) are in none of these.
@@ -46,6 +54,19 @@ const syncPlan = (db, config, songs) => {
   const filesByTrack = _.groupBy([...ids.keys()], file => ids.get(file));
   const songByTrack = new Map(_.map(filesByTrack, (files, id) => [id, files[0]]));
   const synced = syncedTracks(db);
+  // per track, the group playlists its copies disagree on (in sync.scope; outOfScope songs have none)
+  const groups = exclusiveGroups(config);
+  const targetsByFile = new Map(_.map(songs, ({ file, targets }) => [file, targets]));
+  const conflicts = new Map(
+    _.map(filesByTrack, (files, trackId) => [
+      trackId,
+      conflictingTargets(
+        groups,
+        _.map(files, file => targetsByFile.get(file) || [])
+      )
+    ])
+  );
+  const inConflict = (trackId, id) => (conflicts.get(trackId) || new Set()).has(id);
   // tracks rejected in review that no song is linked to any more, removed wherever they were pushed
   const rejected = rejectedTracks(db, config);
   const isRejected = trackId => rejected.has(trackId) && !songByTrack.has(trackId);
@@ -73,7 +94,8 @@ const syncPlan = (db, config, songs) => {
       song => ({ ...song, trackId: ids.get(song.file) })
     );
     const missing = _.filter(withId, ({ trackId }) => !remoteIds.has(trackId));
-    const [spotifyRemoved, add] = _.partition(missing, ({ trackId }) => before.has(trackId));
+    const [spotifyRemoved, wanted] = _.partition(missing, ({ trackId }) => before.has(trackId));
+    const [conflict, add] = _.partition(wanted, ({ trackId }) => inConflict(trackId, id));
     // a track is extra only when no copy of its song belongs, and every copy is in sync.scope
     const extra = _.map(
       _.filter(remote, ({ track_id: trackId }) => {
@@ -96,6 +118,7 @@ const syncPlan = (db, config, songs) => {
       remote: remote.length,
       local: members.length,
       add,
+      conflict: _.uniqBy(conflict, 'trackId'),
       noId: _.filter(members, ({ file }) => !ids.has(file)),
       prune,
       spotifyAdded,

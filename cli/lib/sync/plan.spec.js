@@ -1,3 +1,4 @@
+const _ = require('lodash');
 const sinon = require('sinon');
 const { expect } = require('chai');
 
@@ -219,6 +220,68 @@ describe('Sync Cache and Plan', () => {
         expect(liked.spotifyAdded.map(track => track.files)).to.deep.equal([
           ['/music/c.mp3', '/music/c2.mp3']
         ]);
+      });
+
+      describe('in playlists a song belongs in at most one of (rating, grouping)', () => {
+        const r4 = '0000000000000000000004';
+        const r5 = '0000000000000000000005';
+        const study = '000000000000000000000s';
+        const url = id => `https://open.spotify.com/playlist/${id}`;
+        const exclusiveConfig = {
+          ...config,
+          library: { tags: [{ name: 'context', id: 'TXXX.Context', multi: true }] },
+          sync: {
+            playlists: [
+              { filter: 'rating:4.0-4.0', playlist: url(r4) },
+              { filter: 'rating:5.0-5.0', playlist: url(r5) },
+              { filter: 'context:Study', playlist: url(study) }
+            ]
+          }
+        };
+        beforeEach(() => {
+          const insert = db.prepare('INSERT INTO spotify_playlists (id, name) VALUES (?, ?)');
+          insert.run(r4, 'Rating 4.0');
+          insert.run(r5, 'Rating 5.0');
+          insert.run(study, 'Study');
+        });
+        const plan = (c, c2) =>
+          _.keyBy(
+            syncPlan(db, exclusiveConfig, [
+              ..._.reject(songs, { file: '/music/c.mp3' }),
+              { file: '/music/c.mp3', targets: c },
+              { file: '/music/c2.mp3', targets: c2 }
+            ]),
+            'name'
+          );
+
+        it('should add a track whose copies disagree to none of them, listed as conflict', () => {
+          const targets = plan([r4, study], [r5, study]);
+          ['Rating 4.0', 'Rating 5.0'].forEach(name => {
+            expect(targets[name].add).to.be.empty;
+            expect(targets[name].conflict.map(song => song.trackId)).to.deep.equal(['tc']);
+          });
+          // other playlists still get the track
+          expect(_.uniq(targets.Study.add.map(song => song.trackId))).to.deep.equal(['tc']);
+          expect(targets.Study.conflict).to.be.empty;
+        });
+
+        it('should add a track whose copies agree', () => {
+          const targets = plan([r5], [r5]);
+          expect(_.uniq(targets['Rating 5.0'].add.map(song => song.trackId))).to.deep.equal(['tc']);
+          expect(targets['Rating 5.0'].conflict).to.be.empty;
+        });
+
+        it('should keep a disagreeing track where it is and not prune it', () => {
+          db.prepare(
+            "INSERT INTO spotify_playlist_tracks (playlist_id, track_id, is_local) VALUES (?, 'tc', 0)"
+          ).run(r4);
+          db.prepare("INSERT INTO spotify_synced (playlist_id, track_id) VALUES (?, 'tc')").run(r4);
+          const targets = plan([r4], [r5]);
+          expect(targets['Rating 4.0'].prune).to.be.empty;
+          expect(targets['Rating 4.0'].inSync).to.deep.equal(['tc']);
+          expect(targets['Rating 5.0'].add).to.be.empty;
+          expect(targets['Rating 5.0'].conflict.map(song => song.trackId)).to.deep.equal(['tc']);
+        });
       });
 
       it('should leave a track alone when any copy is outside sync.scope', () => {

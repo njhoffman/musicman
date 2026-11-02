@@ -59,12 +59,12 @@ Reviewed: 2026-11-01
 - [x] **One ReplayGain spelling.** (p3) [chore] uppercase, as beets' mediafile creates new frames (it
       matches existing ones in any case): the `gain` tag id is `TXXX.REPLAYGAIN_TRACK_GAIN` in
       `~/.musicmanrc.yml` (2026-11-01), so `check --fix` renames all four ReplayGain fields to uppercase.
-- [ ] **Copies of a song in two rating playlists.** (p2) [bug] `check --only=exclusive` (2026-11-01): 62 tracks
-      in two rating playlists and 11 in two grouping playlists on Spotify, each linked to two files that
-      disagree (e.g. 311 - Beautiful Disaster on Transistor at 5.0 and on Live at 4.5). Push puts a track
-      wherever any copy belongs. Decide per song (one rating for both, or unlink the copy matched to the wrong
-      recording, often a live file matched to the studio track), and have push remove a track from the other
-      playlists of an exclusive group.
+- [ ] **Copies of a song in two rating playlists.** (p2) [chore] `check --only=exclusive` (2026-11-01): 82
+      songs whose linked files disagree on a rating or grouping playlist (e.g. 311 - Beautiful Disaster on
+      Transistor at 5.0 and on Live at 4.5). Push no longer adds such tracks (1.42.0, `Conflict` column), but
+      the ones already in two playlists stay there. Decide per song: one rating for both, or unlink the copy
+      matched to the wrong recording (often a live file matched to the studio track), then remove the
+      track from the playlist it no longer belongs in.
 - [ ] **Rare values found by `check`.** (p3) [chore] mood:Bluesy (2), Dark, Folksy, Groovy (3 each), and
       picks:Jeremy (1) on 2026-11-01; keep, merge, or rename each.
 - [x] **`check --fix`.** (p2) [feature] `musicman check --fix` (docs/08-check.md): names, standard,

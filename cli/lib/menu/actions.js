@@ -394,7 +394,17 @@ const songActions = ({
           readSongs
         })
       );
-      return { file: current.file, assignments, pushed };
+      const skipped = _.map(_.filter(pushed, { action: 'skip' }), 'name');
+      return {
+        file: current.file,
+        assignments,
+        pushed,
+        ...(skipped.length
+          ? {
+              notice: `Not added to ${skipped.join(', ')} on Spotify: copies of this song belong in different playlists there (musicman check --only=exclusive)`
+            }
+          : {})
+      };
     });
   };
 

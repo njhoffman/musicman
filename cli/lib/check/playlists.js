@@ -2,28 +2,7 @@ const _ = require('lodash');
 
 const { toRawTags } = require('../db/read.js');
 const { parseMetadata } = require('../metadata/read.js');
-const { playlistTargets } = require('../sync/targets.js');
-
-/**
- * Groups of mapped Spotify playlists a song belongs in at most one of: playlists whose sync.playlists
- * filter is one field:value term on a field holding one value (grouping, rating; not multi value fields
- * like context), grouped by that field. A playlist several filters map to (grouping:X.Artists and
- * grouping:X.Singles) is one member. Groups with a single playlist are left out.
- */
-const exclusiveGroups = config => {
-  const multi = new Set(_.map(_.filter(_.get(config, 'library.tags'), 'multi'), 'name'));
-  const single = _.compact(
-    _.map(playlistTargets(config), target => {
-      const match = /^([\w-]+):(\S+)$/.exec(`${target.filter}`.trim());
-      return match && !multi.has(match[1]) ? { ...target, field: match[1] } : null;
-    })
-  );
-  return _.compact(
-    _.map(_.groupBy(single, 'field'), (targets, field) =>
-      _.uniq(_.map(targets, 'id')).length > 1 ? { field, targets } : null
-    )
-  );
-};
+const { exclusiveGroups } = require('../sync/targets.js');
 
 // parsed metadata ([file, meta] as the filters take it) of the checked songs, from the database
 const storedSongs = (db, config, songs) => {

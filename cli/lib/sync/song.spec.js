@@ -1,3 +1,4 @@
+const _ = require('lodash');
 const { expect } = require('chai');
 
 const { openDatabase } = require('../db/database.js');
@@ -123,6 +124,45 @@ describe('Sync One Song', () => {
     await push(spotify, { context: 'Run' }, { context: '' }, readSongs);
     expect(spotify.requests).to.be.empty;
     expect(tracksIn(run)).to.deep.equal(['ta']);
+  });
+
+  it('should not add the track to a rating playlist another copy disagrees on', async () => {
+    const r45 = 'Rating45Playlist000000';
+    const r50 = 'Rating50Playlist000000';
+    const ratingConfig = {
+      ...config,
+      sync: {
+        ...config.sync,
+        playlists: [
+          { filter: 'rating:4.5-4.5', playlist: r45 },
+          { filter: 'rating:5.0-5.0', playlist: r50 }
+        ]
+      }
+    };
+    cache(r45, ['ta']);
+    cache(r50, []);
+    addSong('copy.mp3', 'ta');
+    const spotify = client();
+    const pushRating = readSongs =>
+      pushSong({
+        db,
+        client: spotify,
+        config: ratingConfig,
+        file: '/music/a.mp3',
+        before: { rating: '4.5' },
+        after: { rating: '5.0' },
+        readSongs
+      });
+    const results = await pushRating(async files => files.map(file => [file, { rating: '4.5' }]));
+    expect(spotify.requests).to.be.empty;
+    expect(results).to.deep.equal([{ id: r50, name: `Playlist ${r50}`, action: 'skip' }]);
+    expect(tracksIn(r45)).to.deep.equal(['ta']);
+    expect(tracksIn(r50)).to.be.empty;
+    // once the copies agree, the track moves
+    const agreed = await pushRating(async files => files.map(file => [file, { rating: '5.0' }]));
+    expect(_.map(agreed, 'action')).to.deep.equal(['remove', 'add']);
+    expect(tracksIn(r45)).to.be.empty;
+    expect(tracksIn(r50)).to.deep.equal(['ta']);
   });
 
   it('should save the track to Liked Songs when its rating reaches sync.likedRating', async () => {

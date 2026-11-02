@@ -110,6 +110,13 @@ const notifyError = (message, { exec = execFile } = {}) =>
     )
   );
 
+const notifyNotice = (message, { exec = execFile } = {}) =>
+  new Promise(resolve =>
+    exec('notify-send', ['-u', 'normal', '-a', 'musicman', 'musicman menu', message], () =>
+      resolve()
+    )
+  );
+
 /**
  * A rofi menu for the song playing in MPD or Spotify (Spotify when both play): playback controls for
  * either player, with the same layout for both, and the source shown in the title, the accent color,
@@ -128,6 +135,7 @@ class Menu {
     reshuffle = null,
     cover = coverFor,
     notify = notifyError,
+    notice = notifyNotice,
     settle = settleMs,
     follow = followMs
   }) {
@@ -137,6 +145,7 @@ class Menu {
     this.reshuffle = reshuffle;
     this.cover = cover;
     this.notify = notify;
+    this.notice = notice;
     this.settle = settle;
     this.follow = follow;
   }
@@ -162,10 +171,15 @@ class Menu {
     }
   }
 
-  // runs a picked action; an error is announced and the menu stays open
+  // runs a picked action; an error, or a notice the action returns, is announced and the menu stays open
   async attempt(action) {
     try {
-      return (await action()) || {};
+      const result = (await action()) || {};
+      if (result.notice) {
+        await this.notice(result.notice);
+      }
+      // announced once: a choice runs inside the attempt of the entry that opened it
+      return _.omit(result, 'notice');
     } catch (err) {
       await this.notify(err.message);
       return {};
@@ -428,6 +442,7 @@ module.exports = {
   icons,
   modeKeys,
   notifyError,
+  notifyNotice,
   progressBar,
   quitKey,
   stars,

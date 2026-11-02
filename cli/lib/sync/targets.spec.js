@@ -37,4 +37,34 @@ describe('Sync Targets', () => {
       ['/m/none.mp3', [], true]
     ]);
   });
+
+  describe('conflictingTargets', () => {
+    const { conflictingTargets } = require('./targets.js');
+    const groups = [
+      { field: 'rating', targets: [{ id: 'r4' }, { id: 'r5' }] },
+      { field: 'grouping', targets: [{ id: 'indie' }, { id: 'folk' }, { id: 'indie' }] }
+    ];
+
+    it('should list the group playlists copies disagree on, per group', () => {
+      expect([
+        ...conflictingTargets(groups, [
+          ['r4', 'indie', 'study'],
+          ['r5', 'indie']
+        ])
+      ]).to.deep.equal(['r4', 'r5']);
+      expect([
+        ...conflictingTargets(groups, [
+          ['r4', 'indie'],
+          ['r5', 'folk']
+        ])
+      ]).to.have.members(['r4', 'r5', 'indie', 'folk']);
+    });
+
+    it('should be empty when the copies agree, there is one copy, or a copy belongs in none', () => {
+      expect(conflictingTargets(groups, [['r5', 'study'], ['r5']]).size).to.equal(0);
+      expect(conflictingTargets(groups, [['r4']]).size).to.equal(0);
+      expect(conflictingTargets(groups, [['r4'], []]).size).to.equal(0);
+      expect(conflictingTargets([], [['r4'], ['r5']]).size).to.equal(0);
+    });
+  });
 });

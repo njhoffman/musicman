@@ -199,6 +199,30 @@ describe('Menu', () => {
     expect(menus).to.have.length(3);
   });
 
+  it('should announce a notice an action returns once, also from a choice of a second menu', async () => {
+    const notes = [];
+    const errors = [];
+    const { view } = fakeView([{ key: 'g' }, 0, null, { key: 'q' }]);
+    await menuWith({
+      players: [fakePlayer('mpd', 'playing')],
+      view,
+      notify: async m => errors.push(m),
+      notice: async m => notes.push(m),
+      songActions: {
+        song: async () => ({}),
+        entries: async () => [
+          {
+            key: 'g',
+            label: 'Rate',
+            choices: async () => [{ label: '5.0', run: async () => ({ notice: 'not moved' }) }]
+          }
+        ]
+      }
+    }).open();
+    expect(notes).to.deep.equal(['not moved']);
+    expect(errors).to.be.empty;
+  });
+
   it('should fail with a notification when neither player is running', async () => {
     const notes = [];
     const stopped = { ...fakePlayer('mpd', null), state: async () => ({ state: null }) };
