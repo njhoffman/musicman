@@ -66,6 +66,31 @@ describe('Database', () => {
         .undefined;
     });
 
+    it('should fetch cached playlists again once their tracks have an isrc column', () => {
+      const { DatabaseSync } = require('node:sqlite');
+      const old = new DatabaseSync(':memory:');
+      try {
+        migrate(old, migrations.slice(0, 6));
+        old
+          .prepare("INSERT INTO spotify_playlists (id, name, snapshot_id) VALUES ('p', 'P', 's1')")
+          .run();
+        migrate(old);
+        expect(
+          old.prepare("SELECT snapshot_id FROM spotify_playlists WHERE id = 'p'").get()
+        ).to.deep.equal({
+          snapshot_id: null
+        });
+        expect(
+          old
+            .prepare('PRAGMA table_info(spotify_playlist_tracks)')
+            .all()
+            .map(column => column.name)
+        ).to.include('isrc');
+      } finally {
+        old.close();
+      }
+    });
+
     it('should refuse a database with a newer schema version', () => {
       db.exec(`PRAGMA user_version = ${migrations.length + 1}`);
       expect(() => migrate(db)).to.throw('newer than this musicman supports');

@@ -24,6 +24,29 @@ const localSpotifyIds = (db, config) => {
   );
 };
 
+// frame holding a song's Spotify ISRC: the spotify.fields entry for track.external_ids.isrc
+const isrcFrame = config =>
+  `TXXX.${_.get(
+    _.find(_.get(config, 'spotify.fields', []), { path: 'track.external_ids.isrc' }),
+    'name',
+    'sp_isrc'
+  )}`;
+
+// library track id of every ISRC the library's songs have, the lowest when songs of one recording are
+// linked to different tracks
+const isrcTracks = (db, config) => {
+  const rows = db
+    .prepare(
+      `SELECT i.value AS isrc, t.value AS track_id FROM song_tags i
+       JOIN song_tags t ON t.song_id = i.song_id AND t.frame_id = ?
+       WHERE i.frame_id = ? AND i.value != ''`
+    )
+    .all(spotifyIdFrame, isrcFrame(config));
+  return new Map(
+    _.map(_.groupBy(rows, 'isrc'), (group, isrc) => [isrc, _.min(_.map(group, 'track_id'))])
+  );
+};
+
 // track ids each target and the local tags agreed on at the last sync, keyed by target id
 const syncedTracks = db =>
   _.mapValues(
@@ -47,6 +70,11 @@ const syncedTracks = db =>
  * and noId (songs that belong without a Spotify id), reject (tracks rejected in review for a song, which
  * push removes), and pull (tracks in the target not in the library, nor in sync.ignorePlaylist).
  * Songs marked outOfScope (outside sync.scope) are in none of these.
+ *
+ * A track in a target that is another release of a library song (the same ISRC, e.g. the single and
+ * the album track) counts as that song's track (libraryId): it is not pulled, its targets reach the song
+ * through spotifyAdded, and the song is not added next to it. prune keeps its own track_id, which push
+ * removes. Tracks rejected in review or in sync.ignorePlaylist are never counted as another release.
  */
 const syncPlan = (db, config, songs) => {
   const ids = localSpotifyIds(db, config);
@@ -77,12 +105,24 @@ const syncPlan = (db, config, songs) => {
     id: ignoreId
   });
   const tracksOf = db.prepare(
-    'SELECT track_id, is_local, name, artists, album FROM spotify_playlist_tracks WHERE playlist_id = ?'
+    `SELECT track_id, is_local, name, artists, album, isrc FROM spotify_playlist_tracks
+     WHERE playlist_id = ?`
   );
+  const releases = isrcTracks(db, config);
+  // the library track a remote track stands for: itself, or the song it is another release of
+  const libraryId = ({ track_id: trackId, isrc }) =>
+    !trackId ||
+    songByTrack.has(trackId) ||
+    !isrc ||
+    !releases.has(isrc) ||
+    rejected.has(trackId) ||
+    ignoredIds.has(trackId)
+      ? trackId
+      : releases.get(isrc);
 
   return _.map(playlists, ({ id, name }) => {
-    const remote = tracksOf.all(id);
-    const remoteIds = new Set(_.compact(_.map(remote, 'track_id')));
+    const remote = _.map(tracksOf.all(id), track => ({ ...track, libraryId: libraryId(track) }));
+    const remoteIds = new Set(_.compact(_.map(remote, 'libraryId')));
     const before = synced[id] || new Set();
     const members = _.filter(songs, ({ targets }) => targets.includes(id));
     // songs outside sync.scope are left alone wherever they are on Spotify
@@ -98,19 +138,19 @@ const syncPlan = (db, config, songs) => {
     const [conflict, add] = _.partition(wanted, ({ trackId }) => inConflict(trackId, id));
     // a track is extra only when no copy of its song belongs, and every copy is in sync.scope
     const extra = _.map(
-      _.filter(remote, ({ track_id: trackId }) => {
+      _.filter(remote, ({ libraryId: trackId }) => {
         const files = (trackId && filesByTrack[trackId]) || [];
         return files.length > 0 && !files.some(file => memberFiles.has(file) || ignored.has(file));
       }),
       track => ({
         ...track,
-        file: songByTrack.get(track.track_id),
-        files: filesByTrack[track.track_id]
+        file: songByTrack.get(track.libraryId),
+        files: filesByTrack[track.libraryId]
       })
     );
-    const [prune, spotifyAdded] = _.partition(extra, ({ track_id: trackId }) =>
-      before.has(trackId)
-    );
+    const [prune, added] = _.partition(extra, ({ libraryId: trackId }) => before.has(trackId));
+    // both releases of a song in one target add its tag once
+    const spotifyAdded = _.uniqBy(added, 'libraryId');
 
     return {
       id,
@@ -135,10 +175,10 @@ const syncPlan = (db, config, songs) => {
       ),
       pull: _.filter(
         remote,
-        ({ track_id: trackId, is_local: isLocal }) =>
+        ({ track_id: trackId, libraryId: id, is_local: isLocal }) =>
           !isLocal &&
           trackId &&
-          !songByTrack.has(trackId) &&
+          !songByTrack.has(id) &&
           !isRejected(trackId) &&
           !ignoredIds.has(trackId)
       )
@@ -160,7 +200,7 @@ const recordSynced = (db, plan) => {
       db.prepare('DELETE FROM spotify_synced WHERE playlist_id = ?').run(target.id);
       const keep = [
         ...target.inSync,
-        ..._.map(target.prune, 'track_id'),
+        ..._.map(target.prune, track => track.libraryId || track.track_id),
         ..._.map(target.spotifyRemoved, 'trackId')
       ];
       _.uniq(keep).forEach(trackId => insert.run(target.id, trackId));

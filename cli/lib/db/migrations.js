@@ -5,6 +5,7 @@
 // 4: spotify_matches.reviewed_at (a match accepted in review) and .rejected (track ids rejected in review)
 // 5: history_runs, tag_changes, spotify_changes (what each run changed, for musicman undo)
 // 6: match_changes (the spotify_matches rows review changed, for musicman undo)
+// 7: spotify_playlist_tracks.isrc (other releases of a library song), cached playlists fetched again
 module.exports = [
   `
   CREATE TABLE songs (
@@ -123,5 +124,9 @@ module.exports = [
     after_hash TEXT
   );
   CREATE INDEX match_changes_run ON match_changes (run_id);
+  `,
+  `
+  ALTER TABLE spotify_playlist_tracks ADD COLUMN isrc TEXT;
+  UPDATE spotify_playlists SET snapshot_id = NULL;
   `
 ];

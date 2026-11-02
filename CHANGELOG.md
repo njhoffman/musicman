@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- `sync` treats a Spotify track with the same ISRC as a library song (the single and the album
+  release of one recording) as that song: `sync --pull` no longer lists it for download, its
+  playlists reach the song's tags as changes made on Spotify, and `--push` does not add the
+  library's release next to it. The first sync after upgrading fetches every playlist again to
+  cache the ISRCs.
+
 ## [1.50.2] - 2026-11-02
 
 ### Changed

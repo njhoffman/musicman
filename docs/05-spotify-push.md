@@ -46,12 +46,18 @@ whose snapshot id did not change are not fetched again), then builds a plan per 
 | Rejected | a track rejected in review that no song is linked to any more | `--push` removes it |
 | +Spotify | in the target, does not belong, never in sync (added on Spotify) | `--pull` (`04-spotify-pull.md`) |
 | -Spotify | belongs, not in the target, in sync before (removed on Spotify) | `--pull`; push does not re-add it |
-| Pull | in the target, not in the library | `--pull` download manifest |
+| Pull | in the target, not in the library (nor another release of a library song) | `--pull` download manifest |
 
 - After every sync that is not a dry run, the agreed state is stored; tracks the two sides still disagree
   on keep their previous state, so a change stays a change until it is resolved.
 - Several files can be linked to one track (an album copy and a compilation copy). A track belongs in a
   target when any copy does, and is pruned only when no copy does. Adds are sent once per track.
+- A track in a target that is another release of a library song (the same ISRC as the song's
+  `sp_isrc`, e.g. the single and the album track) counts as that song's track: it is not pulled, the
+  song is not added next to it, and when the song's tags do not put it in that target it shows as
+  +Spotify (its playlist tags reach the song on `--pull`). Prune removes it by its own id. Tracks
+  rejected in review or in `sync.ignorePlaylist` never count as another release. The ISRCs come from
+  the playlist cache; the first sync after upgrading fetches every playlist again to fill them in.
 
 ## Exclusive groups
 

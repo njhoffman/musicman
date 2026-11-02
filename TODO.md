@@ -197,15 +197,12 @@ Reviewed: 2026-11-01
       904 downloaded (367 missing, rerun `pnpm download`), a 20 file slice imported and checked (tags, database,
       manifest, undo history), then the rest: 894 imported into `Unrated/_Singles`, every one with the manifest's
       track id. beets takes ~14 s per file, mostly the lyrics plugin. Left: the 367 downloads that failed.
-- [ ] **Second Spotify versions of a library song are pulled again on every sync.** (p2) [bug] the same
-      recording is often in Liked Songs or playlists twice, as the single and the album track (Cannons "Bad
-      Dream" 2IwbIGkq... and 5ZJ9NpjY...). The library keeps one, so the other track id stays in the plan's
-      `pull` list: every `sync --pull` lists it, `pnpm download` fetches it, and beets refuses it as a duplicate
-      (`duplicate-keep` in `beets-import.log`). 20 such pairs on 2026-11-02 (the copies were deleted). The
-      library song also misses the playlist tags of the other version (Men I Trust "Tailwhip" is in Lifting,
-      Relax, and Running only as 7fax7Nlx...). Push leaves the other version alone (it is no song's track).
-      Options: recognize the other version in the plan (same ISRC, or artist and title) and leave it out of
-      `pull`, giving its playlist tags to the song; or replace it on Spotify with the library's track id.
+- [x] **Second Spotify versions of a library song are pulled again on every sync.** (p2) [bug] the plan
+      counts a track with the ISRC of a library song (`sp_isrc`) as that song: not pulled, its playlists
+      reach the song as +Spotify, and push does not add the library's release next to it. The playlist
+      cache stores ISRCs (migration 7 fetches every playlist again). On the 2026-11-02 library: 201 of
+      520 pull tracks dropped, 21 songs gain context/picks tags, 12 grouping/rating decisions listed.
+      Matching by artist and title was rejected: it caught live versions, remixes, and remasters.
 - [ ] **`import` command wrapping beets.** (p2) [feature] one command for newly downloaded files, reading the beets
       config (paths, import settings) so it tags and renames like beets would:
       - tell full albums from singles (album import vs `-s` singletons) and import each the right way

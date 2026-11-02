@@ -4,7 +4,7 @@ const { transaction } = require('../db/database.js');
 const { likedId } = require('./targets.js');
 
 // fields kept from playlist items, the track is under item (current API) or track (older responses)
-const trackFields = 'id,name,duration_ms,artists(name),album(name)';
+const trackFields = 'id,name,duration_ms,artists(name),album(name),external_ids(isrc)';
 const itemFields = `items(added_at,is_local,item(${trackFields}),track(${trackFields})),next`;
 
 const toRow = entry => {
@@ -16,7 +16,8 @@ const toRow = entry => {
     artists: _.map(track.artists, 'name').join(', ') || null,
     album: _.get(track, 'album.name') || null,
     duration_ms: track.duration_ms || null,
-    added_at: entry.added_at || null
+    added_at: entry.added_at || null,
+    isrc: _.get(track, 'external_ids.isrc') || null
   };
 };
 
@@ -30,8 +31,8 @@ const storePlaylist = (db, { id, name, snapshotId, rows }) =>
     db.prepare('DELETE FROM spotify_playlist_tracks WHERE playlist_id = ?').run(id);
     const insert = db.prepare(
       `INSERT INTO spotify_playlist_tracks
-         (playlist_id, track_id, is_local, name, artists, album, duration_ms, added_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+         (playlist_id, track_id, is_local, name, artists, album, duration_ms, added_at, isrc)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     rows.forEach(row =>
       insert.run(
@@ -42,7 +43,8 @@ const storePlaylist = (db, { id, name, snapshotId, rows }) =>
         row.artists,
         row.album,
         row.duration_ms,
-        row.added_at
+        row.added_at,
+        row.isrc
       )
     );
   });

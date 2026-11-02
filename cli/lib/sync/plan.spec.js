@@ -12,7 +12,14 @@ describe('Sync Cache and Plan', () => {
   const entry = (id, name = id) => ({
     added_at: 'x',
     is_local: false,
-    item: { id, name, duration_ms: 1, artists: [{ name: 'A' }], album: { name: 'B' } }
+    item: {
+      id,
+      name,
+      duration_ms: 1,
+      artists: [{ name: 'A' }],
+      album: { name: 'B' },
+      external_ids: { isrc: `ISRC-${id}` }
+    }
   });
 
   beforeEach(() => {
@@ -46,6 +53,12 @@ describe('Sync Cache and Plan', () => {
       expect(tracks('liked').map(row => row.track_id)).to.deep.equal(['liked1']);
       expect(tracks('aaa').map(row => row.track_id)).to.deep.equal(['p1', 'p2']);
       expect(
+        db
+          .prepare("SELECT isrc FROM spotify_playlist_tracks WHERE playlist_id = 'aaa'")
+          .all()
+          .map(row => row.isrc)
+      ).to.deep.equal(['ISRC-p1', 'ISRC-p2']);
+      expect(
         db.prepare("SELECT name, snapshot_id FROM spotify_playlists WHERE id = 'aaa'").get()
       ).to.deep.include({
         name: 'Playlist aaa',
@@ -70,7 +83,8 @@ describe('Sync Cache and Plan', () => {
       });
       expect(toRow({ is_local: true, item: { id: null, name: 'Local' } })).to.include({
         track_id: null,
-        is_local: 1
+        is_local: 1,
+        isrc: null
       });
     });
   });
@@ -289,6 +303,111 @@ describe('Sync Cache and Plan', () => {
         const [liked] = syncPlan(db, config, copy([], { outOfScope: true }));
         expect(liked.prune).to.be.empty;
         expect(liked.spotifyAdded).to.be.empty;
+      });
+    });
+
+    describe('with another release of a library song on Spotify', () => {
+      // ta2 is another release (the single, say) of a.mp3's track ta: the same ISRC
+      const other = 'p0000000000000000000o1';
+      const isrc = (file, value, frame = 'TXXX.sp_isrc') =>
+        db
+          .prepare(
+            `INSERT INTO song_tags (song_id, frame_id, value)
+             SELECT id, ?, ? FROM songs WHERE path = ?`
+          )
+          .run(frame, value, file);
+      const inOther = (...trackIds) => {
+        const insert = db.prepare(
+          'INSERT INTO spotify_playlist_tracks (playlist_id, track_id, is_local, isrc) VALUES (?, ?, 0, ?)'
+        );
+        trackIds.forEach(trackId =>
+          insert.run(other, trackId, trackId.startsWith('ta') ? 'US1' : null)
+        );
+      };
+      const planFor = (aTargets, planConfig = config) =>
+        _.keyBy(
+          syncPlan(
+            db,
+            planConfig,
+            songs.map(song =>
+              song.file === '/music/a.mp3' ? { ...song, targets: aTargets } : song
+            )
+          ),
+          'id'
+        )[other];
+
+      beforeEach(() => {
+        db.prepare("INSERT INTO spotify_playlists (id, name) VALUES (?, 'Other')").run(other);
+        isrc('a.mp3', 'US1');
+      });
+
+      it('should count it as the song: not pulled, and the song not added next to it', () => {
+        inOther('ta2');
+        const target = planFor(['liked', other]);
+        expect(target.pull).to.be.empty;
+        expect(target.add).to.be.empty;
+        expect(target.inSync).to.deep.equal(['ta']);
+      });
+
+      it('should give the song the target as added on Spotify when its tags lack it', () => {
+        inOther('ta2');
+        const target = planFor(['liked']);
+        expect(target.pull).to.be.empty;
+        expect(
+          target.spotifyAdded.map(track => [track.track_id, track.libraryId, track.file])
+        ).to.deep.equal([['ta2', 'ta', '/music/a.mp3']]);
+      });
+
+      it('should add the target once when both releases are in it', () => {
+        inOther('ta', 'ta2');
+        expect(planFor(['liked']).spotifyAdded.map(track => track.libraryId)).to.deep.equal(['ta']);
+      });
+
+      it('should prune both releases by their own ids and record the library track as synced', () => {
+        inOther('ta', 'ta2');
+        db.prepare("INSERT INTO spotify_synced (playlist_id, track_id) VALUES (?, 'ta')").run(
+          other
+        );
+        const target = planFor(['liked']);
+        expect(ids(target.prune, 'track_id')).to.deep.equal(['ta', 'ta2']);
+        recordSynced(db, [target]);
+        expect(
+          ids(
+            db.prepare('SELECT track_id FROM spotify_synced WHERE playlist_id = ?').all(other),
+            'track_id'
+          )
+        ).to.deep.equal(['ta']);
+      });
+
+      it('should pull a track without an ISRC or with one no song has', () => {
+        inOther('tx');
+        db.prepare(
+          "INSERT INTO spotify_playlist_tracks (playlist_id, track_id, is_local, isrc) VALUES (?, 'ty', 0, 'US9')"
+        ).run(other);
+        expect(ids(planFor(['liked']).pull, 'track_id')).to.deep.equal(['tx', 'ty']);
+      });
+
+      it('should not count a release rejected in review as the song', () => {
+        inOther('ta2');
+        const songId = db.prepare("SELECT id FROM songs WHERE path = 'e.mp3'").get().id;
+        db.prepare(
+          `INSERT INTO spotify_matches (song_id, status, rejected) VALUES (?, 'rejected', '["ta2"]')`
+        ).run(songId);
+        const target = planFor(['liked']);
+        expect(target.spotifyAdded).to.be.empty;
+        expect(ids(target.reject, 'track_id')).to.deep.equal(['ta2']);
+      });
+
+      it('should read the ISRC from the field spotify.fields names', () => {
+        db.prepare("DELETE FROM song_tags WHERE frame_id = 'TXXX.sp_isrc'").run();
+        isrc('a.mp3', 'US1', 'TXXX.my_isrc');
+        inOther('ta2');
+        const custom = {
+          ...config,
+          spotify: { fields: [{ path: 'track.external_ids.isrc', name: 'my_isrc' }] }
+        };
+        expect(planFor(['liked', other], custom).pull).to.be.empty;
+        expect(ids(planFor(['liked', other]).pull, 'track_id')).to.deep.equal(['ta2']);
       });
     });
 
