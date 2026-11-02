@@ -3,7 +3,7 @@ const NodeId3 = require('node-id3');
 const { unflatten } = require('flat');
 
 const logger = require('../utils/logger.js');
-const { appendFrames, readTagBuffer, walkFrames } = require('../check/frames.js');
+const { appendFrames, readTagBuffer, singleFrames, walkFrames } = require('../check/frames.js');
 const { journaledWrite } = require('../history/journal.js');
 
 const toRating = (newRating, ratingMax) => Math.round((newRating * 255) / ratingMax);
@@ -101,13 +101,53 @@ const updateNodeId3 = (tags, file) => {
   );
 };
 
+// a frame as node-id3 parses it on its own, from a tag holding only that frame
+const parseFrame = (version, bytes) => {
+  const size = bytes.length;
+  const header = Buffer.from([
+    0x49,
+    0x44,
+    0x33,
+    version,
+    0,
+    0,
+    (size >> 21) & 0x7f,
+    (size >> 14) & 0x7f,
+    (size >> 7) & 0x7f,
+    size & 0x7f
+  ]);
+  return _.values(_.get(NodeId3.read(Buffer.concat([header, bytes])), 'raw', {}))[0];
+};
+
+/**
+ * Frames of a single frame id (singleFrames) that appear more than once in a tag, except the one
+ * node-id3 reads (parsed raw) and exact copies of it: those a node-id3 rewrite drops.
+ */
+const droppedRepeats = (tag, frames, raw) =>
+  _.flatMap(
+    _.filter(_.groupBy(frames, 'id'), (group, id) => singleFrames.has(id) && group.length > 1),
+    group => {
+      const parsed = _.map(group, ({ start, end }) => parseFrame(tag[3], tag.subarray(start, end)));
+      const read = raw[group[0].id];
+      let kept = _.findIndex(parsed, value => _.isEqual(value, read));
+      kept = kept === -1 ? 0 : kept;
+      return _.filter(
+        group,
+        (frame, index) => index !== kept && !_.isEqual(parsed[index], parsed[kept])
+      );
+    }
+  );
+
 const keepingFrames = (file, write) => {
   const original = readTagBuffer(file);
   const frames = walkFrames(original) || [];
-  const known = new Set(_.keys(_.get(NodeId3.read(original || Buffer.alloc(0)), 'raw', {})));
+  const raw = _.get(NodeId3.read(original || Buffer.alloc(0)), 'raw', {});
+  const known = new Set(_.keys(raw));
   const unknown = _.filter(frames, ({ id }) => !known.has(id));
+  const dropped = droppedRepeats(original, frames, raw);
+  const kept = _.sortBy([...unknown, ...dropped], 'start');
   const result = write();
-  if (result instanceof Error || unknown.length === 0) {
+  if (result instanceof Error || kept.length === 0) {
     return result;
   }
   // node-id3 writes ID3v2.3, so frames of an ID3v2.3 tag are copied as they are
@@ -115,11 +155,12 @@ const keepingFrames = (file, write) => {
     original[3] !== 3 ||
     !appendFrames(
       file,
-      _.map(unknown, ({ start, end }) => original.subarray(start, end))
+      _.map(kept, ({ start, end }) => original.subarray(start, end)),
+      { last: _.uniq(_.map(dropped, 'id')) }
     )
   ) {
     return new Error(
-      `tags were written, but ${_.uniq(_.map(unknown, 'id')).join(', ')} could not be kept`
+      `tags were written, but ${_.uniq(_.map(kept, 'id')).join(', ')} could not be kept`
     );
   }
   return result;
@@ -127,7 +168,8 @@ const keepingFrames = (file, write) => {
 
 /**
  * Runs a node-id3 write of file, keeping the frames node-id3 does not understand and would drop when it
- * rewrites the tag (e.g. TCMP, IPLS, TSOC): their original bytes are appended to the new tag. The frames
+ * rewrites the tag (e.g. TCMP, IPLS, TSOC), and the second and later frames of an id it holds only once
+ * (droppedRepeats, e.g. a comment next to iTunNORM): their original bytes are appended to the new tag. The frames
  * it changes are recorded for musicman undo when a run is being recorded. Returns what write returned
  * (true or an Error).
  */

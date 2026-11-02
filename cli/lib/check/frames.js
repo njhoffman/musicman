@@ -73,20 +73,31 @@ const encodeSyncsafe = size =>
 
 /**
  * Appends raw frames (complete ID3v2.3 frames, header included) to the ID3v2.3 tag of a file, rewriting
- * the tag size and keeping the audio. Returns false when the file's tag is not one that can be extended.
+ * the tag size and keeping the audio. Frames of the ids in last already in the tag are moved after the
+ * appended ones, so a reader taking the last frame of an id (node-id3) still reads the same one.
+ * Returns false when the file's tag is not one that can be extended.
  */
-const appendFrames = (file, frames) => {
+const appendFrames = (file, frames, { last = [] } = {}) => {
   const tag = readTagBuffer(file);
   const existing = walkFrames(tag);
   if (!existing || tag[3] !== 3 || tag[5] & 0x40) {
     return false;
   }
-  const framesEnd = existing.length > 0 ? existing[existing.length - 1].end : 10;
-  const body = Buffer.concat([tag.subarray(10, framesEnd), ...frames]);
+  const moved = new Set(last);
+  const bytes = ({ start, end }) => tag.subarray(start, end);
+  const body = Buffer.concat([
+    ...existing.filter(({ id }) => !moved.has(id)).map(bytes),
+    ...frames,
+    ...existing.filter(({ id }) => moved.has(id)).map(bytes)
+  ]);
   const header = Buffer.concat([tag.subarray(0, 6), encodeSyncsafe(body.length)]);
   const audio = fs.readFileSync(file).subarray(tag.length);
   fs.writeFileSync(file, Buffer.concat([header, body, audio]));
   return true;
 };
 
-module.exports = { appendFrames, listFrameIds, readTagBuffer, walkFrames };
+// frames node-id3 0.2.9 reads and writes once even when a tag holds several (a comment next to
+// iTunNORM, a front and a back cover): a rewrite keeps one and drops the others
+const singleFrames = new Set(['APIC', 'COMM', 'ETCO', 'POPM', 'USLT']);
+
+module.exports = { appendFrames, listFrameIds, readTagBuffer, singleFrames, walkFrames };

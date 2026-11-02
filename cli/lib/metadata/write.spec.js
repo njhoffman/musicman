@@ -213,6 +213,69 @@ describe('Metadata Write', () => {
       expect(fs.readFileSync(file).subarray(tag.length).equals(audio)).to.be.true;
     });
 
+    // ID3v2.3 COMM frame: id, size, flags, then ISO-8859-1 encoding, language, short text, and text
+    const commFrame = (shortText, text) => {
+      const body = Buffer.concat([
+        Buffer.from([0]),
+        Buffer.from('eng', 'latin1'),
+        Buffer.from(`${shortText}\0${text}`, 'latin1')
+      ]);
+      const size = Buffer.alloc(4);
+      size.writeUInt32BE(body.length);
+      return Buffer.concat([Buffer.from('COMM', 'latin1'), size, Buffer.alloc(2), body]);
+    };
+
+    describe('a frame node-id3 holds once appearing twice', () => {
+      const { appendFrames, listFrameIds, readTagBuffer } = require('../check/frames.js');
+      const { rewriteTags } = require('./write.js');
+      const comments = () => {
+        const tag = readTagBuffer(file);
+        return listFrameIds(tag).filter(id => id === 'COMM').length;
+      };
+
+      beforeEach(() => {
+        const comment = commFrame('', 'Repack by someone');
+        const norm = commFrame('iTunNORM', ' 00000A0A 00000A0A');
+        expect(appendFrames(file, [comment, norm])).to.be.true;
+      });
+
+      it('should keep both frames and read the same one after every write', () => {
+        const read = () => NodeId3.read(file).raw.COMM;
+        const before = read();
+        // node-id3 alone drops one
+        const copy = path.join(directory, 'copy.mp3');
+        fs.copyFileSync(file, copy);
+        NodeId3.update({ TIT1: 'x' }, copy);
+        expect(
+          require('../check/frames.js')
+            .listFrameIds(readTagBuffer(copy))
+            .filter(id => id === 'COMM')
+        ).to.have.length(1);
+
+        expect(updateTags({ TIT1: 'Grouping' }, file)).to.be.true;
+        expect(comments()).to.equal(2);
+        expect(read()).to.deep.equal(before);
+        expect(rewriteTags(file, raw => raw)).to.be.true;
+        expect(rewriteTags(file, raw => raw)).to.be.true;
+        expect(comments()).to.equal(2);
+        expect(read()).to.deep.equal(before);
+        expect(NodeId3.read(file).raw.TIT1).to.equal('Grouping');
+      });
+
+      it('should write a change to the frame node-id3 reads without bringing back its old text', () => {
+        const before = NodeId3.read(file).raw.COMM;
+        const changed = { ...before, text: 'changed' };
+        expect(rewriteTags(file, raw => ({ ...raw, COMM: changed }))).to.be.true;
+        expect(comments()).to.equal(2);
+        expect(NodeId3.read(file).raw.COMM).to.deep.equal(changed);
+        const texts = require('../check/frames.js')
+          .walkFrames(readTagBuffer(file))
+          .filter(({ id }) => id === 'COMM')
+          .map(({ start, end }) => readTagBuffer(file).subarray(start, end).toString('latin1'));
+        expect(texts.join('|')).to.not.include(before.text);
+      });
+    });
+
     it('should update other files with node-id3 directly', () => {
       expect(updateTags({ TIT1: 'Grouping' }, file)).to.be.true;
       expect(NodeId3.read(file).raw.TIT1).to.equal('Grouping');

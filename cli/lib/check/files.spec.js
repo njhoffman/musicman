@@ -87,6 +87,17 @@ describe('File checks', () => {
     expect(inspectFile(file, { multi, access }).frames).to.deep.equal([]);
   });
 
+  it('should report a repeated frame node-id3 holds once only where a rewrite cannot keep it', () => {
+    const tag = v24Tag([
+      ['TIT2', 'A'],
+      ['COMM', 'one'],
+      ['COMM', 'two']
+    ]);
+    expect(inspectFile(file, { multi, access, readTag: () => tag }).frames).to.deep.equal([
+      'all but one COMM frame in an ID3v2.4 tag would be lost on a rewrite'
+    ]);
+  });
+
   it('should report changed, missing, and unknown files against the database', () => {
     const base = '/music';
     const stat = target => ({

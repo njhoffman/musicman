@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const NodeId3 = require('node-id3');
 
-const { readTagBuffer, walkFrames } = require('./frames.js');
+const { readTagBuffer, singleFrames, walkFrames } = require('./frames.js');
 
 /**
  * Checks that read the files: each file's tag (the ID3v2 header and frames, not the audio) is read once
@@ -86,10 +86,20 @@ const inspectFile = (file, { multi, access = fs.accessSync, readTag = readTagBuf
       'id'
     )
   );
-  if (unknown.length && (tag[3] !== 3 || tag[5] & 0x40)) {
-    found.frames.push(
-      `${unknown.join(', ')} in an ID3v2.${tag[3]}${tag[5] & 0x40 ? ' (extended header)' : ''} tag would be lost on a rewrite`
-    );
+  // a frame node-id3 holds once (singleFrames) that appears more than once: a rewrite keeps one
+  const repeated = _.keys(
+    _.pickBy(_.countBy(frames, 'id'), (count, id) => singleFrames.has(id) && count > 1)
+  );
+  if (tag[3] !== 3 || tag[5] & 0x40) {
+    const where = `in an ID3v2.${tag[3]}${tag[5] & 0x40 ? ' (extended header)' : ''} tag`;
+    if (unknown.length) {
+      found.frames.push(`${unknown.join(', ')} ${where} would be lost on a rewrite`);
+    }
+    if (repeated.length) {
+      found.frames.push(
+        `all but one ${repeated.join(', ')} frame ${where} would be lost on a rewrite`
+      );
+    }
   }
   _.each([].concat(parsed.userDefinedText || []), ({ description, value }) => {
     const field = multi[description];
