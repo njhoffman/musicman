@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.41.1] - 2026-11-01
+
 ### Fixed
 
 - Tag writes (`edit`, the menu, `check --fix`, sync) no longer drop the second of two frames node-id3
@@ -836,7 +838,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.41.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.41.1...HEAD
+[1.41.1]: https://github.com/njhoffman/musicman/compare/v1.41.0...v1.41.1
 [1.41.0]: https://github.com/njhoffman/musicman/compare/v1.40.3...v1.41.0
 [1.40.3]: https://github.com/njhoffman/musicman/compare/v1.40.2...v1.40.3
 [1.40.2]: https://github.com/njhoffman/musicman/compare/v1.40.1...v1.40.2
