@@ -300,7 +300,8 @@ const changeMarkers = db => {
 
 /**
  * The duplicate groups of the library with what check --fix would do (planDuplicates), each copy with
- * its song fields to show and play: [{ key, copies: [{ song, action, reason }], keep, candidates }].
+ * its song fields to show and play: [{ key, copies: [{ song, action, reason, size, rating, audio }],
+ * keep, candidates, sameAudio }], audio the start of the copy's audio hash where it was read.
  * action is keep, trash (file to the trash), exclude (out of the library, file kept), clear (another
  * recording, matched again), or pick (no rule decides), else none.
  */
@@ -314,7 +315,7 @@ const duplicatesList = async (db, config) => {
   });
   const select = db.prepare('SELECT id, path, duration FROM songs WHERE path = ?');
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
-  return _.map(planDuplicates(duplicateGroups(db, result.findings, { baseDirectory })), group => {
+  return _.map(planDuplicates(duplicateGroups(db, result.findings), { baseDirectory }), group => {
     const action = file => {
       if (group.keep === file) {
         return 'keep';
@@ -330,14 +331,21 @@ const duplicatesList = async (db, config) => {
       }
       return group.candidates.includes(file) ? 'pick' : 'none';
     };
+    const picks = _.filter(group.files, item => group.candidates.includes(item.path));
+    const sounds = _.map(picks, 'audio');
     return {
       key: _.map(group.files, 'path').sort().join('|'),
       keep: group.keep,
       candidates: group.candidates,
-      copies: _.map(group.files, ({ path: file }) => ({
-        song: songView(db, select.get(file)),
-        action: action(file),
-        reason: group.reasons[file] || null
+      // whether the copies to pick from have the same audio (null when there is nothing to pick)
+      sameAudio: picks.length > 0 ? Boolean(sounds[0]) && _.uniq(sounds).length === 1 : null,
+      copies: _.map(group.files, item => ({
+        song: songView(db, select.get(item.path)),
+        action: action(item.path),
+        reason: group.reasons[item.path] || null,
+        size: item.size,
+        rating: item.rating,
+        audio: item.audio ? item.audio.slice(0, 8) : null
       }))
     };
   });

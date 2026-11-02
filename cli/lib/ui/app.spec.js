@@ -92,10 +92,13 @@ const historyFixture = () => ({
 });
 
 // an album copy that keeps over a single, and one single in two grouping folders to pick from
-const copyOf = (id, songPath, action, reason = null) => ({
+const copyOf = (id, songPath, action, reason = null, audio = null) => ({
   song: { id, path: songPath, artist: 'Hotel', title: 'Song', album: null, duration: 100 },
   action,
-  reason
+  reason,
+  size: 4194304,
+  rating: 4.5,
+  audio
 });
 const duplicatesFixture = () => ({
   groups: [
@@ -103,6 +106,7 @@ const duplicatesFixture = () => ({
       key: 'album|single',
       keep: 'Hotel/album/01 - Song.mp3',
       candidates: [],
+      sameAudio: null,
       copies: [
         copyOf(8, 'Hotel/album/01 - Song.mp3', 'keep'),
         copyOf(9, 'Singles/Hotel - Song.mp3', 'trash', 'single copy, the album copy is kept')
@@ -112,9 +116,10 @@ const duplicatesFixture = () => ({
       key: 'x|y',
       keep: null,
       candidates: ['X/Singles/Hotel - Tune.mp3', 'Y/Singles/Hotel - Tune.mp3'],
+      sameAudio: false,
       copies: [
-        copyOf(10, 'X/Singles/Hotel - Tune.mp3', 'pick'),
-        copyOf(11, 'Y/Singles/Hotel - Tune.mp3', 'pick')
+        copyOf(10, 'X/Singles/Hotel - Tune.mp3', 'pick', null, 'aaaa1111'),
+        copyOf(11, 'Y/Singles/Hotel - Tune.mp3', 'pick', null, 'bbbb2222')
       ]
     }
   ],
@@ -853,6 +858,24 @@ describe('musicman ui page', () => {
       );
     });
 
+    it('should list only the groups to pick, and tell their copies apart', () => {
+      click(button('#list-head button', 'Only groups to pick (1)'));
+      expect(plans()).to.deep.equal(['pick the copy to keep']);
+      expect(button('#list-head button', 'Show every group')).to.exist;
+      press('j');
+      expect($('compare').querySelector('.similarity').textContent).to.equal(
+        'Different audio, same length 1:40'
+      );
+      const details = all('#compare .duplicate dl')
+        .filter(dl => dl.textContent.includes('Audio CRC'))
+        .map(dl => dl.textContent);
+      expect(details[0])
+        .to.include('Size4.0 MB')
+        .and.include('Audio CRCaaaa1111')
+        .and.include('Rating4.5');
+      expect(all('#compare dd.differs').map(dd => dd.textContent)).to.include('aaaa1111');
+    });
+
     it('should pick the copy to keep in the panel, then repair that group', async () => {
       press('j');
       press('j');
@@ -886,6 +909,8 @@ describe('musicman ui page', () => {
         ]
       });
       expect(requests.filter(r => r.url === '/api/duplicates')).to.have.length(3);
+      // the group at its place is selected next, to go on picking
+      expect(app.state.selected).to.equal('x|y');
     });
   });
 

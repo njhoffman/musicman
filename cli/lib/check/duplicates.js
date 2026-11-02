@@ -87,9 +87,12 @@ const otherRecording = songPath => {
  * under Artists is kept, or a numbered copy with the same audio (trash); any other losing copy leaves
  * the library and Spotify but its file stays (exclude). Returns { keep, trash, exclude, clear,
  * candidates, reasons }: keep is null when copies tie, and candidates lists the copies to pick from
- * (the others are excluded, resolveGroup).
+ * (the others are excluded, resolveGroup). Tied copies with the same audio are decided too: the one
+ * whose file name is closest to its title (TIT2), then to its Spotify artist and title, is kept, and
+ * the others go to the trash from a Singles
+ * folder or are excluded elsewhere. audio(item) gives a copy's audioHash (null when unknown).
  */
-const planGroup = files => {
+const planGroup = (files, { audio = item => item.audio || null } = {}) => {
   const reasons = {};
   const trash = [];
   const exclude = [];
@@ -121,7 +124,7 @@ const planGroup = files => {
       // the file without the number keeps its name; the newer copy's rating reaches it (mergedTags)
       const same = _.filter(
         _.without(group, original),
-        item => item.audio && item.audio === original.audio
+        item => audio(item) && audio(item) === audio(original)
       );
       _.each(same, item => {
         trash.push(item.path);
@@ -144,8 +147,75 @@ const planGroup = files => {
     (inSinglesFolder(item.path) && albumKept ? trash : exclude).push(item.path);
     reasons[item.path] = reason;
   });
-  const keep = top.length === 1 ? top[0].path : null;
+  let keep = top.length === 1 ? top[0].path : null;
+  if (!keep && top.length > 1) {
+    const sounds = _.map(top, audio);
+    // closest to its own title, then (when those tie) to the Spotify artist and title
+    const named = _.orderBy(
+      _.map(top, item => ({
+        item,
+        score: titleCloseness(item.path, item.title),
+        spotify: item.spotifyTitle ? titleCloseness(item.path, item.spotifyTitle) : 0
+      })),
+      ['score', 'spotify'],
+      ['desc', 'desc']
+    );
+    const closer =
+      named[0].score > named[1].score ||
+      (named[0].score === named[1].score && named[0].spotify > named[1].spotify);
+    // identical audio, and one name closest to its title: no pick needed
+    if (sounds[0] && _.uniq(sounds).length === 1 && closer) {
+      keep = named[0].item.path;
+      _.each(_.tail(named), ({ item }) => {
+        (inSinglesFolder(item.path) ? trash : exclude).push(item.path);
+        reasons[item.path] = 'same audio, the copy named closest to its title is kept';
+      });
+    }
+  }
   return { keep, trash, exclude, clear, candidates: keep ? [] : _.map(top, 'path'), reasons };
+};
+
+// letter pairs of a text, for titleCloseness
+const pairs = text => _.map(_.range(Math.max(text.length - 1, 0)), i => text.slice(i, i + 2));
+
+/**
+ * How close a file name is to a title, 0 to 1: 1 when the name (without its track number, a numbered
+ * copy's number, or the "Artist - " of a Singles file) is the title in any case, else the share of
+ * letter pairs they have in common (Dice). 0 without a title.
+ */
+const titleCloseness = (songPath, title) => {
+  if (!title) {
+    return 0;
+  }
+  const want = `${title}`.trim().toLowerCase();
+  const name = path
+    .basename(`${songPath}`)
+    .replace(/(\.\d+)?\.mp3$/i, '')
+    .replace(/^\d+ - /, '')
+    .toLowerCase();
+  const names = _.uniq([name, name.includes(' - ') ? name.slice(name.indexOf(' - ') + 3) : name]);
+  return _.max(
+    _.map(names, candidate => {
+      if (candidate === want) {
+        return 1;
+      }
+      const a = pairs(candidate);
+      const b = pairs(want);
+      if (a.length + b.length === 0) {
+        return 0;
+      }
+      const left = [...b];
+      const common = _.filter(a, pair => {
+        const index = left.indexOf(pair);
+        if (index < 0) {
+          return false;
+        }
+        left.splice(index, 1);
+        return true;
+      }).length;
+      return (2 * common) / (a.length + b.length);
+    })
+  );
 };
 
 /**
@@ -186,32 +256,32 @@ const joinOverlapping = fileGroups => {
 
 /**
  * The duplicates findings of check (groups of files, overlapping ones joined) with the song rows the
- * plan needs: { files: [{ id, path, mtime, rating, trackId, audio }] }, audio (audioHash) only for
- * files with numbered copies, read from baseDirectory.
+ * plan needs and shows: { files: [{ id, path, mtime, size, duration, rating, trackId, title,
+ * spotifyTitle }] }.
  */
-const duplicateGroups = (db, findings, { baseDirectory, hash = audioHash } = {}) => {
-  const select = db.prepare('SELECT id, path, mtime, rating FROM songs WHERE path = ?');
+const duplicateGroups = (db, findings) => {
+  const select = db.prepare(
+    'SELECT id, path, mtime, size, duration, rating FROM songs WHERE path = ?'
+  );
   const trackOf = db.prepare('SELECT value FROM song_tags WHERE song_id = ? AND frame_id = ?');
+  // "artist - title" on Spotify, to tell apart copies whose names match their own titles alike
+  const spotifyTitleOf = id => {
+    const title = _.get(trackOf.get(id, 'TXXX.sp_title'), 'value');
+    const artist = _.get(trackOf.get(id, 'TXXX.sp_artist'), 'value');
+    return title ? _.compact([artist, title]).join(' - ') : null;
+  };
   return _.compact(
     _.map(joinOverlapping(_.map(findings, 'files')), files => {
       const rows = _.compact(_.map(files, file => select.get(file)));
       if (rows.length < 2) {
         return null;
       }
-      const numbered = _.flatten(
-        _.filter(
-          _.groupBy(rows, row => numberedKey(row.path)),
-          group => group.length > 1
-        )
-      );
       return {
         files: _.map(rows, row => ({
           ...row,
           trackId: _.get(trackOf.get(row.id, spotifyIdFrame), 'value') || null,
-          audio:
-            baseDirectory && numbered.includes(row)
-              ? hash(path.join(baseDirectory, row.path))
-              : null
+          title: _.get(trackOf.get(row.id, 'TIT2'), 'value') || null,
+          spotifyTitle: spotifyTitleOf(row.id)
         }))
       };
     })
@@ -220,14 +290,28 @@ const duplicateGroups = (db, findings, { baseDirectory, hash = audioHash } = {})
 
 /**
  * Plans every group: [{ files, keep, trash, exclude, clear, candidates, reasons }], groups with nothing
- * to do left out.
+ * to do left out. Audio hashes are read from baseDirectory only where a rule needs them (numbered
+ * copies, tied copies) and kept on the files (audio, null when not read).
  */
-const planDuplicates = groups =>
-  _.filter(
-    _.map(groups, group => ({ ...group, ...planGroup(group.files) })),
+const planDuplicates = (groups, { baseDirectory, hash = audioHash } = {}) => {
+  const read = _.memoize(songPath =>
+    baseDirectory ? hash(path.join(baseDirectory, songPath)) : null
+  );
+  const audio = item => (item.audio !== undefined ? item.audio : read(item.path));
+  return _.filter(
+    _.map(groups, group => {
+      const plan = planGroup(group.files, { audio });
+      const files = _.map(group.files, item => ({
+        ...item,
+        audio:
+          item.audio !== undefined ? item.audio : read.cache.has(item.path) ? read(item.path) : null
+      }));
+      return { ...group, files, ...plan };
+    }),
     ({ trash, exclude, clear, candidates }) =>
       trash.length + exclude.length + clear.length + candidates.length > 0
   );
+};
 
 // the copies a group takes out of the library: trashed and excluded
 const removedCopies = group => [...group.trash, ...group.exclude];
@@ -465,6 +549,7 @@ module.exports = {
   planGroup,
   releaseType,
   removedCopies,
+  titleCloseness,
   resolveGroup,
   trashPath
 };

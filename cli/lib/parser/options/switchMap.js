@@ -118,6 +118,12 @@ module.exports = {
     alias: '-E',
     func: () => ({ fix: true })
   },
+  pick: {
+    description:
+      'With check, go through the duplicate groups no rule decides one at a time in fzf (length, size, audio CRC, rating, title) and keep the copy picked',
+    alias: '-k',
+    func: () => ({ pick: true })
+  },
   'dry-run': {
     description:
       'Show what would change without writing files or Spotify (sync --match still caches its lookups)',
@@ -185,7 +191,7 @@ module.exports = {
     }
   },
   all: {
-    description: 'check, sort: list every finding or waiting song instead of the first 10',
+    description: 'sort: list every waiting song instead of the first 10',
     alias: '-A',
     func: () => ({ all: true })
   }

@@ -6,6 +6,22 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `check --pick` (`-k`) goes through the duplicate groups no rule decides one at a time in fzf, with
+  each copy's length, size, audio CRC, rating, and title; the copy picked is kept right away, `skip`
+  leaves a group for later, `stop` ends.
+- The Duplicates tab of `musicman ui` lists only the groups to pick on request, shows each copy's size,
+  audio CRC, and rating, and moves on to the next group after a repair.
+
+### Changed
+
+- `check` lists every finding and every planned change; its `--all` switch is gone (`sort --all` stays).
+- `check --fix` repairs every duplicate group the rules decide after one confirmation, without fzf; the
+  groups that need a pick are left for `check --pick` or the page.
+- Identical copies that tie are decided by the file name closest to the ID3 title, then to the Spotify
+  artist and title; the others go to the trash from a Singles folder, or leave the library elsewhere.
+
 ## [1.53.0] - 2026-11-02
 
 ### Changed

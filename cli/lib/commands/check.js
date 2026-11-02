@@ -54,7 +54,7 @@ const runTagFix = async ({ db, config, target, results, switches, confirm, quiet
     }
     return { plan, written: [], failed: [] };
   }
-  _.each(renderPlan(plan, { all: switches.all }), line => logger.consoleLog(line));
+  _.each(renderPlan(plan), line => logger.consoleLog(line));
   if (drift.length > 0) {
     logger.consoleLog(`drift       ${plural(drift.length, 'file')} updated in the database`);
   }
@@ -98,134 +98,191 @@ const runTagFix = async ({ db, config, target, results, switches, confirm, quiet
 
 const nothingDone = { removed: [], excluded: [], cleared: [], merged: [], failed: [] };
 
-// the copy to keep of each group no rule decides, picked in fzf one group at a time; a group left
-// without a pick (esc) keeps every copy, only its live matches are still cleared
-const pickKeeps = (groups, { config, pick }) => {
-  const baseDirectory = path.resolve(config.mpd.baseDirectory);
-  const open = _.filter(groups, ({ candidates }) => candidates.length > 0);
-  return _.map(groups, group => {
-    if (group.candidates.length === 0) {
-      return group;
-    }
-    const [picked] = pick(
-      _.map(group.candidates, file => `${path.join(baseDirectory, file)}\t${file}`),
-      {
-        multi: false,
-        prompt: 'keep',
-        header: `Duplicates ${open.indexOf(group) + 1}/${open.length}: pick the copy to keep, the others leave the library, their files stay (esc keeps them all)`,
-        preview: previewCommand('view')
-      }
-    );
-    return picked
-      ? resolveGroup(group, path.relative(baseDirectory, picked))
-      : { ...group, keep: null, trash: [], exclude: [], candidates: [] };
-  });
-};
+// the duplicate groups of the check results, planned (audio hashes read where a rule needs them)
+const plannedDuplicates = (db, config, results) =>
+  planDuplicates(
+    duplicateGroups(db, _.get(_.find(results, { name: 'duplicates' }), 'findings', [])),
+    { baseDirectory: path.resolve(config.mpd.baseDirectory) }
+  );
 
-// one fzf line per group: index, what happens, and the plan lines shown in the preview
-const groupLine = (group, index) => {
-  const text = _.compact([
-    group.keep && `keep ${group.keep}`,
-    group.trash.length > 0 && `trash ${group.trash.length}`,
-    group.exclude.length > 0 && `drop ${group.exclude.length}`,
-    group.clear.length > 0 && `re-match ${group.clear.length}`
-  ]).join('  ');
-  const details = _.compact([
-    group.keep && `keep    ${group.keep}`,
-    ..._.map(group.trash, file => `trash   ${file}  (${group.reasons[file]})`),
-    ..._.map(group.exclude, file => `drop    ${file}  (${group.reasons[file]}, file kept)`),
-    ..._.map(group.clear, file => `rematch ${file}  (${group.reasons[file]})`)
-  ])
-    .join('\\n')
-    .replace(/\t/g, ' ');
-  return `${index}\t${text}\t${details}`;
-};
+const runIdNow = () =>
+  activeRun() ||
+  new Date()
+    .toISOString()
+    .replace(/\.\d{3}Z$/, '')
+    .replace(/[-:]/g, '');
+
+// what applying groups did, in one line
+const duplicatesSummary = result =>
+  _.upperFirst(
+    _.compact([
+      result.removed.length && `moved ${plural(result.removed.length, 'file')} to the trash`,
+      result.excluded.length &&
+        `dropped ${plural(result.excluded.length, 'copy', 'copies')} from the library (files kept)`,
+      result.cleared.length &&
+        `cleared ${plural(result.cleared.length, 'wrong match', 'wrong matches')} (sync --match finds their own tracks)`,
+      result.merged.length &&
+        `merged tags into ${plural(result.merged.length, 'kept copy', 'kept copies')}`
+    ]).join(', ') || 'nothing changed'
+  );
 
 /**
- * check --fix for duplicates: plans each group (planDuplicates), shows the plan, lets the groups no rule
- * decides be picked and the plan be narrowed in fzf (all groups selected), and after confirm applies it
- * (applyDuplicates), recorded for musicman undo. Without a terminal, or with dryRun, only the plan is
- * shown.
+ * check --fix for duplicates: plans each group (planDuplicates), shows the plan, and after one confirm
+ * applies every group the rules decide (applyDuplicates), recorded for musicman undo. Groups that need
+ * a pick are left for check --pick or the Duplicates tab of musicman ui. Without a terminal, or with
+ * dryRun, only the plan is shown.
  */
-const runDuplicateFix = async ({ db, config, results, switches, confirm, pick }) => {
-  const findings = _.get(_.find(results, { name: 'duplicates' }), 'findings', []);
-  const planned = planDuplicates(
-    duplicateGroups(db, findings, { baseDirectory: path.resolve(config.mpd.baseDirectory) })
-  );
+const runDuplicateFix = async ({ db, config, results, switches, confirm }) => {
+  const planned = plannedDuplicates(db, config, results);
   if (planned.length === 0) {
     return null;
   }
-  _.each(renderDuplicatePlan(planned, { all: switches.all }), line => logger.consoleLog(line));
+  const [toPick, decided] = _.partition(planned, ({ candidates }) => candidates.length > 0);
+  _.each(renderDuplicatePlan(planned), line => logger.consoleLog(line));
+  const pickNote = () =>
+    toPick.length > 0 &&
+    logger.info(
+      `${plural(toPick.length, 'duplicate group')} need a pick: musicman check --pick, or the Duplicates tab of musicman ui`
+    );
   if (switches.dryRun) {
-    return { groups: planned, ...nothingDone, dryRun: true };
+    pickNote();
+    return { groups: decided, toPick, ...nothingDone, dryRun: true };
   }
-  if (!confirm || !pick) {
-    logger.warn('Not a terminal to pick in, no duplicates changed (check --fix asks first)');
-    return { groups: planned, ...nothingDone };
+  if (decided.length === 0) {
+    pickNote();
+    return { groups: [], toPick, ...nothingDone };
   }
-  const resolved = _.filter(
-    pickKeeps(planned, { config, pick }),
-    ({ trash, exclude, clear }) => trash.length + exclude.length + clear.length > 0
-  );
-  const chosen = new Set(
-    pick(_.map(resolved, groupLine), {
-      multi: true,
-      prompt: 'apply',
-      header: 'Duplicates to repair: enter applies the selected groups, tab toggles one',
-      withNth: '2',
-      binds: ['start:select-all'],
-      preview: "printf '%b' {3}"
-    })
-  );
-  const groups = _.filter(resolved, (group, index) => chosen.has(`${index}`));
-  const trashed = _.sumBy(groups, ({ trash }) => trash.length);
-  const dropped = _.sumBy(groups, ({ exclude }) => exclude.length);
-  const cleared = _.sumBy(groups, ({ clear }) => clear.length);
+  if (!confirm) {
+    logger.warn('Not a terminal to ask in, no duplicates changed (check --fix asks first)');
+    return { groups: decided, toPick, ...nothingDone };
+  }
+  const count = key => _.sumBy(decided, group => group[key].length);
   const question = _.compact([
-    trashed && `move ${plural(trashed, 'file')} to the trash`,
-    dropped && `drop ${plural(dropped, 'copy', 'copies')} from the library (files kept)`,
-    cleared && `re-match ${plural(cleared, 'other recording')}`
+    count('trash') && `move ${plural(count('trash'), 'file')} to the trash`,
+    count('exclude') &&
+      `drop ${plural(count('exclude'), 'copy', 'copies')} from the library (files kept)`,
+    count('clear') && `re-match ${plural(count('clear'), 'other recording')}`
   ]).join(', ');
-  if (groups.length === 0 || !(await confirm(`${_.upperFirst(question)}?`))) {
+  if (!(await confirm(`Repair ${plural(decided.length, 'duplicate group')}: ${question}?`))) {
     logger.info('No duplicates changed');
-    return { groups, ...nothingDone };
+    pickNote();
+    return { groups: decided, toPick, ...nothingDone };
   }
-  const runId =
-    activeRun() ||
-    new Date()
-      .toISOString()
-      .replace(/\.\d{3}Z$/, '')
-      .replace(/[-:]/g, '');
   const result = await applyDuplicates({
     db,
     config,
-    groups,
-    runId,
-    onProgress: phaseProgress('Removing duplicates', 'groups')
+    groups: decided,
+    runId: runIdNow(),
+    onProgress: phaseProgress('Repairing duplicates', 'groups')
   });
   logger.progressDone();
   _.each(result.failed, ({ file, error }) => logger.warn(`FAILED  ${file}: ${error}`));
   logger.info(
-    `${_.upperFirst(
-      _.compact([
-        result.removed.length && `moved ${plural(result.removed.length, 'file')} to the trash`,
-        result.excluded.length &&
-          `dropped ${plural(result.excluded.length, 'copy', 'copies')} from the library (files kept)`,
-        result.cleared.length &&
-          `cleared ${plural(result.cleared.length, 'wrong match', 'wrong matches')} (sync --match finds their own tracks)`,
-        result.merged.length &&
-          `merged tags into ${plural(result.merged.length, 'kept copy', 'kept copies')}`
-      ]).join(', ')
-    )}; musicman undo takes it back, sync --push removes the dropped tracks from Spotify`
+    `${duplicatesSummary(result)}; musicman undo takes it back, sync --push removes the dropped tracks from Spotify`
   );
-  return { groups, ...result };
+  pickNote();
+  return { groups: decided, toPick, ...result };
+};
+
+const clock = seconds => {
+  const total = Math.round(seconds || 0);
+  return `${Math.floor(total / 60)}:${`${total % 60}`.padStart(2, '0')}`;
+};
+
+// a copy as a pick line: path, then what tells the copies apart
+const copyLine = (baseDirectory, item, { sameAudio }) =>
+  [
+    `${path.join(baseDirectory, item.path)}\t${item.path}`,
+    clock(item.duration),
+    `${((item.size || 0) / 1048576).toFixed(1)} MB`,
+    item.audio ? `crc ${item.audio.slice(0, 8)}${sameAudio ? ' (same)' : ''}` : 'crc ?',
+    item.rating ? `rating ${item.rating}` : 'unrated',
+    item.title ? `"${item.title}"` : 'no title'
+  ].join('  ');
+
+// how the copies of a group compare, for the pick header
+const compareLine = files => {
+  const sounds = _.compact(_.map(files, 'audio'));
+  const lengths = _.uniq(_.map(files, item => clock(item.duration)));
+  return [
+    sounds.length === files.length && _.uniq(sounds).length === 1
+      ? 'same audio'
+      : 'different audio',
+    lengths.length === 1 ? `same length ${lengths[0]}` : `lengths ${lengths.join(' / ')}`,
+    _.uniq(_.map(files, 'title')).length === 1 ? 'same title' : 'different titles'
+  ].join(', ');
+};
+
+/**
+ * check --pick: the duplicate groups no rule decides, one at a time in fzf: each copy with its length,
+ * size, audio CRC, rating, and title; the copy picked is kept and the others leave the library (files
+ * kept), applied right away and recorded for musicman undo. skip (or esc) leaves a group for later,
+ * stop ends the picking.
+ */
+const runDuplicatePick = async ({ db, config, results, pick }) => {
+  const toPick = _.filter(
+    plannedDuplicates(db, config, results),
+    ({ candidates }) => candidates.length > 0
+  );
+  if (toPick.length === 0) {
+    logger.info('No duplicate groups to pick');
+    return { picked: 0, skipped: 0, ...nothingDone };
+  }
+  if (!pick) {
+    logger.warn('check --pick needs a terminal to pick in');
+    return { picked: 0, skipped: toPick.length, ...nothingDone };
+  }
+  const baseDirectory = path.resolve(config.mpd.baseDirectory);
+  const total = { picked: 0, skipped: 0, ...nothingDone, failed: [] };
+  const runId = runIdNow();
+  for (let i = 0; i < toPick.length; i += 1) {
+    const group = toPick[i];
+    const copies = _.filter(group.files, item => group.candidates.includes(item.path));
+    const sameAudio = compareLine(copies).startsWith('same audio');
+    const [choice] = pick(
+      [
+        ..._.map(copies, item => copyLine(baseDirectory, item, { sameAudio })),
+        'skip\tskip: keep every copy for now',
+        'stop\tstop: leave the rest for later'
+      ],
+      {
+        multi: false,
+        prompt: 'keep',
+        header: `Duplicates ${i + 1}/${toPick.length}: ${compareLine(copies)}. The copy picked is kept, the others leave the library (files kept).`,
+        preview: `test -f {1} && ${previewCommand('view')}`
+      }
+    );
+    if (choice === 'stop') {
+      total.skipped += toPick.length - i;
+      break;
+    }
+    if (!choice || choice === 'skip') {
+      total.skipped += 1;
+      continue;
+    }
+    const result = await applyDuplicates({
+      db,
+      config,
+      groups: [resolveGroup(group, path.relative(baseDirectory, choice))],
+      runId
+    });
+    _.each(result.failed, ({ file, error }) => logger.warn(`FAILED  ${file}: ${error}`));
+    _.each(['removed', 'excluded', 'cleared', 'merged', 'failed'], key =>
+      total[key].push(...result[key])
+    );
+    total.picked += 1;
+  }
+  logger.info(
+    `Picked ${plural(total.picked, 'group')}${total.skipped ? `, ${total.skipped} left for later` : ''}: ${duplicatesSummary(total)}`
+  );
+  return total;
 };
 
 /**
  * check --fix: the tag repairs of the fixable checks found (runTagFix), then the duplicates
  * (runDuplicateFix), and a note naming the checks found that need a decision per song.
  */
-const runFix = async ({ db, config, target, results, switches, confirm, pick }) => {
+const runFix = async ({ db, config, target, results, switches, confirm }) => {
   const found = _.filter(results, ({ findings }) => findings.length > 0);
   const hasDuplicates = _.some(found, { name: 'duplicates' });
   const tags = await runTagFix({
@@ -238,7 +295,7 @@ const runFix = async ({ db, config, target, results, switches, confirm, pick }) 
     quiet: hasDuplicates
   });
   const duplicates = hasDuplicates
-    ? await runDuplicateFix({ db, config, results, switches, confirm, pick })
+    ? await runDuplicateFix({ db, config, results, switches, confirm })
     : null;
   const manual = _.map(
     _.reject(found, ({ name }) => fixableChecks.includes(name) || name === 'duplicates'),
@@ -271,7 +328,8 @@ const checkCommand = async ({
   pick = process.stdin.isTTY ? pickWithFzf : null
 }) => {
   const { switches = {} } = options;
-  const selected = selectChecks(switches.only);
+  // picking duplicates needs the duplicates check alone
+  const selected = selectChecks(switches.pick ? 'duplicates' : switches.only);
   if (!fs.existsSync(config.db.path)) {
     throw new Error(`No library database at ${config.db.path}, run: musicman db --update`);
   }
@@ -289,11 +347,13 @@ const checkCommand = async ({
       onProgress: phaseProgress('Reading tags', 'files')
     });
     logger.progressDone();
-    if (switches.fix) {
+    if (switches.pick) {
+      fixed = await runDuplicatePick({ db, config, results, pick });
+    } else if (switches.fix) {
       if (switches.format !== 'json') {
-        _.each(renderReport(results, { all: switches.all }), line => logger.consoleLog(line));
+        _.each(renderReport(results), line => logger.consoleLog(line));
       }
-      fixed = await runFix({ db, config, target: checkTarget, results, switches, confirm, pick });
+      fixed = await runFix({ db, config, target: checkTarget, results, switches, confirm });
     }
   } finally {
     logger.progressDone();
@@ -311,7 +371,7 @@ const checkCommand = async ({
       `${JSON.stringify({ checks: _.map(results, ({ name, findings }) => ({ name, count: findings.length, findings })) }, null, 2)}\n`
     );
   } else {
-    _.each(renderReport(results, { all: switches.all }), line => logger.consoleLog(line));
+    _.each(renderReport(results), line => logger.consoleLog(line));
   }
   return results;
 };
@@ -329,10 +389,10 @@ module.exports = {
   name: 'check',
   description:
     'Report library problems: drift, unreadable files, field names, duplicates, ratings, encoding',
-  usage: `musicman check [target] [--only=${checkNames.join(',')}] [--all] [--format=json] [--fix [--dry-run]]`,
-  switches: ['only', 'all', 'format', 'fix', 'dry-run'],
+  usage: `musicman check [target] [--only=${checkNames.join(',')}] [--format=json] [--fix [--dry-run]] [--pick]`,
+  switches: ['only', 'format', 'fix', 'dry-run', 'pick'],
   // a repair that can write is a run musicman undo can take back
-  archive: ({ fix, dryRun }) => Boolean(fix && !dryRun),
+  archive: ({ fix, pick, dryRun }) => Boolean((fix || pick) && !dryRun),
   completes: ['paths'],
   func: withExitStatus(reportErrors(checkCommand)),
   run: checkCommand,

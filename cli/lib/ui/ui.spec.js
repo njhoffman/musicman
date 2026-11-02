@@ -352,6 +352,10 @@ describe('musicman ui', () => {
         [copies[0], 'pick'],
         [copies[1], 'pick']
       ]);
+      // the copies are the same audio (both from testFile01) with titles as close to their names
+      expect(group.sameAudio).to.be.true;
+      expect(group.copies.map(({ audio }) => audio)).to.have.length(2);
+      expect(group.copies[0].audio).to.equal(group.copies[1].audio).and.to.have.length(8);
     });
 
     it('should drop the copy not picked as a ui run that undo takes back, its file kept', async () => {

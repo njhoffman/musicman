@@ -22,6 +22,7 @@ const {
   planGroup,
   releaseType,
   resolveGroup,
+  titleCloseness,
   trashPath
 } = require('./duplicates.js');
 
@@ -127,6 +128,67 @@ describe('Duplicates repair', () => {
       });
     });
 
+    it('should keep the copy of identical ties named closest to its title', () => {
+      const ambient = 'Rated/E/Ambient/Singles/Sigur Ros - Svefn-g-englar.mp3';
+      const downbeat = 'Rated/E/Downbeat/Singles/Sigur Ros - Svefn-G-Englar.mp3';
+      const tie = (audioA, audioB, titleA = 'Svefn-g-englar', titleB = 'Svefn-g-englar (live)') =>
+        planGroup([
+          { ...song(ambient, 1, audioA), title: titleA },
+          { ...song(downbeat, 1, audioB), title: titleB }
+        ]);
+      const plan = tie('aa', 'aa');
+      expect(plan).to.deep.include({ keep: ambient, trash: [downbeat], candidates: [] });
+      expect(plan.reasons[downbeat]).to.equal(
+        'same audio, the copy named closest to its title is kept'
+      );
+      // other audio, or names as close to their titles: picked by hand
+      expect(tie('aa', 'bb').candidates).to.have.length(2);
+      expect(tie('aa', 'aa', 'Svefn-g-englar', 'Svefn-G-Englar').candidates).to.have.length(2);
+    });
+
+    it('should decide identical ties named after their own titles by the Spotify artist and title', () => {
+      const amp = 'Rated/E/Indie/Singles/Pusher & Mothica - Clear.mp3';
+      const ft = 'Rated/E/Indie/Singles/Pusher ft. Mothica - Clear.mp3';
+      const copy = (file, spotifyTitle) => ({
+        ...song(file, 1, 'aa'),
+        title: 'Clear',
+        spotifyTitle
+      });
+      expect(
+        planGroup([copy(ft, 'Pusher, Mothica - Clear'), copy(amp, 'Pusher, Mothica - Clear')])
+      ).to.deep.include({ keep: amp, trash: [ft] });
+      expect(planGroup([copy(ft, null), copy(amp, null)]).candidates).to.have.length(2);
+    });
+
+    it('should drop, not trash, an identical tie outside the Singles folders', () => {
+      const a = 'Rated/R/I/Artists/A/album/2000 - Album/01 - Song.mp3';
+      const b = 'Rated/R/I/Artists/A/album/2000 - Album/14 - Song (bonus).mp3';
+      const plan = planGroup([
+        { ...song(a, 1, 'aa'), title: 'Song' },
+        { ...song(b, 1, 'aa'), title: 'Song' }
+      ]);
+      expect(plan).to.deep.include({ keep: a, exclude: [b], trash: [] });
+    });
+
+    it('should read audio hashes only where a rule needs them, and keep them on the files', () => {
+      const read = [];
+      const hash = file => {
+        read.push(path.basename(file));
+        return 'same';
+      };
+      const other = 'Rated/E/Ambient/Singles/A - Song.mp3';
+      const [tied, decided] = planDuplicates(
+        [
+          { files: [{ path: singles }, { path: other }] },
+          { files: [{ path: album }, { path: comp }] }
+        ],
+        { baseDirectory: '/music', hash }
+      );
+      expect(read).to.deep.equal(['A - Song.mp3', 'A - Song.mp3']);
+      expect(tied.files.map(item => item.audio)).to.deep.equal(['same', 'same']);
+      expect(decided.files.map(item => item.audio)).to.deep.equal([null, null]);
+    });
+
     it('should treat two live copies as a tie, with nothing to clear', () => {
       const other = 'Rated/R/I/Artists/A/live/2008 - Unplugged/02 - Song.mp3';
       const plan = planGroup([song(live), song(other)]);
@@ -149,6 +211,15 @@ describe('Duplicates repair', () => {
 
     it('should leave groups with nothing to do out of the plan', () => {
       expect(planDuplicates([{ files: [song(album)] }])).to.be.empty;
+    });
+  });
+
+  describe('titleCloseness', () => {
+    it('should score a name that is the title 1, without track numbers, numbering, or artist', () => {
+      expect(titleCloseness('Rated/A/album/2000 - X/03 - Lost!.mp3', 'Lost!')).to.equal(1);
+      expect(titleCloseness('Rated/G/Singles/Coldplay - Lost!.1.mp3', 'lost!')).to.equal(1);
+      expect(titleCloseness('Rated/A/album/2000 - X/03 - Lost@.mp3', 'Lost!')).to.be.below(1);
+      expect(titleCloseness('a.mp3', null)).to.equal(0);
     });
   });
 
@@ -285,8 +356,9 @@ describe('Duplicates repair', () => {
       fs.rmSync(library, { recursive: true, force: true });
     });
 
-    const groupsOf = files => duplicateGroups(db, [{ files }], { baseDirectory: library });
-    const plan = () => planDuplicates(groupsOf([kept, copy]));
+    const planOf = files =>
+      planDuplicates(duplicateGroups(db, [{ files }]), { baseDirectory: library });
+    const plan = () => planOf([kept, copy]);
     const undoPlan = id =>
       planUndo(db, findHistoryRun(listHistory(db), id), { baseDirectory: library });
 
@@ -324,7 +396,7 @@ describe('Duplicates repair', () => {
       fs.renameSync(abs(kept), abs(album));
       fs.renameSync(abs(copy), abs(comp));
       await updateDatabase(db, { config, target: library });
-      const groups = planDuplicates(groupsOf([album, comp]));
+      const groups = planOf([album, comp]);
       expect(groups.map(({ keep, exclude }) => [keep, exclude])).to.deep.equal([[album, [comp]]]);
       beginJournal({
         run: { id: 'r1', command: 'check', args: ['check'], startedAt: new Date() },
@@ -384,7 +456,7 @@ describe('Duplicates repair', () => {
       fs.mkdirSync(path.dirname(abs(live)), { recursive: true });
       fs.renameSync(abs(copy), abs(live));
       await updateDatabase(db, { config, target: library });
-      const groups = planDuplicates(groupsOf([kept, live]));
+      const groups = planOf([kept, live]);
       expect(groups[0].clear).to.deep.equal([live]);
       const result = await applyDuplicates({ db, config, groups, runId: 'r1', beet });
       expect(result.cleared).to.deep.equal([live]);

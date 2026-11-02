@@ -4,9 +4,8 @@
 the whole library (`mpd.baseDirectory`); a directory inside it narrows the check to the songs there.
 
 ```sh
-musicman check                         # every check, the first 10 findings of each
+musicman check                         # every check, every finding
 musicman check --only=names,duplicates # some checks (-c)
-musicman check --only=multi --all      # every finding of a check (-A)
 musicman check --format=json           # every finding, for scripts
 ```
 
@@ -58,12 +57,13 @@ audio) once; the whole library takes about 40 seconds.
 
 ```sh
 musicman check --fix --dry-run                # what would change, writes nothing
+musicman check --pick                         # duplicate groups no rule decides, one at a time
 musicman check some/dir --fix --only=multi    # one check under one directory
 musicman check --fix                          # every repair, after one confirmation
 ```
 
 `--fix` runs the checks, prints the report, then plans the repairs of the ones below by reading each
-affected file's tag, prints them (the first 10 per check, `--all` for every one), and asks once before
+affected file's tag, prints every change, and asks once before
 writing. Each file's tag is rewritten once with every repair it needs, keeping frames node-id3 does not
 understand, and the database is updated after. The run is archived like other changes, so
 `musicman undo <run id>` restores the tags. Without a terminal to ask in nothing changes.
@@ -115,17 +115,25 @@ playlists (like tracks rejected in review) instead of `sync --pull` fetching the
 gets their context, picks, and mood values (multi value fields), and the rating of the newest copy that
 has one (by file time) when it differs.
 
-Copies no rule decides (one single in two grouping folders, two album tracks matched to one track) are
-picked in fzf, one group at a time (esc keeps every copy). Then every group is listed in fzf, all
-selected: tab leaves one out, enter applies the rest after one confirmation.
+Tied copies with the same audio are decided too: the copy whose file name is closest to its own ID3
+title is kept, then (when those tie) closest to its Spotify artist and title; the others go to the
+trash from a Singles folder and leave the library elsewhere.
+
+`--fix` applies every group the rules decide after one confirmation. The groups left (one single in two
+grouping folders, numbered copies with other audio, two album tracks matched to one track) are listed
+for `musicman check --pick`, which goes through them one at a time in fzf: each copy with its length,
+size, audio CRC, rating, and title, and a header saying whether the audio and lengths are the same. The
+copy picked is kept and the others leave the library (files kept), applied right away; `skip` (or esc)
+leaves a group for later and `stop` ends the picking.
 
 Trashed files are taken out of beets (`beet remove`) and moved to `<db.backupDirectory>/trash/<run
 id>/<path>`. `musicman undo <run id>` takes it all back: trashed files move back and are imported into
 beets again where they are (only the `types` plugin loaded, so lyrics, replaygain, and scrub leave the
 file alone), excluded songs are let back in, and the kept copy's tags and the cleared matches are
 restored. The trash is never emptied by musicman. The `Duplicates` tab of `musicman ui` shows the same
-plan with every copy to play, picks the copy to keep, and repairs one group or every decided one; its
-runs are undone from the `History` tab.
+plan with every copy to play and its size, audio CRC, and rating. `Only groups to pick` lists the groups
+left; picking a copy and repairing its group moves on to the next one. `Repair N groups` repairs every
+decided group. Its runs are undone from the `History` tab.
 
 The first repair of a whole library rewrites a few thousand tags; back the files up first
 (`musicman sync --backup`), and try one directory before the rest.

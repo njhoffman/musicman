@@ -161,11 +161,9 @@ const reviewActions = ({ db, config, getClient, beet }) => {
      */
     duplicates: async groups => {
       const planned = _.map(groups, ({ files, keep }) => {
-        const [group] = planDuplicates(
-          duplicateGroups(db, [{ files }], {
-            baseDirectory: path.resolve(config.mpd.baseDirectory)
-          })
-        );
+        const [group] = planDuplicates(duplicateGroups(db, [{ files }]), {
+          baseDirectory: path.resolve(config.mpd.baseDirectory)
+        });
         if (!group) {
           throw fail(409, `${files.join(' | ')} has nothing to repair any more`);
         }

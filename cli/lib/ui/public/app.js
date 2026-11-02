@@ -12,6 +12,8 @@ const state = {
   loading: { review: false, transfers: false, history: false, duplicates: false },
   // per duplicate group (its key) the copy picked to keep, for groups no rule decides
   keeps: {},
+  // the Duplicates tab lists only the groups no rule decides
+  picksOnly: false,
   selected: null,
   busy: false,
   // per tab { key, dir } of the sorted column, none for the order the API returns
@@ -327,7 +329,10 @@ const rowsOf = tab => {
     }));
   }
   if (tab === 'duplicates') {
-    return state.duplicates.groups.map(group => {
+    const groups = state.picksOnly
+      ? state.duplicates.groups.filter(group => group.candidates.length > 0)
+      : state.duplicates.groups;
+    return groups.map(group => {
       const [first] = group.copies;
       return {
         key: group.key,
@@ -605,20 +610,37 @@ const decidedGroups = () =>
 
 const duplicateButtons = () => {
   const ready = decidedGroups();
-  return ready.length > 0
-    ? [
-        ' ',
-        h(
-          'button',
-          {
-            className: 'reload',
-            disabled: state.busy,
-            onClick: () => repairDuplicates(ready)
-          },
-          `Repair ${ready.length} group${ready.length > 1 ? 's' : ''}`
-        )
-      ]
-    : null;
+  const toPick = state.duplicates.groups.filter(group => group.candidates.length > 0).length;
+  return [
+    ' ',
+    h(
+      'button',
+      {
+        className: 'reload',
+        'aria-pressed': String(state.picksOnly),
+        onClick: () => {
+          state.picksOnly = !state.picksOnly;
+          state.selected = null;
+          render();
+        }
+      },
+      state.picksOnly ? 'Show every group' : `Only groups to pick (${toPick})`
+    ),
+    ready.length > 0
+      ? [
+          ' ',
+          h(
+            'button',
+            {
+              className: 'reload',
+              disabled: state.busy,
+              onClick: () => repairDuplicates(ready)
+            },
+            `Repair ${ready.length} group${ready.length > 1 ? 's' : ''}`
+          )
+        ]
+      : null
+  ];
 };
 
 // tracks of the Spotify to local list shown now (the filter applies) not in the download manifest
@@ -1089,7 +1111,18 @@ const duplicateDetails = group => {
       none: 'Left alone'
     }[copy.action];
   };
+  const lengths = [...new Set(group.copies.map(copy => clock(copy.song.duration)))];
+  const others = copy => group.copies.filter(other => other !== copy);
   return [
+    group.candidates.length > 0
+      ? h(
+          'p',
+          { className: 'similarity' },
+          group.sameAudio ? 'Same audio' : 'Different audio',
+          ', ',
+          lengths.length === 1 ? `same length ${lengths[0]}` : `lengths ${lengths.join(' / ')}`
+        )
+      : null,
     ...group.copies.map(copy =>
       h(
         'div',
@@ -1101,6 +1134,19 @@ const duplicateDetails = group => {
           copy.reason ? `: ${copy.reason}` : ''
         ),
         localVersion(copy.song),
+        h(
+          'dl',
+          {},
+          field('Size', copy.size ? `${(copy.size / 1048576).toFixed(1)} MB` : null),
+          field(
+            'Audio CRC',
+            copy.audio,
+            others(copy).find(other => other.audio)
+              ? others(copy).find(other => other.audio).audio
+              : undefined
+          ),
+          field('Rating', copy.rating ? String(copy.rating) : null)
+        ),
         copy.action === 'pick'
           ? h(
               'button',
@@ -1156,6 +1202,9 @@ const repairDuplicates = async groups => {
   ) {
     return;
   }
+  // one group repaired from its panel: the row at its place is selected next, to go on picking
+  const position =
+    groups.length === 1 ? visibleRows().findIndex(({ key }) => key === groups[0].key) : -1;
   setBusy(true);
   try {
     const result = await api('/api/duplicates', {
@@ -1178,6 +1227,10 @@ const repairDuplicates = async groups => {
     groups.forEach(group => delete state.keeps[group.key]);
     setBusy(false);
     await Promise.all([load('duplicates'), state.history ? load('history') : null]);
+    const rows = visibleRows();
+    if (position >= 0 && rows.length > 0 && state.tab === 'duplicates') {
+      setSelected(rows[Math.min(position, rows.length - 1)].key, { focus: true });
+    }
   } catch (err) {
     showMessage(`Repairing duplicates failed: ${err.message}`, true);
     setBusy(false);

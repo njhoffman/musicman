@@ -79,56 +79,62 @@ describe('Check command', () => {
     };
     const options = switches => ({ switches: { only: 'duplicates', fix: true, ...switches } });
 
-    it('should only show the plan in a dry run', async () => {
-      const picks = [];
+    it('should only show the plan in a dry run, with the groups to pick left out', async () => {
       const { fixed } = await run({
         config,
         options: options({ dryRun: true }),
         openDb: duplicatesDb,
         list: () => [],
-        confirm: async () => true,
-        pick: (...args) => picks.push(args) && []
+        confirm: async () => expect.fail('should not ask')
       });
       expect(fixed.duplicates.dryRun).to.be.true;
-      expect(
-        fixed.duplicates.groups.map(({ keep, trash, candidates }) => [keep, trash, candidates])
-      ).to.deep.equal([
-        [
-          'Rated/G/Artists/A/album/2000 - Album/01 - Song.mp3',
-          ['Rated/G/Singles/A - Song.mp3'],
-          []
-        ],
-        [null, [], ['Rated/X/Singles/B - Tune.mp3', 'Rated/Y/Singles/B - Tune.mp3']]
+      expect(fixed.duplicates.groups.map(({ keep, trash }) => [keep, trash])).to.deep.equal([
+        ['Rated/G/Artists/A/album/2000 - Album/01 - Song.mp3', ['Rated/G/Singles/A - Song.mp3']]
       ]);
-      expect(picks).to.be.empty;
+      expect(fixed.duplicates.toPick.map(({ candidates }) => candidates)).to.deep.equal([
+        ['Rated/X/Singles/B - Tune.mp3', 'Rated/Y/Singles/B - Tune.mp3']
+      ]);
     });
 
-    it('should pick the copy to keep, then the groups to apply, before asking', async () => {
-      const picks = [];
+    it('should ask once before repairing the groups the rules decide', async () => {
       const asked = [];
       const { fixed } = await run({
         config,
         options: options(),
         openDb: duplicatesDb,
         list: () => [],
-        confirm: async question => asked.push(question) && false,
+        confirm: async question => asked.push(question) && false
+      });
+      expect(asked).to.deep.equal(['Repair 1 duplicate group: move 1 file to the trash?']);
+      expect(fixed.duplicates.removed).to.be.empty;
+    });
+
+    it('should go through the groups to pick with --pick, showing what tells the copies apart', async () => {
+      const picks = [];
+      const { fixed } = await run({
+        config,
+        options: { switches: { pick: true } },
+        openDb: duplicatesDb,
+        list: () => [],
         pick: (lines, settings) => {
           picks.push({ lines, settings });
-          // keep the Y copy, then apply only the second group
-          return settings.prompt === 'keep' ? ['/music/Rated/Y/Singles/B - Tune.mp3'] : ['1'];
+          return ['skip'];
         }
       });
-      expect(picks.map(({ settings }) => settings.prompt)).to.deep.equal(['keep', 'apply']);
-      expect(picks[1].settings.binds).to.deep.equal(['start:select-all']);
-      expect(picks[1].lines.map(line => line.split('\t')[1])).to.deep.equal([
-        'keep Rated/G/Artists/A/album/2000 - Album/01 - Song.mp3  trash 1',
-        'keep Rated/Y/Singles/B - Tune.mp3  drop 1'
+      expect(picks).to.have.length(1);
+      expect(picks[0].settings.header).to.match(
+        /^Duplicates 1\/1: different audio, same length 0:00/
+      );
+      expect(picks[0].lines.map(line => line.split('\t')[0])).to.deep.equal([
+        '/music/Rated/X/Singles/B - Tune.mp3',
+        '/music/Rated/Y/Singles/B - Tune.mp3',
+        'skip',
+        'stop'
       ]);
-      expect(fixed.duplicates.groups.map(({ keep, exclude }) => [keep, exclude])).to.deep.equal([
-        ['Rated/Y/Singles/B - Tune.mp3', ['Rated/X/Singles/B - Tune.mp3']]
-      ]);
-      expect(asked).to.deep.equal(['Drop 1 copy from the library (files kept)?']);
-      expect(fixed.duplicates.excluded).to.be.empty;
+      expect(picks[0].lines[0].split('\t')[1]).to.equal(
+        'Rated/X/Singles/B - Tune.mp3  0:00  0.0 MB  crc ?  unrated  no title'
+      );
+      expect(fixed).to.include({ picked: 0, skipped: 1 });
     });
   });
 

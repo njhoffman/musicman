@@ -31,14 +31,13 @@ describe('Check Output', () => {
       { name: 'spotify-id', description: 'leftover', unit: 'file', findings }
     ];
 
-    it('should report counts, the first 10 findings per check, and a summary', () => {
+    it('should report counts, every finding per check, and a summary', () => {
       const lines = plain(renderReport(results));
       expect(lines[0]).to.match(/^drift +ok +database and files differ$/);
       expect(lines[1]).to.match(/^names +1 group +names$/);
       expect(lines[2]).to.equal('    A / a');
-      expect(lines).to.include('    ... 2 more (--all, or --only=spotify-id --all)');
+      expect(lines).to.include('    f11.mp3  x');
       expect(lines[lines.length - 1]).to.equal('2 checks of 3 found problems');
-      expect(plain(renderReport(results, { all: true }))).to.include('    f11.mp3  x');
       expect(plain(renderReport([results[0]])).pop()).to.equal('No problems found in 1 check');
     });
 
@@ -95,7 +94,7 @@ describe('Check Output', () => {
       );
     });
 
-    it('should list the first 10 changes per check unless all', () => {
+    it('should list every change per check', () => {
       const many = {
         files: Array.from({ length: 12 }, (_, i) => ({
           file: `f${i}.mp3`,
@@ -103,8 +102,7 @@ describe('Check Output', () => {
         })),
         skipped: []
       };
-      expect(plain(renderPlan(many))).to.include('    ... 2 more (--all)');
-      expect(plain(renderPlan(many, { all: true }))).to.include("    f11.mp3  mood 'a' to 'A'");
+      expect(plain(renderPlan(many))).to.include("    f11.mp3  mood 'a' to 'A'");
     });
   });
 });
