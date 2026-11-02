@@ -1,15 +1,16 @@
 # Spotify sync runbook
 
 How to keep the library and Spotify in step with the commands that exist today, what each direction covers,
-and what is still planned. Design background is in `03-spotify-id.md`. Last updated 2026-10-21 (scope, backups, playlist snapshots).
+and what is still planned. Design background is in `03-spotify-id.md`, the push and pull specs in
+`05-spotify-push.md` and `04-spotify-pull.md`. Last updated 2026-11-01 (exclusive groups, prune verified).
 
 ## What syncs today
 
 | Direction | What | How | Status |
 |---|---|---|---|
-| Local to Spotify | Spotify ids and fields for local songs | `sync --match`, `sync --review` | Built, first full run pending |
-| Local to Spotify | Songs rated at least `sync.likedRating` (4.5) into Liked Songs | `sync --push` | Built, not yet run against Spotify |
-| Local to Spotify | Songs matching a `sync.playlists` filter into that playlist | `sync --push` | Built, not yet run against Spotify |
+| Local to Spotify | Spotify ids and fields for local songs | `sync --match`, `sync --review` | Built, in use |
+| Local to Spotify | Songs rated at least `sync.likedRating` (4.5) into Liked Songs | `sync --push` | Built, in use since 2026-10-21 |
+| Local to Spotify | Songs matching a `sync.playlists` filter into that playlist | `sync --push` | Built, in use; `--prune` and its undo verified 2026-11-01 |
 | Local to Spotify | Songs that are not on Spotify (Local Files) | export for the desktop app | **Planned**, see below |
 | Spotify to local | Tracks in Liked Songs or a mapped playlist that are not in the library | `sync --pull`, `pnpm download`, `sync --import` | Built, beets step checked; full run pending |
 | Spotify to local | Playlist or Liked changes made on Spotify to songs you already have | `sync --pull` | Built: multi value playlists become tags, others are listed to decide |
@@ -19,7 +20,7 @@ last one.
 
 ## Scope
 
-`sync.scope` (a filter in view/search syntax) limits sync to some songs; the config sets `rating:4.5`. Songs
+`sync.scope` (a filter in view/search syntax) limits sync to some songs; the config sets `rating:4`. Songs
 outside it are never matched, pushed, pruned, tagged from Spotify, or downloaded, wherever they are on
 Spotify. Leave it empty to sync every song.
 
@@ -92,8 +93,12 @@ musicman sync --push              # adds after a confirmation
   track added on Spotify; those are pulled into tags instead (see the two-way section).
 - The plan's `No id` column counts songs that belong in a target but have no Spotify id: unmatched, in
   review, or not on Spotify (the Local Files case).
-- The playlist add endpoints have not been verified against a real playlist yet; check the first push in the
-  Spotify app.
+- The plan's `Conflict` column counts tracks push does not add because the files linked to them disagree
+  on a rating or grouping playlist (one copy at 4.0, another at 4.5; often a live file matched to the studio
+  track). A song belongs in at most one playlist of such a group, so the track goes in none of the ones the
+  copies disagree on, and stays wherever it already is, until the copies agree: give them one rating, or
+  unlink the wrong copy (`sync --review --reject`). `musicman check --only=exclusive` lists them, and the
+  menu's rating buttons skip such a playlist with a notification.
 
 ## Spotify to local
 
@@ -192,5 +197,7 @@ musicman undo <run id>            # undo one run, after confirming; an id prefix
 - **Rate limited:** the run says when the ban lifts; rerun then. `musicman logs latest` shows what was done.
 - **Interrupted (Ctrl-C, closed terminal):** results are saved every 50 songs; rerun the same command.
 - **A match is wrong:** `musicman edit "<file>" sp_track_id=<right id>` and `musicman sync --match --refresh`.
-- **Config errors after editing `~/.musicmanrc.yml`:** `pnpm config:check` in `cli/`. Renaming a stored
-  custom field needs a rebuild: back up `musicman.sqlite`, delete it, and run `musicman db --update`.
+- **Config errors after editing `~/.musicmanrc.yml`:** `pnpm config:check` in `cli/`. Respelling a custom
+  field's frame id (`TXXX.replaygain_track_gain` to `TXXX.REPLAYGAIN_TRACK_GAIN`) is picked up as is; any
+  other change to a stored custom field (another name, single to multi value) needs a rebuild: back up
+  `musicman.sqlite`, delete it, and run `musicman db --update`.
