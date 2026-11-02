@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.46.0] - 2026-11-01
+
 ### Added
 
 - `musicman ui`: a Not found tab with the songs `sync --match` found no candidate for, and a Spotify
