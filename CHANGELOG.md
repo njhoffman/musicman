@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- `sync --match` (and `--recheck`) match and refresh every song in the library, also songs outside
+  `sync.scope` (1.50.0 still left those out); `sync.scope` only decides what is pushed and pulled.
+
 ## [1.50.0] - 2026-11-02
 
 ### Added

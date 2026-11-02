@@ -77,8 +77,9 @@ musicman sync --match --recheck   # move existing matches that fail the current 
   single) replaces it as `MATCH ... (original album, was a compilation)`; a better release that is only a
   probable match is reported as `album version to check` and nothing changes, since rejecting a linked
   match in review would unlink the song.
-- Every song in `sync.scope` is matched and refreshed, also songs that belong in no Spotify target (unrated
-  imports, groupings with no playlist); targets only decide what `sync` pushes and pulls.
+- Every song in the library is matched and refreshed, also songs outside `sync.scope` and songs that belong
+  in no Spotify target (unrated imports, groupings with no playlist); scope and targets only decide what
+  `sync` pushes and pulls.
 
 - Rejecting unlinks the song (its `sp_*` tags are removed) and remembers the track: the next `sync --push` removes
   it from every playlist it was pushed to, without `--prune`, it is never offered as a download, and the next

@@ -274,7 +274,7 @@ describe('Spotify Id Matching', () => {
     expect(again.queries).to.be.empty;
   });
 
-  it('should skip songs that already have a Spotify id or are outside sync.scope', async () => {
+  it('should skip songs that already have a Spotify id, and match songs outside sync.scope', async () => {
     NodeId3.update(
       {
         userDefinedText: [
@@ -295,8 +295,8 @@ describe('Spotify Id Matching', () => {
         { file: file('testFile02.mp3'), meta: {}, targets: [], outOfScope: true }
       ]
     });
-    expect(summary).to.include({ targets: 1, tagged: 1 });
-    expect(client.queries).to.be.empty;
+    expect(summary).to.include({ targets: 2, tagged: 1, missing: 1 });
+    expect(client.queries).to.include('isrc:ISRC0001');
   });
 
   describe('Spotify fields', () => {

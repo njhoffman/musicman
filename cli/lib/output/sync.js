@@ -192,7 +192,7 @@ const formatMatchSummary = (
   const { bySource, artistImages } = summary;
   const notFoundBefore = summary.cached - (summary.cachedReview || 0);
   const rows = _.compact([
-    ['songs in sync.scope', summary.targets],
+    ['library songs', summary.targets],
     ['  already tagged', summary.tagged],
     [
       '  recently checked',

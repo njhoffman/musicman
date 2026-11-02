@@ -286,12 +286,9 @@ const matchSongs = async ({
   const items = [];
   // tracks in sync.ignorePlaylist are never matched, like tracks rejected in review
   const ignored = ignoredTracks(db, config);
-  // every song in sync.scope is matched and refreshed, whether or not it belongs in a Spotify target:
-  // targets only decide what sync pushes and pulls
-  _.each(songs, ({ file, outOfScope }) => {
-    if (outOfScope) {
-      return;
-    }
+  // every song is matched and refreshed, also songs outside sync.scope or in no Spotify target: scope
+  // and targets only decide what sync pushes and pulls
+  _.each(songs, ({ file }) => {
     counts.targets += 1;
     const songPath = path.relative(baseDirectory, file);
     const row = selectSong.get(songPath);
@@ -587,36 +584,33 @@ const recheckMatches = ({ db, config, songs, dryRun = false }) => {
        candidate = excluded.candidate, checked_at = excluded.checked_at`
   );
   const moved = _.compact(
-    _.map(
-      _.reject(songs, 'outOfScope'),
-      ({ file }) => {
-        const row = selectSong.get(path.relative(baseDirectory, file));
-        const trackId = row && frameValue(db, row.id, spotifyIdFrame);
-        if (!trackId) {
-          return null;
-        }
-        const match = selectMatch.get(row.id);
-        const title = frameValue(db, row.id, 'TIT2');
-        const spotifyTitle = frameValue(db, row.id, 'TXXX.sp_title');
-        if ((match && match.reviewed_at) || !spotifyTitle || sameTitle(title, spotifyTitle)) {
-          return null;
-        }
-        const candidate = {
-          id: trackId,
-          name: spotifyTitle,
-          artists: frameValue(db, row.id, 'TXXX.sp_artist'),
-          album: frameValue(db, row.id, 'TXXX.sp_album'),
-          durationMs: Number(frameValue(db, row.id, 'TXXX.sp_duration_ms')) || null
-        };
-        return {
-          songId: row.id,
-          file,
-          source: _.get(match, 'source') || null,
-          song: songFields(db, row),
-          candidate
-        };
+    _.map(songs, ({ file }) => {
+      const row = selectSong.get(path.relative(baseDirectory, file));
+      const trackId = row && frameValue(db, row.id, spotifyIdFrame);
+      if (!trackId) {
+        return null;
       }
-    )
+      const match = selectMatch.get(row.id);
+      const title = frameValue(db, row.id, 'TIT2');
+      const spotifyTitle = frameValue(db, row.id, 'TXXX.sp_title');
+      if ((match && match.reviewed_at) || !spotifyTitle || sameTitle(title, spotifyTitle)) {
+        return null;
+      }
+      const candidate = {
+        id: trackId,
+        name: spotifyTitle,
+        artists: frameValue(db, row.id, 'TXXX.sp_artist'),
+        album: frameValue(db, row.id, 'TXXX.sp_album'),
+        durationMs: Number(frameValue(db, row.id, 'TXXX.sp_duration_ms')) || null
+      };
+      return {
+        songId: row.id,
+        file,
+        source: _.get(match, 'source') || null,
+        song: songFields(db, row),
+        candidate
+      };
+    })
   );
   if (!dryRun) {
     transaction(db, () =>

@@ -200,7 +200,7 @@ describe('Sync Output', () => {
         formatMatchSummary(summary, { dryRun: true, threshold: 95, autoAccept: 496, toReview: 260 })
       );
       expect(title).to.equal('Spotify ids (dry run, only the lookups were cached)');
-      expect(rows[0]).to.match(/^ {2}songs in sync\.scope +2642$/);
+      expect(rows[0]).to.match(/^ {2}library songs +2642$/);
       expect(rows[2]).to.match(
         /^ {4}recently checked +809 {3}756 waiting for review, 53 not found$/
       );
