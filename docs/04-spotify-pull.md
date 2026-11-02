@@ -75,6 +75,10 @@ against YouTube's terms of service.
   a grouping beets has a path rule for, its own TIT1 or else the `playlist_grouping` hint, which sort writes
   to TIT1 (and removes) before beets moves the song. Songs without either need a grouping
   (`musicman edit grouping=...`) first.
+- `edit` and the menu do the same as soon as a change gives an `Unrated` song its rating and grouping (or
+  hint): beets moves it right away and the new path is shown. `musicman sort` stays the batch catch-up,
+  and lists what is still waiting in `Unrated` and why (`needs rating (hint: Rap-R&B.Singles)`; the first
+  10, `--all` for every one).
 - `--dry-run` shows how each download would be tagged, writes nothing, and does not run beets.
 
 ## Status

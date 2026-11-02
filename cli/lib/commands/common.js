@@ -5,6 +5,7 @@ const path = require('path');
 const logger = require('../utils/logger.js');
 const { openLibrary, readStoredMetadata, updateDatabase } = require('../db/index.js');
 const { getFiles } = require('../utils/files.js');
+const { sortReady } = require('../beets/sort.js');
 const {
   getMetadata,
   getMetadataFull,
@@ -103,6 +104,29 @@ const updateLibraryFiles = async ({ files, options, config }) => {
   }
 };
 
+/**
+ * Has beets move the files among files that a change just made ready to leave the unsorted folder (a
+ * rating and a grouping, or the grouping hint of a download), as edit and the menu do after writing.
+ * Each move is logged; resolves to sortReady's results, [] when nothing moved or there is no database.
+ */
+const sortEditedFiles = async ({ files, options, config, sort = sortReady }) => {
+  if (databaseUnavailable(files, { options, config })) {
+    return [];
+  }
+  const db = openLibraryOrExplain(config);
+  try {
+    const results = await sort({ db, config, files });
+    _.each(results, ({ from, to, grouping, status, error }) =>
+      status === 'sorted'
+        ? logger.info(`sorted ${from} -> ${to || `its ${grouping} folder`}`)
+        : logger.warn(`could not sort ${from}: ${error}`)
+    );
+    return results;
+  } finally {
+    db.close();
+  }
+};
+
 const parseFileMetadata = (filesMetadata, config, withRaw = false) =>
   _.map(filesMetadata, ([file, metadata]) =>
     withRaw
@@ -160,5 +184,6 @@ module.exports = {
   parseFileMetadata,
   reportErrors,
   saveMetadata,
+  sortEditedFiles,
   updateLibraryFiles
 };

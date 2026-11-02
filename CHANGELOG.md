@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `edit` and the menu file a song in `Unrated` away with beets as soon as a change gives it a rating and a
+  grouping (or the grouping hint of a download), and show where it went; the menu reads the song, and
+  pushes it to Spotify, from its new path.
+- `musicman sort` lists the songs still waiting in `Unrated` with what each needs and its grouping hint
+  (the first 10, `--all` for every one).
+
 ## [1.43.0] - 2026-11-01
 
 ### Added

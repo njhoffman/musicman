@@ -10,9 +10,11 @@ const NodeId3 = require('node-id3');
 const {
   groupingHintFrame,
   sortCandidates,
+  sortReady,
   sortSongs,
   sortedGroupings,
-  unsortedFolder
+  unsortedFolder,
+  waitingSongs
 } = require('./sort.js');
 
 describe('Beets Sort', () => {
@@ -137,6 +139,81 @@ describe('Beets Sort', () => {
       writeGrouping: (...args) => written.push(args)
     });
     expect(written).to.be.empty;
+  });
+
+  describe('sortReady', () => {
+    const tagTrack = (songId, id) =>
+      db
+        .prepare(
+          "INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, 'TXXX.sp_track_id', ?)"
+        )
+        .run(songId, id);
+
+    it('should sort only the given files that are ready, and report where they went', async () => {
+      tagTrack(1, 'trackA');
+      const calls = [];
+      const results = await sortReady({
+        db,
+        config: { ...config, sync: { beetsConfig: '/beets.yaml' } },
+        files: ['/music/Unrated/A/a.mp3', '/music/Unrated/C/c.mp3', '/music/Unrated/E/e.mp3'],
+        readBeets: () => beets,
+        readItems: () => new Set(['/music/Unrated/A/a.mp3']),
+        runBeet: async args => calls.push(args),
+        // beets moved a.mp3: the update finds it under Rated
+        update: async () => {
+          db.prepare(
+            "UPDATE songs SET path = 'Rated/Rock/Indie-Rock/Artists/X/a.mp3' WHERE id = 1"
+          ).run();
+          db.prepare(
+            "INSERT INTO songs (path, mtime, size) VALUES ('Unrated/A/a.mp3', 1, 1)"
+          ).run();
+        }
+      });
+      // c.mp3 has no rating, e.mp3 no grouping: not ready, left alone
+      expect(calls).to.deep.equal([
+        ['-c', '/beets.yaml', 'update', '-m', 'path:/music/Unrated/A/a.mp3']
+      ]);
+      expect(results).to.deep.equal([
+        {
+          from: 'Unrated/A/a.mp3',
+          to: 'Rated/Rock/Indie-Rock/Artists/X/a.mp3',
+          grouping: 'IndieRock.Artists',
+          fromHint: false,
+          status: 'sorted',
+          error: null
+        }
+      ]);
+    });
+
+    it('should do nothing without a beets config or a ready file', async () => {
+      const update = async () => expect.fail('the database should not be updated');
+      const runBeet = async () => expect.fail('beets should not run');
+      const base = { db, config, runBeet, update, readItems: () => new Set() };
+      expect(
+        await sortReady({ ...base, files: ['/music/Unrated/A/a.mp3'], readBeets: () => null })
+      ).to.deep.equal([]);
+      expect(
+        await sortReady({ ...base, files: ['/music/Unrated/C/c.mp3'], readBeets: () => beets })
+      ).to.deep.equal([]);
+    });
+  });
+
+  it('should list the songs waiting in the unsorted folder with what they miss', () => {
+    db.prepare('INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, ?, ?)').run(
+      3,
+      groupingHintFrame,
+      'IndieRock.Artists'
+    );
+    expect(waitingSongs(db, { beets })).to.deep.equal([
+      {
+        path: 'Unrated/C/c.mp3',
+        missing: ['rating'],
+        grouping: 'IndieRock.Artists',
+        hint: 'IndieRock.Artists'
+      },
+      { path: 'Unrated/D/d.mp3', missing: ['grouping'], grouping: 'Unmapped.Artists', hint: null },
+      { path: 'Unrated/E/e.mp3', missing: ['grouping'], grouping: null, hint: null }
+    ]);
   });
 
   it('should return no candidates without beets path rules', () => {

@@ -185,7 +185,7 @@ module.exports = {
     }
   },
   all: {
-    description: 'check: list every finding instead of the first 10 of each check',
+    description: 'check, sort: list every finding or waiting song instead of the first 10',
     alias: '-A',
     func: () => ({ all: true })
   }

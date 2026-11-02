@@ -305,7 +305,8 @@ const playlistNames = (db, trackId) =>
  * press at a time.
  * Dependencies: openDb() opens the library database, client() the Spotify user client, readSongs(files)
  * and writeSong(file, assignments) read and write tags as [file, metadata], withRun(label, fn), and
- * stat(file) (fs.statSync) for the details.
+ * stat(file) (fs.statSync) for the details, and currentFile(file) the path of a song beets may have
+ * moved since it was read (writeSong sorts songs a change makes ready).
  */
 const songActions = ({
   config,
@@ -314,7 +315,8 @@ const songActions = ({
   readSongs,
   writeSong,
   withRun,
-  stat = fs.statSync
+  stat = fs.statSync,
+  currentFile = file => file
 }) => {
   const buttons = menuButtons(config);
   const fields = tagFields(config);
@@ -388,7 +390,8 @@ const songActions = ({
           db,
           client: client(),
           config,
-          file: current.file,
+          // a write that gave an Unrated song its rating and grouping has beets move it
+          file: currentFile(current.file),
           before: current.meta,
           after,
           readSongs

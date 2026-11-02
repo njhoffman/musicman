@@ -3,6 +3,8 @@ const path = require('path');
 const { execFile } = require('child_process');
 const { mapLimit } = require('../utils/promise.js');
 const { rewriteTags } = require('../metadata/write.js');
+const { updateDatabase } = require('../db/update.js');
+const { readBeetsConfig, readBeetsItems } = require('../spotify/beets.js');
 
 // where sync --import keeps the grouping of a download's Spotify playlist until the song is rated:
 // written to TIT1 right away, it would make beets file the unrated download under Rated
@@ -127,11 +129,120 @@ const sortSongs = async (
   };
 };
 
+// the Spotify track id stored for a song path, which finds the song again after beets moves it
+const trackIdAt = (db, songPath) =>
+  _.get(
+    db
+      .prepare(
+        `SELECT t.value FROM songs s JOIN song_tags t ON t.song_id = s.id
+         WHERE s.path = ? AND t.frame_id = 'TXXX.sp_track_id'`
+      )
+      .get(songPath),
+    'value',
+    null
+  );
+
+// where a song is after the move: the newest other path holding its Spotify track id, else null
+const pathOfTrack = (db, trackId, oldPath) =>
+  trackId
+    ? _.get(
+        db
+          .prepare(
+            `SELECT s.path FROM songs s JOIN song_tags t ON t.song_id = s.id
+             WHERE t.frame_id = 'TXXX.sp_track_id' AND t.value = ? AND s.path != ?
+             ORDER BY s.id DESC`
+          )
+          .get(trackId, oldPath),
+        'path',
+        null
+      )
+    : null;
+
+/**
+ * Sorts the files among files that are ready to leave the unsorted folder (sortCandidates) right away,
+ * as edit and the menu do once a change gives a song its rating and grouping: beets moves them, the
+ * database is updated, and each is reported as { from, to, grouping, fromHint, status, error } with to
+ * its new path (found by Spotify track id, null without one). Files not ready are left alone; without a
+ * beets config nothing happens. Resolves to [] when nothing was ready.
+ */
+const sortReady = async ({
+  db,
+  config,
+  files,
+  runBeet = execBeet,
+  readBeets = readBeetsConfig,
+  readItems = readBeetsItems,
+  update = updateDatabase
+}) => {
+  const beets = readBeets(_.get(config, 'sync.beetsConfig'));
+  if (!beets) {
+    return [];
+  }
+  const wanted = new Set(_.map(files, file => path.resolve(file)));
+  const candidates = _.filter(
+    sortCandidates(db, { config, beets, beetsItems: readItems(beets) }),
+    ({ file }) => wanted.has(file)
+  );
+  if (candidates.length === 0) {
+    return [];
+  }
+  const trackIds = new Map(
+    _.map(candidates, ({ path: songPath }) => [songPath, trackIdAt(db, songPath)])
+  );
+  const { results } = await sortSongs(candidates, {
+    beetsConfig: _.get(config, 'sync.beetsConfig'),
+    runBeet
+  });
+  await update(db, { config, target: config.mpd.baseDirectory });
+  return _.map(results, ({ path: songPath, grouping, fromHint, status, error }) => ({
+    from: songPath,
+    to: status === 'sorted' ? pathOfTrack(db, trackIds.get(songPath), songPath) : null,
+    grouping,
+    fromHint,
+    status,
+    error: error || null
+  }));
+};
+
+/**
+ * Songs in the unsorted folder that sort cannot move yet, with what each is missing: a rating, and a
+ * grouping beets has a path rule for (hint: the grouping hint it would use once rated). Sorted by path.
+ */
+const waitingSongs = (db, { beets }) => {
+  const folder = unsortedFolder(beets);
+  const groupings = sortedGroupings(beets);
+  if (!folder) {
+    return [];
+  }
+  const rows = db
+    .prepare(
+      `SELECT s.path, s.rating, t.value AS grouping, h.value AS hint FROM songs s
+       LEFT JOIN song_tags t ON t.song_id = s.id AND t.frame_id = 'TIT1'
+       LEFT JOIN song_tags h ON h.song_id = s.id AND h.frame_id = ?
+       WHERE s.path LIKE ? ORDER BY s.path`
+    )
+    .all(groupingHintFrame, `${folder}/%`);
+  return _.compact(
+    _.map(rows, ({ path: songPath, rating, grouping, hint }) => {
+      const sortable = groupings.has(grouping || hint);
+      const missing = _.compact([
+        rating === null || rating === undefined ? 'rating' : null,
+        sortable ? null : 'grouping'
+      ]);
+      return missing.length
+        ? { path: songPath, missing, grouping: grouping || null, hint: hint || null }
+        : null;
+    })
+  );
+};
+
 module.exports = {
   execBeet,
   groupingHintFrame,
   sortCandidates,
+  sortReady,
   sortSongs,
   sortedGroupings,
+  waitingSongs,
   unsortedFolder
 };

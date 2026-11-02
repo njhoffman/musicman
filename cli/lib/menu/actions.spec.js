@@ -343,6 +343,31 @@ describe('Menu song actions', () => {
       }
     });
 
+    it('should push from where beets moved a song the write made ready', async () => {
+      const menu = songActions({
+        config,
+        openDb: () => ({ prepare: sql => db.prepare(sql), close: () => {} }),
+        client: () => client,
+        readSongs: async files => files.map(file => [file, metas['/music/a.mp3'] || {}]),
+        writeSong: async (file, assignments) => {
+          writes.push([file, assignments]);
+          // the write made the song ready, and beets filed it under Rated
+          db.prepare("UPDATE songs SET path = 'Rated/a.mp3' WHERE path = 'a.mp3'").run();
+          return mergeAssignments(metas[file], assignments);
+        },
+        withRun: async (label, action) => action(),
+        currentFile: file => (file === '/music/a.mp3' ? '/music/Rated/a.mp3' : file)
+      });
+      const song = await menu.song(linked);
+      const entries = await menu.entries({ ...linked, song });
+      await entries.find(entry => entry.key === '2').run();
+      expect(requests).to.deep.include([
+        'POST',
+        `/playlists/${rated45}/items`,
+        { uris: ['spotify:track:ta'] }
+      ]);
+    });
+
     it('should add a Spotify song not in the library to the playlist of a button, and remove it again', async () => {
       const add = await tagChoice(remote, 'Hot');
       expect(add.entry).to.include({ active: false, disabled: false });

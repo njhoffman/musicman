@@ -111,6 +111,11 @@ What a tag or rating press does depends on the song:
 - A Spotify song not in the library that is in a rating playlist gets that rating when `sync --pull`
   and `sync --import` bring it in.
 - Tags without a matching `sync.playlists` entry are disabled for Spotify songs not in the library.
+- A song in `Unrated` that a press gives its last missing piece (a rating, with a grouping or the grouping
+  hint of a download) is filed away by beets right away, like `musicman sort` does, and a notification
+  says where it went. The menu keeps reading it from there for the rest of the session, also for the push.
+- A rating or grouping playlist the song's copies disagree on is skipped by the push, with a notification
+  (see `05-spotify-push.md`).
 
 `like` shows whether Spotify has the track in Liked Songs now (asked each time the menu is drawn, falling
 back to the cache of the last sync), so a song liked in the app is never added twice.

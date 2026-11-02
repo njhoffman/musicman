@@ -5,6 +5,7 @@ const {
   getFilteredFiles,
   assignMetadata,
   saveMetadata,
+  sortEditedFiles,
   updateLibraryFiles
 } = require('./common.js');
 const { outputDifferences } = require('../output/index.js');
@@ -51,7 +52,10 @@ const editCommand = async ({ target, options, config }) => {
 
   logger.info(`${filtered.length} files updated`);
 
-  return { oldFiles: filtered, newFiles: newFilesMetadata };
+  // songs in Unrated the change gave a rating and a grouping are filed away by beets right away
+  const sorted = await sortEditedFiles({ files: _.unzip(filtered)[0], options, config });
+
+  return { oldFiles: filtered, newFiles: newFilesMetadata, ...(sorted.length ? { sorted } : {}) };
 };
 
 module.exports = {

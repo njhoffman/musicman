@@ -4,8 +4,33 @@ const { confirm: confirmPrompt } = require('../utils/confirm.js');
 
 const { openLibrary, updateDatabase } = require('../db/index.js');
 const { readBeetsConfig, readBeetsItems } = require('../spotify/beets.js');
-const { sortCandidates, sortSongs, unsortedFolder } = require('../beets/sort.js');
+const { sortCandidates, sortSongs, unsortedFolder, waitingSongs } = require('../beets/sort.js');
 const logger = require('../utils/logger.js');
+
+// songs waiting listed unless --all
+const shownWaiting = 10;
+
+// what keeps songs in the unsorted folder: counts per missing part, then the songs (the first
+// shownWaiting, all with --all) with what each needs and its grouping hint
+const reportWaiting = (waiting, { folder, all }) => {
+  if (waiting.length === 0) {
+    return;
+  }
+  const needs = part => _.filter(waiting, ({ missing }) => missing.includes(part)).length;
+  const hinted = _.filter(waiting, 'hint').length;
+  logger.info(
+    `Waiting in ${folder}/: ${waiting.length} songs (${needs('rating')} need a rating, ${needs(
+      'grouping'
+    )} a grouping; ${hinted} have a grouping hint from Spotify)`
+  );
+  const shown = all ? waiting : _.take(waiting, shownWaiting);
+  _.each(shown, ({ path: songPath, missing, hint }) =>
+    logger.info(`  needs ${missing.join(' and ')}${hint ? ` (hint: ${hint})` : ''}  ${songPath}`)
+  );
+  if (shown.length < waiting.length) {
+    logger.info(`  ... ${waiting.length - shown.length} more (musicman sort --all)`);
+  }
+};
 
 // sort: have beets move rated songs with a sorted grouping out of its unsorted folder
 const sortCommand = async ({ options, config, runBeet, confirm = confirmPrompt }) => {
@@ -25,6 +50,10 @@ const sortCommand = async ({ options, config, runBeet, confirm = confirmPrompt }
   const db = openLibrary(config);
   try {
     const candidates = sortCandidates(db, { config, beets, beetsItems: readBeetsItems(beets) });
+    reportWaiting(waitingSongs(db, { beets }), {
+      folder: unsortedFolder(beets),
+      all: Boolean(_.get(options, 'switches.all'))
+    });
     if (candidates.length === 0) {
       logger.info(`No rated songs with a sorted grouping in ${unsortedFolder(beets)}/`);
       return { candidates };
@@ -72,8 +101,8 @@ const defaultTarget = baseDirectory => baseDirectory;
 module.exports = {
   name: 'sort',
   description: 'Move rated songs with a sorted grouping out of Unrated with beets',
-  usage: 'musicman sort [--dry-run]',
-  switches: ['dry-run'],
+  usage: 'musicman sort [--dry-run] [--all]',
+  switches: ['dry-run', 'all'],
   func: sortCommand,
   archive: true,
   defaultTarget,

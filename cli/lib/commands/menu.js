@@ -1,7 +1,8 @@
 const _ = require('lodash');
 const fs = require('fs');
+const path = require('path');
 
-const { Menu, notifyError } = require('../menu/menu.js');
+const { Menu, notifyError, notifyNotice } = require('../menu/menu.js');
 const { songActions: createSongActions } = require('../menu/actions.js');
 const { mpdPlayer, spotifyPlayer } = require('../player/players.js');
 const { panelTheme, panelView } = require('../menu/rofi.js');
@@ -15,19 +16,39 @@ const {
   assignMetadata,
   getFilteredFiles,
   saveMetadata,
+  sortEditedFiles,
   updateLibraryFiles
 } = require('./common.js');
 
-const readSongs = config => files => getFilteredFiles({ options: {}, config }, files);
+// files beets moved during this menu session (old path to new), so the playing song, which MPD still
+// knows by its old path, is read from where it is now
+const movedFiles = new Map();
+const currentPath = file => movedFiles.get(file) || file;
 
-// writes assignments to one file the way edit does, resolving to the metadata read back
-const writeSong = config => async (file, assignments) => {
-  const [song] = await readSongs(config)([file]);
-  saveMetadata([assignMetadata(assignments)(song)], config);
-  await updateLibraryFiles({ files: [file], options: {}, config });
-  const [[, after]] = await readSongs(config)([file]);
-  return after;
-};
+const readSongs = config => files =>
+  getFilteredFiles({ options: {}, config }, _.map(files, currentPath));
+
+// writes assignments to one file the way edit does, resolving to the metadata read back; a song in
+// Unrated the change gave a rating and a grouping is filed away by beets right away, and said so
+const writeSong =
+  (config, { notice = notifyNotice, sortFiles = sortEditedFiles } = {}) =>
+  async (file, assignments) => {
+    const [song] = await readSongs(config)([file]);
+    saveMetadata([assignMetadata(assignments)(song)], config);
+    await updateLibraryFiles({ files: [currentPath(file)], options: {}, config });
+    const [[, after]] = await readSongs(config)([file]);
+    const sorted = await sortFiles({ files: [currentPath(file)], options: {}, config });
+    const baseDirectory = path.resolve(config.mpd.baseDirectory);
+    for (const { to, grouping, status } of sorted) {
+      if (status === 'sorted' && to) {
+        movedFiles.set(file, path.join(baseDirectory, to));
+      }
+      if (status === 'sorted') {
+        await notice(`Moved to ${to || `its ${grouping} folder`}`);
+      }
+    }
+    return after;
+  };
 
 // each menu action is archived as its own run, so musicman undo takes back one press at a time
 const withRun = config => async (label, action) => {
@@ -137,7 +158,8 @@ const createMenu = ({ config, players, view, songActions, env }) =>
         client: lazyUserClient(config, env),
         readSongs: readSongs(config),
         writeSong: writeSong(config),
-        withRun: withRun(config)
+        withRun: withRun(config),
+        currentFile: currentPath
       })
   });
 
