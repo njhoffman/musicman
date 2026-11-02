@@ -2,7 +2,7 @@ const { expect } = require('chai');
 
 const { openDatabase } = require('../db/database.js');
 const { selectChecks } = require('../check/index.js');
-const { renderReport, run } = require('./check.js');
+const { run } = require('./check.js');
 
 describe('Check command', () => {
   const config = {
@@ -67,27 +67,5 @@ describe('Check command', () => {
       () => expect.fail('should reject'),
       err => expect(err.message).to.include('run: musicman db --update')
     );
-  });
-
-  it('should report counts, the first 10 findings per check, and a summary', () => {
-    const findings = Array.from({ length: 12 }, (_, i) => ({ file: `f${i}.mp3`, detail: 'x' }));
-    const results = [
-      { name: 'drift', description: 'database and files differ', unit: 'file', findings: [] },
-      {
-        name: 'names',
-        description: 'names',
-        unit: 'group',
-        findings: [{ file: null, detail: 'A / a' }]
-      },
-      { name: 'spotify-id', description: 'leftover', unit: 'file', findings }
-    ];
-    const lines = renderReport(results);
-    expect(lines[0]).to.match(/^drift +ok +database and files differ$/);
-    expect(lines[1]).to.match(/^names +1 group +names$/);
-    expect(lines[2]).to.equal('    A / a');
-    expect(lines).to.include('    ... 2 more (--all, or --only=spotify-id --all)');
-    expect(lines[lines.length - 1]).to.equal('2 checks of 3 found problems');
-    expect(renderReport(results, { all: true })).to.include('    f11.mp3  x');
-    expect(renderReport([results[0]]).pop()).to.equal('No problems found in 1 check');
   });
 });

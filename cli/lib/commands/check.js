@@ -4,66 +4,20 @@ const path = require('path');
 
 const { reportErrors } = require('./common.js');
 const { checkNames, runChecks, selectChecks } = require('../check/index.js');
-const { applyFixes, fixableChecks, planFixes } = require('../check/fix.js');
+const { applyFixes, planFixes } = require('../check/fix.js');
 const { openLibrary } = require('../db/index.js');
 const { listFiles, updateDatabase } = require('../db/update.js');
+const { renderPlan, renderReport } = require('../output/check.js');
+const { progressBar } = require('../output/progress.js');
 const { confirm: confirmPrompt } = require('../utils/confirm.js');
 const logger = require('../utils/logger.js');
 
-// findings listed per check unless --all
-const shownPerCheck = 10;
-
 const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
 
-// the report: per check its count and description, then its findings (the first shownPerCheck)
-const renderReport = (results, { all = false } = {}) => {
-  const lines = [];
-  _.each(results, ({ name, description, unit, findings }) => {
-    if (findings.length === 0) {
-      lines.push(`${name.padEnd(11)} ok          ${description}`);
-      return;
-    }
-    lines.push(`${name.padEnd(11)} ${plural(findings.length, unit).padEnd(11)} ${description}`);
-    const shown = all ? findings : _.take(findings, shownPerCheck);
-    _.each(shown, ({ file, detail }) => lines.push(`    ${file ? `${file}  ` : ''}${detail}`));
-    if (shown.length < findings.length) {
-      lines.push(`    ... ${findings.length - shown.length} more (--all, or --only=${name} --all)`);
-    }
-  });
-  const found = _.filter(results, ({ findings }) => findings.length);
-  lines.push(
-    found.length
-      ? `${plural(found.length, 'check')} of ${results.length} found problems`
-      : `No problems found in ${plural(results.length, 'check')}`
-  );
-  return lines;
-};
-
-// the planned changes per check, then the first shownPerCheck of each (all with --all)
-const renderPlan = ({ files, skipped }, { all = false } = {}) => {
-  const lines = [];
-  const changes = _.flatMap(files, ({ file, changes: fileChanges }) =>
-    _.map(fileChanges, item => ({ file, ...item }))
-  );
-  _.each(fixableChecks, name => {
-    const of = _.filter(changes, { check: name });
-    const left = _.filter(skipped, { check: name });
-    if (of.length === 0 && left.length === 0) {
-      return;
-    }
-    lines.push(
-      `${name.padEnd(11)} ${plural(of.length, 'change')} in ${plural(_.uniqBy(of, 'file').length, 'file')}${left.length ? `, ${left.length} left for you` : ''}`
-    );
-    const shown = all ? of : _.take(of, shownPerCheck);
-    _.each(shown, ({ file, text }) => lines.push(`    ${file}  ${text}`));
-    if (shown.length < of.length) {
-      lines.push(`    ... ${of.length - shown.length} more (--all)`);
-    }
-    _.each(all ? left : _.take(left, shownPerCheck), ({ file, text }) =>
-      lines.push(`    left  ${file}  ${text}`)
-    );
-  });
-  return lines;
+// a progress bar for one phase (reading tags, planning repairs, writing), timed from its first call
+const phaseProgress = (label, unit) => {
+  const startedAt = new Date();
+  return (done, total) => logger.progress(progressBar({ done, total, label, unit, startedAt }));
 };
 
 /**
@@ -82,7 +36,7 @@ const runFix = async ({ db, config, target, results, switches, confirm }) => {
     config,
     results,
     songs,
-    onProgress: (done, total) => logger.progress(`planning repairs ${done}/${total}`)
+    onProgress: phaseProgress('Planning repairs', 'files')
   });
   logger.progressDone();
   const drift = _.get(_.find(results, { name: 'drift' }), 'findings', []);
@@ -116,7 +70,7 @@ const runFix = async ({ db, config, target, results, switches, confirm }) => {
   const { written, failed } = await applyFixes({
     config,
     plan,
-    onProgress: (done, count) => logger.progress(`writing ${done}/${count}`)
+    onProgress: phaseProgress('Writing', 'files')
   });
   logger.progressDone();
   _.each(failed, ({ file, error }) => logger.warn(`FAILED  ${file}: ${error}`));
@@ -163,7 +117,7 @@ const checkCommand = async ({
       target: checkTarget,
       selected,
       listFiles: list,
-      onProgress: (done, total) => logger.progress(`reading tags ${done}/${total}`)
+      onProgress: phaseProgress('Reading tags', 'files')
     });
     logger.progressDone();
     if (switches.fix) {
@@ -214,6 +168,5 @@ module.exports = {
   func: withExitStatus(reportErrors(checkCommand)),
   run: checkCommand,
   // without a target the whole library is checked
-  defaultTarget: baseDirectory => baseDirectory,
-  renderReport
+  defaultTarget: baseDirectory => baseDirectory
 };

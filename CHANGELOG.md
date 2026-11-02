@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- `check` and `check --fix` show a progress bar with rate and ETA while reading tags, planning repairs,
+  and writing, instead of plain counters, and color the report and the repair plan: check names, `ok`
+  and problem counts, change kinds (rename, remove, move, rewritten values), what is left for you, and
+  muted paths. Output stays plain without a terminal and with `--format=json`.
+
 ## [1.48.0] - 2026-11-02
 
 ### Added

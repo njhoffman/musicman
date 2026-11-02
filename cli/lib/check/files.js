@@ -170,7 +170,7 @@ const fileChecks = async ({
         results[name].push({ file: path.relative(baseDirectory, file), detail })
       )
     );
-    if (i % 200 === 199 || i === files.length - 1) {
+    if (i % 50 === 49 || i === files.length - 1) {
       onProgress(i + 1, files.length);
       // lets the progress line draw between batches
       await new Promise(resolve => setImmediate(resolve));

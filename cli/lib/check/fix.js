@@ -239,7 +239,7 @@ const planFixes = async ({
       files.push({ file, changes: planned.changes });
     }
     _.each(planned.skipped, item => skipped.push({ file, ...item }));
-    if (i % 200 === 199 || i === candidates.length - 1) {
+    if (i % 50 === 49 || i === candidates.length - 1) {
       onProgress(i + 1, candidates.length);
       await new Promise(resolve => setImmediate(resolve));
     }

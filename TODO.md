@@ -81,13 +81,11 @@ Reviewed: 2026-11-01
 
 ## 4. Command line and output
 
-- [ ] **Progress bar and colored output for `check`.** (p2) [feature] `check` and `check --fix` report
-      progress as plain `reading tags 1234/6436`, `planning repairs`, and `writing` counters
-      (`commands/check.js` `logger.progress`) and print the report and plan uncolored, while `sync` and
-      `db --update` use `progressBar` (`output/progress.js`) with elapsed time, and `coloredCounts`. Use the
-      same bar with an ETA for each phase, and color the report and plan like the sync plan: check names,
-      counts (problems found vs ok), change kinds (rename, remove, move, left for you), and muted paths.
-      A full library run reads every file twice (report, then plan) and takes minutes with no ETA.
+- [ ] **`check --fix` reads the candidate files a second time.** (p3) [perf] the report reads every file, then
+      `planFixes` (`check/fix.js`) reads each candidate again; on a messy library that is most of it. Keeping
+      the raw frames of candidates from the first pass (without APIC images) would skip the second read.
+- [x] **Progress bar and colored output for `check`.** (p2) [feature] `progressBar` with ETA per phase; report
+      and plan colored like the sync plan (`output/check.js`).
 - [x] **Complete tag values and run ids in zsh.** (p3) [feature] node needed 0.35-1.9 s per Tab, so the script
       reads values with the `sqlite3` command (about 20 ms) and globs the runs directory, both paths fixed at
       generation like the field names.
