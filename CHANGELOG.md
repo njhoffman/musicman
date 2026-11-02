@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.45.0] - 2026-11-01
+
 ### Added
 
 - `musicman ui`: column headers sort the lists, ascending, descending, then back to the default order
