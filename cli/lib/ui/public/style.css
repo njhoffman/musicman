@@ -399,3 +399,28 @@ iframe {
 #search .error {
   color: var(--bad);
 }
+
+.plan {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.plan li {
+  margin: 0.2rem 0;
+  overflow-wrap: anywhere;
+}
+
+.plan li.differs {
+  color: var(--warn);
+}
+
+.actions button.undo {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.actions button.undo:disabled {
+  border-color: var(--line);
+  color: var(--dim);
+  cursor: default;
+}

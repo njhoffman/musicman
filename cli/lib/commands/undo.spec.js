@@ -6,7 +6,13 @@ const { expect } = require('chai');
 
 const { openLibrary, updateDatabase } = require('../db/index.js');
 const { updateTags } = require('../metadata/write.js');
-const { beginJournal, endJournal, recordSpotify } = require('../history/journal.js');
+const {
+  beginJournal,
+  endJournal,
+  journaledMatch,
+  recordSpotify
+} = require('../history/journal.js');
+const logger = require('../utils/logger.js');
 const undo = require('./undo.js');
 
 describe('Undo Command', () => {
@@ -102,6 +108,39 @@ describe('Undo Command', () => {
     await runUndo(['20261024-110000'], {}, { confirm: async message => confirmed.push(message) });
     expect(process.exitCode).to.equal(1);
     expect(confirmed).to.be.empty;
+  });
+
+  it('should put back a Spotify match row, and say so in the plan', async () => {
+    const db = openLibrary(config);
+    const { id } = db.prepare("SELECT id FROM songs WHERE path = 'testFile02.mp3'").get();
+    db.prepare("INSERT INTO spotify_matches (song_id, status) VALUES (?, 'review')").run(id);
+    beginJournal({
+      run: { id: '20261024-120000-ui', command: 'ui', args: ['reject'], startedAt: new Date() },
+      config,
+      db
+    });
+    journaledMatch(db, id, () =>
+      db.prepare("UPDATE spotify_matches SET status = 'rejected' WHERE song_id = ?").run(id)
+    );
+    endJournal();
+    db.close();
+    const info = sinon.stub(logger, 'info');
+    try {
+      const { runs } = await runUndo([]);
+      expect(runs[0]).to.include({ id: '20261024-120000-ui', files: 0, matches: 1 });
+      const { result } = await runUndo(['20261024-120000'], {}, { confirm: async () => true });
+      expect(result.matches).to.deep.equal([id]);
+      const said = info.args.flat().join('\n');
+      expect(said).to.include('MATCH   testFile02.mp3');
+      expect(said).to.include('Restored 0 files and 1 Spotify matches');
+    } finally {
+      info.restore();
+    }
+    const after = openLibrary(config);
+    expect(
+      after.prepare('SELECT status FROM spotify_matches WHERE song_id = ?').get(id)
+    ).to.deep.equal({ status: 'review' });
+    after.close();
   });
 
   it('should be archived only when it undoes something', () => {

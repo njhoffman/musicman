@@ -13,6 +13,7 @@ const { rejectedCandidatesKey } = require('../sync/match.js');
 const {
   acceptedList,
   changeMarkers,
+  historyList,
   missingList,
   rejectedList,
   reviewList,
@@ -274,6 +275,36 @@ describe('musicman ui', () => {
       expect(match('testFile03.mp3')).to.include({ status: 'match', track_id: trackC });
     });
 
+    it('should undo an accept of the page, list it in the history, and refuse to undo it twice', async () => {
+      const id = songId('testFile01.mp3');
+      const actions = reviewActions({ db, config, getClient: () => null });
+      await actions.accept(id, trackA);
+      expect(match('testFile01.mp3')).to.include({ status: 'match' });
+      const [accepted] = historyList(db, config);
+      expect(accepted.args).to.deep.equal(['accept', 'testFile01.mp3', trackA]);
+      expect(accepted.files).to.deep.equal([
+        {
+          path: 'testFile01.mp3',
+          frames: ['TXXX.sp_track_id', 'TXXX.sp_diff_percent', 'TXXX.sp_diff_details'],
+          status: 'restore',
+          changed: []
+        }
+      ]);
+      expect(accepted.matches).to.deep.equal([
+        { path: 'testFile01.mp3', before: 'review', status: 'restore' }
+      ]);
+      const result = await actions.undo(accepted.id);
+      expect(result.matches).to.deep.equal([id]);
+      expect(match('testFile01.mp3')).to.include({ status: 'review', reviewed_at: null });
+      expect(customTags('testFile01.mp3')).to.not.have.property('sp_track_id');
+      const [undo, again] = historyList(db, config);
+      expect(undo).to.include({ undoes: accepted.id });
+      expect(again).to.include({ id: accepted.id, undoneBy: undo.id });
+      expect(() => actions.undo(accepted.id)).to.throw('already undone');
+      expect(() => actions.undo('20261020-000000-sync')).to.throw('No run');
+      expect(_.map(runReports(), 'args')).to.deep.include(['undo', accepted.id]);
+    });
+
     it('should run actions one after another and fail for an unknown song', async () => {
       const actions = reviewActions({ db, config, getClient: () => null });
       expect(() => actions.accept(99999, trackA)).to.throw('No song 99999');
@@ -311,11 +342,13 @@ describe('musicman ui', () => {
 
     let client;
     let userToken;
+    let planCalls;
 
     beforeEach(async () => {
       userToken = async () => ({ accessToken: 'user-token', scope: 'streaming user-read-email' });
       await seed();
       calls.length = 0;
+      planCalls = 0;
       client = fakeClient(
         { [trackB]: webTrack(trackB, 'Fetched Name') },
         {
@@ -334,13 +367,36 @@ describe('musicman ui', () => {
             calls.push(['reject', id, trackId]);
             return { rejected: [], failed: [{ error: 'could not write tags' }] };
           },
-          remember: candidates => calls.push(['remember', _.map(candidates, 'id')])
+          remember: candidates => calls.push(['remember', _.map(candidates, 'id')]),
+          undo: async (runId, options) => {
+            calls.push(['undo', runId, options]);
+            if (runId === 'gone') {
+              const err = new Error('No run gone of the page');
+              err.status = 404;
+              throw err;
+            }
+            return { tags: { restored: [{}], failed: [] }, matches: [1], failed: [] };
+          }
         },
         getClient: () => client,
         librarySongs: async () => [],
-        plan: () => [{ name: 'Liked Songs', pull: [], noId: [] }],
+        plan: () => {
+          planCalls += 1;
+          return [
+            {
+              id: 'liked',
+              name: 'Liked Songs',
+              pull: [{ track_id: trackC, name: 'Wanted', artists: 'Artist', album: 'Album' }],
+              noId: []
+            }
+          ];
+        },
         player: { open: async uri => calls.push(['open', uri]) },
-        getUserToken: () => userToken()
+        getUserToken: () => userToken(),
+        refreshPlaylists: async () => {
+          calls.push(['refresh']);
+          return { refreshed: ['liked', 'p1'], unchanged: ['p2'] };
+        }
       });
       server = await startServer(handler, { port: 0 });
       base = `http://127.0.0.1:${server.address().port}`;
@@ -381,8 +437,25 @@ describe('musicman ui', () => {
 
     it('should list the transfers with the time of the last sync', async () => {
       const body = await (await fetch(`${base}/api/transfers`)).json();
-      expect(body).to.have.keys('syncedAt', 'toLocal', 'toSpotify', 'marker');
+      expect(body).to.have.keys('syncedAt', 'toLocal', 'toSpotify', 'marker', 'computedAt');
       expect(body.marker).to.equal(changeMarkers(db).transfers);
+    });
+
+    it('should keep the transfer lists until the database changes, or until asked fresh', async () => {
+      const first = await (await fetch(`${base}/api/transfers`)).json();
+      await Promise.all([fetch(`${base}/api/transfers`), fetch(`${base}/api/transfers`)]);
+      expect(planCalls).to.equal(1);
+      expect((await (await fetch(`${base}/api/transfers`)).json()).computedAt).to.equal(
+        first.computedAt
+      );
+      await fetch(`${base}/api/transfers?fresh`);
+      expect(planCalls).to.equal(2);
+      db.prepare(
+        "INSERT INTO spotify_playlists (id, name, synced_at) VALUES ('p', 'P', '2026-11-01 11:00:00')"
+      ).run();
+      const changed = await (await fetch(`${base}/api/transfers`)).json();
+      expect(planCalls).to.equal(3);
+      expect(changed.marker).to.not.equal(first.marker);
     });
 
     it('should report the change markers and the runs of other commands going on now', async () => {
@@ -610,6 +683,49 @@ describe('musicman ui', () => {
       const response = await raw('GET', '/api/spotify/token', { Host: `evil.example:${port}` });
       expect(response.status).to.equal(403);
       expect(response.body).to.not.include('user-token');
+    });
+
+    it('should add Spotify to local tracks to the download manifest and show where each is', async () => {
+      config.sync.downloadDirectory = path.join(library, '.musicman', 'download');
+      const before = await (await fetch(`${base}/api/transfers`)).json();
+      expect(before.toLocal).to.deep.equal([
+        {
+          track: { id: trackC, name: 'Wanted', artists: 'Artist', album: 'Album' },
+          playlists: ['Liked Songs'],
+          download: null
+        }
+      ]);
+      const added = await post('/api/downloads', { trackIds: [trackC] });
+      expect(await added.json()).to.deep.equal({ ok: true, added: [trackC], unknown: [] });
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(config.sync.downloadDirectory, 'manifest.json'), 'utf8')
+      );
+      expect(_.map(manifest.tracks, 'trackId')).to.deep.equal([trackC]);
+      const after = await (await fetch(`${base}/api/transfers`)).json();
+      expect(after.toLocal[0].download).to.equal('queued');
+      // the lists were kept: only the download status was read again
+      expect(planCalls).to.equal(1);
+      expect((await post('/api/downloads', { trackIds: [trackA] })).status).to.equal(409);
+      expect((await post('/api/downloads', { trackIds: ['nope'] })).status).to.equal(400);
+      expect((await post('/api/downloads', {})).status).to.equal(400);
+    });
+
+    it('should refresh the cached playlists', async () => {
+      const response = await post('/api/spotify/refresh', {});
+      expect(await response.json()).to.deep.equal({ ok: true, refreshed: 2, unchanged: 1 });
+      expect(calls).to.deep.equal([['refresh']]);
+    });
+
+    it('should list the history with its marker and undo a run', async () => {
+      const body = await (await fetch(`${base}/api/history`)).json();
+      expect(body).to.deep.equal({ runs: [], marker: changeMarkers(db).history });
+      const undone = await post('/api/history/20261101-100000-ui/undo', { force: true });
+      expect(await undone.json()).to.deep.equal({ ok: true, files: 1, matches: 1 });
+      expect((await post('/api/history/gone/undo', {})).status).to.equal(404);
+      expect(calls).to.deep.equal([
+        ['undo', '20261101-100000-ui', { force: true }],
+        ['undo', 'gone', { force: false }]
+      ]);
     });
 
     it('should play a track in the Spotify app', async () => {

@@ -2,6 +2,7 @@ const _ = require('lodash');
 const path = require('path');
 
 const { getMeta } = require('../db/database.js');
+const { listHistory, planUndo } = require('../history/undo.js');
 const { matchSimilarity } = require('../spotify/match.js');
 const {
   rejectedCandidatesKey,
@@ -136,6 +137,40 @@ const missingList = db =>
     row => ({ song: songView(db, row), checkedAt: row.checked_at })
   );
 
+// how many runs of the page the history lists
+const historyLimit = 100;
+
+/**
+ * The runs of the page (accept, reject, undo) with what undoing each would do, newest first: per file
+ * the frames to restore and per song the Spotify match to put back, each with status restore, changed
+ * (changed since; undo with force), or missing.
+ */
+const historyList = (db, config) => {
+  const baseDirectory = path.resolve(config.mpd.baseDirectory);
+  return _.map(_.take(_.filter(listHistory(db), { command: 'ui' }), historyLimit), run => {
+    const plan = planUndo(db, run);
+    return {
+      id: run.id,
+      args: run.args,
+      startedAt: run.startedAt,
+      undoes: run.undoes,
+      undoneBy: run.undoneBy,
+      spotify: run.spotify,
+      files: _.map(plan.files, ({ file, frames, status, changed }) => ({
+        path: path.relative(baseDirectory, file),
+        frames: _.map(frames, 'frame'),
+        status,
+        changed
+      })),
+      matches: _.map(plan.matches, ({ path: songPath, before, status }) => ({
+        path: songPath,
+        before: before ? before.status : null,
+        status
+      }))
+    };
+  });
+};
+
 // track ids of rejectedList entries known only by their id
 const unknownRejected = list =>
   _.uniq(
@@ -220,7 +255,8 @@ const transferLists = (db, config, plan) => {
 
 /**
  * Markers that change when the lists would: review, from the Spotify matches (a sync --match, an
- * accept or reject anywhere); transfers, from the cached playlists, the library songs, and the matches.
+ * accept or reject anywhere); transfers, from the cached playlists, the library songs, and the matches;
+ * history, from the recorded runs.
  * Cheap enough to poll; the page compares them with the markers of the lists it shows.
  */
 const changeMarkers = db => {
@@ -233,6 +269,12 @@ const changeMarkers = db => {
     )
     .get();
   const songs = db.prepare('SELECT COUNT(*) AS n, MAX(updated_at) AS updated FROM songs').get();
+  const history = db
+    .prepare(
+      `SELECT COUNT(*) AS n, MAX(started_at) AS started, SUM(undone_by IS NOT NULL) AS undone
+       FROM history_runs`
+    )
+    .get();
   const playlists = db.prepare('SELECT MAX(synced_at) AS synced FROM spotify_playlists').get();
   const review = _.map(
     ['n', 'checked', 'reviewed', 'waiting', 'accepted', 'rejected', 'linked'],
@@ -240,7 +282,9 @@ const changeMarkers = db => {
   ).join('|');
   return {
     review,
-    transfers: [review, songs.n, songs.updated ?? '', playlists.synced ?? ''].join('|')
+    transfers: [review, songs.n, songs.updated ?? '', playlists.synced ?? ''].join('|'),
+    // a run of the page, or an undo or edit in a terminal, changes it; tag edits also change review
+    history: [review, history.n, history.started ?? '', history.undone ?? 0].join('|')
   };
 };
 
@@ -249,6 +293,7 @@ module.exports = {
   candidateOfTrack,
   changeMarkers,
   fetchRejected,
+  historyList,
   missingList,
   rejectedList,
   reviewList,

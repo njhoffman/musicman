@@ -390,13 +390,15 @@ database backups (`db.autoBackup`) have no restore command.
       against the real app (below). Needs the Web Playback SDK (full playback item) or that test first.
 - [x] **Sort the lists.** (p3) [feature] by similarity (least similar first to audit accepted matches), length
       difference, path, or when accepted; columns are fixed in the order the API returns.
-- [ ] **Transfer actions.** (p2) [feature] the Spotify to local and local to Spotify lists only display; add
-      downloading (`sync --pull`) of picked tracks, the upload export (`sync --push` export in section 7), and a
-      refresh of the cached playlists so the lists are newer than the last sync.
-- [ ] **Cache the transfer lists.** (p3) [perf] each load reads the library and computes the sync plan, about 5 s;
-      keep the result until the database or the playlist cache changes.
-- [ ] **Undo from the page.** (p3) [feature] list the `ui` runs with what each changed and undo one, as
-      `musicman undo <run id>` does.
+- [x] **Transfer actions.** (p2) [feature] Spotify to local shows each track's download state, adds picked
+      tracks to the download manifest, and refreshes the cached playlists. The upload export waits for `sync --push`
+      export (section 7), tracked there.
+- [ ] **Run downloads from the page.** (p3) [feature] `pnpm download` still runs in a terminal; running spotDL
+      from the page needs a background job with progress and cancel, and must not run beside a terminal download.
+- [x] **Cache the transfer lists.** (p3) [perf] each load reads the library and computes the sync plan, about 5 s;
+      the server keeps the result until the transfers change marker changes; Reload asks for it fresh.
+- [x] **Undo from the page.** (p3) [feature] the History tab lists the `ui` runs with what undoing each puts back
+      and undoes one; undo now also restores the Spotify match rows review changed (`match_changes`).
 - [x] **Full Spotify playback in the page.** (p3) [feature] Play here and `s` use the Web Playback SDK
       (1.47.0). Checked live 2026-11-01 in Google Chrome: the page became the Connect device "musicman ui",
       played and paused the track, and left Connect when the tab closed. Chromium builds without Widevine get

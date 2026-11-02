@@ -9,7 +9,15 @@ const { refreshCache } = require('../sync/cache.js');
 const { likedBatch, playlistBatch, playlistRequest, uri } = require('../sync/push.js');
 const { saveSnapshot } = require('../sync/snapshot.js');
 const { likedId } = require('../sync/targets.js');
-const { frameMap, hashValue, parseValue, recordSpotify, recordUndo } = require('./journal.js');
+const {
+  frameMap,
+  hashValue,
+  journaledMatch,
+  matchRow,
+  parseValue,
+  recordSpotify,
+  recordUndo
+} = require('./journal.js');
 
 /**
  * Runs with recorded changes, newest first: { id, command, args, startedAt, files, frames, spotify,
@@ -22,7 +30,8 @@ const listHistory = db =>
         `SELECT r.*,
            (SELECT count(DISTINCT path) FROM tag_changes WHERE run_id = r.id) AS files,
            (SELECT count(*) FROM tag_changes WHERE run_id = r.id) AS frames,
-           (SELECT count(*) FROM spotify_changes WHERE run_id = r.id) AS spotify
+           (SELECT count(*) FROM spotify_changes WHERE run_id = r.id) AS spotify,
+           (SELECT count(DISTINCT song_id) FROM match_changes WHERE run_id = r.id) AS matches
          FROM history_runs r ORDER BY r.started_at DESC, r.id DESC`
       )
       .all(),
@@ -34,6 +43,7 @@ const listHistory = db =>
       files: row.files,
       frames: row.frames,
       spotify: row.spotify,
+      matches: row.matches,
       snapshot: row.spotify_snapshot,
       undoes: row.undoes,
       undoneBy: row.undone_by
@@ -51,7 +61,9 @@ const findHistoryRun = (runs, term) =>
  * run, its first change, and the hash of its value after the run, its last change) with status restore,
  * changed (a frame differs from what the run left, listed in changed), or missing (the file is gone,
  * e.g. moved by beets). force restores changed files too. spotify: the run's Spotify changes newest
- * first, each to be reversed.
+ * first, each to be reversed. matches: per song the spotify_matches row before the run (null: none)
+ * with status restore, changed (the row differs from what the run left, e.g. a later sync --match), or
+ * missing (the song left the library); force restores changed rows too.
  */
 const planUndo = (db, run, { force = false } = {}) => {
   const rows = db
@@ -85,7 +97,62 @@ const planUndo = (db, run, { force = false } = {}) => {
       action: row.action,
       trackId: row.track_id
     }));
-  return { run, files, spotify };
+  const matches = _.map(
+    _.groupBy(
+      db
+        .prepare(
+          'SELECT song_id, path, before, after_hash FROM match_changes WHERE run_id = ? ORDER BY id'
+        )
+        .all(run.id),
+      'song_id'
+    ),
+    songRows => {
+      const songId = songRows[0].song_id;
+      const before = parseValue(_.first(songRows).before);
+      const item = { songId, path: _.last(songRows).path, before };
+      if (!db.prepare('SELECT 1 FROM songs WHERE id = ?').get(songId)) {
+        return { ...item, status: 'missing' };
+      }
+      const changed = hashValue(matchRow(db, songId)) !== _.last(songRows).after_hash;
+      return { ...item, status: changed && !force ? 'changed' : 'restore', changed };
+    }
+  );
+  return { run, files, spotify, matches };
+};
+
+/**
+ * Puts back the spotify_matches rows of a plan with status restore (deleted when there was none),
+ * recorded for the active run so the undo can be undone. Returns the songIds restored.
+ */
+const undoMatches = ({ db, plan }) => {
+  const restored = [];
+  _.filter(plan.matches, { status: 'restore' }).forEach(({ songId, before }) => {
+    journaledMatch(db, songId, () => {
+      if (before === null) {
+        db.prepare('DELETE FROM spotify_matches WHERE song_id = ?').run(songId);
+        return;
+      }
+      db.prepare(
+        `INSERT INTO spotify_matches
+           (song_id, status, track_id, source, candidate, checked_at, reviewed_at, rejected)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (song_id) DO UPDATE SET status = excluded.status, track_id = excluded.track_id,
+           source = excluded.source, candidate = excluded.candidate, checked_at = excluded.checked_at,
+           reviewed_at = excluded.reviewed_at, rejected = excluded.rejected`
+      ).run(
+        songId,
+        before.status,
+        before.track_id,
+        before.source,
+        before.candidate,
+        before.checked_at,
+        before.reviewed_at,
+        before.rejected
+      );
+    });
+    restored.push(songId);
+  });
+  return restored;
 };
 
 // raw node-id3 frames with the recorded frames set back to their values before (absent when null)
@@ -231,16 +298,18 @@ const undoSpotify = async ({ db, config, client, plan }) => {
 };
 
 /**
- * Undoes a run (from planUndo): restores its tag changes, reverses its Spotify changes when a client
- * is given, and marks it undone by the active run. Returns { tags, spotify }.
+ * Undoes a run (from planUndo): restores its tag changes and Spotify match rows, reverses its Spotify
+ * changes when a client is given, and marks it undone by the active run. Returns { tags, matches,
+ * spotify }.
  */
 const applyUndo = async ({ db, config, client, plan }) => {
   const tags = await undoTags({ db, config, plan });
+  const matches = undoMatches({ db, plan });
   const spotify = client
     ? await undoSpotify({ db, config, client, plan })
     : { removed: [], added: [], skipped: [], snapshot: null };
   recordUndo(plan.run.id);
-  return { tags, spotify };
+  return { tags, matches, spotify };
 };
 
 module.exports = {

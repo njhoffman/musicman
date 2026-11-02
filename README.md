@@ -62,9 +62,11 @@ Spotify track side by side with their differences marked, plays both (the file i
 Spotify's embedded player, full length when the browser is logged in to Spotify, full length in the page
 with Play here (Spotify Premium; the page becomes the Spotify Connect device "musicman ui"; logins from
 before 1.47.0 need `musicman sync --login` again), or in the desktop app),
-and accepts or rejects. Each action is a `ui` run in `musicman logs` whose tag changes `musicman undo`
-restores. It also lists, as of the last `sync`, the tracks in mapped playlists missing from the library
-and the songs that belong on Spotify but have no Spotify id.
+and accepts or rejects. Each action is a `ui` run in `musicman logs` that `musicman undo`, or the page's
+History tab, undoes: tags and Spotify match together. It also lists, as of the last `sync`, the tracks in
+mapped playlists missing from the library (with whether each is in the download manifest; Add to
+downloads puts picked ones there for `pnpm download`, and Refresh playlists fetches the playlists again
+first) and the songs that belong on Spotify but have no Spotify id.
 
 The Not found tab lists the songs `sync --match` found no candidate for. Every song's panel can search
 Spotify (on Not found as soon as the selection stops on a song): an empty query runs the queries of

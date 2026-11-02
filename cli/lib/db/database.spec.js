@@ -21,6 +21,7 @@ describe('Database', () => {
         .map(({ name }) => name);
       expect(tables).to.deep.equal([
         'history_runs',
+        'match_changes',
         'meta',
         'song_tags',
         'songs',

@@ -162,6 +162,43 @@ const recordSpotify = ({ target, action, trackIds }) => {
   });
 };
 
+// a song's spotify_matches row as a plain object, null when the song has none
+const matchRow = (db, songId) => {
+  const row = db
+    .prepare(
+      `SELECT status, track_id, source, candidate, checked_at, reviewed_at, rejected
+       FROM spotify_matches WHERE song_id = ?`
+    )
+    .get(songId);
+  return row ? { ...row } : null;
+};
+
+/**
+ * Runs change (changes of a song's spotify_matches row in db, e.g. accepting in review) and records
+ * the row before and a hash of the row after for the active run, so undo can put the row back. Returns
+ * what change returned. Without an active run it only changes.
+ */
+const journaledMatch = (db, songId, change) => {
+  if (!active) {
+    return change();
+  }
+  const before = matchRow(db, songId);
+  const result = change();
+  safely(`the Spotify match of song ${songId}`, () => {
+    const after = matchRow(db, songId);
+    if (serialize(before) === serialize(after)) {
+      return;
+    }
+    const song = db.prepare('SELECT path FROM songs WHERE id = ?').get(songId);
+    journalDb()
+      .prepare(
+        'INSERT INTO match_changes (run_id, song_id, path, before, after_hash) VALUES (?, ?, ?, ?, ?)'
+      )
+      .run(active.id, songId, song ? song.path : null, serialize(before), hashValue(after));
+  });
+  return result;
+};
+
 // the snapshot of Spotify saved before the active run changed it, where undo finds track positions
 const recordSpotifySnapshot = file => {
   if (!active) {
@@ -219,7 +256,9 @@ module.exports = {
   endJournal,
   frameMap,
   hashValue,
+  journaledMatch,
   journaledWrite,
+  matchRow,
   parseValue,
   pruneHistory,
   recordSpotify,

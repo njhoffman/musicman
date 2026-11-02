@@ -14,6 +14,7 @@ const {
 const { pathLayouts } = require('../beets/layout.js');
 const { readBeetsConfig } = require('../spotify/beets.js');
 const { finishRun, startRun } = require('../utils/runs.js');
+const { applyUndo, findHistoryRun, listHistory, planUndo } = require('../history/undo.js');
 
 /**
  * The review item acceptReview and rejectReview take for a song and a Spotify track: the review entry
@@ -123,8 +124,38 @@ const reviewActions = ({ db, config, getClient }) => {
     return item;
   };
 
+  // a ui run that can be undone: recorded, not undone yet, without Spotify changes
+  const undoableRun = runId => {
+    const run = _.find(listHistory(db), { id: runId });
+    const fail = (status, message) => {
+      const err = new Error(message);
+      err.status = status;
+      return err;
+    };
+    if (!run || run.command !== 'ui') {
+      throw fail(404, `No run ${runId} of the page`);
+    }
+    if (run.undoneBy) {
+      throw fail(409, `${runId} was already undone by ${run.undoneBy}`);
+    }
+    if (run.spotify > 0) {
+      throw fail(409, `${runId} changed Spotify playlists, undo it with musicman undo`);
+    }
+    return run;
+  };
+
   return {
     remember,
+    // undoes a run of the page (force: also files and rows changed since), as musicman undo does
+    undo: (runId, { force = false } = {}) => {
+      undoableRun(runId);
+      return recorded(['undo', runId], async () => {
+        const run = undoableRun(runId);
+        const plan = planUndo(db, findHistoryRun(listHistory(db), run.id), { force });
+        const result = await applyUndo({ db, config, client: null, plan });
+        return { ...result, failed: result.tags.failed };
+      });
+    },
     accept: (songId, trackId) => {
       const item = itemFor(songId, trackId);
       return recorded(['accept', item.path, trackId], () =>

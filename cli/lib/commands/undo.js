@@ -16,6 +16,7 @@ const runLine = run =>
     run.id.padEnd(30),
     `${run.files} files`.padEnd(10),
     `${run.spotify} Spotify`.padEnd(11),
+    run.matches ? `${run.matches} matches` : '',
     run.undoneBy ? chalk.hex('#DDCC44')(`undone by ${run.undoneBy}`) : '',
     run.undoes ? dim(`undoes ${run.undoes}`) : '',
     dim(run.args.join(' '))
@@ -47,6 +48,19 @@ const describePlan = (config, plan) => {
       chalk.hex('#DD7744')(`  MISSING ${shortPath(config, file)}`) + dim(' moved or deleted')
     )
   );
+  (plan.matches || []).forEach(({ path: songPath, before, status }) => {
+    const back = before ? `back to ${before.status}` : 'removed';
+    if (status === 'restore') {
+      lines.push(`  MATCH   ${songPath} ${dim(`Spotify match ${back}`)}`);
+    } else if (status === 'changed') {
+      lines.push(
+        chalk.hex('#DDCC44')(`  CHANGED ${songPath}`) +
+          dim(' Spotify match changed since (sync --match?), --force puts it back anyway')
+      );
+    } else {
+      lines.push(chalk.hex('#DD7744')(`  MISSING ${songPath}`) + dim(' no longer in the library'));
+    }
+  });
   _.each(_.groupBy(plan.spotify, 'targetName'), (changes, name) => {
     const [added, removed] = _.partition(changes, { action: 'add' });
     lines.push(
@@ -108,7 +122,9 @@ const undoCommand = async ({
     }
     const plan = planUndo(db, run, { force: Boolean(switches.force) });
     logger.info(describePlan(config, plan));
-    const restore = _.filter(plan.files, { status: 'restore' }).length;
+    const restore =
+      _.filter(plan.files, { status: 'restore' }).length +
+      _.filter(plan.matches, { status: 'restore' }).length;
     if (restore === 0 && plan.spotify.length === 0) {
       logger.info('Nothing to undo');
       return { plan };
@@ -139,6 +155,7 @@ const undoCommand = async ({
     logger.info(
       [
         `Restored ${result.tags.restored.length} files`,
+        result.matches.length > 0 ? ` and ${result.matches.length} Spotify matches` : '',
         plan.spotify.length > 0
           ? `; on Spotify removed ${spotify.removed.length} and added back ${spotify.added.length} tracks` +
             `${spotify.skipped.length ? `, ${spotify.skipped.length} already as before` : ''}`

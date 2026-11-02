@@ -6,6 +6,7 @@ const dbFunc = require('../../../lib/commands/db.js').func;
 const viewFunc = require('../../../lib/commands/view.js').func;
 const statsFunc = require('../../../lib/commands/stats.js').func;
 const editFunc = require('../../../lib/commands/edit.js').func;
+const migrations = require('../../../lib/db/migrations.js');
 
 describe('Db Command', () => {
   let library;
@@ -52,7 +53,12 @@ describe('Db Command', () => {
       config
     });
     expect(fs.existsSync(config.db.path)).to.be.true;
-    expect(stats).to.include({ songs: 0, schemaVersion: 5, lastUpdate: null, lastBackup: null });
+    expect(stats).to.include({
+      songs: 0,
+      schemaVersion: migrations.length,
+      lastUpdate: null,
+      lastBackup: null
+    });
     expect(stats.tagDefinitions).to.be.greaterThan(100);
   });
 

@@ -62,6 +62,35 @@ const reviewFixture = () => ({
   marker: 'review-1'
 });
 
+// an accept that can be undone, and a reject whose song changed since
+const historyFixture = () => ({
+  runs: [
+    {
+      id: '20261101-110000-ui',
+      args: ['accept', 'Beta/Two.mp3', trackA],
+      startedAt: '2026-11-01T11:00:00.000Z',
+      undoes: null,
+      undoneBy: null,
+      spotify: 0,
+      files: [
+        { path: 'Beta/Two.mp3', frames: ['TXXX.sp_track_id'], status: 'restore', changed: [] }
+      ],
+      matches: [{ path: 'Beta/Two.mp3', before: 'review', status: 'restore' }]
+    },
+    {
+      id: '20261101-100000-ui',
+      args: ['reject', 'Alpha/One.mp3', trackB],
+      startedAt: '2026-11-01T10:00:00.000Z',
+      undoes: null,
+      undoneBy: null,
+      spotify: 0,
+      files: [],
+      matches: [{ path: 'Alpha/One.mp3', before: 'review', status: 'changed' }]
+    }
+  ],
+  marker: 'history-1'
+});
+
 const searchFixture = (query, ...tracks) => ({
   query,
   tracks: tracks.map(([t, percent, rejected = false]) => ({
@@ -73,7 +102,10 @@ const searchFixture = (query, ...tracks) => ({
 
 const transfersFixture = () => ({
   syncedAt: '2026-11-01 10:00:00',
-  toLocal: [{ track: track(trackC, 'Wanted', 1000), playlists: ['Liked Songs'] }],
+  toLocal: [
+    { track: track(trackC, 'Wanted', 1000), playlists: ['Liked Songs'], download: null },
+    { track: track(trackB, 'Queued', 1000), playlists: ['Liked Songs'], download: 'queued' }
+  ],
   toSpotify: [],
   marker: 'transfers-1'
 });
@@ -142,7 +174,11 @@ describe('musicman ui page', () => {
     routes = {
       'GET /api/review': reviewFixture(),
       'GET /api/transfers': transfersFixture(),
-      'GET /api/status': { markers: { review: 'review-1', transfers: 'transfers-1' }, running: [] }
+      'GET /api/history': historyFixture(),
+      'GET /api/status': {
+        markers: { review: 'review-1', transfers: 'transfers-1', history: 'history-1' },
+        running: []
+      }
     };
     dom = new JSDOM(fs.readFileSync(path.join(publicDirectory, 'index.html'), 'utf8'), {
       url: 'http://127.0.0.1:6660/',
@@ -196,7 +232,7 @@ describe('musicman ui page', () => {
     it('should be a tablist with the selected tab and the list counts', () => {
       expect($('tabs').getAttribute('role')).to.equal('tablist');
       const buttons = all('#tabs button');
-      expect(buttons.map(b => b.getAttribute('role'))).to.deep.equal(Array(6).fill('tab'));
+      expect(buttons.map(b => b.getAttribute('role'))).to.deep.equal(Array(7).fill('tab'));
       expect(tab('review').getAttribute('aria-selected')).to.equal('true');
       expect(tab('review').getAttribute('tabindex')).to.equal('0');
       expect(tab('accepted').getAttribute('tabindex')).to.equal('-1');
@@ -207,12 +243,15 @@ describe('musicman ui page', () => {
     it('should move between tabs with the arrow keys and load the transfers once', async () => {
       press('ArrowLeft', tab('review'));
       await settle();
+      expect(app.state.tab).to.equal('history');
+      press('ArrowLeft', tab('history'));
+      await settle();
       expect(app.state.tab).to.equal('toSpotify');
       expect(dom.window.document.activeElement.id).to.equal('tab-toSpotify');
       press('ArrowLeft', tab('toSpotify'));
       await settle();
       expect(app.state.tab).to.equal('toLocal');
-      expect(rowTexts()).to.deep.equal(['Spotify Artist - Wanted']);
+      expect(rowTexts()).to.deep.equal(['Spotify Artist - Wanted', 'Spotify Artist - Queued']);
       expect(requests.filter(r => r.url === '/api/transfers')).to.have.length(1);
       press('Home', tab('toLocal'));
       expect(app.state.tab).to.equal('review');
@@ -358,6 +397,18 @@ describe('musicman ui page', () => {
       expect(tab('review').classList.contains('stale')).to.equal(false);
       expect($('list-head').textContent).to.not.include('Changed since loaded');
       expect(app.state.selected).to.equal('2');
+    });
+
+    it('should ask for the transfer lists computed again when they are reloaded', async () => {
+      routes['GET /api/transfers?fresh'] = { ...transfersFixture(), marker: 'transfers-2' };
+      click(tab('toLocal'));
+      await settle();
+      click($('list-head').querySelector('button.reload'));
+      await settle();
+      expect(
+        requests.map(r => r.url).filter(url => url.startsWith('/api/transfers'))
+      ).to.deep.equal(['/api/transfers', '/api/transfers?fresh']);
+      expect(app.state.transfers.marker).to.equal('transfers-2');
     });
 
     it('should show the runs going on, and ask before accepting while one runs', async () => {
@@ -663,6 +714,131 @@ describe('musicman ui page', () => {
       press('s');
       await settle();
       expect(plays()[0].body).to.deep.equal({ uris: [`spotify:track:${trackC}`] });
+    });
+  });
+
+  describe('history', () => {
+    const undoButtons = () => all('#compare button.undo');
+
+    it('should list the runs of the page with what undoing them does', async () => {
+      click(tab('history'));
+      await settle();
+      expect(
+        all('#list-body tbody tr').map(tr => [...tr.cells].slice(1).map(td => td.textContent))
+      ).to.deep.equal([
+        ['Accept', 'Beta/Two.mp3', 'can undo'],
+        ['Reject', 'Alpha/One.mp3', 'changed since']
+      ]);
+      press('j');
+      expect(all('#compare .plan li').map(li => li.textContent)).to.deep.equal([
+        'Tags of Beta/Two.mp3 back: TXXX.sp_track_id',
+        'Spotify match of Beta/Two.mp3 back to review'
+      ]);
+      expect(undoButtons().map(b => [b.textContent, b.disabled])).to.deep.equal([['Undo', false]]);
+      press('j');
+      expect(undoButtons().map(b => [b.textContent, b.disabled])).to.deep.equal([
+        ['Undo', true],
+        ['Undo anyway', false]
+      ]);
+    });
+
+    it('should undo a run and load the history and the review lists again', async () => {
+      routes['POST /api/history/20261101-100000-ui/undo'] = { ok: true, files: 0, matches: 1 };
+      click(tab('history'));
+      await settle();
+      press('j');
+      press('j');
+      const loads = requests.length;
+      click(undoButtons()[1]);
+      await settle();
+      expect(requests.find(r => r.method === 'POST')).to.deep.equal({
+        method: 'POST',
+        url: '/api/history/20261101-100000-ui/undo',
+        body: { force: true }
+      });
+      expect(
+        requests
+          .slice(loads)
+          .map(r => r.url)
+          .filter(url => url !== '/api/history/20261101-100000-ui/undo')
+          .sort()
+      ).to.deep.equal(['/api/history', '/api/review']);
+      expect($('message').textContent).to.include('0 files and 1 Spotify matches put back');
+    });
+
+    it('should load the history again after an accept once it was shown', async () => {
+      routes['POST /api/songs/2/accept'] = { ok: true };
+      click(tab('history'));
+      await settle();
+      click(tab('review'));
+      press('j');
+      press('a');
+      await settle();
+      expect(requests.filter(r => r.url === '/api/history')).to.have.length(2);
+    });
+  });
+
+  describe('transfer actions', () => {
+    const headButton = text =>
+      all('#list-head button').find(button => button.textContent.startsWith(text));
+
+    beforeEach(async () => {
+      click(tab('toLocal'));
+      await settle();
+    });
+
+    it('should show where each track is, and add the ones not queued to the downloads', async () => {
+      expect(all('#list-body tbody tr').map(tr => tr.cells[3].textContent)).to.deep.equal([
+        'not queued',
+        'queued'
+      ]);
+      routes['POST /api/downloads'] = body => ({ ok: true, added: body.trackIds, unknown: [] });
+      const queued = transfersFixture();
+      queued.toLocal[0].download = 'queued';
+      routes['GET /api/transfers'] = queued;
+      click(headButton('Add 1 to downloads'));
+      await settle();
+      expect(requests.find(r => r.method === 'POST')).to.deep.equal({
+        method: 'POST',
+        url: '/api/downloads',
+        body: { trackIds: [trackC] }
+      });
+      expect($('message').textContent).to.include('Added 1 tracks to the download manifest');
+      expect(headButton('Add ')).to.equal(undefined);
+    });
+
+    it('should add one track from its panel, and not one already in the downloads', async () => {
+      routes['POST /api/downloads'] = body => ({ ok: true, added: body.trackIds, unknown: [] });
+      press('j');
+      const add = () =>
+        all('#compare button').find(button => /downloads/i.test(button.textContent));
+      expect(add().textContent).to.equal('Add to downloads');
+      click(add());
+      await settle();
+      expect(requests.filter(r => r.method === 'POST').map(r => r.body)).to.deep.equal([
+        { trackIds: [trackC] }
+      ]);
+      press('j');
+      expect(add().textContent).to.equal('In downloads (queued)');
+      expect(add().disabled).to.equal(true);
+    });
+
+    it('should refresh the playlists and then load the transfer lists again', async () => {
+      routes['POST /api/spotify/refresh'] = { ok: true, refreshed: 3, unchanged: 2 };
+      click(headButton('Refresh playlists'));
+      await settle();
+      expect(requests.filter(r => r.url.startsWith('/api/transfers'))).to.have.length(2);
+      expect($('message').textContent).to.equal(
+        'Refreshed 3 Spotify playlists (2 unchanged since the last sync)'
+      );
+    });
+
+    it('should say why a refresh failed', async () => {
+      routes['POST /api/spotify/refresh'] = { $status: 503, body: { error: 'Not logged in' } };
+      click(headButton('Refresh playlists'));
+      await settle();
+      expect($('message').textContent).to.include('Refreshing the playlists failed: Not logged in');
+      expect(headButton('Refresh playlists').disabled).to.equal(false);
     });
   });
 });

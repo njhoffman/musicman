@@ -15,11 +15,14 @@ const {
   beginJournal,
   endJournal,
   parseValue,
+  journaledMatch,
+  matchRow,
   pruneHistory,
   recordSpotifySnapshot,
   serialize
 } = require('./journal.js');
 const { applyUndo, findHistoryRun, listHistory, planUndo, undoTags } = require('./undo.js');
+const { acceptReview, rejectReview, reviewItems } = require('../sync/match.js');
 
 describe('Undo History', () => {
   let db;
@@ -167,6 +170,111 @@ describe('Undo History', () => {
     expect(pruneHistory(db, 2)).to.equal(1);
     expect(_.map(listHistory(db), 'id')).to.deep.equal(['r3', 'r2']);
     expect(db.prepare('SELECT count(*) AS n FROM tag_changes').get().n).to.equal(2);
+  });
+
+  describe('Spotify matches', () => {
+    const trackId = '0Q7a3AbWpEr162RRDyz5u6';
+    const songId = name => db.prepare('SELECT id FROM songs WHERE path = ?').get(name).id;
+    const candidate = { id: trackId, name: 'Candidate', artists: 'Artist', durationMs: 200000 };
+    // testFile01 waits for review with the candidate
+    const waitForReview = () =>
+      db
+        .prepare(
+          `INSERT INTO spotify_matches (song_id, status, source, candidate, checked_at)
+           VALUES (?, 'review', 'search', ?, '2026-10-20 10:00:00')`
+        )
+        .run(songId('testFile01.mp3'), JSON.stringify(candidate));
+    const items = () => reviewItems(db, config);
+
+    it('should record the row before and the hash after, only for a change in a run', () => {
+      const id = songId('testFile01.mp3');
+      journaledMatch(db, id, () => waitForReview());
+      expect(listHistory(db)).to.be.empty;
+      begin('r1');
+      journaledMatch(db, id, () => {});
+      journaledMatch(db, id, () =>
+        db.prepare("UPDATE spotify_matches SET status = 'missing' WHERE song_id = ?").run(id)
+      );
+      endJournal();
+      const rows = db.prepare('SELECT * FROM match_changes').all();
+      expect(rows).to.have.length(1);
+      expect(rows[0]).to.include({ run_id: 'r1', song_id: id, path: 'testFile01.mp3' });
+      expect(parseValue(rows[0].before)).to.include({ status: 'review' });
+      expect(run('r1')).to.include({ matches: 1, files: 0 });
+    });
+
+    it('should put back the row and the tags an accept changed, and redo it by undoing the undo', async () => {
+      waitForReview();
+      const id = songId('testFile01.mp3');
+      const before = matchRow(db, id);
+      begin('r1', 'ui');
+      await acceptReview({ db, config, client: null, items: items() });
+      endJournal();
+      expect(matchRow(db, id)).to.include({ status: 'match', track_id: trackId });
+      expect(custom('testFile01.mp3', 'sp_track_id')).to.equal(trackId);
+      const plan = planUndo(db, run('r1'));
+      expect(plan.matches).to.deep.equal([
+        { songId: id, path: 'testFile01.mp3', before, status: 'restore', changed: false }
+      ]);
+      begin('r2', 'undo');
+      const result = await applyUndo({ db, config, plan });
+      endJournal();
+      expect(result.matches).to.deep.equal([id]);
+      expect(matchRow(db, id)).to.deep.equal(before);
+      expect(custom('testFile01.mp3', 'sp_track_id')).to.equal(undefined);
+      expect(items()).to.have.length(1);
+      begin('r3', 'undo');
+      await applyUndo({ db, config, plan: planUndo(db, run('r2')) });
+      endJournal();
+      expect(matchRow(db, id)).to.include({ status: 'match', track_id: trackId });
+    });
+
+    it('should undo a reject that changed no tags, which is a run of its own', async () => {
+      waitForReview();
+      const id = songId('testFile01.mp3');
+      begin('r1', 'ui');
+      await rejectReview({ db, config, items: items() });
+      endJournal();
+      expect(run('r1')).to.include({ files: 0, matches: 1 });
+      expect(matchRow(db, id)).to.include({
+        status: 'rejected',
+        rejected: JSON.stringify([trackId])
+      });
+      begin('r2', 'undo');
+      await applyUndo({ db, config, plan: planUndo(db, run('r1')) });
+      endJournal();
+      expect(matchRow(db, id)).to.include({ status: 'review', rejected: null });
+    });
+
+    it('should hold back a row changed since the run unless forced, and a song that left', async () => {
+      waitForReview();
+      const id = songId('testFile01.mp3');
+      begin('r1', 'ui');
+      await rejectReview({ db, config, items: items() });
+      endJournal();
+      db.prepare(
+        "UPDATE spotify_matches SET checked_at = '2026-11-01 00:00:00' WHERE song_id = ?"
+      ).run(id);
+      expect(planUndo(db, run('r1')).matches[0]).to.include({ status: 'changed' });
+      expect(planUndo(db, run('r1'), { force: true }).matches[0]).to.include({ status: 'restore' });
+      db.prepare('DELETE FROM songs WHERE id = ?').run(id);
+      expect(planUndo(db, run('r1')).matches[0]).to.include({ status: 'missing' });
+    });
+
+    it('should delete a row the run created', async () => {
+      const id = songId('testFile02.mp3');
+      begin('r1', 'ui');
+      journaledMatch(db, id, () =>
+        db
+          .prepare(
+            "INSERT INTO spotify_matches (song_id, status, track_id) VALUES (?, 'match', 'x')"
+          )
+          .run(id)
+      );
+      endJournal();
+      await applyUndo({ db, config, plan: planUndo(db, run('r1')) });
+      expect(matchRow(db, id)).to.equal(null);
+    });
   });
 
   describe('Spotify', () => {

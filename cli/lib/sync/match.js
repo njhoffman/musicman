@@ -23,6 +23,7 @@ const { songLayout } = require('../beets/layout.js');
 const { ignoredTracks } = require('./targets.js');
 const { getMeta, setMeta, transaction } = require('../db/database.js');
 const { updateDatabase } = require('../db/update.js');
+const { journaledMatch } = require('../history/journal.js');
 const { rewriteTags, updateTags } = require('../metadata/write.js');
 const logger = require('../utils/logger.js');
 
@@ -639,13 +640,16 @@ const acceptReview = async ({ db, config, client, items, layouts = [], now = new
       return;
     }
     written.push(item.file);
-    // a match the page accepts may not have been looked up into spotify_matches yet
-    db.prepare(
-      `INSERT INTO spotify_matches (song_id, status, track_id, source, candidate, checked_at)
-       VALUES (?, 'match', ?, 'review', ?, datetime('now')) ON CONFLICT (song_id) DO NOTHING`
-    ).run(item.songId, item.candidate.id, JSON.stringify(item.candidate));
-    markReviewed(db, item.songId, 'match', item.candidate.id);
-    unreject(db, item.songId, item.candidate.id);
+    // recorded for musicman undo, which puts the row back
+    journaledMatch(db, item.songId, () => {
+      // a match the page accepts may not have been looked up into spotify_matches yet
+      db.prepare(
+        `INSERT INTO spotify_matches (song_id, status, track_id, source, candidate, checked_at)
+         VALUES (?, 'match', ?, 'review', ?, datetime('now')) ON CONFLICT (song_id) DO NOTHING`
+      ).run(item.songId, item.candidate.id, JSON.stringify(item.candidate));
+      markReviewed(db, item.songId, 'match', item.candidate.id);
+      unreject(db, item.songId, item.candidate.id);
+    });
   });
   if (written.length > 0) {
     await updateDatabase(db, { config, files: written, record: false });
@@ -684,7 +688,7 @@ const rejectReview = async ({ db, config, items }) => {
     }
     const before = _.get(select.get(item.songId), 'rejected');
     const rejected = _.uniq([...(before ? JSON.parse(before) : []), item.candidate.id]);
-    update.run(JSON.stringify(rejected), item.songId);
+    journaledMatch(db, item.songId, () => update.run(JSON.stringify(rejected), item.songId));
     rememberRejected(db, [item.candidate]);
   });
   if (written.length > 0) {

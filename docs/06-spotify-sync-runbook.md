@@ -179,8 +179,9 @@ musicman sync --backup            # mirrors mpd.baseDirectory to backup.director
 
 ## Undoing a run
 
-Every run that changes something records the tag frames it replaced and the Spotify tracks it added or removed
-(the last `history.keep` runs, 50).
+Every run that changes something records the tag frames it replaced and the Spotify tracks it added or removed,
+and accepting or rejecting in review (`sync --review`, `musicman ui`) also the Spotify match rows it changed
+(the last `history.keep` runs, 50). The History tab of `musicman ui` lists and undoes the page's own runs.
 
 ```sh
 musicman undo                     # list recent runs with changes (also --list)
@@ -190,6 +191,9 @@ musicman undo <run id>            # undo one run, after confirming; an id prefix
 
 - Files changed again since the run are held back (`CHANGED`); `--force` restores them anyway. Files moved or
   deleted since (e.g. by `sort` or a beets import) are listed as `MISSING`.
+- Spotify match rows are put back as they were (`MATCH` lines), so an undone accept waits for review again and
+  an undone reject leaves the rejected tracks; a row changed since (e.g. by `sync --match`) is held back the
+  same way. Accepts and rejects from before 1.48.0 restore only their tags.
 - Spotify changes are reversed after saving Liked Songs and playlists as they are: tracks the run added are
   removed, tracks it removed are added back at their old playlist position. Liked Songs added back get a new date.
 - Undoing a push does not change tags, so the next `sync --push` adds those tracks again unless the tags change.

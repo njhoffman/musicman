@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const parseFilters = require('../parser/options/filters.js');
+const { downloadedFiles, downloadTrackId, readManifest } = require('./download.js');
 const { likedId, playlistTargets } = require('./targets.js');
 
 // tags a track gets from a playlist's filter, e.g. grouping:IndieRock.Artists or context:Study, and the
@@ -53,12 +54,59 @@ const buildManifest = (plan, config, now = new Date()) => {
   };
 };
 
-// manifest.json in sync.downloadDirectory, replaced on every pull
+// manifest.json in sync.downloadDirectory, replaced on every pull; written to a temporary file and
+// renamed, so pnpm download never reads half of it
 const writeManifest = (config, manifest) => {
   const file = path.join(config.sync.downloadDirectory, 'manifest.json');
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, `${JSON.stringify(manifest, null, 2)}\n`);
+  const temporary = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, `${JSON.stringify(manifest, null, 2)}\n`);
+  fs.renameSync(temporary, file);
   return file;
 };
 
-module.exports = { buildManifest, filterTags, writeManifest };
+/**
+ * Adds tracks of the sync plan's pull lists (by track id) to the download manifest, with the targets
+ * and tags sync --pull would give them, keeping the tracks already in it. Returns the track ids added,
+ * and those not in any pull list (unknown).
+ */
+const addToManifest = (config, plan, trackIds, now = new Date()) => {
+  if (!_.get(config, 'sync.downloadDirectory')) {
+    throw new Error('sync.downloadDirectory is not set');
+  }
+  const built = _.keyBy(buildManifest(plan, config, now).tracks, 'trackId');
+  const manifest = readManifest(config) || { createdAt: now.toISOString(), tracks: [] };
+  const present = new Set(_.map(manifest.tracks, 'trackId'));
+  const ids = _.uniq(trackIds);
+  const added = _.filter(ids, id => built[id] && !present.has(id));
+  if (added.length > 0) {
+    manifest.tracks = _.sortBy(
+      [...manifest.tracks, ..._.map(added, id => built[id])],
+      ['artists', 'name']
+    );
+    writeManifest(config, manifest);
+  }
+  return { added, unknown: _.reject(ids, id => built[id]) };
+};
+
+/**
+ * Where each track of the download manifest is: imported (sync --import took it), downloaded (a file
+ * waits in the download directory), or queued (pnpm download fetches it). A Map by track id.
+ */
+const downloadStatus = config => {
+  if (!_.get(config, 'sync.downloadDirectory')) {
+    return new Map();
+  }
+  const manifest = readManifest(config);
+  const downloaded = new Set(
+    _.compact(_.map(downloadedFiles(config), file => downloadTrackId(file)))
+  );
+  return new Map(
+    _.map(_.get(manifest, 'tracks', []), track => [
+      track.trackId,
+      track.importedAt ? 'imported' : downloaded.has(track.trackId) ? 'downloaded' : 'queued'
+    ])
+  );
+};
+
+module.exports = { addToManifest, buildManifest, downloadStatus, filterTags, writeManifest };

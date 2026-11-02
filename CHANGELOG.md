@@ -6,6 +6,27 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman ui` History tab: the page's accepts, rejects, and undos with what undoing each puts back,
+  and Undo (Undo anyway when something changed since).
+- `musicman ui` Spotify to local list: whether each track is in the download manifest (queued,
+  downloaded, imported), Add to downloads for one track or every one not queued, and Refresh playlists
+  to fetch the Spotify playlists again as `sync` does first.
+
+### Changed
+
+- Accepting and rejecting in review (`sync --review`, `musicman ui`) records the Spotify match rows it
+  changes, and `musicman undo` puts them back (`MATCH` lines; `--force` for rows changed since), so an
+  undone accept waits for review again instead of staying in Accepted. A reject that changed no tags can
+  now be undone too. Database migration 6 adds the `match_changes` table.
+- `sync --pull` writes the download manifest whole through a temporary file, so `pnpm download` never
+  reads half of one.
+
+- `musicman ui` keeps the transfer lists (Spotify to local, Local to Spotify) until the database
+  changes, so going back to them no longer reads the whole library again; their Reload button
+  computes them again.
+
 ## [1.47.0] - 2026-11-01
 
 ### Added

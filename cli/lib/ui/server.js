@@ -4,12 +4,14 @@ const http = require('http');
 const path = require('path');
 
 const { candidateOf, looseQuery, matchSimilarity, searchQuery } = require('../spotify/match.js');
+const { addToManifest, downloadStatus } = require('../sync/pull.js');
 const { searchTracks, songFields } = require('../sync/match.js');
 const { runningRuns, runsDirectory } = require('../utils/runs.js');
 const {
   acceptedList,
   changeMarkers,
   fetchRejected,
+  historyList,
   missingList,
   rejectedList,
   reviewList,
@@ -166,7 +168,8 @@ const trackIdOf = body => {
 /**
  * The request handler of musicman ui: the page from lib/ui/public, and a JSON API:
  *   GET  /api/review                     review, accepted, and rejected lists, with their marker
- *   GET  /api/transfers                  tracks to bring from Spotify, songs missing on Spotify, marker
+ *   GET  /api/transfers[?fresh]          tracks to bring from Spotify, songs missing on Spotify, marker
+ *                                        (kept until the database changes, fresh computes them again)
  *   GET  /api/status                     change markers of the lists and the runs going on now
  *   GET  /api/spotify/search?song=<id>&q= Spotify tracks for a song: q, or the queries sync --match uses
  *   GET  /api/songs/<id>/audio           the song's file, with byte ranges
@@ -174,6 +177,10 @@ const trackIdOf = body => {
  *   POST /api/songs/<id>/reject          { trackId } reject the track for the song
  *   POST /api/spotify/open               { trackId } play the track in the Spotify desktop app
  *   GET  /api/spotify/token              the user's access token for the Web Playback SDK in the page
+ *   POST /api/downloads                  { trackIds } add Spotify to local tracks to the download manifest
+ *   POST /api/spotify/refresh            refresh the cached Spotify playlists, as sync does first
+ *   GET  /api/history                    the runs of the page with what undoing each would do
+ *   POST /api/history/<run id>/undo      { force } undo a run of the page
  * Only requests from the page itself are answered (checkOrigin), so another site can neither read
  * the access token nor act. getUserToken() resolves to { accessToken, scope } of the logged in user.
  * Dependencies: db, config, actions (reviewActions), getClient() a Spotify app client or null without
@@ -188,6 +195,9 @@ const createHandler = ({
   librarySongs,
   plan,
   player,
+  refreshPlaylists = async () => {
+    throw new Error('Not logged in to Spotify, run: musicman sync --login');
+  },
   getUserToken = async () => {
     throw new Error('Not logged in to Spotify, run: musicman sync --login');
   },
@@ -200,6 +210,36 @@ const createHandler = ({
     _.map(_.reject(running(), { command: 'ui' }), run =>
       _.pick(run, ['id', 'command', 'args', 'startedAt'])
     );
+
+  /**
+   * The transfer lists read the whole library from disk and compute the sync plan (seconds), so they
+   * are kept until the transfers marker changes (a sync, a database update, an accept); fresh computes
+   * them again, for changes the database does not know of yet. Requests during a computation share it.
+   */
+  let transfersCache = null;
+  const transfers = fresh => {
+    const marker = changeMarkers(db).transfers;
+    if (fresh || !transfersCache || transfersCache.marker !== marker) {
+      const computing = (async () => {
+        const syncPlan = plan(await librarySongs());
+        return {
+          plan: syncPlan,
+          body: {
+            ...transferLists(db, config, syncPlan),
+            marker,
+            computedAt: new Date().toISOString()
+          }
+        };
+      })();
+      transfersCache = { marker, computing };
+      computing.catch(() => {
+        if (transfersCache && transfersCache.computing === computing) {
+          transfersCache = null;
+        }
+      });
+    }
+    return transfersCache.computing;
+  };
 
   const reviewLists = async () => {
     // taken before the lists, so a change while they are read shows as a change afterwards
@@ -231,9 +271,56 @@ const createHandler = ({
     [
       'GET',
       /^\/api\/transfers$/,
+      async req => {
+        const { body } = await transfers(
+          new URL(req.url, 'http://localhost').searchParams.has('fresh')
+        );
+        // read each time: the manifest and the download directory change outside the database
+        const status = downloadStatus(config);
+        return {
+          ...body,
+          toLocal: _.map(body.toLocal, entry => ({
+            ...entry,
+            download: status.get(entry.track.id) || null
+          }))
+        };
+      }
+    ],
+    [
+      'POST',
+      /^\/api\/downloads$/,
+      async req => {
+        const body = await readBody(req);
+        const ids = _.isArray(body.trackIds) ? body.trackIds : [];
+        if (
+          ids.length === 0 ||
+          !_.every(ids, id => _.isString(id) && /^[A-Za-z0-9]{22}$/.test(id))
+        ) {
+          throw new HttpError(400, 'trackIds must be Spotify track ids');
+        }
+        const { plan: syncPlan } = await transfers(false);
+        const result = addToManifest(config, syncPlan, ids);
+        if (result.unknown.length > 0 && result.added.length === 0) {
+          throw new HttpError(409, 'The tracks are not in the Spotify to local list any more');
+        }
+        return { ok: true, ...result };
+      }
+    ],
+    [
+      'POST',
+      /^\/api\/spotify\/refresh$/,
       async () => {
-        const marker = changeMarkers(db).transfers;
-        return { ...transferLists(db, config, plan(await librarySongs())), marker };
+        let summary;
+        try {
+          summary = await refreshPlaylists();
+        } catch (err) {
+          throw new HttpError(err.status || 503, err.message);
+        }
+        return {
+          ok: true,
+          refreshed: summary.refreshed.length,
+          unchanged: summary.unchanged.length
+        };
       }
     ],
     [
@@ -314,6 +401,31 @@ const createHandler = ({
           );
         }
         return { accessToken: token.accessToken };
+      }
+    ],
+    [
+      'GET',
+      /^\/api\/history$/,
+      async () => {
+        const marker = changeMarkers(db).history;
+        return { runs: historyList(db, config), marker };
+      }
+    ],
+    [
+      'POST',
+      /^\/api\/history\/([\w-]+)\/undo$/,
+      async (req, res, [runId]) => {
+        const body = await readBody(req);
+        const result = await actions.undo(runId, { force: body.force === true });
+        const failed = _.get(result, 'failed', []);
+        if (failed.length > 0) {
+          throw new HttpError(500, failed[0].error);
+        }
+        return {
+          ok: true,
+          files: _.get(result, 'tags.restored.length', 0),
+          matches: _.get(result, 'matches.length', 0)
+        };
       }
     ],
     ['GET', /^\/api\/status$/, async () => ({ markers: changeMarkers(db), running: otherRuns() })],

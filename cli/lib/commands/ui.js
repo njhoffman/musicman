@@ -6,8 +6,10 @@ const { spotifyPlayer } = require('../player/players.js');
 const { createClient } = require('../spotify/api.js');
 const { appTokenGetter, readTokens, userAccessToken } = require('../spotify/auth.js');
 const { getCredentials, missingCredentials, tokenPath } = require('../spotify/credentials.js');
+const { refreshCache } = require('../sync/cache.js');
 const { syncPlan } = require('../sync/plan.js');
-const { songTargets } = require('../sync/targets.js');
+const { lazyUserClient } = require('../spotify/userClient.js');
+const { ignorePlaylistId, playlistTargets, songTargets } = require('../sync/targets.js');
 const { reviewActions } = require('../ui/actions.js');
 const { createHandler, startServer } = require('../ui/server.js');
 const logger = require('../utils/logger.js');
@@ -63,6 +65,7 @@ const uiCommand = async ({
   }
 
   const db = openLibrary(config);
+  const userClient = lazyUserClient(config, env);
   const handler = createHandler({
     db,
     config,
@@ -79,6 +82,13 @@ const uiCommand = async ({
       ),
     plan: songs => syncPlan(db, config, songs),
     player,
+    // the cached Spotify playlists refreshed as sync does first (sync.ignorePlaylist too)
+    refreshPlaylists: () =>
+      refreshCache(
+        db,
+        userClient(),
+        _.compact([..._.map(playlistTargets(config), 'id'), ignorePlaylistId(config)])
+      ),
     // the logged in user's token (musicman sync --login) for playing full tracks in the page
     getUserToken: async () => {
       if (missing.length > 0) {

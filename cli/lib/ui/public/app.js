@@ -7,7 +7,8 @@ const state = {
   tab: 'review',
   review: null,
   transfers: null,
-  loading: { review: false, transfers: false },
+  history: null,
+  loading: { review: false, transfers: false, history: false },
   selected: null,
   busy: false,
   // per tab { key, dir } of the sorted column, none for the order the API returns
@@ -24,7 +25,8 @@ const tabs = [
   { id: 'rejected', label: 'Rejected', source: 'review' },
   { id: 'missing', label: 'Not found', source: 'review' },
   { id: 'toLocal', label: 'Spotify to local', source: 'transfers' },
-  { id: 'toSpotify', label: 'Local to Spotify', source: 'transfers' }
+  { id: 'toSpotify', label: 'Local to Spotify', source: 'transfers' },
+  { id: 'history', label: 'History', source: 'history' }
 ];
 
 const sourceOf = tabId => tabs.find(({ id }) => id === tabId).source;
@@ -44,7 +46,7 @@ const h = (tag, attrs = {}, ...children) => {
       el.setAttribute(key, value === true ? '' : value);
     }
   });
-  children.flat().forEach(child => {
+  children.flat(Infinity).forEach(child => {
     if (child !== null && child !== undefined && child !== false) {
       el.append(child instanceof Node ? child : document.createTextNode(String(child)));
     }
@@ -144,14 +146,48 @@ const columns = {
   toLocal: [
     { label: 'Spotify track', key: 'track' },
     { label: 'Album', key: 'album' },
-    { label: 'Playlists', key: 'playlists' }
+    { label: 'Playlists', key: 'playlists' },
+    { label: 'Download', key: 'download' }
   ],
   toSpotify: [
     { label: 'Local song', key: 'path' },
     { label: 'Belongs in', key: 'playlists' },
     { label: 'Spotify match', key: 'status' }
+  ],
+  history: [
+    { label: 'When', key: 'started' },
+    { label: 'Action', key: 'action' },
+    { label: 'Song', key: 'path' },
+    { label: 'Undo', key: 'state' }
   ]
 };
+
+const actionNames = {
+  accept: 'Accept',
+  reject: 'Reject',
+  undo: 'Undo',
+  download: 'Add to downloads'
+};
+
+// the song a run of the page changed, from its files and Spotify matches
+const runPath = run => (run.files[0] || run.matches[0] || {}).path || '';
+
+// whether undoing a run can go ahead: undone, held back by changes since, or ready
+const runState = run => {
+  if (run.undoneBy) {
+    return 'undone';
+  }
+  const statuses = [...run.files, ...run.matches].map(({ status }) => status);
+  if (statuses.includes('changed')) {
+    return 'changed since';
+  }
+  if (!statuses.includes('restore')) {
+    return 'nothing to undo';
+  }
+  return 'can undo';
+};
+
+const when = iso => (iso ? new Date(iso).toLocaleString() : '');
 
 // rows of a tab in the order the API returns, each { key, item, text, sort, cells }
 const rowsOf = tab => {
@@ -242,16 +278,42 @@ const rowsOf = tab => {
     return state.transfers.toLocal.map(item => ({
       key: item.track.id,
       item,
-      text: [trackText(item.track), item.track.album, ...item.playlists],
+      text: [
+        trackText(item.track),
+        item.track.album,
+        ...item.playlists,
+        item.download || 'not queued'
+      ],
       sort: {
         track: trackText(item.track),
         album: item.track.album,
-        playlists: item.playlists.join(', ')
+        playlists: item.playlists.join(', '),
+        download: item.download || 'not queued'
       },
       cells: [
         h('td', {}, trackText(item.track)),
         h('td', { className: 'dim' }, item.track.album || ''),
-        h('td', { className: 'dim' }, item.playlists.join(', '))
+        h('td', { className: 'dim' }, item.playlists.join(', ')),
+        h('td', { className: item.download ? 'dim' : null }, item.download || 'not queued')
+      ]
+    }));
+  }
+  if (tab === 'history') {
+    return state.history.runs.map(run => ({
+      key: run.id,
+      item: run,
+      text: [`${actionNames[run.args[0]] || run.args[0]} ${runPath(run)}`, run.id, runState(run)],
+      sort: {
+        started: run.startedAt,
+        action: run.args[0],
+        path: runPath(run),
+        state: runState(run)
+      },
+      cells: [
+        h('td', { className: 'dim' }, when(run.startedAt)),
+        h('td', {}, actionNames[run.args[0]] || run.args[0]),
+        h('td', {}, runPath(run)),
+        h('td', { className: runState(run) === 'can undo' ? null : 'dim' }, runState(run))
       ]
     }));
   }
@@ -342,9 +404,11 @@ const notes = {
   missing:
     'Songs sync --match found no Spotify candidate for. Pick one to search Spotify, play the results, and accept one.',
   toLocal:
-    'Tracks in the mapped Spotify playlists that are not in the library (sync --pull downloads them).',
+    'Tracks in the mapped Spotify playlists that are not in the library. Add them to the download manifest here (or with sync --pull); pnpm download fetches them and sync --import brings them in.',
   toSpotify:
-    'Songs that belong in a Spotify playlist but have no Spotify id, so only a local file can bring them there.'
+    'Songs that belong in a Spotify playlist but have no Spotify id, so only a local file can bring them there.',
+  history:
+    'Accepts, rejects, and undos of this page, newest first. Undoing one puts back the tags and the Spotify match, as musicman undo does.'
 };
 
 const keyHints = {
@@ -357,7 +421,8 @@ const keyHints = {
   missing:
     'Keys: j/k move, space plays the local file, s the previewed or first result, / filters, Esc closes. The search runs when you stop on a song.',
   toLocal: 'Keys: j/k move, s plays the Spotify track, / filters, Esc closes.',
-  toSpotify: 'Keys: j/k move, space plays the local file, / filters, Esc closes.'
+  toSpotify: 'Keys: j/k move, space plays the local file, / filters, Esc closes.',
+  history: 'Keys: j/k move, / filters, Esc closes.'
 };
 
 // whether the database changed since the source's lists were loaded
@@ -401,7 +466,8 @@ const renderTabs = () => {
     rejected: state.review && state.review.rejected.length,
     missing: state.review && state.review.missing.length,
     toLocal: state.transfers && state.transfers.toLocal.length,
-    toSpotify: state.transfers && state.transfers.toSpotify.length
+    toSpotify: state.transfers && state.transfers.toSpotify.length,
+    history: null
   };
   // drawing the tabs again keeps the focus on the tab that had it
   const focused = document.activeElement && document.activeElement.getAttribute('role') === 'tab';
@@ -459,12 +525,93 @@ const renderHead = () => {
         {
           className: 'reload',
           disabled: state.loading[source],
-          onClick: () => load(source)
+          // the server keeps the transfer lists; the button asks for them computed again
+          onClick: () => load(source, { fresh: true })
         },
         state.loading[source] ? 'Reloading...' : 'Reload'
-      )
+      ),
+      source === 'transfers' ? transferButtons() : null
     )
   );
+};
+
+// tracks of the Spotify to local list shown now (the filter applies) not in the download manifest
+const notQueued = () =>
+  state.tab === 'toLocal'
+    ? visibleRows()
+        .map(({ item }) => item)
+        .filter(item => !item.download)
+    : [];
+
+const transferButtons = () => {
+  const waiting = notQueued();
+  return [
+    ' ',
+    h(
+      'button',
+      {
+        className: 'reload',
+        disabled: state.refreshing || state.loading.transfers,
+        title: 'Fetch the Spotify playlists again, as sync does first',
+        onClick: () => refreshPlaylists()
+      },
+      state.refreshing ? 'Refreshing...' : 'Refresh playlists'
+    ),
+    state.tab === 'toLocal' && waiting.length > 0
+      ? [
+          ' ',
+          h(
+            'button',
+            {
+              className: 'reload',
+              disabled: state.busy,
+              onClick: () => queueDownloads(waiting.map(({ track }) => track.id))
+            },
+            `Add ${waiting.length} to downloads`
+          )
+        ]
+      : null
+  ];
+};
+
+// fetches the Spotify playlists again, then the transfer lists computed from them
+const refreshPlaylists = async () => {
+  state.refreshing = true;
+  renderHead();
+  try {
+    const result = await api('/api/spotify/refresh', {});
+    showMessage(
+      `Refreshed ${result.refreshed} Spotify playlists (${result.unchanged} unchanged since the last sync)`
+    );
+    state.refreshing = false;
+    await load('transfers');
+  } catch (err) {
+    state.refreshing = false;
+    showMessage(`Refreshing the playlists failed: ${err.message}`, true);
+    renderHead();
+  }
+};
+
+// adds tracks to the download manifest for pnpm download
+const queueDownloads = async trackIds => {
+  if (state.busy || !confirmWhileRunning('download')) {
+    return;
+  }
+  setBusy(true);
+  try {
+    const result = await api('/api/downloads', { trackIds });
+    showMessage(
+      `Added ${result.added.length} tracks to the download manifest; pnpm download fetches them` +
+        (result.unknown.length > 0
+          ? ` (${result.unknown.length} are no longer in the list, reload it)`
+          : '')
+    );
+    setBusy(false);
+    await load('transfers');
+  } catch (err) {
+    showMessage(`Adding to downloads failed: ${err.message}`, true);
+    setBusy(false);
+  }
 };
 
 const onSortClick = key => {
@@ -836,6 +983,73 @@ const selectedRow = () =>
     ? rowsOf(state.tab).find(({ key }) => key === state.selected)
     : null;
 
+// what undoing a run of the page does, with Undo, and Undo anyway when something changed since
+const historyDetails = run => {
+  const lines = [
+    ...run.files.map(({ path: file, frames, status, changed }) =>
+      h(
+        'li',
+        { className: status === 'restore' ? null : 'differs' },
+        {
+          restore: `Tags of ${file} back: ${frames.join(', ')}`,
+          changed: `Tags of ${file} changed since: ${changed.join(', ')} (Undo anyway puts them back)`,
+          missing: `${file} is gone (moved or deleted)`
+        }[status]
+      )
+    ),
+    ...run.matches.map(({ path: file, before, status }) =>
+      h(
+        'li',
+        { className: status === 'restore' ? null : 'differs' },
+        {
+          restore: before
+            ? `Spotify match of ${file} back to ${before}`
+            : `Spotify match of ${file} removed`,
+          changed: `Spotify match of ${file} changed since, e.g. by sync --match (Undo anyway puts it back)`,
+          missing: `${file} is no longer in the library`
+        }[status]
+      )
+    )
+  ];
+  const undoState = runState(run);
+  return [
+    h(
+      'p',
+      { className: 'dim' },
+      `${run.id}, ${when(run.startedAt)}`,
+      run.args[2] ? ` - track ${run.args[2]}` : '',
+      run.undoes ? ` - undoes ${run.undoes}` : '',
+      run.undoneBy ? ` - undone by ${run.undoneBy}` : ''
+    ),
+    h(
+      'div',
+      { className: 'version' },
+      h('h3', {}, 'Undoing it'),
+      h('ul', { className: 'plan' }, lines)
+    ),
+    h(
+      'div',
+      { className: 'actions' },
+      h(
+        'button',
+        {
+          className: 'undo',
+          disabled: state.busy || undoState !== 'can undo',
+          onClick: () => undoRun(run.id, false)
+        },
+        'Undo'
+      ),
+      undoState === 'changed since'
+        ? h(
+            'button',
+            { className: 'undo', disabled: state.busy, onClick: () => undoRun(run.id, true) },
+            'Undo anyway'
+          )
+        : null
+    )
+  ];
+};
+
 const renderCompare = () => {
   const compare = $('compare');
   const row = selectedRow();
@@ -884,8 +1098,22 @@ const renderCompare = () => {
     ];
   } else if (state.tab === 'missing') {
     body = [localVersion(item.song), searchSection(item.song)];
+  } else if (state.tab === 'history') {
+    body = historyDetails(item);
   } else if (state.tab === 'toLocal') {
-    body = [spotifyVersion('Spotify track', item.track, null)];
+    body = [
+      spotifyVersion('Spotify track', item.track, null, [
+        h(
+          'button',
+          {
+            className: 'accept',
+            disabled: state.busy || Boolean(item.download),
+            onClick: () => queueDownloads([item.track.id])
+          },
+          item.download ? `In downloads (${item.download})` : 'Add to downloads'
+        )
+      ])
+    ];
   } else {
     body = [localVersion(item.song)];
   }
@@ -950,13 +1178,19 @@ const move = delta => {
   setSelected(rows[next].key, { focus: true });
 };
 
-const load = async source => {
+const load = async (source, { fresh = false } = {}) => {
   state.loading[source] = true;
   if (sourceOf(state.tab) === source) {
     renderHead();
   }
   try {
-    state[source] = await api(source === 'review' ? '/api/review' : '/api/transfers');
+    state[source] = await api(
+      {
+        review: '/api/review',
+        transfers: `/api/transfers${fresh ? '?fresh' : ''}`,
+        history: '/api/history'
+      }[source]
+    );
     if (source === 'review' && state.review.warning) {
       showMessage(state.review.warning, true);
     }
@@ -1180,7 +1414,7 @@ const confirmWhileRunning = kind => {
   }
   return window.confirm(
     `${running.map(runText).join(', ')} is running and can write the same files. ${
-      kind === 'accept' ? 'Accept' : 'Reject'
+      actionNames[kind]
     } anyway?`
   );
 };
@@ -1201,13 +1435,32 @@ const act = async (kind, songId, trackId) => {
     );
     state.selected = null;
     setBusy(false);
-    await load('review');
+    await Promise.all([load('review'), state.history ? load('history') : null]);
     const rows = visibleRows();
     if (position >= 0 && rows.length > 0 && sourceOf(state.tab) === 'review') {
       setSelected(rows[Math.min(position, rows.length - 1)].key, { focus: true });
     }
   } catch (err) {
     showMessage(`${kind} failed: ${err.message}`, true);
+    setBusy(false);
+  }
+};
+
+// undoes a run of the page; force also puts back what changed since
+const undoRun = async (runId, force) => {
+  if (state.busy || !confirmWhileRunning('undo')) {
+    return;
+  }
+  setBusy(true);
+  try {
+    const result = await api(`/api/history/${encodeURIComponent(runId)}/undo`, { force });
+    showMessage(
+      `Undid ${runId}: ${result.files} files and ${result.matches} Spotify matches put back`
+    );
+    setBusy(false);
+    await Promise.all([load('history'), load('review')]);
+  } catch (err) {
+    showMessage(`Undo failed: ${err.message}`, true);
     setBusy(false);
   }
 };
@@ -1347,10 +1600,16 @@ const poll = async () => {
     const before = JSON.stringify([
       isStale('review'),
       isStale('transfers'),
+      isStale('history'),
       state.status && state.status.running
     ]);
     state.status = status;
-    const after = JSON.stringify([isStale('review'), isStale('transfers'), status.running]);
+    const after = JSON.stringify([
+      isStale('review'),
+      isStale('transfers'),
+      isStale('history'),
+      status.running
+    ]);
     if (before !== after) {
       renderTabs();
       renderHead();
