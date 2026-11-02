@@ -18,10 +18,10 @@ const { finishRun, startRun } = require('../utils/runs.js');
 /**
  * The review item acceptReview and rejectReview take for a song and a Spotify track: the review entry
  * when the song waits for review with that candidate, otherwise one built from the song, the stored
- * details of a rejected candidate or the file's TXXX.sp_* fields, and whether the file already has the
- * track's id (linked). Null when the song is not in the database.
+ * details of a rejected candidate, the details of a track found by a search from the page (known, by
+ * id), or the file's TXXX.sp_* fields, and whether the file already has the track's id (linked). Null when the song is not in the database.
  */
-const reviewItem = (db, config, songId, trackId) => {
+const reviewItem = (db, config, songId, trackId, known = new Map()) => {
   const waiting = _.find(
     reviewItems(db, config),
     item => item.songId === songId && item.candidate.id === trackId
@@ -50,7 +50,7 @@ const reviewItem = (db, config, songId, trackId) => {
         album: frame('TXXX.sp_album') || null,
         durationMs: Number(frame('TXXX.sp_duration_ms')) || null
       }
-    : { id: trackId, ...stored };
+    : { id: trackId, ...stored, ...known.get(trackId) };
   return {
     songId,
     file: path.join(path.resolve(config.mpd.baseDirectory), row.path),
@@ -62,13 +62,29 @@ const reviewItem = (db, config, songId, trackId) => {
   };
 };
 
+// how many tracks found by searches from the page are remembered for accepting one of them
+const knownLimit = 1000;
+
 /**
  * Accept and reject from the page, each archived as a ui run with its tag changes recorded for
  * musicman undo, like the same actions of sync --review. The journal records one run at a time, so the
  * actions run one after another. getClient() gives the Spotify client accepting fetches fields with.
+ * remember(candidates) keeps the details of tracks a search from the page found, so accepting one is
+ * scored against what the page showed; the details come from Spotify, never from the page.
  */
 const reviewActions = ({ db, config, getClient }) => {
   let queue = Promise.resolve();
+  const known = new Map();
+  const remember = candidates => {
+    candidates.forEach(candidate => {
+      known.delete(candidate.id);
+      known.set(candidate.id, candidate);
+    });
+    // a Map iterates oldest first
+    [...known.keys()]
+      .slice(0, Math.max(0, known.size - knownLimit))
+      .forEach(id => known.delete(id));
+  };
   const layouts = () => pathLayouts(_.get(readBeetsConfig(config.sync.beetsConfig), 'paths'));
 
   const recorded = (args, work) => {
@@ -98,7 +114,7 @@ const reviewActions = ({ db, config, getClient }) => {
   };
 
   const itemFor = (songId, trackId) => {
-    const item = reviewItem(db, config, songId, trackId);
+    const item = reviewItem(db, config, songId, trackId, known);
     if (!item) {
       const err = new Error(`No song ${songId} in the library`);
       err.status = 404;
@@ -108,6 +124,7 @@ const reviewActions = ({ db, config, getClient }) => {
   };
 
   return {
+    remember,
     accept: (songId, trackId) => {
       const item = itemFor(songId, trackId);
       return recorded(['accept', item.path, trackId], () =>

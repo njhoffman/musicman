@@ -718,6 +718,7 @@ module.exports = {
   rejectedCandidatesKey,
   rememberRejected,
   reviewItems,
+  searchTracks,
   songFields,
   spotifyIdFrame
 };

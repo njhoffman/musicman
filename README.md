@@ -64,6 +64,11 @@ and accepts or rejects. Each action is a `ui` run in `musicman logs` whose tag c
 restores. It also lists, as of the last `sync`, the tracks in mapped playlists missing from the library
 and the songs that belong on Spotify but have no Spotify id.
 
+The Not found tab lists the songs `sync --match` found no candidate for. Every song's panel can search
+Spotify (on Not found as soon as the selection stops on a song): an empty query runs the queries of
+`sync --match`, and each result shows its similarity to the song, a preview player, and Accept, which
+links the song to it like accepting a review candidate.
+
 Column headers sort the lists (Similar puts the least similar first, Length sorts by the difference of the
 two lengths). Keys: `j`/`k` or the arrows move through the list, space plays the local file, `a` accepts
 and `r` rejects and moves on, `/` filters, Esc closes the song. The page checks every 15 seconds whether a

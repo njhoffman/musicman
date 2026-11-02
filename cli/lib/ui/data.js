@@ -121,6 +121,21 @@ const rejectedList = db => {
   );
 };
 
+/**
+ * Songs sync --match looked up without finding a candidate (status missing), by path, with when they
+ * were last looked up.
+ */
+const missingList = db =>
+  _.map(
+    db
+      .prepare(
+        `SELECT s.id, s.path, s.duration, m.checked_at FROM spotify_matches m
+         JOIN songs s ON s.id = m.song_id WHERE m.status = 'missing' ORDER BY s.path`
+      )
+      .all(),
+    row => ({ song: songView(db, row), checkedAt: row.checked_at })
+  );
+
 // track ids of rejectedList entries known only by their id
 const unknownRejected = list =>
   _.uniq(
@@ -234,6 +249,7 @@ module.exports = {
   candidateOfTrack,
   changeMarkers,
   fetchRejected,
+  missingList,
   rejectedList,
   reviewList,
   transferLists,

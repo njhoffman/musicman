@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman ui`: a Not found tab with the songs `sync --match` found no candidate for, and a Spotify
+  search in the panel of every song (run on its own on Not found once the selection stops): the query
+  of `sync --match` or your own words, each result with its similarity, a preview, and Accept, which
+  links the song to it as accepting a review candidate does. Tracks rejected for the song are marked.
+
 ## [1.45.0] - 2026-11-01
 
 ### Added

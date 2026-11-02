@@ -13,15 +13,17 @@ const { rejectedCandidatesKey } = require('../sync/match.js');
 const {
   acceptedList,
   changeMarkers,
+  missingList,
   rejectedList,
   reviewList,
   transferLists
 } = require('./data.js');
-const { reviewActions } = require('./actions.js');
+const { reviewActions, reviewItem } = require('./actions.js');
 const { createHandler, startServer } = require('./server.js');
 
 const trackA = '0Q7a3AbWpEr162RRDyz5u6';
 const trackB = '77exqyiyvw4D2BBmFNMUur';
+const trackC = '4uLU6hMCjMI75M1A2tKUQC';
 
 describe('musicman ui', () => {
   let db;
@@ -43,11 +45,18 @@ describe('musicman ui', () => {
     album: 'Spotify Album',
     durationMs: 200000
   });
-  // a Spotify client answering track batches from a table of id -> track
-  const fakeClient = tracks => ({
+  // a Spotify client answering track batches from a table of id -> track, and searches from a table of
+  // query -> tracks (none for other queries)
+  const fakeClient = (tracks, searches = {}) => ({
     requests: [],
     get(url) {
       this.requests.push(url);
+      const search = url.match(/^\/search\?type=track&limit=\d+&q=(.*)$/);
+      if (search) {
+        return Promise.resolve({
+          tracks: { items: searches[decodeURIComponent(search[1])] || [] }
+        });
+      }
       const ids = url.match(/^\/tracks\?ids=(.*)$/)[1].split(',');
       return Promise.resolve({ tracks: ids.map(id => tracks[id] || null) });
     }
@@ -170,6 +179,13 @@ describe('musicman ui', () => {
       ]);
     });
 
+    it('should list the songs looked up without a candidate', () => {
+      const list = missingList(db);
+      expect(list).to.have.length(1);
+      expect(list[0].song).to.include({ id: songId('testFile03.mp3'), path: 'testFile03.mp3' });
+      expect(list[0].checkedAt).to.be.a('string');
+    });
+
     it('should group the tracks to pull and the songs without an id by playlist', () => {
       const plan = [
         {
@@ -242,6 +258,22 @@ describe('musicman ui', () => {
       expect(match('testFile03.mp3')).to.include({ status: 'match', rejected: null });
     });
 
+    it('should accept a track a search found, scored against the details the search returned', async () => {
+      const id = songId('testFile03.mp3');
+      const found = candidate(trackC, 'Found By Search');
+      expect(reviewItem(db, config, id, trackC).candidate).to.deep.equal({ id: trackC });
+      expect(
+        reviewItem(db, config, id, trackC, new Map([[trackC, found]])).candidate
+      ).to.deep.equal(found);
+      const actions = reviewActions({ db, config, getClient: () => null });
+      actions.remember([found]);
+      const result = await actions.accept(id, trackC);
+      expect(result.failed).to.be.empty;
+      expect(customTags('testFile03.mp3')).to.include({ sp_track_id: trackC });
+      expect(customTags('testFile03.mp3')).to.have.property('sp_diff_percent');
+      expect(match('testFile03.mp3')).to.include({ status: 'match', track_id: trackC });
+    });
+
     it('should run actions one after another and fail for an unknown song', async () => {
       const actions = reviewActions({ db, config, getClient: () => null });
       expect(() => actions.accept(99999, trackA)).to.throw('No song 99999');
@@ -277,9 +309,17 @@ describe('musicman ui', () => {
     let base;
     const calls = [];
 
+    let client;
+
     beforeEach(async () => {
       await seed();
       calls.length = 0;
+      client = fakeClient(
+        { [trackB]: webTrack(trackB, 'Fetched Name') },
+        {
+          'title words': [webTrack(trackC, 'Title Words'), webTrack(trackB, 'Rejected Before')]
+        }
+      );
       const handler = createHandler({
         db,
         config,
@@ -291,9 +331,10 @@ describe('musicman ui', () => {
           reject: async (id, trackId) => {
             calls.push(['reject', id, trackId]);
             return { rejected: [], failed: [{ error: 'could not write tags' }] };
-          }
+          },
+          remember: candidates => calls.push(['remember', _.map(candidates, 'id')])
         },
-        getClient: () => fakeClient({ [trackB]: webTrack(trackB, 'Fetched Name') }),
+        getClient: () => client,
         librarySongs: async () => [],
         plan: () => [{ name: 'Liked Songs', pull: [], noId: [] }],
         player: { open: async uri => calls.push(['open', uri]) }
@@ -486,6 +527,60 @@ describe('musicman ui', () => {
       );
       expect(page.status).to.equal(200);
       expect(calls).to.deep.equal([['accept', id, trackA]]);
+    });
+
+    it('should list the songs without a candidate with the review lists', async () => {
+      const body = await (await fetch(`${base}/api/review`)).json();
+      expect(_.map(body.missing, 'song.path')).to.deep.equal(['testFile03.mp3']);
+    });
+
+    it('should search Spotify for a song, mark tracks rejected before, and remember the results', async () => {
+      const id = songId('testFile03.mp3');
+      const response = await fetch(`${base}/api/spotify/search?song=${id}&q=title%20words`);
+      expect(response.status).to.equal(200);
+      const body = await response.json();
+      expect(body.query).to.equal('title words');
+      expect(_.map(body.tracks, 'track.id')).to.deep.equal([trackC, trackB]);
+      expect(body.tracks[0].track).to.deep.equal({
+        id: trackC,
+        name: 'Title Words',
+        artists: 'Spotify Artist',
+        album: 'Spotify Album',
+        durationMs: 200000
+      });
+      expect(body.tracks[0].similarity).to.have.keys('percent', 'details');
+      expect(_.map(body.tracks, 'rejected')).to.deep.equal([false, true]);
+      expect(calls).to.deep.equal([['remember', [trackC, trackB]]]);
+    });
+
+    it('should search with the queries of sync --match without a query of its own', async () => {
+      const id = songId('testFile03.mp3');
+      const body = await (await fetch(`${base}/api/spotify/search?song=${id}`)).json();
+      // nothing found: both queries were tried and the last one is reported
+      const searches = client.requests.filter(url => url.startsWith('/search'));
+      expect(searches).to.have.length(2);
+      expect(decodeURIComponent(searches[0])).to.include('track:"');
+      expect(body.tracks).to.deep.equal([]);
+      expect(decodeURIComponent(searches[1])).to.include(body.query);
+    });
+
+    it('should search for a song without a title tag by its file name', async () => {
+      const id = songId('testFile03.mp3');
+      db.prepare("DELETE FROM song_tags WHERE song_id = ? AND frame_id = 'TIT2'").run(id);
+      const body = await (await fetch(`${base}/api/spotify/search?song=${id}`)).json();
+      expect(body.query).to.equal('testFile03');
+    });
+
+    it('should refuse a search without a song, with a long query, or without credentials', async () => {
+      const id = songId('testFile03.mp3');
+      expect((await fetch(`${base}/api/spotify/search?q=x`)).status).to.equal(400);
+      expect((await fetch(`${base}/api/spotify/search?song=99999`)).status).to.equal(404);
+      const long = 'x'.repeat(251);
+      expect((await fetch(`${base}/api/spotify/search?song=${id}&q=${long}`)).status).to.equal(400);
+      client = null;
+      const missing = await fetch(`${base}/api/spotify/search?song=${id}&q=x`);
+      expect(missing.status).to.equal(503);
+      expect((await missing.json()).error).to.include('credentials');
     });
 
     it('should play a track in the Spotify app', async () => {

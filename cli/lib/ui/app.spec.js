@@ -55,7 +55,20 @@ const reviewFixture = () => ({
       rejected: [{ track: track(trackA, 'Five A', 90000) }, { track: track(trackB, 'Five B', 1) }]
     }
   ],
+  missing: [
+    { song: song(6, 'Foxtrot', 'Six', 200), checkedAt: '2026-11-01 09:00:00' },
+    { song: song(7, 'Golf', 'Seven', 210), checkedAt: '2026-10-01 09:00:00' }
+  ],
   marker: 'review-1'
+});
+
+const searchFixture = (query, ...tracks) => ({
+  query,
+  tracks: tracks.map(([t, percent, rejected = false]) => ({
+    track: t,
+    similarity: percent ? similarity(percent) : null,
+    rejected
+  }))
 });
 
 const transfersFixture = () => ({
@@ -173,7 +186,7 @@ describe('musicman ui page', () => {
     it('should be a tablist with the selected tab and the list counts', () => {
       expect($('tabs').getAttribute('role')).to.equal('tablist');
       const buttons = all('#tabs button');
-      expect(buttons.map(b => b.getAttribute('role'))).to.deep.equal(Array(5).fill('tab'));
+      expect(buttons.map(b => b.getAttribute('role'))).to.deep.equal(Array(6).fill('tab'));
       expect(tab('review').getAttribute('aria-selected')).to.equal('true');
       expect(tab('review').getAttribute('tabindex')).to.equal('0');
       expect(tab('accepted').getAttribute('tabindex')).to.equal('-1');
@@ -370,6 +383,101 @@ describe('musicman ui page', () => {
       };
       await app.poll();
       expect($('runs').hidden).to.equal(true);
+    });
+  });
+
+  describe('Spotify search', () => {
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const searches = () => requests.filter(r => r.url.startsWith('/api/spotify/search'));
+
+    beforeEach(() => {
+      routes['GET /api/spotify/search?song=6'] = searchFixture(
+        'track:"Six" artist:"Foxtrot"',
+        [track(trackA, 'Six', 200000), 95],
+        [track(trackB, 'Six (Live)', 260000), 70, true]
+      );
+      routes['GET /api/spotify/search?song=7'] = searchFixture('track:"Seven" artist:"Golf"');
+      routes['GET /api/spotify/search?song=6&q=foxtrot+six+remix'] = searchFixture(
+        'foxtrot six remix',
+        [track(trackC, 'Six Remix', 1000), 50]
+      );
+    });
+
+    it('should list the songs without a candidate in the Not found tab', () => {
+      expect(tab('missing').textContent).to.equal('Not found2');
+      click(tab('missing'));
+      expect(rowTexts()).to.deep.equal(['Foxtrot - SixFoxtrot Album', 'Golf - SevenGolf Album']);
+    });
+
+    it('should search for the song the selection stops on, not every song on the way', async () => {
+      click(tab('missing'));
+      press('j');
+      press('j');
+      await wait(500);
+      await settle();
+      expect(searches().map(r => r.url)).to.deep.equal(['/api/spotify/search?song=7']);
+      expect($('search').textContent).to.include('Nothing found');
+      expect($('search').querySelector('input').value).to.equal('track:"Seven" artist:"Golf"');
+    });
+
+    it('should show the results with their similarity, preview one, and accept one', async () => {
+      click(tab('missing'));
+      press('j');
+      await wait(500);
+      await settle();
+      const items = all('#search .results li');
+      expect(items.map(li => li.textContent)).to.deep.equal([
+        'Spotify Artist - SixSpotify Album - 3:20 - 95% similarPreviewAccept',
+        'Spotify Artist - Six (Live)Spotify Album - 4:20 - 70% similar - rejected beforePreviewAccept'
+      ]);
+      const audio = dom.window.document.querySelector('#compare audio');
+      click(items[1].querySelector('button[aria-pressed]'));
+      expect(dom.window.document.querySelector('#search iframe').getAttribute('src')).to.include(
+        trackB
+      );
+      // the preview draws only the search section, so the local player keeps playing
+      expect(dom.window.document.querySelector('#compare audio')).to.equal(audio);
+      routes['POST /api/songs/6/accept'] = { ok: true };
+      const next = reviewFixture();
+      next.missing.shift();
+      routes['GET /api/review'] = next;
+      click(all('#search .results li')[0].querySelector('button.accept'));
+      await settle();
+      expect(requests.find(r => r.method === 'POST')).to.deep.equal({
+        method: 'POST',
+        url: '/api/songs/6/accept',
+        body: { trackId: trackA }
+      });
+      // the next song is selected and searched for in turn
+      expect(app.state.selected).to.equal('7');
+      await wait(500);
+      await settle();
+      expect(searches().map(r => r.url)).to.include('/api/spotify/search?song=7');
+    });
+
+    it('should search with the words typed, and offer the search for a review song too', async () => {
+      press('j');
+      expect($('search')).to.not.equal(null);
+      await wait(500);
+      expect(searches()).to.be.empty;
+      routes['GET /api/spotify/search?song=2&q=beta+two'] = searchFixture('beta two');
+      const input = $('search').querySelector('input');
+      input.value = 'beta two';
+      $('search')
+        .querySelector('form')
+        .dispatchEvent(new dom.window.Event('submit', { cancelable: true }));
+      await settle();
+      expect(searches().map(r => r.url)).to.deep.equal(['/api/spotify/search?song=2&q=beta+two']);
+      expect($('search').querySelector('input').value).to.equal('beta two');
+    });
+
+    it('should show why a search failed', async () => {
+      routes['GET /api/spotify/search?song=6'] = undefined;
+      click(tab('missing'));
+      press('j');
+      await wait(500);
+      await settle();
+      expect($('search').textContent).to.include('Search failed: No route');
     });
   });
 });

@@ -13,13 +13,16 @@ const state = {
   // per tab { key, dir } of the sorted column, none for the order the API returns
   sort: {},
   // the last /api/status: { markers: { review, transfers }, running: [{ id, command, args, startedAt }] }
-  status: null
+  status: null,
+  // the Spotify search of the selected song: { songId, query, results, loading, error, preview, token }
+  search: null
 };
 
 const tabs = [
   { id: 'review', label: 'Needs review', source: 'review' },
   { id: 'accepted', label: 'Accepted', source: 'review' },
   { id: 'rejected', label: 'Rejected', source: 'review' },
+  { id: 'missing', label: 'Not found', source: 'review' },
   { id: 'toLocal', label: 'Spotify to local', source: 'transfers' },
   { id: 'toSpotify', label: 'Local to Spotify', source: 'transfers' }
 ];
@@ -133,6 +136,11 @@ const columns = {
     { label: 'Rejected tracks', key: 'rejected' },
     { label: 'Linked now', key: 'linked' }
   ],
+  missing: [
+    { label: 'Local song', key: 'path' },
+    { label: 'Length', key: 'length' },
+    { label: 'Looked up', key: 'checked' }
+  ],
   toLocal: [
     { label: 'Spotify track', key: 'track' },
     { label: 'Album', key: 'album' },
@@ -209,6 +217,24 @@ const rowsOf = tab => {
           {},
           item.current ? trackText(item.current) : h('span', { className: 'dim' }, item.status)
         )
+      ]
+    }));
+  }
+  if (tab === 'missing') {
+    return state.review.missing.map(item => ({
+      key: `${item.song.id}`,
+      item,
+      text: [songText(item.song), item.song.album, item.song.path],
+      sort: { path: item.song.path, length: item.song.duration, checked: item.checkedAt },
+      cells: [
+        h(
+          'td',
+          {},
+          item.song.artist || item.song.title ? songText(item.song) : item.song.path,
+          h('div', { className: 'dim' }, item.song.album || '')
+        ),
+        h('td', { className: 'num' }, clock(item.song.duration)),
+        h('td', { className: 'dim' }, item.checkedAt || '')
       ]
     }));
   }
@@ -313,6 +339,8 @@ const notes = {
   accepted:
     'Matches accepted in review, newest first. Rejecting removes the Spotify id and fields from the file.',
   rejected: 'Tracks rejected for a song. Accepting one links the song to it after all.',
+  missing:
+    'Songs sync --match found no Spotify candidate for. Pick one to search Spotify, play the results, and accept one.',
   toLocal:
     'Tracks in the mapped Spotify playlists that are not in the library (sync --pull downloads them).',
   toSpotify:
@@ -325,6 +353,8 @@ const keyHints = {
   accepted: 'Keys: j/k move, space plays the local file, r rejects, / filters, Esc closes.',
   rejected:
     'Keys: j/k move, space plays the local file, a accepts a song with one rejected track, / filters, Esc closes.',
+  missing:
+    'Keys: j/k move, space plays the local file, / filters, Esc closes. The search runs when you stop on a song.',
   toLocal: 'Keys: j/k move, / filters, Esc closes.',
   toSpotify: 'Keys: j/k move, space plays the local file, / filters, Esc closes.'
 };
@@ -368,6 +398,7 @@ const renderTabs = () => {
     review: state.review && state.review.review.length,
     accepted: state.review && state.review.accepted.length,
     rejected: state.review && state.review.rejected.length,
+    missing: state.review && state.review.missing.length,
     toLocal: state.transfers && state.transfers.toLocal.length,
     toSpotify: state.transfers && state.transfers.toSpotify.length
   };
@@ -623,6 +654,178 @@ const similarityLine = similarity =>
       )
     : null;
 
+// waits this long after a song is selected on the Not found tab before searching, so moving through
+// the list with j and k does not search for every song on the way
+const searchDelayMs = 400;
+let searchTimer = null;
+let searchCount = 0;
+
+const searchOf = song =>
+  state.search && song && state.search.songId === song.id ? state.search : null;
+
+const searchResult = (song, search, { track, similarity, rejected }) =>
+  h(
+    'li',
+    {},
+    h(
+      'div',
+      {},
+      trackText(track),
+      h(
+        'div',
+        { className: 'dim' },
+        [
+          track.album,
+          clock(trackDuration(track)),
+          similarity ? `${similarity.percent}% similar` : null,
+          rejected ? 'rejected before' : null
+        ]
+          .filter(Boolean)
+          .join(' - ')
+      )
+    ),
+    h(
+      'div',
+      { className: 'actions' },
+      h(
+        'button',
+        {
+          'aria-pressed': String(search.preview === track.id),
+          onClick: () => {
+            search.preview = search.preview === track.id ? null : track.id;
+            renderSearch();
+          }
+        },
+        'Preview'
+      ),
+      actionButton('Accept', 'accept', song.id, track.id)
+    )
+  );
+
+// the contents of the search section: the query form, and the results with a preview player
+const searchContent = song => {
+  const search = searchOf(song);
+  const input = h('input', {
+    type: 'search',
+    name: 'q',
+    value: search ? search.query : null,
+    placeholder: 'Empty for the query of sync --match',
+    'aria-label': 'Spotify search'
+  });
+  const form = h(
+    'form',
+    {
+      onSubmit: event => {
+        event.preventDefault();
+        runSearch(song, input.value.trim());
+      }
+    },
+    input,
+    h(
+      'button',
+      { type: 'submit', disabled: Boolean(search && search.loading) },
+      search && search.loading ? 'Searching...' : 'Search'
+    )
+  );
+  let results = null;
+  if (search && search.error) {
+    results = h('p', { className: 'error' }, `Search failed: ${search.error}`);
+  } else if (search && search.results && search.results.length === 0) {
+    results = h('p', { className: 'dim' }, 'Nothing found; try other words.');
+  } else if (search && search.results) {
+    const previewed = search.results.find(({ track }) => track.id === search.preview);
+    results = [
+      h(
+        'ul',
+        { className: 'results' },
+        search.results.map(result => searchResult(song, search, result))
+      ),
+      previewed
+        ? h('iframe', {
+            src: `https://open.spotify.com/embed/track/${encodeURIComponent(previewed.track.id)}`,
+            height: '80',
+            allow: 'autoplay; clipboard-write; encrypted-media',
+            title: `Spotify player for ${trackText(previewed.track)}`
+          })
+        : null
+    ];
+  }
+  return [h('h3', {}, 'Find on Spotify'), form, results];
+};
+
+const searchSection = song =>
+  h(
+    'section',
+    { id: 'search', className: 'version', 'aria-label': 'Find on Spotify' },
+    searchContent(song)
+  );
+
+// draws the search section again, without the rest of the panel and its players
+const renderSearch = () => {
+  const section = $('search');
+  const row = selectedRow();
+  if (!section || !row) {
+    return;
+  }
+  const typing =
+    document.activeElement &&
+    section.contains(document.activeElement) &&
+    document.activeElement.tagName === 'INPUT';
+  section.replaceChildren(...searchContent(row.item.song).flat().filter(Boolean));
+  if (typing) {
+    section.querySelector('input').focus();
+  }
+};
+
+// searches Spotify for a song, with the query, or the queries of sync --match when it is empty; a
+// result that arrives after another search started, or after the song changed, is dropped
+const runSearch = async (song, query = '') => {
+  searchCount += 1;
+  const token = searchCount;
+  state.search = {
+    songId: song.id,
+    query,
+    results: null,
+    loading: true,
+    error: null,
+    preview: null,
+    token
+  };
+  renderSearch();
+  const params = new URLSearchParams({ song: String(song.id) });
+  if (query) {
+    params.set('q', query);
+  }
+  let update;
+  try {
+    const data = await api(`/api/spotify/search?${params}`);
+    update = { query: data.query, results: data.tracks };
+  } catch (err) {
+    update = { error: err.message };
+  }
+  if (!state.search || state.search.token !== token) {
+    return;
+  }
+  Object.assign(state.search, update, { loading: false });
+  renderSearch();
+};
+
+// on the Not found tab, searches for the selected song once the selection stays on it
+const scheduleSearch = () => {
+  clearTimeout(searchTimer);
+  const row = selectedRow();
+  if (state.tab !== 'missing' || !row || searchOf(row.item.song)) {
+    return;
+  }
+  const { song } = row.item;
+  searchTimer = setTimeout(() => {
+    const current = selectedRow();
+    if (current && current.item.song.id === song.id && !searchOf(song)) {
+      runSearch(song);
+    }
+  }, searchDelayMs);
+};
+
 const selectedRow = () =>
   state.selected && state[sourceOf(state.tab)]
     ? rowsOf(state.tab).find(({ key }) => key === state.selected)
@@ -651,7 +854,8 @@ const renderCompare = () => {
           actionButton('Accept', 'accept', item.song.id, item.track.id),
           actionButton('Reject', 'reject', item.song.id, item.track.id)
         ]
-      )
+      ),
+      searchSection(item.song)
     ];
   } else if (state.tab === 'accepted') {
     body = [
@@ -659,7 +863,8 @@ const renderCompare = () => {
       localVersion(item.song),
       spotifyVersion('Spotify track (accepted)', item.track, item.song, [
         actionButton('Reject', 'reject', item.song.id, item.track.id)
-      ])
+      ]),
+      searchSection(item.song)
     ];
   } else if (state.tab === 'rejected') {
     body = [
@@ -669,8 +874,11 @@ const renderCompare = () => {
         spotifyVersion('Rejected track', track, item.song, [
           actionButton('Accept this one', 'accept', item.song.id, track.id)
         ])
-      )
+      ),
+      searchSection(item.song)
     ];
+  } else if (state.tab === 'missing') {
+    body = [localVersion(item.song), searchSection(item.song)];
   } else if (state.tab === 'toLocal') {
     body = [spotifyVersion('Spotify track', item.track, null)];
   } else {
@@ -715,6 +923,7 @@ const setSelected = (key, { focus = false } = {}) => {
   if (focus) {
     focusSelected();
   }
+  scheduleSearch();
 };
 
 // a click selects a row, or closes the panel of the selected one
@@ -872,7 +1081,7 @@ const onKey = event => {
   }
   const target = event.target instanceof Element ? event.target : null;
   if (target && target.closest('input, textarea, select, [contenteditable]')) {
-    if (event.key === 'Escape' && target.id === 'filter') {
+    if (event.key === 'Escape') {
       target.blur();
     }
     return;

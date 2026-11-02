@@ -379,7 +379,7 @@ database backups (`db.autoBackup`) have no restore command.
 - [x] **Reload the lists.** (p2) [feature] the page loads each list once; a `sync` in a terminal leaves it stale
       until the browser reloads. Add a reload button per list, or poll a cheap change marker (the newest
       `spotify_matches.checked_at`, `reviewed_at`, and playlist `synced_at`).
-- [ ] **Match a song by hand.** (p2) [feature] 865 songs are `missing` (no candidate found). Search Spotify from
+- [x] **Match a song by hand.** (p2) [feature] 865 songs are `missing` (no candidate found). Search Spotify from
       the page for a song, play the results, and accept one, the same accept as for a review candidate; also offer
       other candidates for a review song whose candidate is wrong.
 - [x] **Keyboard review.** (p2) [feature] j/k or arrows to move through the list, space to play the local file,

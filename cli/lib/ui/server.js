@@ -3,11 +3,14 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 
+const { candidateOf, looseQuery, matchSimilarity, searchQuery } = require('../spotify/match.js');
+const { searchTracks, songFields } = require('../sync/match.js');
 const { runningRuns, runsDirectory } = require('../utils/runs.js');
 const {
   acceptedList,
   changeMarkers,
   fetchRejected,
+  missingList,
   rejectedList,
   reviewList,
   transferLists,
@@ -145,6 +148,10 @@ const songId = value => {
   return id;
 };
 
+// Spotify refuses longer queries
+const maxQueryLength = 250;
+const searchLimit = 10;
+
 const trackIdOf = body => {
   if (!_.isString(body.trackId) || !/^[A-Za-z0-9]{22}$/.test(body.trackId)) {
     throw new HttpError(400, 'trackId must be a Spotify track id');
@@ -157,6 +164,7 @@ const trackIdOf = body => {
  *   GET  /api/review                     review, accepted, and rejected lists, with their marker
  *   GET  /api/transfers                  tracks to bring from Spotify, songs missing on Spotify, marker
  *   GET  /api/status                     change markers of the lists and the runs going on now
+ *   GET  /api/spotify/search?song=<id>&q= Spotify tracks for a song: q, or the queries sync --match uses
  *   GET  /api/songs/<id>/audio           the song's file, with byte ranges
  *   POST /api/songs/<id>/accept          { trackId } accept the track for the song
  *   POST /api/songs/<id>/reject          { trackId } reject the track for the song
@@ -202,6 +210,7 @@ const createHandler = ({
       review: reviewList(db, config),
       accepted: acceptedList(db),
       rejected,
+      missing: missingList(db),
       marker,
       ...(fetchError ? { warning: `Rejected tracks could not be looked up: ${fetchError}` } : {})
     };
@@ -215,6 +224,67 @@ const createHandler = ({
       async () => {
         const marker = changeMarkers(db).transfers;
         return { ...transferLists(db, config, plan(await librarySongs())), marker };
+      }
+    ],
+    [
+      'GET',
+      /^\/api\/spotify\/search$/,
+      async req => {
+        const params = new URL(req.url, 'http://localhost').searchParams;
+        const row = db
+          .prepare('SELECT id, path, duration FROM songs WHERE id = ?')
+          .get(songId(params.get('song')));
+        if (!row) {
+          throw new HttpError(404, `No song ${params.get('song')}`);
+        }
+        const query = (params.get('q') || '').trim();
+        if (query.length > maxQueryLength) {
+          throw new HttpError(400, `The query is longer than ${maxQueryLength} characters`);
+        }
+        const client = getClient();
+        if (!client) {
+          throw new HttpError(503, 'Spotify credentials are missing, so the page cannot search');
+        }
+        const song = songFields(db, row);
+        // without a query, the strict query of sync --match, then its loose one when that finds nothing
+        // a song without a title tag is searched for by its file name
+        const fileName = path.basename(row.path, path.extname(row.path)).replace(/[_.]+/g, ' ');
+        const queries = query
+          ? [query]
+          : song.title
+            ? _.uniq(_.compact([searchQuery(song), looseQuery(song)]))
+            : [fileName.slice(0, maxQueryLength)];
+        let used = queries[0];
+        let found = [];
+        for (const candidateQuery of queries) {
+          used = candidateQuery;
+          found = await searchTracks(client, candidateQuery, searchLimit);
+          if (found.length > 0) {
+            break;
+          }
+        }
+        const candidates = _.map(_.compact(found), candidateOf);
+        if (actions.remember) {
+          actions.remember(candidates);
+        }
+        const match = db
+          .prepare('SELECT rejected FROM spotify_matches WHERE song_id = ?')
+          .get(row.id);
+        const rejected = new Set(match && match.rejected ? JSON.parse(match.rejected) : []);
+        return {
+          query: used,
+          tracks: _.map(candidates, candidate => ({
+            track: {
+              id: candidate.id,
+              name: candidate.name || null,
+              artists: candidate.artists || null,
+              album: candidate.album || null,
+              durationMs: candidate.durationMs || null
+            },
+            similarity: candidate.name ? matchSimilarity(song, candidate) : null,
+            rejected: rejected.has(candidate.id)
+          }))
+        };
       }
     ],
     ['GET', /^\/api\/status$/, async () => ({ markers: changeMarkers(db), running: otherRuns() })],
