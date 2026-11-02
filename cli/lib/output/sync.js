@@ -329,8 +329,88 @@ const formatBackupSummary = (plan, { directory, dryRun = false, removedFolder })
   return `${title}\n${_.map(table.split('\n'), line => `  ${line.trimEnd()}`).join('\n')}`;
 };
 
+const importColors = {
+  tagged: '#55BBDD',
+  imported: '#55CC55',
+  hint: '#BB88DD',
+  rating: '#DDCC44',
+  playlist: '#33CCAA',
+  skipped: '#DD7744',
+  unknown: '#DD7744',
+  left: '#8888FF'
+};
+
+/**
+ * The sync --import summary (importDownloads): per kind its count and what it means, counts right
+ * aligned, zeros dimmed, and the kinds found in their color. database is { added, updated } after a
+ * real run; left is the number of manifest tracks not imported yet.
+ */
+const formatImportSummary = (summary, { dryRun = false, database = null, left = null, folder }) => {
+  const files = summary.files || [];
+  const having = prefix =>
+    _.filter(files, ({ playlist }) => _.some(playlist, entry => entry.startsWith(prefix))).length;
+  const playlistTagged = _.filter(files, ({ playlist }) =>
+    _.some(playlist, entry => !/^(playlist_grouping|rating):/.test(entry))
+  ).length;
+  const kinds = [
+    ['tagged', 'tagged', summary.tagged, 'downloads given Spotify fields and their playlist tags'],
+    [
+      'imported',
+      'imported',
+      summary.imported,
+      dryRun ? 'beets is not run in a dry run' : `imported by beets, as is, into ${folder}/`
+    ],
+    [
+      'hint',
+      'hint',
+      having('playlist_grouping:'),
+      'grouping hint from a grouping playlist, applied by musicman sort once rated'
+    ],
+    ['rating', 'rating', having('rating:'), 'rating from a rating playlist'],
+    ['playlist', 'tags', playlistTagged, 'picks, context, or mood from their playlists'],
+    [
+      'skipped',
+      'skipped',
+      summary.skipped.length,
+      'skipped by beets (e.g. already in the library)'
+    ],
+    ['unknown', 'unknown', summary.unknown.length, 'not in the manifest, or no Spotify track id'],
+    ...(left === null
+      ? []
+      : [
+          [
+            'left',
+            'left',
+            left,
+            'manifest tracks not imported yet (pnpm download, then sync --import)'
+          ]
+        ])
+  ];
+  const rows = _.map(kinds, ([, label, count, note]) => [label, String(count), note]);
+  const table = renderColumns({
+    rows,
+    splitter: '   ',
+    columns: [
+      {
+        format: (cell, i) =>
+          kinds[i][2] > 0 ? chalk.hex(importColors[kinds[i][0]])(cell) : dim(cell)
+      },
+      { align: 'right', format: cell => (cell === '0' ? dim(cell) : chalk.bold(cell)) },
+      { format: cell => dim(cell) }
+    ]
+  });
+  const lines = _.map(table.split('\n'), line => `  ${line.trimEnd()}`);
+  if (database) {
+    lines.push(`  ${dim('database')}   ${database.added} added, ${database.updated} updated`);
+  }
+  const title = `Import${dryRun ? ' (dry run, nothing written)' : ''}`;
+  return `${title}\n${lines.join('\n')}`;
+};
+
 module.exports = {
   backupColors,
+  formatImportSummary,
+  importColors,
   durationDiff,
   formatBackupSummary,
   formatSize,

@@ -105,7 +105,7 @@ musicman sync --push              # adds after a confirmation
 ```sh
 musicman sync --pull --dry-run    # how many Spotify tracks are not in the library
 musicman sync --pull              # writes manifest.json to sync.downloadDirectory
-cd cli && pnpm download           # spotDL downloads the manifest; rerun to resume
+cd cli && pnpm download           # spotDL downloads the manifest; rerun to resume (--limit N for a trial)
 musicman sync --import --dry-run  # how each download will be tagged
 musicman sync --import            # tags, imports with beets into Unrated/_Singles, updates the database
 ```
@@ -117,7 +117,11 @@ musicman sync --import            # tags, imports with beets into Unrated/_Singl
   manifest are reported and left alone. Imported tracks are marked in the manifest and skipped on reruns.
 - If Spotify rate limits during import, downloads still get their id and playlist tags; `sync --match`
   fills the Spotify fields later.
-- Afterwards rate the songs in `Unrated/_Singles` and run `musicman sort` to move them into `Rated`.
+- A track's grouping playlist is kept as a hint (`TXXX.playlist_grouping`), so downloads land in
+  `Unrated/_Singles`. Rate them and run `musicman sort`: rated songs move into `Rated` by their grouping,
+  or by the hint when they have none.
+- Run `sync --match` first: songs not linked to their Spotify track yet show up in the manifest as tracks
+  you do not have.
 - spotDL downloads audio from YouTube, which is against YouTube's terms of service.
 
 ## Two-way: changes made on Spotify to songs you already have

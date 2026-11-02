@@ -47,7 +47,8 @@ the library, so the next `--pull` leaves them out.
 ### Download (`pnpm download`)
 
 spotDL (`sync.spotdlCommand`) downloads each manifest track to `sync.downloadDirectory` as
-`<artists> - <title> [<track id>].mp3`; rerunning resumes. spotDL takes the audio from YouTube, which is
+`<artists> - <title> [<track id>].mp3`, 20 tracks per spotDL run; rerunning resumes. `--limit N` downloads
+only the first N pending tracks (for a trial), `--dry-run` lists them. spotDL takes the audio from YouTube, which is
 against YouTube's terms of service.
 
 ### Import (`lib/sync/import.js`)
@@ -60,10 +61,20 @@ against YouTube's terms of service.
   sorted into an album folder.
 - When Spotify rate limits the track lookups, files still get their id and playlist tags; `sync --match`
   fills the Spotify fields later.
-- beets (`sync.beetsConfig`) imports them as singletons into `Unrated/_Singles`; the database is updated and
-  each imported track is marked `importedAt` in the manifest, so reruns skip it.
-- Afterwards rate the songs and run `musicman sort` to move them into `Rated` (see the library import
-  workflow: rating plus grouping is what moves a song).
+- A grouping from the manifest (a track in a grouping playlist) is written to `TXXX.playlist_grouping`, not
+  TIT1. beets' path rules file a song by its grouping alone, so a grouping in TIT1 would put the unrated
+  download straight under `Rated/`; held back, every download lands in `Unrated/_Singles`. (On 2026-11-01,
+  347 of 1281 manifest tracks had a grouping, all `.Singles`, and none had a rating.)
+- beets (`sync.beetsConfig`) imports them as singletons, as is (`import -s -q -A`): the tags already
+  describe the manifest's exact track, while autotagging (tried on 2026-11-01) picked other Spotify releases
+  of a song and wrote their ids into the MusicBrainz fields. The database is updated and each imported
+  track is marked `importedAt` in the manifest, so reruns skip it.
+- The summary counts downloads tagged and imported, grouping hints, ratings, and playlist tags given,
+  files beets skipped, files not in the manifest, the database changes, and manifest tracks left.
+- Afterwards rate the songs and run `musicman sort`: a rated song in `Unrated` moves to `Rated` when it has
+  a grouping beets has a path rule for, its own TIT1 or else the `playlist_grouping` hint, which sort writes
+  to TIT1 (and removes) before beets moves the song. Songs without either need a grouping
+  (`musicman edit grouping=...`) first.
 - `--dry-run` shows how each download would be tagged, writes nothing, and does not run beets.
 
 ## Status

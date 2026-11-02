@@ -1,8 +1,19 @@
+const _ = require('lodash');
 const path = require('path');
 const { expect } = require('chai');
 
 const { openDatabase } = require('../db/database.js');
-const { sortCandidates, sortSongs, sortedGroupings, unsortedFolder } = require('./sort.js');
+const fs = require('fs');
+const os = require('os');
+const NodeId3 = require('node-id3');
+
+const {
+  groupingHintFrame,
+  sortCandidates,
+  sortSongs,
+  sortedGroupings,
+  unsortedFolder
+} = require('./sort.js');
 
 describe('Beets Sort', () => {
   let db;
@@ -55,6 +66,77 @@ describe('Beets Sort', () => {
       ['Unrated/A/a.mp3', 'move'],
       ['Unrated/_Singles/b.mp3', 'import']
     ]);
+  });
+
+  it('should take the grouping hint of a rated song without a grouping, marked fromHint', () => {
+    const hint = db.prepare('INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, ?, ?)');
+    // e.mp3 (rated, no grouping) has a hint beets has a rule for; a.mp3's own grouping wins over its hint
+    hint.run(5, groupingHintFrame, 'IndieRock.Artists');
+    hint.run(1, groupingHintFrame, 'Unmapped.Artists');
+    const { lastInsertRowid } = db
+      .prepare("INSERT INTO songs (path, mtime, size) VALUES ('Unrated/_Singles/u.mp3', 1, 1)")
+      .run();
+    // an unrated song with a hint stays
+    hint.run(lastInsertRowid, groupingHintFrame, 'IndieRock.Artists');
+    const candidates = sortCandidates(db, { config, beets, beetsItems: new Set() });
+    expect(
+      candidates.map(({ path: songPath, grouping, fromHint }) => [songPath, grouping, fromHint])
+    ).to.deep.equal([
+      ['Unrated/A/a.mp3', 'IndieRock.Artists', false],
+      ['Unrated/_Singles/b.mp3', 'IndieRock.Artists', false],
+      ['Unrated/E/e.mp3', 'IndieRock.Artists', true]
+    ]);
+  });
+
+  it('should write a hinted grouping to TIT1 and drop the hint before beets runs', async () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-sort-'));
+    try {
+      const file = path.join(directory, 'e.mp3');
+      fs.copyFileSync(path.join(process.cwd(), 'test/data/source/dir1/testFile01.mp3'), file);
+      NodeId3.update(
+        {
+          userDefinedText: [
+            { description: 'playlist_grouping', value: 'IndieRock.Singles' },
+            { description: 'Context', value: 'Study' }
+          ]
+        },
+        file
+      );
+      const seen = [];
+      const result = await sortSongs(
+        [
+          {
+            file,
+            path: 'Unrated/_Singles/e.mp3',
+            grouping: 'IndieRock.Singles',
+            fromHint: true,
+            action: 'import'
+          }
+        ],
+        {
+          runBeet: async () => {
+            const raw = NodeId3.read(file).raw;
+            seen.push([raw.TIT1, _.map([].concat(raw.TXXX || []), 'description')]);
+          }
+        }
+      );
+      expect(result).to.include({ sorted: 1, failed: 0 });
+      expect(seen).to.have.length(1);
+      expect(seen[0][0]).to.equal('IndieRock.Singles');
+      expect(seen[0][1]).to.include('Context');
+      expect(seen[0][1]).to.not.include('playlist_grouping');
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('should not write a grouping for candidates with their own', async () => {
+    const written = [];
+    await sortSongs([{ file: '/music/a.mp3', grouping: 'X', fromHint: false, action: 'move' }], {
+      runBeet: async () => {},
+      writeGrouping: (...args) => written.push(args)
+    });
+    expect(written).to.be.empty;
   });
 
   it('should return no candidates without beets path rules', () => {

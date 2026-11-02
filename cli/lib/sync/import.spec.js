@@ -106,7 +106,9 @@ describe('Download Import', () => {
           sp_popularity: '50',
           Context: 'Study,Run'
         });
-        expect(NodeId3.read(fileA).raw.TIT1).to.equal('IndieRock.Artists');
+        // the grouping waits as a hint, so beets files the unrated download as a single
+        expect(NodeId3.read(fileA).raw.TIT1).to.equal(undefined);
+        expect(custom(fileA)).to.include({ playlist_grouping: 'IndieRock.Artists' });
         expect(NodeId3.read(fileA).raw.TSRC).to.equal('EXISTING');
         expect(NodeId3.read(fileB).raw.TSRC).to.equal('ISRCB');
         return fakeBeet(calls)(args);
@@ -119,19 +121,19 @@ describe('Download Import', () => {
       'import',
       '-s',
       '-q',
-      '--quiet-fallback=asis',
+      '-A',
       '-l',
       beetsLog
     ]);
     expect(calls[0].slice(8)).to.deep.equal([fileA, fileB]);
     expect(summary).to.include({ tagged: 2, imported: 2, detailsError: null });
     expect(summary.unknown).to.deep.equal([path.join(directory, 'notes.mp3')]);
-    expect(summary.asis).to.deep.equal([fileB]);
     expect(_.map(manifest.tracks, 'importedAt')).to.deep.equal([
       now.toISOString(),
       now.toISOString()
     ]);
     expect(events).to.deep.equal(['unknown', 'tagged', 'tagged']);
+    expect(summary.files[0].playlist).to.include('playlist_grouping:IndieRock.Artists');
   });
 
   it('should write ids and playlist tags without track details and skip imported tracks', async () => {

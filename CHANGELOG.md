@@ -6,6 +6,29 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman sort` moves a rated song without a grouping when it has the grouping hint `sync --import`
+  left: it writes the hint to TIT1 (recorded for `musicman undo`) and beets moves the song.
+- `pnpm download --limit N` downloads only the first N pending manifest tracks, e.g. for a trial run.
+
+### Fixed
+
+- `pnpm download` saved files to `musicman/download` in the music directory instead of
+  `.musicman/download`: spotDL drops the leading dot of every directory in its output template, so it now
+  runs inside the download directory with a file name template.
+
+### Changed
+
+- `sync --import` has beets import downloads as is (`import -s -q -A`) instead of autotagging them: the
+  tags already describe the manifest's exact Spotify track, while beets' matches picked other releases of
+  a song and wrote Spotify ids into the MusicBrainz fields. It is also much faster.
+- The `sync --import` summary is aligned and colored like the backup summary, and also counts grouping
+  hints, ratings, and playlist tags given, the database changes, and the manifest tracks left to import.
+- `sync --import` keeps the grouping of a download's Spotify playlist in `TXXX.playlist_grouping` instead
+  of TIT1, so beets files every download under `Unrated/_Singles` until it is rated, rather than putting
+  unrated songs with a grouping straight into `Rated/`.
+
 ## [1.42.0] - 2026-11-01
 
 ### Changed

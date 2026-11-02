@@ -5,6 +5,7 @@ const chalk = require('chalk').default;
 const {
   durationDiff,
   formatBackupSummary,
+  formatImportSummary,
   formatMatchSummary,
   formatPlan,
   formatPushResults,
@@ -260,6 +261,53 @@ describe('Sync Output', () => {
       } finally {
         chalk.level = originalLevel;
       }
+    });
+  });
+
+  describe('formatImportSummary', () => {
+    const summary = {
+      tagged: 3,
+      imported: 3,
+      skipped: [],
+      unknown: ['/d/notes.mp3'],
+      files: [
+        { playlist: ['playlist_grouping:Indietronica.Singles', 'picks:Hot,Spicy'] },
+        { playlist: ['context:Lift,Run'] },
+        { playlist: ['rating:5.0'] }
+      ]
+    };
+
+    it('should align counts per kind, count hints, ratings, and playlist tags, and add the database', () => {
+      expect(
+        stripAnsi(
+          formatImportSummary(summary, {
+            database: { added: 3, updated: 0 },
+            left: 1271,
+            folder: 'Unrated'
+          })
+        ).split('\n')
+      ).to.deep.equal([
+        'Import',
+        '  tagged        3   downloads given Spotify fields and their playlist tags',
+        '  imported      3   imported by beets, as is, into Unrated/',
+        '  hint          1   grouping hint from a grouping playlist, applied by musicman sort once rated',
+        '  rating        1   rating from a rating playlist',
+        '  tags          2   picks, context, or mood from their playlists',
+        '  skipped       0   skipped by beets (e.g. already in the library)',
+        '  unknown       1   not in the manifest, or no Spotify track id',
+        '  left       1271   manifest tracks not imported yet (pnpm download, then sync --import)',
+        '  database   3 added, 0 updated'
+      ]);
+    });
+
+    it('should say beets does not run in a dry run and leave out the database', () => {
+      const lines = stripAnsi(
+        formatImportSummary({ ...summary, imported: 0 }, { dryRun: true, folder: 'Unrated' })
+      ).split('\n');
+      expect(lines[0]).to.equal('Import (dry run, nothing written)');
+      expect(lines[2]).to.include('beets is not run in a dry run');
+      expect(lines.join('\n')).to.not.include('database');
+      expect(lines.join('\n')).to.not.include('left');
     });
   });
 

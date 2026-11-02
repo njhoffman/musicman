@@ -4,7 +4,7 @@ const NodeId3 = require('node-id3');
 const globalTags = require('musicman-common/config/tags.json');
 
 const { assignFields, fetchDetails } = require('../spotify/fields.js');
-const { execBeet } = require('../beets/sort.js');
+const { execBeet, groupingHintFrame } = require('../beets/sort.js');
 const { downloadTrackId } = require('./download.js');
 const { prepareRating, updateTags } = require('../metadata/write.js');
 
@@ -23,7 +23,9 @@ const rawValue = (raw, frame) => {
 
 /**
  * Tags written to a download: the Spotify fields (when the track details could be fetched), standard
- * tags the file has no value for, and the tags of the playlists the manifest track is in. Downloads are
+ * tags the file has no value for, and the tags of the playlists the manifest track is in. A grouping is
+ * kept as a hint (groupingHintFrame) rather than in TIT1, so beets files the download under its unsorted
+ * folder until it is rated; musicman sort then applies it. Downloads are
  * imported as singletons, so they get no album fields (scope: album); sync --match adds them once the
  * song is sorted into an album folder. Returns
  * { custom, filled, playlist } with frame ids, and the response paths no field covers.
@@ -41,7 +43,7 @@ const importTags = ({ raw, entry, objects, config, now }) => {
   // playlist tags (grouping:IndieRock.Artists, context:Study) are what places the song in its playlists
   const playlist = _.compact(
     _.map(entry.tags, (value, name) => {
-      const frame = tagFrame(config, name);
+      const frame = name === 'grouping' ? groupingHintFrame : tagFrame(config, name);
       return frame ? { name, frame, value: [].concat(value).join(',') } : null;
     })
   );
@@ -102,7 +104,8 @@ const parseBeetsLog = text =>
 
 /**
  * Tags downloaded files with their manifest track (Spotify fields, empty standard tags, playlist tags)
- * and imports them into the library with beets as singletons. Files without a track id, or whose track
+ * and imports them into the library with beets as singletons, as is (no autotagging). Files without a
+ * track id, or whose track
  * is not in the manifest, are left alone. Without track details (e.g. rate limited), files still get
  * their id and playlist tags; sync --match fills their Spotify fields later. With dryRun nothing is
  * written and beets is not run. Imported tracks are marked importedAt in the manifest.
@@ -163,7 +166,9 @@ const importDownloads = async ({
       'import',
       '-s',
       '-q',
-      '--quiet-fallback=asis',
+      // as is, without autotagging: the tags already describe the manifest's exact Spotify track, and
+      // beets' matches picked other releases of a song and wrote Spotify ids into the MusicBrainz fields
+      '-A',
       '-l',
       beetsLog,
       ..._.map(tagged, 'file')
@@ -181,7 +186,6 @@ const importDownloads = async ({
     tagged: tagged.length,
     imported: _.filter(tagged, ({ entry }) => entry.importedAt).length,
     unknown: _.map(unknown, 'file'),
-    asis: _.map(beets.asis, 'file'),
     skipped: _.map(beets.skip, 'file'),
     unassigned,
     detailsError,
@@ -192,7 +196,10 @@ const importDownloads = async ({
       fields: tags.custom.length,
       filled: _.map(tags.filled, 'name'),
       playlist: [
-        ..._.map(tags.playlist, ({ name, value }) => `${name}:${value}`),
+        // the grouping hint under its own name: it is not the song's grouping until sort applies it
+        ..._.map(tags.playlist, ({ name, frame, value }) =>
+          frame === groupingHintFrame ? `${frame.slice(5)}:${value}` : `${name}:${value}`
+        ),
         ...(tags.rating ? [`rating:${tags.rating.value}`] : [])
       ]
     }))

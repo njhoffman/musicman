@@ -29,8 +29,12 @@ const sortCommand = async ({ options, config, runBeet, confirm = confirmPrompt }
       logger.info(`No rated songs with a sorted grouping in ${unsortedFolder(beets)}/`);
       return { candidates };
     }
-    candidates.forEach(({ path: songPath, rating, grouping, action }) =>
-      logger.info(`${action === 'move' ? 'move  ' : 'import'} ${songPath} (${rating}, ${grouping})`)
+    candidates.forEach(({ path: songPath, rating, grouping, fromHint, action }) =>
+      logger.info(
+        `${action === 'move' ? 'move  ' : 'import'} ${songPath} (${rating}, ${grouping}${
+          fromHint ? ' from its Spotify playlist' : ''
+        })`
+      )
     );
     const imports = _.filter(candidates, { action: 'import' }).length;
     const message = `Sort ${candidates.length} songs with beets (${imports} not in the beets library yet)?`;

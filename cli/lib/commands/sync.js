@@ -45,6 +45,7 @@ const { formatClock, formatWait, progressBar } = require('../output/progress.js'
 const {
   backupColors,
   formatBackupSummary,
+  formatImportSummary,
   formatMatchSummary,
   formatPlan,
   formatPushResults,
@@ -644,21 +645,21 @@ const runImport = async ({ credentials, fetchImpl, config, dryRun, confirm }) =>
           'and playlist tags; sync --match fills the fields later'
       );
     }
+    let database = null;
     if (!dryRun) {
       writeManifest(config, manifest);
-      const update = await updateDatabase(db, {
+      database = await updateDatabase(db, {
         config,
         target: path.join(config.mpd.baseDirectory, unsortedFolder(beets))
       });
-      logger.info(`Database: ${update.added} added, ${update.updated} updated`);
     }
     logger.info(
-      [
-        `Import ${dryRun ? '(dry run, nothing written)' : ''}`.trim(),
-        `  downloads tagged: ${summary.tagged}, imported by beets: ${summary.imported}`,
-        `  without a MusicBrainz match (imported as is): ${summary.asis.length}`,
-        `  skipped by beets: ${summary.skipped.length}, not in the manifest: ${summary.unknown.length}`
-      ].join('\n')
+      formatImportSummary(summary, {
+        dryRun,
+        database,
+        left: _.reject(_.get(manifest, 'tracks', []), 'importedAt').length,
+        folder: unsortedFolder(beets)
+      })
     );
     _.each(summary.skipped, file => logger.warn(`beets skipped ${file}`));
     return { import: summary };
