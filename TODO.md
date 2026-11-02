@@ -373,19 +373,22 @@ database backups (`db.autoBackup`) have no restore command.
 
 - [x] **Cross-site requests can change the library.** (p1) [bug] `checkOrigin` in `cli/lib/ui/server.js`: the
       Host must be 127.0.0.1 or localhost at the server's port, and POSTs must be JSON from the page's origin.
-- [ ] **Warn while another run changes the library.** (p2) [feature] accepting during `sync --match` or `--pull`
+- [x] **Warn while another run changes the library.** (p2) [feature] accepting during `sync --match` or `--pull`
       writes the same files and rows; show a banner (and ask before acting) while a run in the runs directory is
       `running`, which `listRuns` already reports.
-- [ ] **Reload the lists.** (p2) [feature] the page loads each list once; a `sync` in a terminal leaves it stale
+- [x] **Reload the lists.** (p2) [feature] the page loads each list once; a `sync` in a terminal leaves it stale
       until the browser reloads. Add a reload button per list, or poll a cheap change marker (the newest
       `spotify_matches.checked_at`, `reviewed_at`, and playlist `synced_at`).
 - [ ] **Match a song by hand.** (p2) [feature] 865 songs are `missing` (no candidate found). Search Spotify from
       the page for a song, play the results, and accept one, the same accept as for a review candidate; also offer
       other candidates for a review song whose candidate is wrong.
-- [ ] **Keyboard review.** (p2) [feature] j/k or arrows to move through the list, space to play the local file,
-      s to play the Spotify version, a and r to accept or reject and move on; with 26 to review and 774 accepted to
-      audit, mouse only review is slow.
-- [ ] **Sort the lists.** (p3) [feature] by similarity (least similar first to audit accepted matches), length
+- [x] **Keyboard review.** (p2) [feature] j/k or arrows to move through the list, space to play the local file,
+      a and r to accept or reject and move on; with 26 to review and 774 accepted to audit, mouse only review is
+      slow.
+- [ ] **Play the Spotify version from the keyboard.** (p3) [feature] `s` was left out of keyboard review: the
+      embedded player is a cross-origin iframe the page cannot start, and "Play in Spotify app" is untried
+      against the real app (below). Needs the Web Playback SDK (full playback item) or that test first.
+- [x] **Sort the lists.** (p3) [feature] by similarity (least similar first to audit accepted matches), length
       difference, path, or when accepted; columns are fixed in the order the API returns.
 - [ ] **Transfer actions.** (p2) [feature] the Spotify to local and local to Spotify lists only display; add
       downloading (`sync --pull`) of picked tracks, the upload export (`sync --push` export in section 7), and a
@@ -399,8 +402,7 @@ database backups (`db.autoBackup`) have no restore command.
       `streaming` scope (a new `sync --login`) and Premium.
 - [ ] **Try "Play in Spotify app".** (p3) [test] the button opens the track in the desktop app through MPRIS; it
       has only run against a fake player.
-- [ ] **Tests for the page script.** (p3) [test] `public/app.js` (tabs, filter, compare panel, busy buttons) has
-      no tests; the server and data behind it do. A browser test (Playwright) or a DOM test of the render
-      functions.
-- [ ] **Page semantics.** (p3) [feature] the tabs are buttons without `tablist` roles and the rows are focusable
+- [x] **Tests for the page script.** (p3) [test] `lib/ui/app.spec.js` loads the page in jsdom with a fake
+      `fetch`: tabs, keyboard review, sorting, filter, reload, and the runs banner.
+- [x] **Page semantics.** (p3) [feature] the tabs are buttons without `tablist` roles and the rows are focusable
       table rows; use a tablist and announce the selected song for screen readers.

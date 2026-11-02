@@ -64,6 +64,12 @@ and accepts or rejects. Each action is a `ui` run in `musicman logs` whose tag c
 restores. It also lists, as of the last `sync`, the tracks in mapped playlists missing from the library
 and the songs that belong on Spotify but have no Spotify id.
 
+Column headers sort the lists (Similar puts the least similar first, Length sorts by the difference of the
+two lengths). Keys: `j`/`k` or the arrows move through the list, space plays the local file, `a` accepts
+and `r` rejects and moves on, `/` filters, Esc closes the song. The page checks every 15 seconds whether a
+`sync` in a terminal changed a list (marked on its tab, with a Reload button), and shows a banner while
+another musicman run that changes the library is going on, asking before each accept or reject.
+
 Configuration: defaults in `common/config/defaultConfig.yml`, your overrides in `~/.musicmanrc.yml`.
 
 ## Documentation

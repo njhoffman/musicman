@@ -10,12 +10,22 @@
   <body>
     <header>
       <h1>musicman</h1>
-      <nav id="tabs" aria-label="Lists"></nav>
-      <input id="filter" type="search" placeholder="Filter by artist, title, album, or path" />
+      <nav id="tabs" role="tablist" aria-label="Lists"></nav>
+      <input
+        id="filter"
+        type="search"
+        placeholder="Filter by artist, title, album, or path ( / )"
+        aria-label="Filter"
+      />
     </header>
+    <p id="runs" role="alert" hidden></p>
     <p id="message" role="status" hidden></p>
+    <p id="announce" class="visually-hidden" aria-live="polite"></p>
     <main>
-      <section id="list" aria-label="Songs"></section>
+      <section id="list" role="tabpanel">
+        <div id="list-head"></div>
+        <div id="list-body"></div>
+      </section>
       <aside id="compare" aria-label="Compare" hidden></aside>
     </main>
     <script type="module" src="/app.js"></script>

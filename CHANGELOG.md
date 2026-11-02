@@ -6,6 +6,28 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman ui`: column headers sort the lists, ascending, descending, then back to the default order
+  (Similar least similar first, Length by the difference of the two lengths).
+- `musicman ui`: keyboard review: `j`/`k` or the arrows move, space plays the local file, `a` accepts and
+  `r` rejects and then selects the next song, `/` filters, Esc closes the song.
+- `musicman ui`: a Reload button on each list, and every 15 seconds the page checks whether the lists
+  changed since they were loaded (a `sync` in a terminal) and marks them.
+- `musicman ui`: a banner while another musicman run is going on (`sync --match`, `--pull`, an import),
+  and a question before each accept or reject while it runs.
+
+### Changed
+
+- `musicman ui`: the tabs are a tablist (arrow keys, Home, End), and screen readers hear which song is
+  selected.
+- Run reports record the pid of the run, so a run that crashed no longer counts as going on.
+
+### Fixed
+
+- `pnpm download`: one track spotDL cannot look up failed its whole batch; the tracks of a failed batch are
+  now tried one by one, and the tracks still missing are listed with their URLs at the end.
+
 ## [1.44.0] - 2026-11-01
 
 ### Added

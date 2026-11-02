@@ -10,7 +10,13 @@ const { getMeta, openDatabase } = require('../db/database.js');
 const { syncTagDefinitions } = require('../db/tags.js');
 const { updateDatabase } = require('../db/update.js');
 const { rejectedCandidatesKey } = require('../sync/match.js');
-const { acceptedList, rejectedList, reviewList, transferLists } = require('./data.js');
+const {
+  acceptedList,
+  changeMarkers,
+  rejectedList,
+  reviewList,
+  transferLists
+} = require('./data.js');
 const { reviewActions } = require('./actions.js');
 const { createHandler, startServer } = require('./server.js');
 
@@ -247,6 +253,25 @@ describe('musicman ui', () => {
     });
   });
 
+  describe('changeMarkers', () => {
+    it('should change the review marker on a review change and the transfers marker on any', async () => {
+      await seed();
+      const before = changeMarkers(db);
+      db.prepare('UPDATE spotify_matches SET rejected = \'["x"]\' WHERE song_id = ?').run(
+        songId('testFile01.mp3')
+      );
+      const rejected = changeMarkers(db);
+      expect(rejected.review).to.not.equal(before.review);
+      expect(rejected.transfers).to.not.equal(before.transfers);
+      db.prepare(
+        "INSERT INTO spotify_playlists (id, name, synced_at) VALUES ('p', 'P', '2026-11-01 10:00:00')"
+      ).run();
+      const synced = changeMarkers(db);
+      expect(synced.review).to.equal(rejected.review);
+      expect(synced.transfers).to.not.equal(rejected.transfers);
+    });
+  });
+
   describe('server', () => {
     let server;
     let base;
@@ -312,7 +337,39 @@ describe('musicman ui', () => {
 
     it('should list the transfers with the time of the last sync', async () => {
       const body = await (await fetch(`${base}/api/transfers`)).json();
-      expect(body).to.have.keys('syncedAt', 'toLocal', 'toSpotify');
+      expect(body).to.have.keys('syncedAt', 'toLocal', 'toSpotify', 'marker');
+      expect(body.marker).to.equal(changeMarkers(db).transfers);
+    });
+
+    it('should report the change markers and the runs of other commands going on now', async () => {
+      const report = (name, fields) =>
+        fs.writeFileSync(path.join(runs, `${name}.json`), JSON.stringify(fields));
+      report('20261101-100000-sync', {
+        id: '20261101-100000-sync',
+        command: 'sync',
+        args: ['sync', '--match'],
+        startedAt: '2026-11-01T10:00:00.000Z',
+        status: 'running',
+        pid: process.pid
+      });
+      report('20261101-100001-ui', {
+        id: 'ui',
+        command: 'ui',
+        status: 'running',
+        pid: process.pid
+      });
+      const body = await (await fetch(`${base}/api/status`)).json();
+      expect(body.markers).to.deep.equal(changeMarkers(db));
+      expect(body.running).to.deep.equal([
+        {
+          id: '20261101-100000-sync',
+          command: 'sync',
+          args: ['sync', '--match'],
+          startedAt: '2026-11-01T10:00:00.000Z'
+        }
+      ]);
+      const review = await (await fetch(`${base}/api/review`)).json();
+      expect(review.marker).to.equal(body.markers.review);
     });
 
     it('should stream a song whole or by byte range', async () => {

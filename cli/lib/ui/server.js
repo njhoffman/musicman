@@ -3,8 +3,10 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 
+const { runningRuns, runsDirectory } = require('../utils/runs.js');
 const {
   acceptedList,
+  changeMarkers,
   fetchRejected,
   rejectedList,
   reviewList,
@@ -152,8 +154,9 @@ const trackIdOf = body => {
 
 /**
  * The request handler of musicman ui: the page from lib/ui/public, and a JSON API:
- *   GET  /api/review                     review, accepted, and rejected lists
- *   GET  /api/transfers                  tracks to bring from Spotify, songs missing on Spotify
+ *   GET  /api/review                     review, accepted, and rejected lists, with their marker
+ *   GET  /api/transfers                  tracks to bring from Spotify, songs missing on Spotify, marker
+ *   GET  /api/status                     change markers of the lists and the runs going on now
  *   GET  /api/songs/<id>/audio           the song's file, with byte ranges
  *   POST /api/songs/<id>/accept          { trackId } accept the track for the song
  *   POST /api/songs/<id>/reject          { trackId } reject the track for the song
@@ -162,10 +165,27 @@ const trackIdOf = body => {
  * credentials, librarySongs() the songs with their targets (songTargets), plan(songs) syncPlan, and
  * player (spotifyPlayer).
  */
-const createHandler = ({ db, config, actions, getClient, librarySongs, plan, player }) => {
+const createHandler = ({
+  db,
+  config,
+  actions,
+  getClient,
+  librarySongs,
+  plan,
+  player,
+  running = () => runningRuns(runsDirectory(config))
+}) => {
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
 
+  // runs of other commands going on now; the page's own accept and reject are ui runs
+  const otherRuns = () =>
+    _.map(_.reject(running(), { command: 'ui' }), run =>
+      _.pick(run, ['id', 'command', 'args', 'startedAt'])
+    );
+
   const reviewLists = async () => {
+    // taken before the lists, so a change while they are read shows as a change afterwards
+    const marker = changeMarkers(db).review;
     let rejected = rejectedList(db);
     const unknown = unknownRejected(rejected);
     const client = unknown.length > 0 ? getClient() : null;
@@ -182,6 +202,7 @@ const createHandler = ({ db, config, actions, getClient, librarySongs, plan, pla
       review: reviewList(db, config),
       accepted: acceptedList(db),
       rejected,
+      marker,
       ...(fetchError ? { warning: `Rejected tracks could not be looked up: ${fetchError}` } : {})
     };
   };
@@ -191,8 +212,12 @@ const createHandler = ({ db, config, actions, getClient, librarySongs, plan, pla
     [
       'GET',
       /^\/api\/transfers$/,
-      async () => transferLists(db, config, plan(await librarySongs()))
+      async () => {
+        const marker = changeMarkers(db).transfers;
+        return { ...transferLists(db, config, plan(await librarySongs())), marker };
+      }
     ],
+    ['GET', /^\/api\/status$/, async () => ({ markers: changeMarkers(db), running: otherRuns() })],
     [
       'GET',
       /^\/api\/songs\/(\d+)\/audio$/,

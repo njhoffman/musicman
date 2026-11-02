@@ -203,9 +203,36 @@ const transferLists = (db, config, plan) => {
   };
 };
 
+/**
+ * Markers that change when the lists would: review, from the Spotify matches (a sync --match, an
+ * accept or reject anywhere); transfers, from the cached playlists, the library songs, and the matches.
+ * Cheap enough to poll; the page compares them with the markers of the lists it shows.
+ */
+const changeMarkers = db => {
+  const matches = db
+    .prepare(
+      `SELECT COUNT(*) AS n, MAX(checked_at) AS checked, MAX(reviewed_at) AS reviewed,
+         SUM(status = 'review') AS waiting, SUM(reviewed_at IS NOT NULL) AS accepted,
+         SUM(LENGTH(rejected)) AS rejected, SUM(track_id IS NOT NULL) AS linked
+       FROM spotify_matches`
+    )
+    .get();
+  const songs = db.prepare('SELECT COUNT(*) AS n, MAX(updated_at) AS updated FROM songs').get();
+  const playlists = db.prepare('SELECT MAX(synced_at) AS synced FROM spotify_playlists').get();
+  const review = _.map(
+    ['n', 'checked', 'reviewed', 'waiting', 'accepted', 'rejected', 'linked'],
+    key => matches[key] ?? ''
+  ).join('|');
+  return {
+    review,
+    transfers: [review, songs.n, songs.updated ?? '', playlists.synced ?? ''].join('|')
+  };
+};
+
 module.exports = {
   acceptedList,
   candidateOfTrack,
+  changeMarkers,
   fetchRejected,
   rejectedList,
   reviewList,

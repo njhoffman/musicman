@@ -4,7 +4,15 @@ const path = require('path');
 const { expect } = require('chai');
 
 const logger = require('./logger.js');
-const { archives, finishRun, listRuns, pruneRuns, runsDirectory, startRun } = require('./runs.js');
+const {
+  archives,
+  finishRun,
+  listRuns,
+  pruneRuns,
+  runningRuns,
+  runsDirectory,
+  startRun
+} = require('./runs.js');
 
 describe('Run archive', () => {
   let directory;
@@ -134,6 +142,58 @@ describe('Run archive', () => {
 
     it('should be empty without a runs directory', () => {
       expect(listRuns(path.join(directory, 'missing'))).to.deep.equal([]);
+    });
+  });
+
+  describe('runningRuns', () => {
+    const now = new Date('2026-11-01T12:00:00Z');
+    const write = (name, report) =>
+      fs.writeFileSync(path.join(directory, `${name}.json`), JSON.stringify(report));
+
+    it('should list running reports whose process still runs, newest first', () => {
+      write('20261101-100000-sync', { id: 'a', status: 'running', pid: 11 });
+      write('20261101-110000-sync', { id: 'b', status: 'running', pid: 12 });
+      write('20261101-090000-sync', { id: 'crashed', status: 'running', pid: 13 });
+      write('20261101-080000-db', { id: 'done', status: 'ok', pid: 14 });
+      const isRunning = pid => pid !== 13;
+      expect(runningRuns(directory, { isRunning, now }).map(run => run.id)).to.deep.equal([
+        'b',
+        'a'
+      ]);
+    });
+
+    it('should count a running report without a pid as running for a day after its start', () => {
+      write('20261101-100000-sync', {
+        id: 'recent',
+        status: 'running',
+        startedAt: '2026-11-01T10:00:00Z'
+      });
+      write('20261020-100000-sync', {
+        id: 'old',
+        status: 'running',
+        startedAt: '2026-10-20T10:00:00Z'
+      });
+      expect(runningRuns(directory, { now }).map(run => run.id)).to.deep.equal(['recent']);
+    });
+
+    it('should skip reports too large to be unfinished and ones that are not JSON', () => {
+      write('20261101-100000-sync', {
+        id: 'large',
+        status: 'running',
+        pid: process.pid,
+        result: 'x'.repeat(70 * 1024)
+      });
+      fs.writeFileSync(path.join(directory, '20261101-110000-sync.json'), 'not json');
+      expect(runningRuns(directory, { now })).to.deep.equal([]);
+      expect(runningRuns(path.join(directory, 'missing'))).to.deep.equal([]);
+    });
+
+    it('should find the run startRun began in this process', () => {
+      const run = startRun({ command: 'sync', args: ['sync'], config });
+      expect(runningRuns(directory)).to.have.length(1);
+      expect(runningRuns(directory)[0]).to.include({ id: run.id, pid: process.pid });
+      finishRun(run, { config });
+      expect(runningRuns(directory)).to.deep.equal([]);
     });
   });
 });
