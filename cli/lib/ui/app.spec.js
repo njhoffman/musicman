@@ -84,6 +84,10 @@ describe('musicman ui page', () => {
   let requests;
   let routes;
   let loaded = 0;
+  // a function of the url answering before routes, or nothing
+  let fetchOverride = null;
+  // the headers of each request, kept out of the requests the tests compare
+  const requestHeaders = new WeakMap();
   const globalNames = ['window', 'document', 'Node', 'Element', 'fetch'];
   // Node has fetch (and may have others) of its own, which the specs after this one use
   let savedGlobals;
@@ -99,10 +103,15 @@ describe('musicman ui page', () => {
   const fakeFetch = async (url, options = {}) => {
     const method = options.method || 'GET';
     const body = options.body ? JSON.parse(options.body) : undefined;
-    requests.push({ method, url, body });
-    const route = routes[`${method} ${url}`];
+    const request = { method, url, body };
+    requests.push(request);
+    requestHeaders.set(request, options.headers || {});
+    const route = (fetchOverride && fetchOverride(url)) || routes[`${method} ${url}`];
     if (route === undefined) {
       return respond(404, { error: `No route ${method} ${url}` });
+    }
+    if (route && route.$status) {
+      return respond(route.$status, route.body);
     }
     return respond(200, typeof route === 'function' ? route(body) : route);
   };
@@ -129,6 +138,7 @@ describe('musicman ui page', () => {
 
   beforeEach(async () => {
     requests = [];
+    fetchOverride = null;
     routes = {
       'GET /api/review': reviewFixture(),
       'GET /api/transfers': transfersFixture(),
@@ -427,8 +437,8 @@ describe('musicman ui page', () => {
       await settle();
       const items = all('#search .results li');
       expect(items.map(li => li.textContent)).to.deep.equal([
-        'Spotify Artist - SixSpotify Album - 3:20 - 95% similarPreviewAccept',
-        'Spotify Artist - Six (Live)Spotify Album - 4:20 - 70% similar - rejected beforePreviewAccept'
+        'Spotify Artist - SixSpotify Album - 3:20 - 95% similarPreviewPlay hereAccept',
+        'Spotify Artist - Six (Live)Spotify Album - 4:20 - 70% similar - rejected beforePreviewPlay hereAccept'
       ]);
       const audio = dom.window.document.querySelector('#compare audio');
       click(items[1].querySelector('button[aria-pressed]'));
@@ -478,6 +488,181 @@ describe('musicman ui page', () => {
       await wait(500);
       await settle();
       expect($('search').textContent).to.include('Search failed: No route');
+    });
+  });
+
+  describe('Spotify playback', () => {
+    const playUrl = 'https://api.spotify.com/v1/me/player/play?device_id=device-1';
+    let players;
+
+    // a stand-in for the Web Playback SDK: a player that connects and reports error, or ready
+    const fakeSdk = ({ error } = {}) => {
+      players = [];
+      dom.window.Spotify = {
+        Player: class {
+          constructor(options) {
+            this.options = options;
+            this.listeners = {};
+            this.calls = [];
+            players.push(this);
+          }
+
+          addListener(name, listener) {
+            this.listeners[name] = listener;
+          }
+
+          emit(name, value) {
+            this.listeners[name](value);
+          }
+
+          async connect() {
+            setImmediate(() =>
+              error
+                ? this.emit(error, { message: 'nope' })
+                : this.emit('ready', { device_id: 'device-1' })
+            );
+            return true;
+          }
+
+          activateElement() {
+            this.calls.push('activateElement');
+          }
+
+          pause() {
+            this.calls.push('pause');
+          }
+
+          togglePlay() {
+            this.calls.push('togglePlay');
+          }
+
+          disconnect() {
+            this.calls.push('disconnect');
+          }
+        }
+      };
+    };
+    const posts = () => requests.filter(r => r.method === 'POST');
+    const plays = () => requests.filter(r => r.method === 'PUT');
+    const playing = trackId =>
+      players[0].emit('player_state_changed', {
+        paused: false,
+        track_window: { current_track: { id: trackId } }
+      });
+
+    beforeEach(() => {
+      routes['GET /api/spotify/token'] = { accessToken: 'user-token' };
+      routes[`PUT ${playUrl}`] = {};
+      routes['POST /api/spotify/open'] = { ok: true };
+    });
+
+    it('should play the candidate in the page with s, and pause it with s again', async () => {
+      fakeSdk();
+      press('j');
+      press('s');
+      await settle();
+      expect(players).to.have.length(1);
+      expect(players[0].options.name).to.equal('musicman ui');
+      expect(plays()).to.have.length(1);
+      expect(plays()[0].body).to.deep.equal({ uris: [`spotify:track:${trackA}`] });
+      expect(requestHeaders.get(plays()[0]).Authorization).to.equal('Bearer user-token');
+      playing(trackA);
+      const button = dom.window.document.querySelector('#compare button.play-here');
+      expect(button.textContent).to.equal('Pause');
+      expect(button.getAttribute('aria-pressed')).to.equal('true');
+      press('s');
+      await settle();
+      expect(players[0].calls).to.include('togglePlay');
+      expect(plays()).to.have.length(1);
+      expect(posts()).to.be.empty;
+    });
+
+    it('should pause Spotify in the page when the local file plays, and the file when Spotify plays', async () => {
+      fakeSdk();
+      press('j');
+      press('s');
+      await settle();
+      playing(trackA);
+      const audio = dom.window.document.querySelector('#compare audio');
+      press(' ');
+      expect(players[0].calls).to.include('pause');
+      expect(audio.paused).to.equal(false);
+      players[0].emit('player_state_changed', null);
+      dom.window.document.querySelector('#compare button.play-here').click();
+      await settle();
+      expect(audio.paused).to.equal(true);
+    });
+
+    it('should try a device Spotify does not know yet once more', async () => {
+      fakeSdk();
+      let answers = 0;
+      fetchOverride = url => {
+        if (url === playUrl) {
+          answers += 1;
+          return answers === 1
+            ? { $status: 404, body: { error: { message: 'Device not found' } } }
+            : {};
+        }
+        return undefined;
+      };
+      press('j');
+      press('s');
+      await settle();
+      await new Promise(resolve => setTimeout(resolve, 1100));
+      await settle();
+      expect(plays()).to.have.length(2);
+      expect($('message').hidden).to.equal(true);
+    });
+
+    it('should play in the Spotify app without the streaming permission, without loading the SDK', async () => {
+      fakeSdk();
+      routes['GET /api/spotify/token'] = {
+        $status: 409,
+        body: { error: 'Playing in the page needs the streaming permission' }
+      };
+      press('j');
+      press('s');
+      await settle();
+      expect(players).to.be.empty;
+      expect(dom.window.document.querySelector(`script[src*="sdk.scdn.co"]`)).to.equal(null);
+      expect(posts()).to.deep.equal([
+        { method: 'POST', url: '/api/spotify/open', body: { trackId: trackA } }
+      ]);
+      expect($('message').textContent).to.include('streaming permission');
+      // the reason stays: s goes straight to the app, the button says why
+      press('s');
+      await settle();
+      expect(requests.filter(r => r.url === '/api/spotify/token')).to.have.length(1);
+      expect(posts()).to.have.length(2);
+      expect(dom.window.document.querySelector('#compare button.play-here').title).to.include(
+        'streaming permission'
+      );
+    });
+
+    it('should tell a Spotify account without Premium', async () => {
+      fakeSdk({ error: 'account_error' });
+      press('j');
+      dom.window.document.querySelector('#compare button.play-here').click();
+      await settle();
+      expect($('message').textContent).to.include('Spotify Premium is needed');
+      expect(posts()).to.be.empty;
+    });
+
+    it('should play the first search result on Not found, and ask for a search before one', async () => {
+      fakeSdk();
+      routes['GET /api/spotify/search?song=6'] = searchFixture('six', [
+        track(trackC, 'Six', 1000),
+        90
+      ]);
+      click(tab('missing'));
+      press('j');
+      press('s');
+      expect($('message').textContent).to.equal('No search result to play yet');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await settle();
+      press('s');
+      await settle();
+      expect(plays()[0].body).to.deep.equal({ uris: [`spotify:track:${trackC}`] });
     });
   });
 });

@@ -4,8 +4,8 @@ const { getFilteredFiles, reportErrors } = require('./common.js');
 const { openLibrary } = require('../db/index.js');
 const { spotifyPlayer } = require('../player/players.js');
 const { createClient } = require('../spotify/api.js');
-const { appTokenGetter } = require('../spotify/auth.js');
-const { getCredentials, missingCredentials } = require('../spotify/credentials.js');
+const { appTokenGetter, readTokens, userAccessToken } = require('../spotify/auth.js');
+const { getCredentials, missingCredentials, tokenPath } = require('../spotify/credentials.js');
 const { syncPlan } = require('../sync/plan.js');
 const { songTargets } = require('../sync/targets.js');
 const { reviewActions } = require('../ui/actions.js');
@@ -78,7 +78,16 @@ const uiCommand = async ({
         config
       ),
     plan: songs => syncPlan(db, config, songs),
-    player
+    player,
+    // the logged in user's token (musicman sync --login) for playing full tracks in the page
+    getUserToken: async () => {
+      if (missing.length > 0) {
+        throw new Error(`Spotify credentials missing (${missing.join(', ')})`);
+      }
+      const file = tokenPath(env);
+      const accessToken = await userAccessToken({ credentials, file, fetchImpl });
+      return { accessToken, scope: _.get(readTokens(file), 'scope', '') };
+    }
   });
   const port = _.get(config, 'ui.port', defaultPort);
   let server;

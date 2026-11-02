@@ -385,7 +385,7 @@ database backups (`db.autoBackup`) have no restore command.
 - [x] **Keyboard review.** (p2) [feature] j/k or arrows to move through the list, space to play the local file,
       a and r to accept or reject and move on; with 26 to review and 774 accepted to audit, mouse only review is
       slow.
-- [ ] **Play the Spotify version from the keyboard.** (p3) [feature] `s` was left out of keyboard review: the
+- [x] **Play the Spotify version from the keyboard.** (p3) [feature] `s` was left out of keyboard review: the
       embedded player is a cross-origin iframe the page cannot start, and "Play in Spotify app" is untried
       against the real app (below). Needs the Web Playback SDK (full playback item) or that test first.
 - [x] **Sort the lists.** (p3) [feature] by similarity (least similar first to audit accepted matches), length
@@ -397,11 +397,12 @@ database backups (`db.autoBackup`) have no restore command.
       keep the result until the database or the playlist cache changes.
 - [ ] **Undo from the page.** (p3) [feature] list the `ui` runs with what each changed and undo one, as
       `musicman undo <run id>` does.
-- [ ] **Full Spotify playback in the page.** (p3) [feature] the embedded player plays full tracks only when the
-      browser is logged in to Spotify, previews otherwise. The Web Playback SDK plays in the page with the
-      `streaming` scope (a new `sync --login`) and Premium.
-- [ ] **Try "Play in Spotify app".** (p3) [test] the button opens the track in the desktop app through MPRIS; it
-      has only run against a fake player.
+- [x] **Full Spotify playback in the page.** (p3) [feature] Play here and `s` use the Web Playback SDK
+      (1.47.0). Checked live 2026-11-01 in Google Chrome: the page became the Connect device "musicman ui",
+      played and paused the track, and left Connect when the tab closed. Chromium builds without Widevine get
+      an initialization error, and `s` then plays in the desktop app.
+- [x] **Try "Play in Spotify app".** (p3) [test] tried 2026-11-01 against the desktop app: the page's
+      `/api/spotify/open` started the track through MPRIS, and the app stayed on Spotify Connect.
 - [x] **Tests for the page script.** (p3) [test] `lib/ui/app.spec.js` loads the page in jsdom with a fake
       `fetch`: tabs, keyboard review, sorting, filter, reload, and the runs banner.
 - [x] **Page semantics.** (p3) [feature] the tabs are buttons without `tablist` roles and the rows are focusable

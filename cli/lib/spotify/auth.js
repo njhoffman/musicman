@@ -3,7 +3,7 @@ const path = require('path');
 
 const accountsUrl = 'https://accounts.spotify.com';
 
-// read and change playlists and Liked Songs, and start playback
+// read and change playlists and Liked Songs, and start playback, in the apps and in musicman ui
 const scopes = [
   'playlist-read-private',
   'playlist-read-collaborative',
@@ -13,7 +13,11 @@ const scopes = [
   'user-library-modify',
   // musicman shuffle starts its playlist from the first track
   'user-read-playback-state',
-  'user-modify-playback-state'
+  'user-modify-playback-state',
+  // musicman ui plays full tracks in the page with the Web Playback SDK, which needs these three
+  'streaming',
+  'user-read-email',
+  'user-read-private'
 ];
 
 // refresh tokens this long before they expire

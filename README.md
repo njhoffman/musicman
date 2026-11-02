@@ -59,7 +59,9 @@ leftover Spotify ids, multi value formatting, and case after one confirmation, r
 `musicman ui` serves a management page on 127.0.0.1 (`ui.port`, 6660) until ctrl-c. It lists the Spotify
 matches waiting for review, accepted in review, and rejected; picking a song shows the local file and the
 Spotify track side by side with their differences marked, plays both (the file in the page, the track in
-Spotify's embedded player, full length when the browser is logged in to Spotify, or in the desktop app),
+Spotify's embedded player, full length when the browser is logged in to Spotify, full length in the page
+with Play here (Spotify Premium; the page becomes the Spotify Connect device "musicman ui"; logins from
+before 1.47.0 need `musicman sync --login` again), or in the desktop app),
 and accepts or rejects. Each action is a `ui` run in `musicman logs` whose tag changes `musicman undo`
 restores. It also lists, as of the last `sync`, the tracks in mapped playlists missing from the library
 and the songs that belong on Spotify but have no Spotify id.
@@ -70,7 +72,8 @@ Spotify (on Not found as soon as the selection stops on a song): an empty query 
 links the song to it like accepting a review candidate.
 
 Column headers sort the lists (Similar puts the least similar first, Length sorts by the difference of the
-two lengths). Keys: `j`/`k` or the arrows move through the list, space plays the local file, `a` accepts
+two lengths). Keys: `j`/`k` or the arrows move through the list, space plays the local file, `s` the Spotify track
+(in the page, else in the desktop app), `a` accepts
 and `r` rejects and moves on, `/` filters, Esc closes the song. The page checks every 15 seconds whether a
 `sync` in a terminal changed a list (marked on its tab, with a Reload button), and shows a banner while
 another musicman run that changes the library is going on, asking before each accept or reject.

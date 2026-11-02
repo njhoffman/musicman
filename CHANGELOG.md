@@ -6,6 +6,17 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman ui`: Play here plays the full Spotify track in the page with the Spotify Web Playback SDK
+  (Premium), loaded on first use and shown in Spotify Connect as "musicman ui" while the page is open.
+  `musicman sync --login` asks for the permissions it needs (`streaming`, `user-read-email`,
+  `user-read-private`), so a login from before needs to be repeated.
+- `musicman ui`: `s` plays the Spotify version of the selected song (the candidate, the linked or only
+  rejected track, or the previewed or first search result) in the page, or in the desktop app when the
+  page cannot play it, and pauses or resumes it when pressed again. The local file and Spotify in the
+  page pause each other.
+
 ## [1.46.0] - 2026-11-01
 
 ### Added

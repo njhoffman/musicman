@@ -310,8 +310,10 @@ describe('musicman ui', () => {
     const calls = [];
 
     let client;
+    let userToken;
 
     beforeEach(async () => {
+      userToken = async () => ({ accessToken: 'user-token', scope: 'streaming user-read-email' });
       await seed();
       calls.length = 0;
       client = fakeClient(
@@ -337,7 +339,8 @@ describe('musicman ui', () => {
         getClient: () => client,
         librarySongs: async () => [],
         plan: () => [{ name: 'Liked Songs', pull: [], noId: [] }],
-        player: { open: async uri => calls.push(['open', uri]) }
+        player: { open: async uri => calls.push(['open', uri]) },
+        getUserToken: () => userToken()
       });
       server = await startServer(handler, { port: 0 });
       base = `http://127.0.0.1:${server.address().port}`;
@@ -581,6 +584,32 @@ describe('musicman ui', () => {
       const missing = await fetch(`${base}/api/spotify/search?song=${id}&q=x`);
       expect(missing.status).to.equal(503);
       expect((await missing.json()).error).to.include('credentials');
+    });
+
+    it('should give the page the user token only with the streaming permission', async () => {
+      const ok = await fetch(`${base}/api/spotify/token`);
+      expect(ok.status).to.equal(200);
+      expect(ok.headers.get('cache-control')).to.equal('no-store');
+      expect(await ok.json()).to.deep.equal({ accessToken: 'user-token' });
+      userToken = async () => ({ accessToken: 'user-token', scope: 'user-read-playback-state' });
+      const noScope = await fetch(`${base}/api/spotify/token`);
+      expect(noScope.status).to.equal(409);
+      expect((await noScope.json()).error).to.include('musicman sync --login');
+      userToken = async () => {
+        throw new Error('Not logged in to Spotify, run: musicman sync --login');
+      };
+      const loggedOut = await fetch(`${base}/api/spotify/token`);
+      expect(loggedOut.status).to.equal(503);
+      expect(await loggedOut.json()).to.deep.equal({
+        error: 'Not logged in to Spotify, run: musicman sync --login'
+      });
+    });
+
+    it('should not hand the token to a page on another Host', async () => {
+      const port = server.address().port;
+      const response = await raw('GET', '/api/spotify/token', { Host: `evil.example:${port}` });
+      expect(response.status).to.equal(403);
+      expect(response.body).to.not.include('user-token');
     });
 
     it('should play a track in the Spotify app', async () => {

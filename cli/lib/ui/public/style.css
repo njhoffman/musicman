@@ -391,7 +391,7 @@ iframe {
   flex-shrink: 0;
 }
 
-#search .actions button[aria-pressed='true'] {
+.actions button[aria-pressed='true'] {
   border-color: var(--accent);
   color: var(--accent);
 }

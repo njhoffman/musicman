@@ -349,13 +349,14 @@ const notes = {
 
 const keyHints = {
   review:
-    'Keys: j/k move, space plays the local file, a accepts, r rejects, / filters, Esc closes.',
-  accepted: 'Keys: j/k move, space plays the local file, r rejects, / filters, Esc closes.',
+    'Keys: j/k move, space plays the local file, s the Spotify track, a accepts, r rejects, / filters, Esc closes.',
+  accepted:
+    'Keys: j/k move, space plays the local file, s the Spotify track, r rejects, / filters, Esc closes.',
   rejected:
-    'Keys: j/k move, space plays the local file, a accepts a song with one rejected track, / filters, Esc closes.',
+    'Keys: j/k move, space plays the local file, s the linked or only rejected track, a accepts a song with one rejected track, / filters, Esc closes.',
   missing:
-    'Keys: j/k move, space plays the local file, / filters, Esc closes. The search runs when you stop on a song.',
-  toLocal: 'Keys: j/k move, / filters, Esc closes.',
+    'Keys: j/k move, space plays the local file, s the previewed or first result, / filters, Esc closes. The search runs when you stop on a song.',
+  toLocal: 'Keys: j/k move, s plays the Spotify track, / filters, Esc closes.',
   toSpotify: 'Keys: j/k move, space plays the local file, / filters, Esc closes.'
 };
 
@@ -603,7 +604,9 @@ const localVersion = song =>
           controls: true,
           preload: 'none',
           src: `/api/songs/${song.id}/audio`,
-          'aria-label': `Local file ${songText(song)}`
+          'aria-label': `Local file ${songText(song)}`,
+          // one player at a time: the file pauses Spotify in the page
+          onPlay: () => pauseWebPlayer()
         })
       : null
   );
@@ -632,6 +635,7 @@ const spotifyVersion = (title, track, song, actions = []) =>
     h(
       'div',
       { className: 'actions' },
+      playHereButton(track.id),
       h('button', { onClick: () => openInApp(track.id) }, 'Play in Spotify app'),
       actions
     )
@@ -698,6 +702,7 @@ const searchResult = (song, search, { track, similarity, rejected }) =>
         },
         'Preview'
       ),
+      playHereButton(track.id),
       actionButton('Accept', 'accept', song.id, track.id)
     )
   );
@@ -980,6 +985,175 @@ const selectTab = id => {
   }
 };
 
+/**
+ * Full tracks in the page through the Spotify Web Playback SDK, which makes the page a Spotify
+ * Connect device (Premium, and the streaming permission of musicman sync --login). The SDK loads on
+ * first use, so opening the page adds no device; status is off, loading, ready, or failed (with the
+ * reason, kept until the page reloads); trackId and paused follow the player.
+ */
+const web = {
+  status: 'off',
+  reason: null,
+  starting: null,
+  player: null,
+  deviceId: null,
+  trackId: null,
+  paused: true
+};
+
+const sdkUrl = 'https://sdk.scdn.co/spotify-player.js';
+const playerName = 'musicman ui';
+
+const fetchToken = async () => (await api('/api/spotify/token')).accessToken;
+
+const loadSdk = () =>
+  new Promise((resolve, reject) => {
+    if (window.Spotify) {
+      resolve(window.Spotify);
+      return;
+    }
+    window.onSpotifyWebPlaybackSDKReady = () => resolve(window.Spotify);
+    const script = h('script', { src: sdkUrl, async: true });
+    script.addEventListener('error', () =>
+      reject(new Error('the Spotify player script did not load'))
+    );
+    document.head.append(script);
+  });
+
+const sdkErrors = {
+  initialization_error: message => `this browser cannot play Spotify (${message})`,
+  authentication_error: message =>
+    `Spotify refused the login (${message}); run musicman sync --login`,
+  account_error: message => `Spotify Premium is needed (${message})`
+};
+
+// shows on each Play here button whether its track plays in the page
+const renderPlayback = () => {
+  document.querySelectorAll('button.play-here').forEach(button => {
+    const playing = web.trackId === button.dataset.track && !web.paused;
+    button.textContent = playing ? 'Pause' : 'Play here';
+    button.setAttribute('aria-pressed', String(playing));
+    button.disabled = web.status === 'loading';
+    button.title = web.status === 'failed' ? `Not available: ${web.reason}` : '';
+  });
+};
+
+// connects the page's player once; resolves when it is a Connect device
+const startWebPlayer = () => {
+  if (web.status === 'failed') {
+    return Promise.reject(new Error(web.reason));
+  }
+  if (web.starting) {
+    return web.starting;
+  }
+  web.status = 'loading';
+  renderPlayback();
+  web.starting = (async () => {
+    // asked first, so a missing permission is told before the SDK loads
+    await fetchToken();
+    const Spotify = await loadSdk();
+    const player = new Spotify.Player({
+      name: playerName,
+      getOAuthToken: callback =>
+        fetchToken().then(callback, err => showMessage(`Spotify: ${err.message}`, true)),
+      volume: 0.8
+    });
+    const deviceId = await new Promise((resolve, reject) => {
+      player.addListener('ready', ({ device_id: id }) => resolve(id));
+      Object.entries(sdkErrors).forEach(([name, reason]) =>
+        player.addListener(name, ({ message }) => reject(new Error(reason(message))))
+      );
+      player.connect().then(connected => {
+        if (!connected) {
+          reject(new Error('the Spotify player could not connect'));
+        }
+      });
+    });
+    player.addListener('player_state_changed', playerState => {
+      web.trackId = playerState ? (playerState.track_window.current_track || {}).id || null : null;
+      web.paused = playerState ? playerState.paused : true;
+      renderPlayback();
+    });
+    player.addListener('playback_error', ({ message }) =>
+      showMessage(`Spotify playback: ${message}`, true)
+    );
+    // leaves Spotify Connect when the page closes
+    window.addEventListener('pagehide', () => player.disconnect());
+    Object.assign(web, { status: 'ready', player, deviceId });
+    renderPlayback();
+    return web;
+  })();
+  web.starting.catch(err => {
+    Object.assign(web, { status: 'failed', reason: err.message, starting: null });
+    renderPlayback();
+  });
+  return web.starting;
+};
+
+const pauseWebPlayer = () => {
+  if (web.player && !web.paused) {
+    web.player.pause();
+  }
+};
+
+const pauseLocal = () => document.querySelectorAll('audio').forEach(audio => audio.pause());
+
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// starts a track on the page's device; a device that just connected can be unknown for a moment
+const startTrack = async (deviceId, trackId) => {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await fetch(
+      `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${await fetchToken()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ uris: [`spotify:track:${trackId}`] })
+      }
+    );
+    if (response.ok) {
+      return;
+    }
+    const body = await response.json().catch(() => ({}));
+    if (response.status !== 404 || attempt > 0) {
+      throw new Error((body.error && body.error.message) || `Spotify answered ${response.status}`);
+    }
+    await wait(1000);
+  }
+};
+
+// plays a track in the page, or pauses and resumes it when it is the one playing there
+const playHere = async trackId => {
+  if (web.player) {
+    // lets the browser start audio from this click or key press
+    web.player.activateElement();
+  }
+  const ready = await startWebPlayer();
+  pauseLocal();
+  if (ready.trackId === trackId) {
+    await ready.player.togglePlay();
+    return;
+  }
+  await startTrack(ready.deviceId, trackId);
+};
+
+const playHereButton = trackId =>
+  h(
+    'button',
+    {
+      className: 'play-here',
+      'data-track': trackId,
+      'aria-pressed': String(web.trackId === trackId && !web.paused),
+      title: web.status === 'failed' ? `Not available: ${web.reason}` : null,
+      onClick: () =>
+        playHere(trackId).catch(err => showMessage(`Playing in the page: ${err.message}`, true))
+    },
+    web.trackId === trackId && !web.paused ? 'Pause' : 'Play here'
+  );
+
 const openInApp = async trackId => {
   try {
     await api('/api/spotify/open', { trackId });
@@ -1059,12 +1233,57 @@ const keyAction = kind => {
 };
 
 // space: play or pause the local file of the selected song
+// the Spotify track s plays for the selected song: the candidate or linked track, on Not found the
+// previewed or first search result
+const spotifyTrackOf = row => {
+  if (!row) {
+    return null;
+  }
+  const { item } = row;
+  if (state.tab === 'rejected') {
+    return item.current || (item.rejected.length === 1 ? item.rejected[0].track : null);
+  }
+  if (state.tab === 'missing') {
+    const search = searchOf(item.song);
+    const results = (search && search.results) || [];
+    const previewed = results.find(({ track }) => track.id === search.preview);
+    return (previewed || results[0] || {}).track || null;
+  }
+  return item.track || null;
+};
+
+// s: the Spotify track in the page, or in the desktop app when the page cannot play it
+const playSpotify = () => {
+  const row = selectedRow();
+  if (!row) {
+    return false;
+  }
+  const track = spotifyTrackOf(row);
+  if (!track) {
+    showMessage(
+      state.tab === 'missing'
+        ? 'No search result to play yet'
+        : 'No single Spotify track to play for this song'
+    );
+    return true;
+  }
+  playHere(track.id).catch(err => {
+    showMessage(`Playing in the Spotify app; in the page: ${err.message}`);
+    pauseLocal();
+    api('/api/spotify/open', { trackId: track.id }).catch(appErr =>
+      showMessage(`Spotify app: ${appErr.message}`, true)
+    );
+  });
+  return true;
+};
+
 const toggleLocal = () => {
   const audio = document.querySelector('#compare audio');
   if (!audio) {
     return false;
   }
   if (audio.paused) {
+    pauseWebPlayer();
     const playing = audio.play();
     if (playing && playing.catch) {
       playing.catch(err => showMessage(`Could not play the file: ${err.message}`, true));
@@ -1108,6 +1327,7 @@ const onKey = event => {
       }
       return toggleLocal();
     },
+    s: () => playSpotify(),
     a: () => keyAction('accept'),
     r: () => keyAction('reject'),
     '/': () => $('filter').focus(),
@@ -1173,4 +1393,4 @@ const ready = (() => {
   return Promise.all([load('review'), poll()]);
 })();
 
-export { poll, ready, state, stopPolling };
+export { poll, ready, state, stopPolling, web };

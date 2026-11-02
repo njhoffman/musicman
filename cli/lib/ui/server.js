@@ -37,8 +37,12 @@ class HttpError extends Error {
   }
 }
 
+// API answers are never cached: they change with the library, and one carries an access token
 const sendJson = (res, status, body) => {
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.writeHead(status, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store'
+  });
   res.end(JSON.stringify(body));
 };
 
@@ -169,7 +173,10 @@ const trackIdOf = body => {
  *   POST /api/songs/<id>/accept          { trackId } accept the track for the song
  *   POST /api/songs/<id>/reject          { trackId } reject the track for the song
  *   POST /api/spotify/open               { trackId } play the track in the Spotify desktop app
- * Only requests from the page itself are answered (checkOrigin). Dependencies: db, config, actions (reviewActions), getClient() a Spotify app client or null without
+ *   GET  /api/spotify/token              the user's access token for the Web Playback SDK in the page
+ * Only requests from the page itself are answered (checkOrigin), so another site can neither read
+ * the access token nor act. getUserToken() resolves to { accessToken, scope } of the logged in user.
+ * Dependencies: db, config, actions (reviewActions), getClient() a Spotify app client or null without
  * credentials, librarySongs() the songs with their targets (songTargets), plan(songs) syncPlan, and
  * player (spotifyPlayer).
  */
@@ -181,6 +188,9 @@ const createHandler = ({
   librarySongs,
   plan,
   player,
+  getUserToken = async () => {
+    throw new Error('Not logged in to Spotify, run: musicman sync --login');
+  },
   running = () => runningRuns(runsDirectory(config))
 }) => {
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
@@ -285,6 +295,25 @@ const createHandler = ({
             rejected: rejected.has(candidate.id)
           }))
         };
+      }
+    ],
+    [
+      'GET',
+      /^\/api\/spotify\/token$/,
+      async () => {
+        let token;
+        try {
+          token = await getUserToken();
+        } catch (err) {
+          throw new HttpError(503, err.message);
+        }
+        if (!`${token.scope || ''}`.split(' ').includes('streaming')) {
+          throw new HttpError(
+            409,
+            'Playing in the page needs the streaming permission: run musicman sync --login again'
+          );
+        }
+        return { accessToken: token.accessToken };
       }
     ],
     ['GET', /^\/api\/status$/, async () => ({ markers: changeMarkers(db), running: otherRuns() })],
