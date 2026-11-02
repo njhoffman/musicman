@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.50.0] - 2026-11-02
+
 ### Added
 
 - `check` has an `artwork` check: songs without an embedded cover, and whether Spotify has their album
@@ -1010,7 +1012,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.49.1...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.50.0...HEAD
+[1.50.0]: https://github.com/njhoffman/musicman/compare/v1.49.1...v1.50.0
 [1.49.1]: https://github.com/njhoffman/musicman/compare/v1.49.0...v1.49.1
 [1.49.0]: https://github.com/njhoffman/musicman/compare/v1.44.0...v1.49.0
 [1.44.0]: https://github.com/njhoffman/musicman/compare/v1.43.0...v1.44.0
