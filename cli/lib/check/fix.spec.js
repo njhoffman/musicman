@@ -161,6 +161,43 @@ describe('check --fix', () => {
       expect(cleanMulti('a, b,,A')).to.equal('a,b');
     });
 
+    it('should remove a multi value field with no items, keeping the other fields', () => {
+      const { raw, changes } = fixRaw(
+        {
+          TXXX: txxx([
+            ['Mood', ''],
+            ['Context', ','],
+            ['Picks', 'Nick']
+          ])
+        },
+        context({ multi: new Set(['Context', 'Mood', 'Picks']) })
+      );
+      expect(raw.TXXX).to.deep.equal(txxx([['Picks', 'Nick']]));
+      expect(texts(changes)).to.deep.equal([
+        "remove Mood '' (no items)",
+        "remove Context ',' (no items)"
+      ]);
+      const only = fixRaw({ TXXX: txxx([['Mood', '']]) }, context({ multi: new Set(['Mood']) }));
+      expect(only.raw).to.not.have.property('TXXX');
+    });
+
+    it('should show long or multi line values on one line, cut short', () => {
+      const lyrics = `first line\n${'word '.repeat(40)}`;
+      const { skipped } = fixRaw(
+        {
+          COMM: { language: 'eng', shortText: '', text: 'a comment' },
+          TXXX: txxx([['Comment', lyrics]])
+        },
+        context({ standardKeys: new Set(['comment']) })
+      );
+      const [text] = texts(skipped);
+      expect(text).to.not.include('\n');
+      expect(text).to.match(
+        /^Comment 'first line word word .*\.\.\.' differs from COMM 'a comment'$/
+      );
+      expect(text.length).to.be.below(130);
+    });
+
     it('should change nothing when no repair applies, and not change its input', () => {
       const raw = { TIT2: 'Song', TXXX: txxx([['Context', 'Study']]) };
       const result = fixRaw(raw, context({ multi: new Set(['Context']) }));

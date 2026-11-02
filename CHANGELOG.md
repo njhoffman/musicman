@@ -6,6 +6,21 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- Tag writes (`edit`, the menu, `check --fix`, sync) no longer drop the second of two frames node-id3
+  holds once, e.g. a comment next to an `iTunNORM` COMM frame: the dropped frames are copied back and the
+  frame node-id3 reads stays the one it reads. `check` reports such frames where a rewrite cannot keep
+  them (tags other than plain ID3v2.3).
+- `check --fix` shows long and multi line values (lyrics, album notes) on one line, cut to 80 characters.
+- `musicman check` names the same spelling `check --fix` renames to (a configured tag id or a `check.names`
+  entry first); it suggested the most used one even when the fix picked another.
+- `check --fix` removes a multi value field left with no items (written as `''` or `,`); `check` reported
+  it on every run and the fix never changed it.
+- A custom field in the config that is only spelled differently (e.g. `TXXX.replaygain_track_gain` to
+  `TXXX.REPLAYGAIN_TRACK_GAIN`, same single or multi value) updates its stored definition instead of
+  stopping every command with "Custom field definitions changed".
+
 ## [1.41.0] - 2026-11-01
 
 ### Added

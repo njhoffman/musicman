@@ -2,7 +2,7 @@ const _ = require('lodash');
 const path = require('path');
 const NodeId3 = require('node-id3');
 
-const { leftoverSpotifyFrame, nameKey, standardFrames } = require('./library.js');
+const { leftoverSpotifyFrame, nameKey, nameTarget, standardFrames } = require('./library.js');
 const { multiDescriptions } = require('./files.js');
 const { rewriteTags } = require('../metadata/write.js');
 
@@ -11,6 +11,14 @@ const fixableChecks = ['drift', 'names', 'standard', 'spotify-id', 'multi', 'cas
 
 const leftoverDescription = leftoverSpotifyFrame.slice(5);
 const sameText = (a, b) => `${a}`.trim() === `${b}`.trim();
+
+// longest value shown in a change or a case left for a decision
+const shownLength = 80;
+// a value as shown in those texts: on one line, cut to shownLength (lyrics and notes span many lines)
+const shown = value => {
+  const text = `${value}`.replace(/\s+/g, ' ').trim();
+  return text.length > shownLength ? `${text.slice(0, shownLength - 3)}...` : text;
+};
 
 // the text values of a standard frame in raw node-id3 tags (COMM and USLT hold { text })
 const frameTexts = (raw, frame) =>
@@ -47,18 +55,14 @@ const cleanMulti = value =>
  */
 const fixContext = (results, config) => {
   const found = name => _.get(_.find(results, { name }), 'findings', []);
-  const preferred = new Set([
-    ..._.map(
-      _.filter(_.get(config, 'library.tags', []), ({ id }) => /^TXXX\./.test(id)),
-      ({ id }) => id.slice(5)
-    ),
-    ..._.get(config, 'check.names', [])
-  ]);
   const nameTargets = new Map(
-    _.map(found('names'), ({ frames }) => {
-      const spellings = _.map(frames, frame => frame.slice(5));
-      return [nameKey(frames[0]), _.find(spellings, name => preferred.has(name)) || spellings[0]];
-    })
+    _.map(found('names'), ({ frames }) => [
+      nameKey(frames[0]),
+      nameTarget(
+        _.map(frames, frame => frame.slice(5)),
+        config
+      )
+    ])
   );
   const caseTargets = new Map(
     _.map(_.groupBy(found('case'), 'frame'), (groups, frame) => [
@@ -120,7 +124,7 @@ const fixRaw = (raw, context) => {
       }
       skipped.push({
         check: 'names',
-        text: `${entry.description} '${entry.value}' differs from ${target} '${existing[0].value}'`
+        text: `${entry.description} '${shown(entry.value)}' differs from ${target} '${shown(existing[0].value)}'`
       });
       return [...kept, entry];
     },
@@ -142,41 +146,49 @@ const fixRaw = (raw, context) => {
       const value = texts.length === 0 ? standardValue(frame, entry.value) : null;
       if (value !== null) {
         tags[frame] = value;
-        change('standard', `move ${entry.description} to ${frame}: ${entry.value}`);
+        change('standard', `move ${entry.description} to ${frame}: ${shown(entry.value)}`);
         return null;
       }
       skipped.push({
         check: 'standard',
         text:
           texts.length === 0
-            ? `${entry.description} '${entry.value}' is not kept in ${frame}`
-            : `${entry.description} '${entry.value}' differs from ${frame} '${texts[0]}'`
+            ? `${entry.description} '${shown(entry.value)}' is not kept in ${frame}`
+            : `${entry.description} '${shown(entry.value)}' differs from ${frame} '${shown(texts[0])}'`
       });
       return entry;
     })
   );
 
-  entries = _.map(entries, entry => {
-    let { value } = entry;
-    if (context.multi.has(entry.description)) {
-      const clean = cleanMulti(value);
-      if (clean !== value) {
-        change('multi', `${entry.description} '${value}' to '${clean}'`);
-        value = clean;
+  entries = _.compact(
+    _.map(entries, entry => {
+      let { value } = entry;
+      if (context.multi.has(entry.description)) {
+        const clean = cleanMulti(value);
+        // a field with no items left (written as '' or ',') is removed rather than kept empty
+        if (clean === '') {
+          change('multi', `remove ${entry.description} '${value}' (no items)`);
+          return null;
+        }
+        if (clean !== value) {
+          change('multi', `${entry.description} '${value}' to '${clean}'`);
+          value = clean;
+        }
       }
-    }
-    const casing = context.caseTargets.get(entry.description);
-    if (casing) {
-      const cased = _.map(`${value}`.split(','), item => casing.get(_.toLower(item)) || item).join(
-        ','
-      );
-      if (cased !== value) {
-        change('case', `${entry.description} '${value}' to '${cased}'`);
-        value = cased;
+      const casing = context.caseTargets.get(entry.description);
+      if (casing) {
+        const cased = _.map(
+          `${value}`.split(','),
+          item => casing.get(_.toLower(item)) || item
+        ).join(',');
+        if (cased !== value) {
+          change('case', `${entry.description} '${value}' to '${cased}'`);
+          value = cased;
+        }
       }
-    }
-    return value === entry.value ? entry : { ...entry, value };
-  });
+      return value === entry.value ? entry : { ...entry, value };
+    })
+  );
 
   if (entries.length > 0) {
     tags.TXXX = entries;

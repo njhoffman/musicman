@@ -1,6 +1,6 @@
 const { expect } = require('chai');
 const { openDatabase } = require('./database.js');
-const { syncTagDefinitions, tagDefinitions } = require('./tags.js');
+const { nameKey, syncTagDefinitions, tagDefinitions } = require('./tags.js');
 
 describe('Database Tag Definitions', () => {
   let db;
@@ -82,6 +82,17 @@ describe('Database Tag Definitions', () => {
     ]);
     expect(row('mood')).to.include({ frame_id: 'TXXX.Mood' });
     expect(row('composer2')).to.be.undefined;
+  });
+
+  it('should update a custom field only spelled differently, but not one that changes multi', () => {
+    syncTagDefinitions(db, config);
+    const respelled = { tags: [{ id: 'TXXX.MOOD', name: 'mood', multi: true }] };
+    const result = syncTagDefinitions(db, respelled);
+    expect(result.errors).to.be.empty;
+    expect(row('mood')).to.include({ frame_id: 'TXXX.MOOD', multi: 1, source: 'config' });
+    const single = syncTagDefinitions(db, { tags: [{ id: 'TXXX.Mood', name: 'mood' }] });
+    expect(single.errors[0]).to.include('is now defined as mood (TXXX.Mood)');
+    expect(nameKey('TXXX.replaygain_track_gain')).to.equal(nameKey('TXXX.REPLAYGAIN TRACK GAIN'));
   });
 
   it('should return an error when a custom field changes between single and multi value', () => {

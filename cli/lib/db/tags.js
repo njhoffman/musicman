@@ -4,6 +4,21 @@ const { transaction } = require('./database.js');
 
 const isCustom = frameId => /^TXXX\./.test(frameId);
 
+// a custom frame name reduced to letters and digits, lowercase: names equal this way are one field
+// spelled differently (TXXX.replaygain_track_gain, TXXX.REPLAYGAIN_TRACK_GAIN)
+const nameKey = frameId =>
+  frameId
+    .replace(/^TXXX\./, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+
+// a stored custom field now spelled differently, single or multi value as before: song_tags keeps
+// each file's frames under their own spelling, so only the definition row changes
+const respelled = (existing, definition) =>
+  isCustom(definition.frame_id) &&
+  existing.multi === definition.multi &&
+  nameKey(existing.frame_id) === nameKey(definition.frame_id);
+
 // config tags take precedence over tags.json entries with the same name
 const tagDefinitions = config => {
   const configTags = _.map(_.get(config, 'tags', []), ({ name, id, multi }) => ({
@@ -25,8 +40,9 @@ const describe = ({ name, frame_id: frameId, multi }) =>
 
 /**
  * Stores tag definitions from tags.json and the config without deleting existing rows.
- * New tags are inserted and standard frame changes update the row. A changed definition of a stored
- * custom (TXXX) field from the config is returned as an error and nothing is written.
+ * New tags are inserted, and standard frame changes and custom fields only spelled differently
+ * (same nameKey, same multi) update the row. Any other changed definition of a stored custom (TXXX)
+ * field from the config is returned as an error and nothing is written.
  */
 const syncTagDefinitions = (db, config) => {
   const stored = _.keyBy(
@@ -56,7 +72,11 @@ const syncTagDefinitions = (db, config) => {
     } else if (!existing) {
       inserts.push(definition);
     } else if (existing.frame_id !== definition.frame_id || existing.multi !== definition.multi) {
-      if (existing.source === 'config' && isCustom(existing.frame_id)) {
+      if (
+        existing.source === 'config' &&
+        isCustom(existing.frame_id) &&
+        !respelled(existing, definition)
+      ) {
         errors.push(
           `Custom field ${describe(
             existing
@@ -85,4 +105,4 @@ const syncTagDefinitions = (db, config) => {
   return { errors, inserted: inserts.length, updated: updates.length };
 };
 
-module.exports = { syncTagDefinitions, tagDefinitions };
+module.exports = { nameKey, syncTagDefinitions, tagDefinitions };

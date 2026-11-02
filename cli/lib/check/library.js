@@ -1,18 +1,13 @@
 const _ = require('lodash');
 
+const { nameKey } = require('../db/tags.js');
+
 /**
  * Checks on the library database (song_tags holds every populated frame of every file, custom TXXX
  * frames included), so they are as current as the last db --update. Each takes { db, config, songs }
  * where songs are the songs rows checked ({ id, path, duration }), and returns findings as
  * { file, detail } (file null for findings about the library as a whole, e.g. a group of names).
  */
-
-// a custom frame name reduced to letters and digits, lowercase: names equal this way are one field
-const nameKey = frameId =>
-  frameId
-    .replace(/^TXXX\./, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
 
 // standard frames custom fields often duplicate, by nameKey
 const standardFrames = {
@@ -75,10 +70,26 @@ const customFrameCounts = db =>
     .all();
 
 /**
- * Custom field names that differ only by case or punctuation (TXXX.AlbumArtist, TXXX.ALBUM ARTIST), one
- * finding per group with the songs of each spelling; the most used spelling is suggested.
+ * The spelling a group of custom field names becomes, from spellings ordered most used first: a
+ * configured TXXX tag id or a check.names entry first, else the most used. check reports it and
+ * check --fix renames to it.
  */
-const names = ({ db }) => {
+const nameTarget = (spellings, config) => {
+  const preferred = new Set([
+    ..._.map(
+      _.filter(_.get(config, 'library.tags', []), ({ id }) => /^TXXX\./.test(id)),
+      ({ id }) => id.slice(5)
+    ),
+    ..._.get(config, 'check.names', [])
+  ]);
+  return _.find(spellings, name => preferred.has(name)) || spellings[0];
+};
+
+/**
+ * Custom field names that differ only by case or punctuation (TXXX.AlbumArtist, TXXX.ALBUM ARTIST), one
+ * finding per group with the songs of each spelling and the spelling check --fix renames them to.
+ */
+const names = ({ db, config }) => {
   const groups = _.filter(
     _.groupBy(customFrameCounts(db), ({ frame_id: id }) => nameKey(id)),
     group => group.length > 1
@@ -88,9 +99,13 @@ const names = ({ db }) => {
     group => {
       const ordered = _.orderBy(group, ['count', 'frame_id'], ['desc', 'asc']);
       const spellings = _.map(ordered, ({ frame_id: id, count }) => `${id.slice(5)} (${count})`);
+      const target = nameTarget(
+        _.map(ordered, ({ frame_id: id }) => id.slice(5)),
+        config
+      );
       return {
         file: null,
-        detail: `${spellings.join(' / ')}  ->  ${ordered[0].frame_id.slice(5)}`,
+        detail: `${spellings.join(' / ')}  ->  ${target}`,
         frames: _.map(ordered, 'frame_id')
       };
     }
@@ -404,6 +419,7 @@ module.exports = {
   leftoverSpotifyFrame,
   looksGarbled,
   nameKey,
+  nameTarget,
   names,
   rating,
   spotifyId,

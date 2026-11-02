@@ -52,14 +52,13 @@ Reviewed: 2026-11-01
 
 ## 3. Library data
 
-- [ ] **Run `check --fix` on the library.** (p2) [chore] after `sync --backup`: one directory first, then the
-      rest. The dry run of 2026-11-01 plans 3502 name changes and 2137 standard ones in 1890 files, 4663
-      leftover Spotify ids, and 2217 multi value rewrites; 784 cases are left for a decision (mostly a
-      `Comment` that differs from COMM).
-- [ ] **One ReplayGain spelling.** (p3) [chore] the configured `replaygain_track_gain` wins its group, while
-      `REPLAYGAIN_ALBUM_GAIN` and `REPLAYGAIN_ALBUM_PEAK` win theirs by count, so `check --fix` leaves the four
-      ReplayGain fields in two casings. Check which spelling beets' replaygain plugin writes and put the album
-      ones in `check.names`, or the track ones in `library.tags`, so a later beets write does not add them back.
+- [x] **Run `check --fix` on the library.** (p2) [chore] 2026-11-01: trial on Bigbeat & Dubstep (97 files,
+      `20261101-192452-check`), then the library (5934 files, `20261101-195235-check`); a dry run after finds
+      nothing to repair. Left for a decision: 784 cases (613 `Comment` vs COMM, 393 of them where COMM holds
+      only iTunNORM; LABEL, AlbumArtist, COMPOSER, ISRC; 4 name groups with differing values).
+- [x] **One ReplayGain spelling.** (p3) [chore] uppercase, as beets' mediafile creates new frames (it
+      matches existing ones in any case): the `gain` tag id is `TXXX.REPLAYGAIN_TRACK_GAIN` in
+      `~/.musicmanrc.yml` (2026-11-01), so `check --fix` renames all four ReplayGain fields to uppercase.
 - [ ] **Copies of a song in two rating playlists.** (p2) [bug] `check --only=exclusive` (2026-11-01): 62 tracks
       in two rating playlists and 11 in two grouping playlists on Spotify, each linked to two files that
       disagree (e.g. 311 - Beautiful Disaster on Transistor at 5.0 and on Live at 4.5). Push puts a track
@@ -82,6 +81,13 @@ Reviewed: 2026-11-01
 
 ## 4. Command line and output
 
+- [ ] **Progress bar and colored output for `check`.** (p2) [feature] `check` and `check --fix` report
+      progress as plain `reading tags 1234/6436`, `planning repairs`, and `writing` counters
+      (`commands/check.js` `logger.progress`) and print the report and plan uncolored, while `sync` and
+      `db --update` use `progressBar` (`output/progress.js`) with elapsed time, and `coloredCounts`. Use the
+      same bar with an ETA for each phase, and color the report and plan like the sync plan: check names,
+      counts (problems found vs ok), change kinds (rename, remove, move, left for you), and muted paths.
+      A full library run reads every file twice (report, then plan) and takes minutes with no ETA.
 - [x] **Complete tag values and run ids in zsh.** (p3) [feature] node needed 0.35-1.9 s per Tab, so the script
       reads values with the `sqlite3` command (about 20 ms) and globs the runs directory, both paths fixed at
       generation like the field names.
@@ -135,9 +141,6 @@ Reviewed: 2026-11-01
 
 ## 7. Spotify sync (`docs/03-spotify-id.md`, `docs/05-spotify-push.md`)
 
-- [ ] **Verify `sync --push --prune` and its undo.** (p2) [test] no push has removed anything yet, so the remove
-      endpoints, the snapshot before them, and `musicman undo` putting tracks back at their old position have only
-      run in tests. Nothing is left to prune after the repair; test it with a deliberate removal.
 - [ ] **Prefer the original album over compilations.** (p2) [feature] a match can be the right recording on the wrong
       release, e.g. Alice in Chains - Heaven Beside You matched to "Alternative Moments" (Various Artists) instead of
       their own album. When several candidates are the same recording, rank by the local album (TALB) first, then
@@ -166,10 +169,13 @@ Reviewed: 2026-11-01
 - [x] **Spotify fields.** (p2) [feature] `sync --match` writes the `spotify.fields` mapping as `TXXX.sp_*` tags.
 - [x] **Liked Songs.** (p1) [feature] `sync --push` saves songs rated at least `sync.likedRating`.
 - [x] **Grouping playlists.** (p1) [feature] `sync --push` adds songs matching each `sync.playlists` filter; adds were
-      verified by the push of 2026-10-21, removes are the open prune item above.
+      verified by the push of 2026-10-21, removes by the prune test of 2026-11-01.
 - [x] **Pull Spotify-side changes to songs already in the library.** (p1) [feature] three way plan with
       `spotify_synced`; `sync --pull` applies filter tag changes made on Spotify.
 - [x] **Verify `sync --push` against Spotify.** (p2) [test] 7757 tracks added on 2026-10-21.
+- [x] **Verify `sync --push --prune` and its undo.** (p2) [test] 2026-11-01: a deliberate `edit context=-Relax`
+      pruned one track from Relax (position 58) after the snapshot, and `musicman undo` of the push put it back at
+      position 58.
 - [x] **Duplicate files sharing a Spotify id show up as prune.** (p1) [bug] a track is extra only when no copy of
       its song belongs.
 - [x] **Multi value writes stored `undefined`.** (p1) [bug] `writeFiles` joins arrays with commas.
@@ -289,6 +295,12 @@ database backups (`db.autoBackup`) have no restore command.
 - [ ] **Keep replaced files in `sync --backup`.** (p2) [feature] move the backup copy of an updated file to
       `.musicman-removed/<date>/` (or a versions folder) before overwriting it, like deleted files, so a bad tag
       write that reached the backup can still be recovered.
+- [ ] **Undo the frames that did not change since.** (p3) [feature] `planUndo` (`cli/lib/history/undo.js`)
+      already compares per frame, but one changed frame marks the whole file `changed`, so undo restores none of
+      it without `--force`, and `--force` restores the changed frames too. E.g. 2026-11-01: undo of
+      `20261027-005126-edit` (`context=-Relax`) was refused because that write also normalized `TXXX.Mood`
+      (dropped a trailing comma) and a later edit changed Mood again. Restore the unchanged frames (Context
+      here), skip and list the changed ones, and keep `--force` for those.
 - [ ] **Restore the database from a backup.** (p3) [feature] `db --restore [<backup>]` to list and restore the
       automatic database backups.
 - [ ] **Record `check --fix` changes.** (p3) [feature] once `check --fix` exists it writes through

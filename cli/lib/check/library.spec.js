@@ -94,6 +94,23 @@ describe('Library checks', () => {
     expect(library.nameKey('TXXX.Album_Artist')).to.equal('albumartist');
   });
 
+  it('should suggest the spelling check --fix renames to: configured or check.names first', () => {
+    const target = configured => {
+      config.check = { names: configured };
+      try {
+        return check(library.names)[0].detail.split('  ->  ')[1];
+      } finally {
+        delete config.check;
+      }
+    };
+    expect(target([])).to.equal('ALBUM ARTIST');
+    expect(target(['AlbumArtist'])).to.equal('AlbumArtist');
+    expect(
+      library.nameTarget(['GAIN', 'gain'], { library: { tags: [{ id: 'TXXX.gain' }] } })
+    ).to.equal('gain');
+    expect(library.nameTarget(['GAIN', 'gain'], {})).to.equal('GAIN');
+  });
+
   it('should report custom fields duplicating standard frames, with songs having both', () => {
     const findings = check(library.standard);
     const byFrame = Object.fromEntries(findings.map(f => [f.frame, f]));
