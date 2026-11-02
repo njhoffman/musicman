@@ -28,28 +28,55 @@ describe('Logger', () => {
   });
 
   describe('progress', () => {
+    const chalk = require('chalk').default;
+    const erase = '\r\x1b[K\x1b[1A\r\x1b[K';
+    const rule = chalk.dim('─'.repeat(19));
+    const drawn = status => `${rule}\n\r\x1b[K${status}`;
     let originalIsTTY;
+    let originalColumns;
     let write;
 
     beforeEach(() => {
       originalIsTTY = process.stderr.isTTY;
+      originalColumns = process.stderr.columns;
+      process.stderr.columns = 20;
       write = sinon.stub(process.stderr, 'write');
     });
 
     afterEach(() => {
       write.restore();
       process.stderr.isTTY = originalIsTTY;
+      process.stderr.columns = originalColumns;
     });
 
-    it('should write a clearing status line to stderr when it is a terminal', () => {
+    const written = () => write.args.map(([text]) => text);
+
+    it('should draw the status line below a dim rule and erase both when done', () => {
       process.stderr.isTTY = true;
       logger.progress('Reading 1/2 files');
       logger.progressDone();
-      expect(write.firstCall.args[0]).to.equal('\r\x1b[KReading 1/2 files');
-      expect(write.secondCall.args[0]).to.equal('\r\x1b[K');
+      expect(written()).to.deep.equal([drawn('Reading 1/2 files'), erase]);
     });
 
-    it('should keep the status line below messages logged while it is shown', () => {
+    it('should rewrite only the status line on updates', () => {
+      process.stderr.isTTY = true;
+      logger.progress('Reading 1/2 files');
+      logger.progress('Reading 2/2 files');
+      logger.progressDone();
+      expect(written()).to.deep.equal([
+        drawn('Reading 1/2 files'),
+        '\r\x1b[KReading 2/2 files',
+        erase
+      ]);
+    });
+
+    it('should clear the line when done without a status line shown', () => {
+      process.stderr.isTTY = true;
+      logger.progressDone();
+      expect(written()).to.deep.equal(['\r\x1b[K']);
+    });
+
+    it('should keep the rule and status line below messages logged while they are shown', () => {
       process.stderr.isTTY = true;
       const { NODE_ENV } = process.env;
       const consoleLog = sinon.stub(console, 'log');
@@ -57,32 +84,31 @@ describe('Logger', () => {
         process.env.NODE_ENV = 'development';
         logger.progress('Matching 1/2 songs');
         logger.consoleLog('matched song.mp3');
+        logger.progress('Matching 2/2 songs');
         logger.progressDone();
         logger.consoleLog('after');
       } finally {
         process.env.NODE_ENV = NODE_ENV;
         consoleLog.restore();
       }
-      expect(write.args.map(([text]) => text)).to.deep.equal([
-        '\r\x1b[KMatching 1/2 songs',
-        '\r\x1b[K',
-        '\r\x1b[KMatching 1/2 songs',
-        '\r\x1b[K'
+      expect(written()).to.deep.equal([
+        drawn('Matching 1/2 songs'),
+        erase,
+        drawn('Matching 1/2 songs'),
+        '\r\x1b[KMatching 2/2 songs',
+        erase
       ]);
       expect(consoleLog.args.map(([text]) => text)).to.deep.equal([' matched song.mp3', ' after']);
     });
 
     it('should cut the status line to the terminal width and keep its colors', () => {
       process.stderr.isTTY = true;
-      const originalColumns = process.stderr.columns;
       process.stderr.columns = 10;
-      try {
-        logger.progress('\u001b[31m0123456789abc\u001b[39m');
-        logger.progressDone();
-      } finally {
-        process.stderr.columns = originalColumns;
-      }
-      expect(write.firstCall.args[0]).to.equal('\r\x1b[K\u001b[31m012345678\u001b[0m');
+      logger.progress('\u001b[31m0123456789abc\u001b[39m');
+      logger.progressDone();
+      expect(write.firstCall.args[0]).to.equal(
+        `${chalk.dim('─'.repeat(9))}\n\r\x1b[K\u001b[31m012345678\u001b[0m`
+      );
     });
 
     it('should not write anything when stderr is not a terminal', () => {

@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- The status line of long commands (progress bars) has a dim rule above it, so it stands apart from
+  the log lines scrolling above it.
+
 ## [1.50.1] - 2026-11-02
 
 ### Changed

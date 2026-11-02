@@ -61,32 +61,49 @@ const fitFooter = message => {
   return truncateAnsi(message, columns - 1);
 };
 
+// dim rule drawn above the footer so it stands apart from the log lines, one column short of the
+// terminal width so it never wraps
+const footerRule = () => chalk.dim('─'.repeat(Math.max((process.stderr.columns || 80) - 1, 0)));
+
+// whether the rule and footer are on screen: the cursor is then at the end of the footer line
+let footerShown = false;
+
+// escape sequence erasing the footer and the rule above it, leaving the cursor where the rule was
+const eraseFooter = () => (footerShown ? '\r\x1b[K\x1b[1A\r\x1b[K' : '');
+
 const drawFooter = () => {
   if (footer !== null) {
-    process.stderr.write(`\r\x1b[K${fitFooter(footer)}`);
+    process.stderr.write(`${eraseFooter()}${footerRule()}\n\r\x1b[K${fitFooter(footer)}`);
+    footerShown = true;
   }
 };
 
 const clearFooter = () => {
-  if (footer !== null) {
-    process.stderr.write('\r\x1b[K');
+  if (footerShown) {
+    process.stderr.write(eraseFooter());
+    footerShown = false;
   }
 };
 
-// single updating status line on stderr, only shown when stderr is a terminal; log messages are
-// printed above it so it stays on the last line
+// single updating status line on stderr below a dim rule, only shown when stderr is a terminal; log
+// messages are printed above both so they stay on the last two lines
 const progress = message => {
   if (process.stderr.isTTY) {
     footer = message;
-    drawFooter();
+    if (footerShown) {
+      process.stderr.write(`\r\x1b[K${fitFooter(footer)}`);
+    } else {
+      drawFooter();
+    }
   }
 };
 
 const progressDone = () => {
   if (process.stderr.isTTY) {
-    process.stderr.write('\r\x1b[K');
+    process.stderr.write(eraseFooter() || '\r\x1b[K');
   }
   footer = null;
+  footerShown = false;
 };
 
 // stream is stdout, or stderr when stdout carries data (--format csv, json, ...)
