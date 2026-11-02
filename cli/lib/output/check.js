@@ -22,7 +22,7 @@ const colors = {
 
 const paint = (color, text) => chalk.hex(colors[color])(text);
 
-const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
+const plural = (count, word, words = `${word}s`) => `${count} ${count === 1 ? word : words}`;
 
 // pads plain text first so the color codes do not count toward the width
 const padded = (text, width, color) => paint(color, text.padEnd(width));
@@ -103,4 +103,61 @@ const renderPlan = ({ files, skipped }, { all = false } = {}) => {
   return lines;
 };
 
-module.exports = { renderPlan, renderReport, shownPerCheck };
+/**
+ * One duplicates group as plan lines: the copy kept, the copies removed (with why), live copies whose
+ * match is cleared, and the copies to pick from when no rule decides.
+ */
+const duplicateGroupLines = group => {
+  const lines = [];
+  if (group.keep) {
+    lines.push(`    ${paint('ok', 'keep  ')}  ${paint('muted', group.keep)}`);
+  }
+  _.each(group.remove, file =>
+    lines.push(
+      `    ${chalk.hex(colors.remove).bold('remove')}  ${paint('muted', file)}  ${paint('dim', group.reasons[file] || '')}`
+    )
+  );
+  _.each(group.clear, file =>
+    lines.push(
+      `    ${chalk.hex(colors.rename).bold('clear ')}  ${paint('muted', file)}  ${paint('dim', group.reasons[file] || '')}`
+    )
+  );
+  _.each(group.candidates, file =>
+    lines.push(`    ${paint('left', 'pick  ')}  ${paint('muted', file)}`)
+  );
+  return lines;
+};
+
+/**
+ * What check --fix does about duplicates: counts, then each group (the first shownPerCheck unless all).
+ */
+const renderDuplicatePlan = (groups, { all = false } = {}) => {
+  if (groups.length === 0) {
+    return [];
+  }
+  const removed = _.sumBy(groups, ({ remove }) => remove.length);
+  const cleared = _.sumBy(groups, ({ clear }) => clear.length);
+  const picks = _.filter(groups, ({ candidates }) => candidates.length > 0).length;
+  const counts = _.compact([
+    removed && `remove ${plural(removed, 'copy', 'copies')}`,
+    cleared && `clear ${plural(cleared, 'live match', 'live matches')}`,
+    picks && paint('left', `${plural(picks, 'group')} to pick`)
+  ]).join(', ');
+  const lines = [
+    `${padded('duplicates', 11, 'name')} ${chalk.bold(plural(groups.length, 'group'))}: ${counts}`
+  ];
+  const shown = all ? groups : _.take(groups, shownPerCheck);
+  _.each(shown, group => lines.push(...duplicateGroupLines(group)));
+  if (shown.length < groups.length) {
+    lines.push(more(groups.length - shown.length, '--all'));
+  }
+  return lines;
+};
+
+module.exports = {
+  duplicateGroupLines,
+  renderDuplicatePlan,
+  renderPlan,
+  renderReport,
+  shownPerCheck
+};

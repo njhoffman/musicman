@@ -10,6 +10,7 @@ const { runningRuns, runsDirectory } = require('../utils/runs.js');
 const {
   acceptedList,
   changeMarkers,
+  duplicatesList,
   fetchRejected,
   historyList,
   missingList,
@@ -424,7 +425,41 @@ const createHandler = ({
         return {
           ok: true,
           files: _.get(result, 'tags.restored.length', 0),
-          matches: _.get(result, 'matches.length', 0)
+          matches: _.get(result, 'matches.length', 0),
+          moves: _.get(result, 'moves.restored.length', 0)
+        };
+      }
+    ],
+    [
+      'GET',
+      /^\/api\/duplicates$/,
+      async () => {
+        const marker = changeMarkers(db).duplicates;
+        return { groups: await duplicatesList(db, config), marker };
+      }
+    ],
+    [
+      'POST',
+      /^\/api\/duplicates$/,
+      async req => {
+        const body = await readBody(req);
+        const groups = _.isArray(body.groups) ? body.groups : [];
+        const valid = group =>
+          _.isPlainObject(group) &&
+          _.isArray(group.files) &&
+          group.files.length > 1 &&
+          _.every(group.files, _.isString) &&
+          (group.keep === undefined || group.keep === null || _.isString(group.keep));
+        if (groups.length === 0 || !_.every(groups, valid)) {
+          throw new HttpError(400, 'groups must list the files of each group and the copy to keep');
+        }
+        const result = await actions.duplicates(groups);
+        return {
+          ok: result.failed.length === 0,
+          removed: result.removed.length,
+          cleared: result.cleared.length,
+          merged: result.merged.length,
+          failed: result.failed
         };
       }
     ],

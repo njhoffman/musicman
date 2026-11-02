@@ -91,6 +91,36 @@ const historyFixture = () => ({
   marker: 'history-1'
 });
 
+// an album copy that keeps over a single, and one single in two grouping folders to pick from
+const copyOf = (id, songPath, action, reason = null) => ({
+  song: { id, path: songPath, artist: 'Hotel', title: 'Song', album: null, duration: 100 },
+  action,
+  reason
+});
+const duplicatesFixture = () => ({
+  groups: [
+    {
+      key: 'album|single',
+      keep: 'Hotel/album/01 - Song.mp3',
+      candidates: [],
+      copies: [
+        copyOf(8, 'Hotel/album/01 - Song.mp3', 'keep'),
+        copyOf(9, 'Singles/Hotel - Song.mp3', 'remove', 'single copy, the album copy is kept')
+      ]
+    },
+    {
+      key: 'x|y',
+      keep: null,
+      candidates: ['X/Singles/Hotel - Tune.mp3', 'Y/Singles/Hotel - Tune.mp3'],
+      copies: [
+        copyOf(10, 'X/Singles/Hotel - Tune.mp3', 'pick'),
+        copyOf(11, 'Y/Singles/Hotel - Tune.mp3', 'pick')
+      ]
+    }
+  ],
+  marker: 'duplicates-1'
+});
+
 const searchFixture = (query, ...tracks) => ({
   query,
   tracks: tracks.map(([t, percent, rejected = false]) => ({
@@ -175,6 +205,7 @@ describe('musicman ui page', () => {
       'GET /api/review': reviewFixture(),
       'GET /api/transfers': transfersFixture(),
       'GET /api/history': historyFixture(),
+      'GET /api/duplicates': duplicatesFixture(),
       'GET /api/status': {
         markers: { review: 'review-1', transfers: 'transfers-1', history: 'history-1' },
         running: []
@@ -232,7 +263,7 @@ describe('musicman ui page', () => {
     it('should be a tablist with the selected tab and the list counts', () => {
       expect($('tabs').getAttribute('role')).to.equal('tablist');
       const buttons = all('#tabs button');
-      expect(buttons.map(b => b.getAttribute('role'))).to.deep.equal(Array(7).fill('tab'));
+      expect(buttons.map(b => b.getAttribute('role'))).to.deep.equal(Array(8).fill('tab'));
       expect(tab('review').getAttribute('aria-selected')).to.equal('true');
       expect(tab('review').getAttribute('tabindex')).to.equal('0');
       expect(tab('accepted').getAttribute('tabindex')).to.equal('-1');
@@ -245,6 +276,9 @@ describe('musicman ui page', () => {
       await settle();
       expect(app.state.tab).to.equal('history');
       press('ArrowLeft', tab('history'));
+      await settle();
+      expect(app.state.tab).to.equal('duplicates');
+      press('ArrowLeft', tab('duplicates'));
       await settle();
       expect(app.state.tab).to.equal('toSpotify');
       expect(dom.window.document.activeElement.id).to.equal('tab-toSpotify');
@@ -775,6 +809,69 @@ describe('musicman ui page', () => {
       press('a');
       await settle();
       expect(requests.filter(r => r.url === '/api/history')).to.have.length(2);
+    });
+  });
+
+  describe('duplicates', () => {
+    const plans = () => all('#list-body tbody tr').map(tr => tr.cells[2].textContent);
+    const button = (selector, text) =>
+      all(selector).find(element => element.textContent.startsWith(text));
+
+    beforeEach(async () => {
+      dom.window.confirm = () => true;
+      click(tab('duplicates'));
+      await settle();
+    });
+
+    it('should list each group with its plan, and repair only the decided ones from the head', async () => {
+      expect(tab('duplicates').textContent).to.equal('Duplicates2');
+      expect(plans()).to.deep.equal(['remove 1', 'pick the copy to keep']);
+      routes['POST /api/duplicates'] = { ok: true, removed: 1, cleared: 0, merged: 1, failed: [] };
+      click(button('#list-head button', 'Repair 1 group'));
+      await settle();
+      expect(requests.find(r => r.method === 'POST')).to.deep.equal({
+        method: 'POST',
+        url: '/api/duplicates',
+        body: {
+          groups: [
+            {
+              files: ['Hotel/album/01 - Song.mp3', 'Singles/Hotel - Song.mp3'],
+              keep: 'Hotel/album/01 - Song.mp3'
+            }
+          ]
+        }
+      });
+      expect($('message').textContent).to.include(
+        'Moved 1 copies to the trash, merged tags into 1'
+      );
+    });
+
+    it('should pick the copy to keep in the panel, then repair that group', async () => {
+      press('j');
+      press('j');
+      expect(all('#compare .duplicate p').map(p => p.textContent)).to.deep.equal([
+        'Pick to keep',
+        'Pick to keep'
+      ]);
+      expect(button('#compare button', 'Repair this group').disabled).to.be.true;
+      click(all('#compare button.accept')[1]);
+      expect(all('#compare .duplicate p').map(p => p.textContent)).to.deep.equal([
+        'Removed',
+        'Kept (picked)'
+      ]);
+      expect(plans()).to.deep.equal(['remove 1', 'remove 1']);
+      routes['POST /api/duplicates'] = { ok: true, removed: 1, cleared: 0, merged: 0, failed: [] };
+      click(button('#compare button', 'Repair this group'));
+      await settle();
+      expect(requests.find(r => r.method === 'POST').body).to.deep.equal({
+        groups: [
+          {
+            files: ['X/Singles/Hotel - Tune.mp3', 'Y/Singles/Hotel - Tune.mp3'],
+            keep: 'Y/Singles/Hotel - Tune.mp3'
+          }
+        ]
+      });
+      expect(requests.filter(r => r.url === '/api/duplicates')).to.have.length(3);
     });
   });
 

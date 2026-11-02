@@ -6,6 +6,22 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `check --fix` repairs duplicates: an album copy is kept over EPs, singles, and compilations, a Rated
+  copy over `Unrated/` imports, and a file over its numbered copies (`Song.1.mp3`); a live or remix
+  copy, or one with a version in its title, keeps its file and has its wrong Spotify match cleared. The
+  kept copy gets the removed copies' context, picks, and mood values and the newer rating. Copies no rule
+  decides are picked in fzf, and the plan is confirmed in fzf. Removed copies leave beets and go to
+  `<db.backupDirectory>/trash/`; `musicman undo` moves them back and imports them into beets again.
+- `musicman ui` has a Duplicates tab: every copy to play, the copy to keep picked in the page, and
+  repairs of one group or every decided group, undone from the History tab.
+
+### Changed
+
+- `check --fix` names the checks it found problems in that have no automatic repair.
+- `musicman undo` lists and undoes moved files (`N moved` in `undo --list`).
+
 ## [1.51.0] - 2026-11-02
 
 ### Changed

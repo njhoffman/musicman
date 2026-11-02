@@ -1,6 +1,8 @@
 const _ = require('lodash');
 const path = require('path');
 
+const { duplicateGroups, planDuplicates } = require('../check/duplicates.js');
+const { runChecks, selectChecks } = require('../check/index.js');
 const { getMeta } = require('../db/database.js');
 const { listHistory, planUndo } = require('../history/undo.js');
 const { matchSimilarity } = require('../spotify/match.js');
@@ -166,6 +168,11 @@ const historyList = (db, config) => {
         path: songPath,
         before: before ? before.status : null,
         status
+      })),
+      moves: _.map(plan.moves, ({ action, file, movedTo, status }) => ({
+        action,
+        path: path.relative(baseDirectory, action === 'trash' ? file : movedTo),
+        status
       }))
     };
   });
@@ -269,6 +276,7 @@ const changeMarkers = db => {
     )
     .get();
   const songs = db.prepare('SELECT COUNT(*) AS n, MAX(updated_at) AS updated FROM songs').get();
+  const tagged = db.prepare('SELECT COUNT(*) AS n FROM song_tags').get();
   const history = db
     .prepare(
       `SELECT COUNT(*) AS n, MAX(started_at) AS started, SUM(undone_by IS NOT NULL) AS undone
@@ -283,13 +291,56 @@ const changeMarkers = db => {
   return {
     review,
     transfers: [review, songs.n, songs.updated ?? '', playlists.synced ?? ''].join('|'),
+    // the songs and their Spotify ids decide the duplicate groups
+    duplicates: [songs.n, songs.updated ?? '', tagged.n].join('|'),
     // a run of the page, or an undo or edit in a terminal, changes it; tag edits also change review
     history: [review, history.n, history.started ?? '', history.undone ?? 0].join('|')
   };
 };
 
+/**
+ * The duplicate groups of the library with what check --fix would do (planDuplicates), each copy with
+ * its song fields to show and play: [{ key, copies: [{ song, action, reason }], keep, candidates }].
+ * action is keep, remove, clear (a live copy's match), or pick (no rule decides), else none.
+ */
+const duplicatesList = async (db, config) => {
+  const [result] = await runChecks({
+    db,
+    config,
+    target: config.mpd.baseDirectory,
+    selected: selectChecks('duplicates'),
+    listFiles: () => []
+  });
+  const select = db.prepare('SELECT id, path, duration FROM songs WHERE path = ?');
+  return _.map(planDuplicates(duplicateGroups(db, result.findings)), group => {
+    const action = file => {
+      if (group.keep === file) {
+        return 'keep';
+      }
+      if (group.remove.includes(file)) {
+        return 'remove';
+      }
+      if (group.clear.includes(file)) {
+        return 'clear';
+      }
+      return group.candidates.includes(file) ? 'pick' : 'none';
+    };
+    return {
+      key: _.map(group.files, 'path').sort().join('|'),
+      keep: group.keep,
+      candidates: group.candidates,
+      copies: _.map(group.files, ({ path: file }) => ({
+        song: songView(db, select.get(file)),
+        action: action(file),
+        reason: group.reasons[file] || null
+      }))
+    };
+  });
+};
+
 module.exports = {
   acceptedList,
+  duplicatesList,
   candidateOfTrack,
   changeMarkers,
   fetchRejected,

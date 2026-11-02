@@ -8,7 +8,10 @@ const state = {
   review: null,
   transfers: null,
   history: null,
-  loading: { review: false, transfers: false, history: false },
+  duplicates: null,
+  loading: { review: false, transfers: false, history: false, duplicates: false },
+  // per duplicate group (its key) the copy picked to keep, for groups no rule decides
+  keeps: {},
   selected: null,
   busy: false,
   // per tab { key, dir } of the sorted column, none for the order the API returns
@@ -26,6 +29,7 @@ const tabs = [
   { id: 'missing', label: 'Not found', source: 'review' },
   { id: 'toLocal', label: 'Spotify to local', source: 'transfers' },
   { id: 'toSpotify', label: 'Local to Spotify', source: 'transfers' },
+  { id: 'duplicates', label: 'Duplicates', source: 'duplicates' },
   { id: 'history', label: 'History', source: 'history' }
 ];
 
@@ -154,6 +158,11 @@ const columns = {
     { label: 'Belongs in', key: 'playlists' },
     { label: 'Spotify match', key: 'status' }
   ],
+  duplicates: [
+    { label: 'Song', key: 'song' },
+    { label: 'Copies', key: 'copies' },
+    { label: 'Plan', key: 'plan' }
+  ],
   history: [
     { label: 'When', key: 'started' },
     { label: 'Action', key: 'action' },
@@ -166,18 +175,19 @@ const actionNames = {
   accept: 'Accept',
   reject: 'Reject',
   undo: 'Undo',
-  download: 'Add to downloads'
+  download: 'Add to downloads',
+  duplicates: 'Remove duplicates'
 };
 
 // the song a run of the page changed, from its files and Spotify matches
-const runPath = run => (run.files[0] || run.matches[0] || {}).path || '';
+const runPath = run => (run.files[0] || run.matches[0] || (run.moves || [])[0] || {}).path || '';
 
 // whether undoing a run can go ahead: undone, held back by changes since, or ready
 const runState = run => {
   if (run.undoneBy) {
     return 'undone';
   }
-  const statuses = [...run.files, ...run.matches].map(({ status }) => status);
+  const statuses = [...run.files, ...run.matches, ...(run.moves || [])].map(({ status }) => status);
   if (statuses.includes('changed')) {
     return 'changed since';
   }
@@ -188,6 +198,25 @@ const runState = run => {
 };
 
 const when = iso => (iso ? new Date(iso).toLocaleString() : '');
+
+// the copy a duplicate group keeps: the rules' pick, or the one picked in the page
+const keptCopy = group => group.keep || state.keeps[group.key] || null;
+
+// what repairing a group does, in a few words
+const duplicatePlan = group => {
+  const count = action => group.copies.filter(copy => copy.action === action).length;
+  const picked = keptCopy(group);
+  const removed = count('remove') + (group.keep ? 0 : picked ? group.candidates.length - 1 : 0);
+  return [
+    removed > 0 ? `remove ${removed}` : null,
+    count('clear') > 0
+      ? `clear ${count('clear')} live match${count('clear') > 1 ? 'es' : ''}`
+      : null,
+    !group.keep && !picked ? 'pick the copy to keep' : null
+  ]
+    .filter(Boolean)
+    .join(', ');
+};
 
 // rows of a tab in the order the API returns, each { key, item, text, sort, cells }
 const rowsOf = tab => {
@@ -298,6 +327,33 @@ const rowsOf = tab => {
       ]
     }));
   }
+  if (tab === 'duplicates') {
+    return state.duplicates.groups.map(group => {
+      const [first] = group.copies;
+      return {
+        key: group.key,
+        item: group,
+        text: [
+          first.song.artist ? songText(first.song) : first.song.path,
+          ...group.copies.map(copy => copy.song.path)
+        ],
+        sort: {
+          song: first.song.artist ? songText(first.song) : first.song.path,
+          copies: group.copies.length,
+          plan: duplicatePlan(group)
+        },
+        cells: [
+          h('td', {}, first.song.artist ? songText(first.song) : first.song.path),
+          h(
+            'td',
+            { className: 'dim' },
+            group.copies.map(copy => h('div', {}, copy.song.path))
+          ),
+          h('td', { className: keptCopy(group) ? null : 'differs' }, duplicatePlan(group))
+        ]
+      };
+    });
+  }
   if (tab === 'history') {
     return state.history.runs.map(run => ({
       key: run.id,
@@ -407,8 +463,10 @@ const notes = {
     'Tracks in the mapped Spotify playlists that are not in the library. Add them to the download manifest here (or with sync --pull); pnpm download fetches them and sync --import brings them in.',
   toSpotify:
     'Songs that belong in a Spotify playlist but have no Spotify id, so only a local file can bring them there.',
+  duplicates:
+    'The same song in more than one file, with what check --fix does: an album copy is kept over EPs, singles, and compilations, a Rated copy over Unrated imports, and the file without a number over numbered copies; a live copy matched to the studio track has its match cleared. Removed copies go to the trash with their tags merged into the kept one; musicman undo moves them back.',
   history:
-    'Accepts, rejects, and undos of this page, newest first. Undoing one puts back the tags and the Spotify match, as musicman undo does.'
+    'Accepts, rejects, removed duplicates, and undos of this page, newest first. Undoing one puts back the tags, the Spotify match, and the moved files, as musicman undo does.'
 };
 
 const keyHints = {
@@ -422,6 +480,7 @@ const keyHints = {
     'Keys: j/k move, space plays the local file, s the previewed or first result, / filters, Esc closes. The search runs when you stop on a song.',
   toLocal: 'Keys: j/k move, s plays the Spotify track, / filters, Esc closes.',
   toSpotify: 'Keys: j/k move, space plays the local file, / filters, Esc closes.',
+  duplicates: 'Keys: j/k move, space plays the first copy, / filters, Esc closes.',
   history: 'Keys: j/k move, / filters, Esc closes.'
 };
 
@@ -467,6 +526,7 @@ const renderTabs = () => {
     missing: state.review && state.review.missing.length,
     toLocal: state.transfers && state.transfers.toLocal.length,
     toSpotify: state.transfers && state.transfers.toSpotify.length,
+    duplicates: state.duplicates && state.duplicates.groups.length,
     history: null
   };
   // drawing the tabs again keeps the focus on the tab that had it
@@ -530,9 +590,36 @@ const renderHead = () => {
         },
         state.loading[source] ? 'Reloading...' : 'Reload'
       ),
-      source === 'transfers' ? transferButtons() : null
+      source === 'transfers' ? transferButtons() : null,
+      source === 'duplicates' ? duplicateButtons() : null
     )
   );
+};
+
+// the groups shown now (the filter applies) that can be repaired without a decision
+const decidedGroups = () =>
+  state.tab === 'duplicates'
+    ? visibleRows()
+        .map(({ item }) => item)
+        .filter(group => keptCopy(group) || group.copies.every(copy => copy.action !== 'pick'))
+    : [];
+
+const duplicateButtons = () => {
+  const ready = decidedGroups();
+  return ready.length > 0
+    ? [
+        ' ',
+        h(
+          'button',
+          {
+            className: 'reload',
+            disabled: state.busy,
+            onClick: () => repairDuplicates(ready)
+          },
+          `Repair ${ready.length} group${ready.length > 1 ? 's' : ''}`
+        )
+      ]
+    : null;
 };
 
 // tracks of the Spotify to local list shown now (the filter applies) not in the download manifest
@@ -984,8 +1071,127 @@ const selectedRow = () =>
     : null;
 
 // what undoing a run of the page does, with Undo, and Undo anyway when something changed since
+// each copy of a duplicate group to play, with what happens to it, and the repair button
+const duplicateDetails = group => {
+  const picked = keptCopy(group);
+  const label = copy => {
+    if (copy.action === 'pick') {
+      return picked === copy.song.path ? 'Kept (picked)' : picked ? 'Removed' : 'Pick to keep';
+    }
+    return {
+      keep: 'Kept',
+      remove: 'Removed',
+      clear: 'Match cleared, file kept',
+      none: 'Left alone'
+    }[copy.action];
+  };
+  return [
+    ...group.copies.map(copy =>
+      h(
+        'div',
+        { className: 'duplicate' },
+        h(
+          'p',
+          { className: copy.action === 'remove' ? 'differs' : 'dim' },
+          label(copy),
+          copy.reason ? `: ${copy.reason}` : ''
+        ),
+        localVersion(copy.song),
+        copy.action === 'pick'
+          ? h(
+              'button',
+              {
+                className: 'accept',
+                disabled: state.busy || picked === copy.song.path,
+                onClick: () => {
+                  state.keeps[group.key] = copy.song.path;
+                  renderList();
+                  renderCompare();
+                }
+              },
+              'Keep this one'
+            )
+          : null
+      )
+    ),
+    h(
+      'div',
+      { className: 'actions' },
+      h(
+        'button',
+        {
+          className: 'reject',
+          disabled: state.busy || !picked,
+          onClick: () => repairDuplicates([group])
+        },
+        'Repair this group'
+      )
+    )
+  ];
+};
+
+// repairs duplicate groups on the server, then loads the duplicates and the history again
+const repairDuplicates = async groups => {
+  if (state.busy || !confirmWhileRunning('duplicates')) {
+    return;
+  }
+  const removed = groups.reduce(
+    (total, group) =>
+      total +
+      group.copies.filter(copy => copy.action === 'remove').length +
+      (group.keep ? 0 : group.candidates.length - 1),
+    0
+  );
+  if (
+    !window.confirm(
+      `Repair ${groups.length} duplicate group${groups.length > 1 ? 's' : ''}: move ${removed} cop${
+        removed === 1 ? 'y' : 'ies'
+      } to the trash?`
+    )
+  ) {
+    return;
+  }
+  setBusy(true);
+  try {
+    const result = await api('/api/duplicates', {
+      groups: groups.map(group => ({
+        files: group.copies.map(copy => copy.song.path),
+        keep: keptCopy(group)
+      }))
+    });
+    showMessage(
+      `Moved ${result.removed} copies to the trash` +
+        (result.merged ? `, merged tags into ${result.merged}` : '') +
+        (result.cleared ? `, cleared ${result.cleared} live matches` : '') +
+        (result.failed.length
+          ? `; ${result.failed.length} failed: ${result.failed[0].error}`
+          : '') +
+        '; musicman undo moves them back',
+      result.failed.length > 0
+    );
+    state.selected = null;
+    groups.forEach(group => delete state.keeps[group.key]);
+    setBusy(false);
+    await Promise.all([load('duplicates'), state.history ? load('history') : null]);
+  } catch (err) {
+    showMessage(`Repairing duplicates failed: ${err.message}`, true);
+    setBusy(false);
+  }
+};
+
 const historyDetails = run => {
   const lines = [
+    ...(run.moves || []).map(({ action, path: file, status }) =>
+      h(
+        'li',
+        { className: status === 'restore' ? null : 'differs' },
+        {
+          restore: action === 'trash' ? `${file} back from the trash` : `${file} back to the trash`,
+          changed: `A file is at ${file} again, so it is left where it is`,
+          missing: `The moved copy of ${file} is gone`
+        }[status]
+      )
+    ),
     ...run.files.map(({ path: file, frames, status, changed }) =>
       h(
         'li',
@@ -1098,6 +1304,8 @@ const renderCompare = () => {
     ];
   } else if (state.tab === 'missing') {
     body = [localVersion(item.song), searchSection(item.song)];
+  } else if (state.tab === 'duplicates') {
+    body = duplicateDetails(item);
   } else if (state.tab === 'history') {
     body = historyDetails(item);
   } else if (state.tab === 'toLocal') {
@@ -1188,7 +1396,8 @@ const load = async (source, { fresh = false } = {}) => {
       {
         review: '/api/review',
         transfers: `/api/transfers${fresh ? '?fresh' : ''}`,
-        history: '/api/history'
+        history: '/api/history',
+        duplicates: '/api/duplicates'
       }[source]
     );
     if (source === 'review' && state.review.warning) {
@@ -1455,7 +1664,8 @@ const undoRun = async (runId, force) => {
   try {
     const result = await api(`/api/history/${encodeURIComponent(runId)}/undo`, { force });
     showMessage(
-      `Undid ${runId}: ${result.files} files and ${result.matches} Spotify matches put back`
+      `Undid ${runId}: ${result.files} files and ${result.matches} Spotify matches put back` +
+        (result.moves ? `, ${result.moves} files moved back` : '')
     );
     setBusy(false);
     await Promise.all([load('history'), load('review')]);
@@ -1601,6 +1811,7 @@ const poll = async () => {
       isStale('review'),
       isStale('transfers'),
       isStale('history'),
+      isStale('duplicates'),
       state.status && state.status.running
     ]);
     state.status = status;
@@ -1608,6 +1819,7 @@ const poll = async () => {
       isStale('review'),
       isStale('transfers'),
       isStale('history'),
+      isStale('duplicates'),
       status.running
     ]);
     if (before !== after) {

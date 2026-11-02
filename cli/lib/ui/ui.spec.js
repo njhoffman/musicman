@@ -13,6 +13,7 @@ const { rejectedCandidatesKey } = require('../sync/match.js');
 const {
   acceptedList,
   changeMarkers,
+  duplicatesList,
   historyList,
   missingList,
   rejectedList,
@@ -316,6 +317,62 @@ describe('musicman ui', () => {
     });
   });
 
+  describe('duplicates', () => {
+    // one single in two grouping folders (picked in the page), with one Spotify track and a title of
+    // their own (testFile01 has the same artist and length)
+    const copies = ['Rated/X/Singles/A - Song.mp3', 'Rated/Y/Singles/A - Song.mp3'];
+    let beetCalls;
+    const beet = async args => {
+      beetCalls.push(args);
+      return '';
+    };
+
+    beforeEach(async () => {
+      beetCalls = [];
+      copies.forEach(copy => {
+        fs.mkdirSync(path.dirname(file(copy)), { recursive: true });
+        fs.copyFileSync(file('testFile01.mp3'), file(copy));
+        NodeId3.update(
+          {
+            title: 'Copied Song',
+            userDefinedText: [{ description: 'sp_track_id', value: trackC }]
+          },
+          file(copy)
+        );
+      });
+      config.db = { backupDirectory: path.join(library, '.musicman') };
+      await updateDatabase(db, { config, target: library });
+    });
+
+    it('should list the groups with what happens to each copy', async () => {
+      const [group] = await duplicatesList(db, config);
+      expect(group).to.include({ key: copies.join('|'), keep: null });
+      expect(group.candidates).to.deep.equal(copies);
+      expect(group.copies.map(({ song, action }) => [song.path, action])).to.deep.equal([
+        [copies[0], 'pick'],
+        [copies[1], 'pick']
+      ]);
+    });
+
+    it('should repair a picked group as a ui run that undo takes back', async () => {
+      const actions = reviewActions({ db, config, getClient: () => null, beet });
+      await actions.duplicates([{ files: copies }]).then(
+        () => expect.fail('should reject'),
+        err => expect(err.status).to.equal(400)
+      );
+      const result = await actions.duplicates([{ files: copies, keep: copies[1] }]);
+      expect(result.removed.map(({ file: removed }) => removed)).to.deep.equal([copies[0]]);
+      expect(fs.existsSync(file(copies[0]))).to.be.false;
+      expect(await duplicatesList(db, config)).to.be.empty;
+      const [run] = historyList(db, config);
+      expect(run.args).to.deep.equal(['duplicates', copies[1]]);
+      expect(run.moves).to.deep.equal([{ action: 'trash', path: copies[0], status: 'restore' }]);
+      await actions.undo(run.id);
+      expect(fs.existsSync(file(copies[0]))).to.be.true;
+      expect((await duplicatesList(db, config)).length).to.equal(1);
+    });
+  });
+
   describe('changeMarkers', () => {
     it('should change the review marker on a review change and the transfers marker on any', async () => {
       await seed();
@@ -368,6 +425,10 @@ describe('musicman ui', () => {
             return { rejected: [], failed: [{ error: 'could not write tags' }] };
           },
           remember: candidates => calls.push(['remember', _.map(candidates, 'id')]),
+          duplicates: async groups => {
+            calls.push(['duplicates', groups]);
+            return { removed: [{}], cleared: [], merged: [{}], failed: [] };
+          },
           undo: async (runId, options) => {
             calls.push(['undo', runId, options]);
             if (runId === 'gone') {
@@ -414,6 +475,24 @@ describe('musicman ui', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
+
+    it('should list the duplicate groups and repair the groups sent, refusing malformed ones', async () => {
+      const listed = await (await fetch(`${base}/api/duplicates`)).json();
+      expect(listed.groups).to.be.an('array');
+      expect(listed.marker).to.equal(changeMarkers(db).duplicates);
+      const groups = [{ files: ['a.mp3', 'b.mp3'], keep: 'b.mp3' }];
+      const response = await post('/api/duplicates', { groups });
+      expect(await response.json()).to.deep.include({ ok: true, removed: 1, merged: 1 });
+      expect(calls).to.deep.equal([['duplicates', groups]]);
+      for (const body of [
+        {},
+        { groups: [] },
+        { groups: [{ files: ['one.mp3'] }] },
+        { groups: [{ files: ['a', 'b'], keep: 3 }] }
+      ]) {
+        expect((await post('/api/duplicates', body)).status).to.equal(400);
+      }
+    });
 
     it('should serve the page and its files, and nothing outside them', async () => {
       const page = await fetch(`${base}/`);
@@ -720,7 +799,7 @@ describe('musicman ui', () => {
       const body = await (await fetch(`${base}/api/history`)).json();
       expect(body).to.deep.equal({ runs: [], marker: changeMarkers(db).history });
       const undone = await post('/api/history/20261101-100000-ui/undo', { force: true });
-      expect(await undone.json()).to.deep.equal({ ok: true, files: 1, matches: 1 });
+      expect(await undone.json()).to.deep.equal({ ok: true, files: 1, matches: 1, moves: 0 });
       expect((await post('/api/history/gone/undo', {})).status).to.equal(404);
       expect(calls).to.deep.equal([
         ['undo', '20261101-100000-ui', { force: true }],

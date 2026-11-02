@@ -81,6 +81,15 @@ Reviewed: 2026-11-01
 
 ## 4. Command line and output
 
+- [x] **`check --fix` for duplicates.** (p2) [feature] rules (other recordings cleared, Rated over
+      Unrated, file over numbered copies, album > EP > single > compilation), merged multi values and newer
+      rating, fzf picks and confirmation, trash with beets removal, undo (file_changes, migration 8), and
+      the Duplicates tab of `musicman ui`. 2026-11-02 plan on the library: 271 groups, 183 copies removed,
+      47 matches cleared, 47 groups to pick.
+- [ ] **Rating conflicts use the file time.** (p3) [bug] `check --fix` gives the kept duplicate the rating of
+      the newest copy by mtime, but any tag write (an artwork repair, a sync --match refresh) makes a file
+      newer without a new rating. The POPM change times in the undo history (`tag_changes`) would tell when
+      each rating was set, for runs still kept (`history.keep`).
 - [ ] **`check --fix` reads the candidate files a second time.** (p3) [perf] the report reads every file, then
       `planFixes` (`check/fix.js`) reads each candidate again; on a messy library that is most of it. Keeping
       the raw frames of candidates from the first pass (without APIC images) would skip the second read.

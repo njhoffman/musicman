@@ -6,6 +6,7 @@
 // 5: history_runs, tag_changes, spotify_changes (what each run changed, for musicman undo)
 // 6: match_changes (the spotify_matches rows review changed, for musicman undo)
 // 7: spotify_playlist_tracks.isrc (other releases of a library song), cached playlists fetched again
+// 8: file_changes (files a run moved, e.g. duplicates to the trash, for musicman undo)
 module.exports = [
   `
   CREATE TABLE songs (
@@ -128,5 +129,16 @@ module.exports = [
   `
   ALTER TABLE spotify_playlist_tracks ADD COLUMN isrc TEXT;
   UPDATE spotify_playlists SET snapshot_id = NULL;
+  `,
+  `
+  CREATE TABLE file_changes (
+    id INTEGER PRIMARY KEY,
+    run_id TEXT NOT NULL REFERENCES history_runs (id) ON DELETE CASCADE,
+    action TEXT NOT NULL,
+    path TEXT NOT NULL,
+    moved_to TEXT NOT NULL,
+    beets INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX file_changes_run ON file_changes (run_id);
   `
 ];

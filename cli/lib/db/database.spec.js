@@ -20,6 +20,7 @@ describe('Database', () => {
         .all()
         .map(({ name }) => name);
       expect(tables).to.deep.equal([
+        'file_changes',
         'history_runs',
         'match_changes',
         'meta',

@@ -83,8 +83,35 @@ different values, a custom field whose text differs from its standard frame, a c
 is empty (grouping decides the Spotify playlists, so it is never set on its own), and a date that is not a
 year for TYER, and a song without a cover that was not matched on Spotify (beets fetchart only finds album
 covers, not singleton ones). Run `sync --match --recheck` before the artwork repair, so songs matched to a
-compilation get their original album's cover. `rating`, `encoding`, `duplicates`, `rare`, and `exclusive`
-need a decision per song and stay reports.
+compilation get their original album's cover. `rating`, `encoding`, `rare`, and `exclusive` need a
+decision per song and stay reports; `--fix` names them when they found something.
+
+### Duplicates
+
+After the tag repairs, `--fix` plans each duplicate group (groups that share a file are joined) by rules,
+in order:
+
+1. Another recording is a wrong Spotify match, not a duplicate: a copy on a `live` or `remix` release, or
+   with a version in its title (`(radio edit)`, `(acoustic)`, `(Arsenal mix)`, `(new vocal version)`),
+   next to the song keeps its file and has its match cleared: its Spotify id and fields are removed and
+   the track is rejected for it, so `sync --match` looks it up again.
+2. A Rated copy is kept over `Unrated/` imports.
+3. Of numbered copies (`Song.1.mp3` next to `Song.mp3`) the file without the number is kept.
+4. An album copy is kept over an EP, an EP over a single (a `single` release or a `Singles` folder:
+   singles are for songs on no album), a single over a compilation or soundtrack.
+
+The kept copy gets the context, picks, and mood values (multi value fields) of the removed copies, and the
+rating of the newest copy that has one (by file time) when it differs. Copies no rule decides (one single
+in two grouping folders, two album tracks matched to one track) are picked in fzf, one group at a time
+(esc keeps every copy). Then every group is listed in fzf, all selected: tab leaves one out, enter
+applies the rest after one confirmation.
+
+Removed copies are taken out of beets (`beet remove`) and moved to `<db.backupDirectory>/trash/<run
+id>/<path>`, and leave the database. `musicman undo <run id>` moves them back, imports them into beets
+again where they are (only the `types` plugin loaded, so lyrics, replaygain, and scrub leave the file
+alone), and restores the kept copy's tags and the cleared matches. The trash is never emptied by
+musicman. The `Duplicates` tab of `musicman ui` shows the same plan with every copy to play, picks the
+copy to keep, and repairs one group or every decided one; its runs are undone from the `History` tab.
 
 The first repair of a whole library rewrites a few thousand tags; back the files up first
 (`musicman sync --backup`), and try one directory before the rest.

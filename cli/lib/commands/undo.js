@@ -17,6 +17,7 @@ const runLine = run =>
     `${run.files} files`.padEnd(10),
     `${run.spotify} Spotify`.padEnd(11),
     run.matches ? `${run.matches} matches` : '',
+    run.moves ? `${run.moves} moved` : '',
     run.undoneBy ? chalk.hex('#DDCC44')(`undone by ${run.undoneBy}`) : '',
     run.undoes ? dim(`undoes ${run.undoes}`) : '',
     dim(run.args.join(' '))
@@ -34,6 +35,22 @@ const describePlan = (config, plan) => {
   const byStatus = _.groupBy(plan.files, 'status');
   // the recorded args start with the command name
   const lines = [`Undo ${plan.run.id} (${plan.run.args.join(' ')})`];
+  (plan.moves || []).forEach(({ file, movedTo, status }) => {
+    if (status === 'restore') {
+      lines.push(
+        `  MOVE    ${shortPath(config, file)} ${dim(`back from ${shortPath(config, movedTo)}`)}`
+      );
+    } else if (status === 'changed') {
+      lines.push(
+        chalk.hex('#DDCC44')(`  CHANGED ${shortPath(config, file)}`) +
+          dim(' a file is there again, left where it is')
+      );
+    } else {
+      lines.push(
+        chalk.hex('#DD7744')(`  MISSING ${shortPath(config, movedTo)}`) + dim(' moved or deleted')
+      );
+    }
+  });
   (byStatus.restore || []).forEach(({ file, frames }) =>
     lines.push(`  RESTORE ${shortPath(config, file)} ${dim(_.map(frames, 'frame').join(', '))}`)
   );
@@ -124,7 +141,8 @@ const undoCommand = async ({
     logger.info(describePlan(config, plan));
     const restore =
       _.filter(plan.files, { status: 'restore' }).length +
-      _.filter(plan.matches, { status: 'restore' }).length;
+      _.filter(plan.matches, { status: 'restore' }).length +
+      _.filter(plan.moves, { status: 'restore' }).length;
     if (restore === 0 && plan.spotify.length === 0) {
       logger.info('Nothing to undo');
       return { plan };
@@ -148,13 +166,16 @@ const undoCommand = async ({
       return { plan };
     }
     const result = await applyUndo({ db, config, client, plan });
-    result.tags.failed.forEach(({ file: failedFile, error }) =>
+    [...result.moves.failed, ...result.tags.failed].forEach(({ file: failedFile, error }) =>
       logger.warn(`FAILED  ${shortPath(config, failedFile)}: ${error}`)
     );
     const { spotify } = result;
     logger.info(
       [
-        `Restored ${result.tags.restored.length} files`,
+        result.moves.restored.length > 0
+          ? `Moved ${result.moves.restored.length} files back, restored `
+          : 'Restored ',
+        `${result.tags.restored.length} files`,
         result.matches.length > 0 ? ` and ${result.matches.length} Spotify matches` : '',
         plan.spotify.length > 0
           ? `; on Spotify removed ${spotify.removed.length} and added back ${spotify.added.length} tracks` +

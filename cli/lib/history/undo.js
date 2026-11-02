@@ -2,6 +2,7 @@ const _ = require('lodash');
 const fs = require('fs');
 const path = require('path');
 
+const { execBeet } = require('../beets/sort.js');
 const { transaction } = require('../db/database.js');
 const { updateDatabase } = require('../db/update.js');
 const { rewriteTags } = require('../metadata/write.js');
@@ -15,6 +16,7 @@ const {
   journaledMatch,
   matchRow,
   parseValue,
+  recordFileMove,
   recordSpotify,
   recordUndo
 } = require('./journal.js');
@@ -31,7 +33,8 @@ const listHistory = db =>
            (SELECT count(DISTINCT path) FROM tag_changes WHERE run_id = r.id) AS files,
            (SELECT count(*) FROM tag_changes WHERE run_id = r.id) AS frames,
            (SELECT count(*) FROM spotify_changes WHERE run_id = r.id) AS spotify,
-           (SELECT count(DISTINCT song_id) FROM match_changes WHERE run_id = r.id) AS matches
+           (SELECT count(DISTINCT song_id) FROM match_changes WHERE run_id = r.id) AS matches,
+           (SELECT count(*) FROM file_changes WHERE run_id = r.id) AS moves
          FROM history_runs r ORDER BY r.started_at DESC, r.id DESC`
       )
       .all(),
@@ -44,6 +47,7 @@ const listHistory = db =>
       frames: row.frames,
       spotify: row.spotify,
       matches: row.matches,
+      moves: row.moves,
       snapshot: row.spotify_snapshot,
       undoes: row.undoes,
       undoneBy: row.undone_by
@@ -63,7 +67,9 @@ const findHistoryRun = (runs, term) =>
  * e.g. moved by beets). force restores changed files too. spotify: the run's Spotify changes newest
  * first, each to be reversed. matches: per song the spotify_matches row before the run (null: none)
  * with status restore, changed (the row differs from what the run left, e.g. a later sync --match), or
- * missing (the song left the library); force restores changed rows too.
+ * missing (the song left the library); force restores changed rows too. moves: files the run moved
+ * (e.g. duplicates to the trash), each to be moved back, with status restore, changed (a file is at
+ * the old path again), or missing (the moved file is gone).
  */
 const planUndo = (db, run, { force = false } = {}) => {
   const rows = db
@@ -117,7 +123,63 @@ const planUndo = (db, run, { force = false } = {}) => {
       return { ...item, status: changed && !force ? 'changed' : 'restore', changed };
     }
   );
-  return { run, files, spotify, matches };
+  const moves = _.map(
+    db
+      .prepare(
+        'SELECT action, path, moved_to, beets FROM file_changes WHERE run_id = ? ORDER BY id DESC'
+      )
+      .all(run.id),
+    row => {
+      const item = {
+        action: row.action,
+        file: row.path,
+        movedTo: row.moved_to,
+        beets: row.beets === 1
+      };
+      if (!fs.existsSync(row.moved_to)) {
+        return { ...item, status: 'missing' };
+      }
+      return { ...item, status: fs.existsSync(row.path) ? 'changed' : 'restore' };
+    }
+  );
+  return { run, files, spotify, matches, moves };
+};
+
+// the beets library entry of a file moved back: imported where it is, as is, with no plugin that
+// would change its tags (lyrics, replaygain, scrub) or move it
+const beetsImportArgs = file => ['-p', 'types', 'import', '-q', '-s', '-A', '-C', '-M', '-I', file];
+
+/**
+ * Moves the files of a plan with status restore back where they were. A file the run took out of beets
+ * (a trash move) is imported again; a file the run imported (a restore move, when an undo is undone)
+ * is taken out again. Each move is recorded for the active run so the undo can be undone. Returns {
+ * restored, failed } (failed with error).
+ */
+const undoMoves = async ({ plan, beet = execBeet }) => {
+  const restored = [];
+  const failed = [];
+  for (const item of _.filter(plan.moves, { status: 'restore' })) {
+    try {
+      if (item.action === 'restore' && item.beets) {
+        await beet(['remove', '-f', `path:${item.movedTo}`]);
+      }
+      fs.mkdirSync(path.dirname(item.file), { recursive: true });
+      fs.renameSync(item.movedTo, item.file);
+      if (item.action === 'trash' && item.beets) {
+        await beet(beetsImportArgs(item.file));
+      }
+      recordFileMove({
+        action: item.action === 'trash' ? 'restore' : 'trash',
+        file: item.movedTo,
+        to: item.file,
+        beets: item.beets
+      });
+      restored.push(item);
+    } catch (err) {
+      failed.push({ ...item, error: err.message });
+    }
+  }
+  return { restored, failed };
 };
 
 /**
@@ -298,18 +360,31 @@ const undoSpotify = async ({ db, config, client, plan }) => {
 };
 
 /**
- * Undoes a run (from planUndo): restores its tag changes and Spotify match rows, reverses its Spotify
- * changes when a client is given, and marks it undone by the active run. Returns { tags, matches,
- * spotify }.
+ * Undoes a run (from planUndo): moves its moved files back, restores its tag changes and Spotify match
+ * rows, reverses its Spotify changes when a client is given, and marks it undone by the active run.
+ * Returns { moves, tags, matches, spotify }.
  */
-const applyUndo = async ({ db, config, client, plan }) => {
+const applyUndo = async ({ db, config, client, plan, beet }) => {
+  const moves = await undoMoves({ plan, beet });
+  const baseDirectory = path.resolve(config.mpd.baseDirectory);
+  const back = _.filter(_.map(moves.restored, 'file'), file => {
+    const relative = path.relative(baseDirectory, file);
+    return !relative.startsWith('..') && !path.isAbsolute(relative) && fs.existsSync(file);
+  });
+  if (back.length > 0) {
+    await updateDatabase(db, { config, files: back, record: false });
+  }
+  // a file moved out of the library again (an undone undo) leaves the database
+  _.each(_.filter(moves.restored, { action: 'restore' }), ({ movedTo }) =>
+    db.prepare('DELETE FROM songs WHERE path = ?').run(path.relative(baseDirectory, movedTo))
+  );
   const tags = await undoTags({ db, config, plan });
   const matches = undoMatches({ db, plan });
   const spotify = client
     ? await undoSpotify({ db, config, client, plan })
     : { removed: [], added: [], skipped: [], snapshot: null };
   recordUndo(plan.run.id);
-  return { tags, matches, spotify };
+  return { moves, tags, matches, spotify };
 };
 
 module.exports = {
@@ -318,6 +393,7 @@ module.exports = {
   listHistory,
   planUndo,
   restoreFrames,
+  undoMoves,
   undoSpotify,
   undoTags
 };

@@ -162,6 +162,23 @@ const recordSpotify = ({ target, action, trackIds }) => {
   });
 };
 
+/**
+ * Records a file the active run moved (action trash: a duplicate moved to the trash) from file to to,
+ * and whether it was taken out of beets (beets), so undo can move it back and import it again.
+ */
+const recordFileMove = ({ action, file, to, beets = false }) => {
+  if (!active) {
+    return;
+  }
+  safely(`the move of ${file}`, () =>
+    journalDb()
+      .prepare(
+        'INSERT INTO file_changes (run_id, action, path, moved_to, beets) VALUES (?, ?, ?, ?, ?)'
+      )
+      .run(active.id, action, file, to, beets ? 1 : 0)
+  );
+};
+
 // a song's spotify_matches row as a plain object, null when the song has none
 const matchRow = (db, songId) => {
   const row = db
@@ -261,6 +278,7 @@ module.exports = {
   matchRow,
   parseValue,
   pruneHistory,
+  recordFileMove,
   recordSpotify,
   recordSpotifySnapshot,
   recordUndo,

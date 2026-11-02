@@ -1,8 +1,14 @@
 const _ = require('lodash');
 const path = require('path');
 
+const {
+  applyDuplicates,
+  duplicateGroups,
+  planDuplicates,
+  resolveGroup
+} = require('../check/duplicates.js');
 const { getMeta } = require('../db/database.js');
-const { beginJournal, endJournal } = require('../history/journal.js');
+const { activeRun, beginJournal, endJournal } = require('../history/journal.js');
 const {
   acceptReview,
   rejectReview,
@@ -71,9 +77,10 @@ const knownLimit = 1000;
  * musicman undo, like the same actions of sync --review. The journal records one run at a time, so the
  * actions run one after another. getClient() gives the Spotify client accepting fetches fields with.
  * remember(candidates) keeps the details of tracks a search from the page found, so accepting one is
- * scored against what the page showed; the details come from Spotify, never from the page.
+ * scored against what the page showed; the details come from Spotify, never from the page. beet runs
+ * the beets command (execBeet when not given) for duplicates taken out of beets and put back.
  */
-const reviewActions = ({ db, config, getClient }) => {
+const reviewActions = ({ db, config, getClient, beet }) => {
   let queue = Promise.resolve();
   const known = new Map();
   const remember = candidates => {
@@ -124,14 +131,15 @@ const reviewActions = ({ db, config, getClient }) => {
     return item;
   };
 
+  const fail = (status, message) => {
+    const err = new Error(message);
+    err.status = status;
+    return err;
+  };
+
   // a ui run that can be undone: recorded, not undone yet, without Spotify changes
   const undoableRun = runId => {
     const run = _.find(listHistory(db), { id: runId });
-    const fail = (status, message) => {
-      const err = new Error(message);
-      err.status = status;
-      return err;
-    };
     if (!run || run.command !== 'ui') {
       throw fail(404, `No run ${runId} of the page`);
     }
@@ -146,14 +154,40 @@ const reviewActions = ({ db, config, getClient }) => {
 
   return {
     remember,
+    /**
+     * Repairs duplicate groups from the page, each { files, keep }: the plan is made again from the
+     * database (as check --fix makes it), keep picks the copy of a group no rule decides and must be
+     * the copy the rules keep otherwise. Recorded as one ui run musicman undo can take back.
+     */
+    duplicates: async groups => {
+      const planned = _.map(groups, ({ files, keep }) => {
+        const [group] = planDuplicates(duplicateGroups(db, [{ files }]));
+        if (!group) {
+          throw fail(409, `${files.join(' | ')} has nothing to repair any more`);
+        }
+        if (group.candidates.length > 0) {
+          if (!group.candidates.includes(keep)) {
+            throw fail(400, `Pick the copy to keep of ${files.join(' | ')}`);
+          }
+          return resolveGroup(group, keep);
+        }
+        if (keep && keep !== group.keep) {
+          throw fail(400, `${group.keep} is the copy kept of ${files.join(' | ')}`);
+        }
+        return group;
+      });
+      return recorded(['duplicates', ..._.map(planned, 'keep')], () =>
+        applyDuplicates({ db, config, groups: planned, runId: activeRun(), beet })
+      );
+    },
     // undoes a run of the page (force: also files and rows changed since), as musicman undo does
     undo: (runId, { force = false } = {}) => {
       undoableRun(runId);
       return recorded(['undo', runId], async () => {
         const run = undoableRun(runId);
         const plan = planUndo(db, findHistoryRun(listHistory(db), run.id), { force });
-        const result = await applyUndo({ db, config, client: null, plan });
-        return { ...result, failed: result.tags.failed };
+        const result = await applyUndo({ db, config, client: null, plan, beet });
+        return { ...result, failed: [...result.moves.failed, ...result.tags.failed] };
       });
     },
     accept: (songId, trackId) => {
