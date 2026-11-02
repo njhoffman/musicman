@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.55.0] - 2026-11-02
+
 ### Added
 
 - A contract for programs that build on musicman, starting with sleeve (synced lyrics): `paths.json` in
@@ -1097,7 +1099,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.54.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.55.0...HEAD
+[1.55.0]: https://github.com/njhoffman/musicman/compare/v1.54.0...v1.55.0
 [1.54.0]: https://github.com/njhoffman/musicman/compare/v1.53.0...v1.54.0
 [1.53.0]: https://github.com/njhoffman/musicman/compare/v1.52.0...v1.53.0
 [1.52.0]: https://github.com/njhoffman/musicman/compare/v1.51.0...v1.52.0
