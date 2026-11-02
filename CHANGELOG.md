@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.44.0] - 2026-11-01
+
 ### Added
 
 - `edit` and the menu file a song in `Unrated` away with beets as soon as a change gives it a rating and a
@@ -881,7 +883,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.43.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.44.0...HEAD
+[1.44.0]: https://github.com/njhoffman/musicman/compare/v1.43.0...v1.44.0
 [1.43.0]: https://github.com/njhoffman/musicman/compare/v1.42.0...v1.43.0
 [1.42.0]: https://github.com/njhoffman/musicman/compare/v1.41.1...v1.42.0
 [1.41.1]: https://github.com/njhoffman/musicman/compare/v1.41.0...v1.41.1
