@@ -141,6 +141,32 @@ describe('Spotify Downloads', () => {
       expect(runs).to.have.length(2);
     });
 
+    it('should try the tracks of a failed batch one by one, so one bad track does not block the rest', () => {
+      fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify(manifest));
+      const runs = [];
+      const spawn = (command, args) => {
+        const urls = args.filter(arg => arg.startsWith('https://'));
+        runs.push(urls);
+        // spotDL cannot look up track A, and a run with it fails before downloading anything
+        if (urls.some(url => url.endsWith(idA))) {
+          return { status: 1 };
+        }
+        urls.forEach(url =>
+          fs.writeFileSync(path.join(directory, `X [${url.split('/').pop()}].mp3`), '')
+        );
+        return { status: 0 };
+      };
+      expect(main({ args: [], config, spawn })).to.equal(1);
+      // C was imported already
+      expect(runs).to.deep.equal([
+        [manifest.tracks[0].url, manifest.tracks[1].url],
+        [manifest.tracks[0].url],
+        [manifest.tracks[1].url]
+      ]);
+      expect(fs.existsSync(path.join(directory, `X [${idB}].mp3`))).to.equal(true);
+      expect(log.args.flat().join('\n')).to.include(`missing: ${manifest.tracks[0].artists}`);
+    });
+
     it('should not run spotDL in a dry run or without a manifest', () => {
       const spawn = sinon.spy();
       expect(main({ args: [], config, spawn })).to.equal(1);

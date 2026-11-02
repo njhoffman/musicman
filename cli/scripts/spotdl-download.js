@@ -10,6 +10,7 @@ const { spawnSync } = require('child_process');
 const { loadConfig } = require('musicman-common/config');
 
 const {
+  downloadTrackId,
   downloadedFiles,
   manifestPath,
   pendingTracks,
@@ -52,19 +53,40 @@ const main = ({ args = process.argv.slice(2), config = loadConfig(), spawn = spa
   }
   fs.mkdirSync(config.sync.downloadDirectory, { recursive: true });
   let failed = 0;
-  _.chunk(pending, batchSize).forEach((batch, i) => {
-    console.log(`Batch ${i + 1}/${Math.ceil(pending.length / batchSize)}`);
-    const [command, commandArgs, options] = spotdlCommand(config, _.map(batch, 'url'));
+  const run = tracks => {
+    const [command, commandArgs, options] = spotdlCommand(config, _.map(tracks, 'url'));
     const result = spawn(command, commandArgs, { ...options, stdio: 'inherit' });
     if (result.error || result.status !== 0) {
       failed += 1;
       console.error(
         `spotDL ${result.error ? `failed: ${result.error.message}` : `exited with ${result.status}`}`
       );
+      return false;
+    }
+    return true;
+  };
+  const notDownloaded = tracks => {
+    const downloaded = new Set(
+      _.compact(_.map(downloadedFiles(config), file => downloadTrackId(file)))
+    );
+    return _.reject(tracks, ({ trackId }) => downloaded.has(trackId));
+  };
+  _.chunk(pending, batchSize).forEach((batch, i) => {
+    console.log(`Batch ${i + 1}/${Math.ceil(pending.length / batchSize)}`);
+    // spotDL looks every track of a run up before downloading, so one track it cannot look up fails the
+    // whole run: the tracks of a failed batch are tried again one by one
+    const left = run(batch) ? [] : notDownloaded(batch);
+    if (left.length > 1) {
+      console.log(`Trying the ${left.length} tracks of batch ${i + 1} one by one`);
+      left.forEach(track => run([track]));
     }
   });
   const stillPending = new Set(_.map(pendingTracks(manifest, downloadedFiles(config)), 'trackId'));
-  const missed = _.filter(pending, ({ trackId }) => stillPending.has(trackId)).length;
+  const missedTracks = _.filter(pending, ({ trackId }) => stillPending.has(trackId));
+  const missed = missedTracks.length;
+  missedTracks.forEach(track =>
+    console.log(`  missing: ${track.artists} - ${track.name}  ${track.url}`)
+  );
   const later = stillPending.size - missed;
   console.log(
     `${pending.length - missed} downloaded, ${missed} still missing${
