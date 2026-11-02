@@ -136,6 +136,33 @@ describe('Database Update', () => {
       expect(song('moved.mp3')).to.include({ id, mb_track_id: 'mb-1', added_at: addedAt });
     });
 
+    it('should point the undo history of a moved file at its new path', async () => {
+      const file = path.join(library, 'dir1/testFile02.mp3');
+      const moved = path.join(library, 'moved.mp3');
+      NodeId3.update(
+        { userDefinedText: [{ description: 'MusicBrainz Release Track Id', value: 'mb-1' }] },
+        file
+      );
+      await update();
+      const { id } = song('dir1/testFile02.mp3');
+      db.prepare(
+        `INSERT INTO history_runs (id, command, args, started_at) VALUES ('run-1', 'edit', '[]', 'now')`
+      ).run();
+      db.prepare(
+        `INSERT INTO tag_changes (run_id, path, frame, before, after_hash) VALUES ('run-1', ?, 'TIT2', '"a"', 'h')`
+      ).run(file);
+      db.prepare(
+        `INSERT INTO match_changes (run_id, song_id, path, before, after_hash) VALUES ('run-1', ?, ?, 'null', 'h')`
+      ).run(id, 'dir1/testFile02.mp3');
+
+      fs.renameSync(file, moved);
+      await update();
+      expect(db.prepare('SELECT path FROM tag_changes').all()).to.deep.equal([{ path: moved }]);
+      expect(db.prepare('SELECT path FROM match_changes').all()).to.deep.equal([
+        { path: 'moved.mp3' }
+      ]);
+    });
+
     it('should remove songs whose files are gone', async () => {
       await update();
       fs.unlinkSync(path.join(library, 'dir1/testFile03.mp3'));

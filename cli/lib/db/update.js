@@ -6,6 +6,7 @@ const { escape, globSync } = require('glob');
 
 const { readMetadataFull, parseMetadata } = require('../metadata/read.js');
 const { isPopulated } = require('../metadata/tags.js');
+const { relinkHistory } = require('../history/relink.js');
 const { setMeta, transaction } = require('./database.js');
 
 const mbTrackIdFrame = 'TXXX.MusicBrainz Release Track Id';
@@ -69,8 +70,8 @@ const likePrefix = prefix => `${prefix.replace(/[\\%_]/g, char => `\\${char}`)}/
 /**
  * Updates the database from the mp3 files at target, which must be inside mpd.baseDirectory.
  * Files with unchanged mtime and size are skipped; a new file with the MusicBrainz track id of a
- * song whose file no longer exists is treated as that song moved; songs whose files are gone from
- * the scanned scope are removed.
+ * song whose file no longer exists is treated as that song moved (its undo history follows it); songs
+ * whose files are gone from the scanned scope are removed.
  */
 const updateDatabase = async (
   db,
@@ -195,6 +196,10 @@ const updateDatabase = async (
       action = 'updated';
     } else if (moved) {
       statements.updateSong.run(...values, moved.id);
+      // the undo history follows the file, in the same transaction as the song
+      relinkHistory(db, [{ from: path.join(baseDirectory, moved.path), to: file.file }], {
+        baseDirectory
+      });
       relinked.add(moved.id);
       songId = moved.id;
       action = 'moved';

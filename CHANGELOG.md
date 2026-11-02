@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- `musicman undo` finds files that moved after a run instead of reporting them missing: when
+  `db --update` (also run by `sort`) recognizes a moved song by its MusicBrainz track id, the run
+  history follows it to the new path, and `sync --import` points the tags it wrote to each download at
+  the file beets moved into the library (found by its Spotify track id). Songs without a MusicBrainz id
+  are not followed yet.
+
 ## [1.49.0] - 2026-11-01
 
 ### Changed

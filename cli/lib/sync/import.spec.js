@@ -5,7 +5,8 @@ const path = require('path');
 const NodeId3 = require('node-id3');
 const { expect } = require('chai');
 
-const { importDownloads, importTags, parseBeetsLog } = require('./import.js');
+const { openDatabase } = require('../db/database.js');
+const { importDownloads, importedMoves, importTags, parseBeetsLog } = require('./import.js');
 
 describe('Download Import', () => {
   const idA = 'AAAAAAAAAAAAAAAAAAAAAA';
@@ -230,6 +231,55 @@ describe('Download Import', () => {
     expect(parseBeetsLog('import started\nasis /a.mp3\nskip /b.mp3; /c.mp3\n')).to.deep.equal({
       asis: [{ action: 'asis', file: '/a.mp3' }],
       skip: [{ action: 'skip', file: '/b.mp3' }]
+    });
+  });
+
+  describe('importedMoves', () => {
+    let db;
+    const addSong = (songPath, trackId) => {
+      const id = Number(
+        db.prepare('INSERT INTO songs (path, mtime, size) VALUES (?, 0, 0)').run(songPath)
+          .lastInsertRowid
+      );
+      db.prepare(
+        `INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, 'TXXX.sp_track_id', ?)`
+      ).run(id, trackId);
+    };
+    const moves = (files, added, exists = () => false) =>
+      importedMoves({ db, baseDirectory: '/music', files, added, exists });
+
+    beforeEach(() => {
+      db = openDatabase(':memory:');
+    });
+
+    afterEach(() => db.close());
+
+    it('should pair a moved download with the added song carrying its track id', () => {
+      addSong('Unrated/_Singles/A.mp3', idA);
+      expect(
+        moves([{ file: '/dl/A [a].mp3', trackId: idA }], ['Unrated/_Singles/A.mp3'])
+      ).to.deep.equal([{ from: '/dl/A [a].mp3', to: '/music/Unrated/_Singles/A.mp3' }]);
+    });
+
+    it('should skip downloads still in place, without an id, or matching no added song', () => {
+      addSong('Unrated/_Singles/A.mp3', idA);
+      addSong('Rated/B.mp3', idB);
+      const added = ['Unrated/_Singles/A.mp3'];
+      expect(moves([{ file: '/dl/A.mp3', trackId: idA }], added, () => true)).to.deep.equal([]);
+      expect(moves([{ file: '/dl/X.mp3', trackId: null }], added)).to.deep.equal([]);
+      // B is in the library already but was not added by this import
+      expect(moves([{ file: '/dl/B.mp3', trackId: idB }], added)).to.deep.equal([]);
+    });
+
+    it('should skip a track id that several added songs carry', () => {
+      addSong('Unrated/_Singles/A.mp3', idA);
+      addSong('Unrated/_Singles/A.1.mp3', idA);
+      expect(
+        moves(
+          [{ file: '/dl/A.mp3', trackId: idA }],
+          ['Unrated/_Singles/A.mp3', 'Unrated/_Singles/A.1.mp3']
+        )
+      ).to.deep.equal([]);
     });
   });
 });

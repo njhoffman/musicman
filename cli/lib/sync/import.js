@@ -1,5 +1,6 @@
 const _ = require('lodash');
 const fs = require('fs');
+const path = require('path');
 const NodeId3 = require('node-id3');
 const globalTags = require('musicman-common/config/tags.json');
 
@@ -206,4 +207,27 @@ const importDownloads = async ({
   };
 };
 
-module.exports = { importDownloads, importTags, parseBeetsLog };
+/**
+ * Where beets moved the imported downloads, for the undo history (relinkHistory): each download that is
+ * gone from its folder, paired with the one song added by the database update after the import (added:
+ * library relative paths) that carries its Spotify track id. A download whose id matches no added song,
+ * or several, is left out. Returns { from, to } pairs of absolute paths.
+ */
+const importedMoves = ({ db, baseDirectory, files, added, exists = fs.existsSync }) => {
+  const addedPaths = new Set(added);
+  const select = db.prepare(
+    `SELECT songs.path FROM songs JOIN song_tags ON song_tags.song_id = songs.id
+     WHERE song_tags.frame_id = 'TXXX.sp_track_id' AND song_tags.value = ?`
+  );
+  return _.compact(
+    _.map(files, ({ file, trackId }) => {
+      if (!trackId || exists(file)) {
+        return null;
+      }
+      const songs = _.filter(_.map(select.all(trackId), 'path'), song => addedPaths.has(song));
+      return songs.length === 1 ? { from: file, to: path.join(baseDirectory, songs[0]) } : null;
+    })
+  );
+};
+
+module.exports = { importDownloads, importedMoves, importTags, parseBeetsLog };

@@ -24,7 +24,7 @@ const { membershipChanges } = require('../sync/membership.js');
 const { pushPlan } = require('../sync/push.js');
 const { buildManifest, writeManifest } = require('../sync/pull.js');
 const { downloadedFiles, manifestPath, readManifest } = require('../sync/download.js');
-const { importDownloads } = require('../sync/import.js');
+const { importDownloads, importedMoves } = require('../sync/import.js');
 const { applyBackup, backupPlan, removedFolder } = require('../sync/backup.js');
 const { saveSnapshot } = require('../sync/snapshot.js');
 const { recordSpotifySnapshot } = require('../history/journal.js');
@@ -58,6 +58,7 @@ const {
 const { dim, emitFormatted } = require('../output/emit.js');
 const { outputFormat } = require('../output/formats.js');
 const { previewCommand } = require('../output/fzf.js');
+const { relinkHistory } = require('../history/relink.js');
 const { openLibrary, updateDatabase } = require('../db/index.js');
 const {
   assignMetadata,
@@ -648,9 +649,16 @@ const runImport = async ({ credentials, fetchImpl, config, dryRun, confirm }) =>
     let database = null;
     if (!dryRun) {
       writeManifest(config, manifest);
+      const added = [];
       database = await updateDatabase(db, {
         config,
-        target: path.join(config.mpd.baseDirectory, unsortedFolder(beets))
+        target: path.join(config.mpd.baseDirectory, unsortedFolder(beets)),
+        onFile: (action, file) => action === 'added' && added.push(file)
+      });
+      // the tags written to the downloads were recorded at their download paths; beets moved them
+      const baseDirectory = path.resolve(config.mpd.baseDirectory);
+      relinkHistory(db, importedMoves({ db, baseDirectory, files: summary.files, added }), {
+        baseDirectory
       });
     }
     logger.info(

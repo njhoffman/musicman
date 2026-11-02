@@ -287,9 +287,12 @@ Runs record their tag and Spotify changes for `musicman undo` (since 1.24.0). St
 files deleted from the library to `.musicman-removed/<date>/` but overwrites changed ones, and the automatic
 database backups (`db.autoBackup`) have no restore command.
 
-- [ ] **Follow moved files in the undo history.** (p2) [feature] the history keys files by path, so a write
-      followed by a move (`sort`, the beets step of `sync --import`) makes undo report the file as missing. When
-      `db --update` detects a move (same MusicBrainz track id), update `tag_changes.path` too.
+- [ ] **Follow moved songs without a MusicBrainz id in the undo history.** (p3) [feature] `db --update` relinks a
+      moved song (and its history) only by MusicBrainz track id; 1622 of 6454 songs (2026-11-01) have none, so
+      their moves read as a removal plus an addition and undo reports them missing. A fallback key such as
+      `sp_track_id`, or duration plus artist and title for songs with a single match, would cover most.
+- [x] **Follow moved files in the undo history.** (p2) [feature] `relinkHistory` (`history/relink.js`) from the
+      `db --update` move branch and after `sync --import` (download path to library path by `sp_track_id`).
 - [ ] **Keep replaced files in `sync --backup`.** (p2) [feature] move the backup copy of an updated file to
       `.musicman-removed/<date>/` (or a versions folder) before overwriting it, like deleted files, so a bad tag
       write that reached the backup can still be recovered.
