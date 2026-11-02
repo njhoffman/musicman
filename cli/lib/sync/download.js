@@ -10,9 +10,10 @@ const readManifest = config => {
   return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
 };
 
-// spotDL names files "<artists> - <title> [<track id>].mp3", so downloads are found by track id
-const outputTemplate = config =>
-  path.join(config.sync.downloadDirectory, '{artists} - {title} [{track-id}].{output-ext}');
+// spotDL names files "<artists> - <title> [<track id>].mp3", so downloads are found by track id. A file
+// name only: spotDL sanitizes every part of the template, so a directory in it loses its leading dot
+// (.musicman/download became musicman/download); it runs in the download directory instead
+const outputTemplate = () => '{artists} - {title} [{track-id}].{output-ext}';
 
 const trackIdPattern = /\[([A-Za-z0-9]{22})\]\.mp3$/;
 
@@ -52,7 +53,8 @@ const pendingTracks = (manifest, files) => {
   );
 };
 
-// spotDL command and arguments for downloading track URLs as mp3 into the download directory
+// spotDL command, arguments, and spawn options (cwd: the download directory) for downloading track URLs
+// as mp3 into the download directory
 const spotdlCommand = (config, urls) => {
   const [command, ...args] = `${config.sync.spotdlCommand || 'spotdl'}`.split(/\s+/);
   return [
@@ -68,7 +70,8 @@ const spotdlCommand = (config, urls) => {
       '--overwrite',
       'skip',
       '--print-errors'
-    ]
+    ],
+    { cwd: config.sync.downloadDirectory }
   ];
 };
 

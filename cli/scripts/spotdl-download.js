@@ -3,8 +3,9 @@
 // were downloaded or imported already are skipped, so a cancelled run resumes where it stopped. Run
 // musicman sync --import afterwards to tag the downloads and import them with beets.
 //
-//   pnpm download [--dry-run]
+//   pnpm download [--dry-run] [--limit N]   (--limit: only the first N pending tracks, e.g. for a trial)
 const _ = require('lodash');
+const fs = require('fs');
 const { spawnSync } = require('child_process');
 const { loadConfig } = require('musicman-common/config');
 
@@ -21,14 +22,27 @@ const batchSize = 20;
 
 const main = ({ args = process.argv.slice(2), config = loadConfig(), spawn = spawnSync } = {}) => {
   const dryRun = args.includes('--dry-run') || args.includes('-n');
+  const limitArg = _.find(args, arg => arg.startsWith('--limit'));
+  const limitValue =
+    limitArg === '--limit' ? args[args.indexOf(limitArg) + 1] : `${limitArg || ''}`.split('=')[1];
+  const limit = limitArg ? Number(limitValue) : null;
+  if (limitArg && !(Number.isInteger(limit) && limit > 0)) {
+    console.error(`--limit needs a positive number, got '${limitValue}'`);
+    return 1;
+  }
   const manifest = readManifest(config);
   if (!manifest) {
     console.error(`No manifest at ${manifestPath(config)}, run: musicman sync --pull`);
     return 1;
   }
-  const pending = pendingTracks(manifest, downloadedFiles(config));
+  const allPending = pendingTracks(manifest, downloadedFiles(config));
+  const pending = limit ? _.take(allPending, limit) : allPending;
   const total = _.get(manifest, 'tracks', []).length;
-  console.log(`${pending.length} of ${total} manifest tracks to download`);
+  console.log(
+    `${allPending.length} of ${total} manifest tracks to download${
+      limit && pending.length < allPending.length ? `, the first ${pending.length} now` : ''
+    }`
+  );
   if (pending.length === 0) {
     return 0;
   }
@@ -36,11 +50,12 @@ const main = ({ args = process.argv.slice(2), config = loadConfig(), spawn = spa
     pending.forEach(track => console.log(`  ${track.artists} - ${track.name}  ${track.url}`));
     return 0;
   }
+  fs.mkdirSync(config.sync.downloadDirectory, { recursive: true });
   let failed = 0;
   _.chunk(pending, batchSize).forEach((batch, i) => {
     console.log(`Batch ${i + 1}/${Math.ceil(pending.length / batchSize)}`);
-    const [command, commandArgs] = spotdlCommand(config, _.map(batch, 'url'));
-    const result = spawn(command, commandArgs, { stdio: 'inherit' });
+    const [command, commandArgs, options] = spotdlCommand(config, _.map(batch, 'url'));
+    const result = spawn(command, commandArgs, { ...options, stdio: 'inherit' });
     if (result.error || result.status !== 0) {
       failed += 1;
       console.error(
@@ -48,13 +63,15 @@ const main = ({ args = process.argv.slice(2), config = loadConfig(), spawn = spa
       );
     }
   });
-  const left = pendingTracks(manifest, downloadedFiles(config)).length;
+  const stillPending = new Set(_.map(pendingTracks(manifest, downloadedFiles(config)), 'trackId'));
+  const missed = _.filter(pending, ({ trackId }) => stillPending.has(trackId)).length;
+  const later = stillPending.size - missed;
   console.log(
-    `${pending.length - left} downloaded, ${left} still missing${
+    `${pending.length - missed} downloaded, ${missed} still missing${
       failed ? ` (${failed} spotDL runs failed)` : ''
-    }; next: musicman sync --import`
+    }${later ? `, ${later} left for later runs` : ''}; next: musicman sync --import`
   );
-  return left > 0 ? 1 : 0;
+  return missed > 0 ? 1 : 0;
 };
 
 if (require.main === module) {

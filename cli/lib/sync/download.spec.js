@@ -1,3 +1,4 @@
+const _ = require('lodash');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -58,8 +59,10 @@ describe('Spotify Downloads', () => {
   });
 
   it('should run spotDL with the track id in the output template and skip existing files', () => {
-    const [command, args] = spotdlCommand(config, ['url-1', 'url-2']);
+    const [command, args, options] = spotdlCommand(config, ['url-1', 'url-2']);
     expect(command).to.equal('spotdl');
+    // run in the download directory with a file name template: spotDL strips the dot of .musicman
+    expect(options).to.deep.equal({ cwd: directory });
     expect(args).to.deep.equal([
       '--threads',
       '2',
@@ -67,7 +70,7 @@ describe('Spotify Downloads', () => {
       'url-1',
       'url-2',
       '--output',
-      path.join(directory, '{artists} - {title} [{track-id}].{output-ext}'),
+      '{artists} - {title} [{track-id}].{output-ext}',
       '--format',
       'mp3',
       '--overwrite',
@@ -99,7 +102,8 @@ describe('Spotify Downloads', () => {
     it('should download the pending tracks with spotDL and report what is left', () => {
       fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify(manifest));
       const runs = [];
-      const spawn = (command, args) => {
+      const spawn = (command, args, options) => {
+        expect(options).to.include({ cwd: directory, stdio: 'inherit' });
         runs.push([command, args.filter(arg => arg.startsWith('https://'))]);
         // spotDL downloads the first track only
         fs.writeFileSync(path.join(directory, `B - Two [${idB}].mp3`), '');
@@ -108,6 +112,33 @@ describe('Spotify Downloads', () => {
       fs.writeFileSync(path.join(directory, `A - One [${idA}].mp3`), '');
       expect(main({ args: [], config, spawn })).to.equal(0);
       expect(runs).to.deep.equal([['spotdl', [`https://open.spotify.com/track/${idB}`]]]);
+    });
+
+    it('should download only the first N pending tracks with --limit', () => {
+      const idC = 'CCCCCCCCCCCCCCCCCCCCCC';
+      const three = {
+        ...manifest,
+        tracks: [
+          ...manifest.tracks,
+          { ...manifest.tracks[0], trackId: idC, url: `https://open.spotify.com/track/${idC}` }
+        ]
+      };
+      fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify(three));
+      const runs = [];
+      const spawn = (command, args) => {
+        const urls = args.filter(arg => arg.startsWith('https://'));
+        runs.push(urls);
+        urls.forEach(url =>
+          fs.writeFileSync(path.join(directory, `X [${url.split('/').pop()}].mp3`), '')
+        );
+        return { status: 0 };
+      };
+      expect(main({ args: ['--limit', '2'], config, spawn })).to.equal(0);
+      expect(runs).to.deep.equal([_.map(three.tracks.slice(0, 2), 'url')]);
+      expect(main({ args: ['--limit=5'], config, spawn })).to.equal(0);
+      expect(runs[1]).to.deep.equal([three.tracks[2].url]);
+      expect(main({ args: ['--limit', 'x'], config, spawn })).to.equal(1);
+      expect(runs).to.have.length(2);
     });
 
     it('should not run spotDL in a dry run or without a manifest', () => {
