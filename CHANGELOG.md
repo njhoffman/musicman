@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.47.0] - 2026-11-01
+
 ### Added
 
 - `musicman ui`: Play here plays the full Spotify track in the page with the Spotify Web Playback SDK
