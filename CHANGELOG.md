@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.48.0] - 2026-11-02
+
 ### Added
 
 - `musicman ui` History tab: the page's accepts, rejects, and undos with what undoing each puts back,
