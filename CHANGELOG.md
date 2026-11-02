@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.53.0] - 2026-11-02
+
 ### Changed
 
 - `check --fix` deletes fewer duplicate files. Only a single in a `Singles` or `_Singles` folder whose
@@ -1063,7 +1065,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.52.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.53.0...HEAD
+[1.53.0]: https://github.com/njhoffman/musicman/compare/v1.52.0...v1.53.0
 [1.52.0]: https://github.com/njhoffman/musicman/compare/v1.51.0...v1.52.0
 [1.51.0]: https://github.com/njhoffman/musicman/compare/v1.50.2...v1.51.0
 [1.50.2]: https://github.com/njhoffman/musicman/compare/v1.50.1...v1.50.2
