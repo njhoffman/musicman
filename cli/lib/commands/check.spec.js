@@ -33,7 +33,7 @@ describe('Check command', () => {
       'names',
       'duplicates'
     ]);
-    expect(selectChecks()).to.have.length(13);
+    expect(selectChecks()).to.have.length(14);
     expect(() => selectChecks('names,typo')).to.throw('Unknown check typo; checks are drift');
   });
 

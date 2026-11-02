@@ -256,4 +256,4 @@ const updateDatabase = async (
   return summary;
 };
 
-module.exports = { frameRows, listFiles, updateDatabase };
+module.exports = { frameRows, likePrefix, listFiles, updateDatabase };

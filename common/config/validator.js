@@ -54,6 +54,7 @@ const configSchema = {
       downloadDirectory: { type: 'string', required: false },
       spotdlCommand: { type: 'string', required: false },
       beetsConfig: { type: 'string', required: false },
+      importLyrics: { type: 'boolean', required: false },
       autoAcceptPercent: { type: 'number', min: 0, max: 100, required: false },
       ignorePlaylist: { type: 'string', required: false }
     }

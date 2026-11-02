@@ -364,6 +364,83 @@ describe('check --fix', () => {
     });
   });
 
+  describe('artwork', () => {
+    const image = Buffer.from('cover');
+    const fakeFetch = calls => async url => {
+      calls.push(url);
+      return {
+        ok: true,
+        headers: { get: () => 'image/jpeg' },
+        arrayBuffer: async () => image
+      };
+    };
+
+    it('should plan the Spotify cover for songs that have one and leave the others', async () => {
+      const db = openDatabase(':memory:');
+      const plan = await planFixes({
+        db,
+        config: { mpd: { baseDirectory: '/music' } },
+        results: [
+          {
+            name: 'artwork',
+            findings: [
+              { file: 'a.mp3', detail: 'x', image: 'https://i/a' },
+              { file: 'b.mp3', detail: 'x' }
+            ]
+          }
+        ],
+        songs: [],
+        readRaw: () => ({})
+      });
+      expect(plan.files).to.deep.equal([
+        { file: 'a.mp3', changes: [{ check: 'artwork', text: 'embed the Spotify album cover' }] }
+      ]);
+      expect(plan.covers).to.deep.equal({ 'a.mp3': 'https://i/a' });
+      expect(plan.skipped).to.deep.equal([
+        { check: 'artwork', file: 'b.mp3', text: 'no Spotify album image (not matched on Spotify)' }
+      ]);
+      db.close();
+    });
+
+    it('should embed each cover, downloading an album cover once', async () => {
+      const calls = [];
+      const tags = {};
+      const { written } = await applyFixes({
+        config: { mpd: { baseDirectory: '/music' } },
+        plan: {
+          context: context(),
+          files: [{ file: 'a.mp3' }, { file: 'b.mp3' }, { file: 'c.mp3' }],
+          covers: { 'a.mp3': 'https://i/1', 'b.mp3': 'https://i/1' }
+        },
+        fetchImpl: fakeFetch(calls),
+        write: (file, change) => {
+          tags[file] = change({ TIT2: 'x' });
+          return true;
+        }
+      });
+      expect(written).to.have.length(3);
+      expect(calls).to.deep.equal(['https://i/1']);
+      expect(tags['/music/a.mp3'].APIC).to.deep.include({ mime: 'image/jpeg', imageBuffer: image });
+      expect(tags['/music/a.mp3'].APIC.type).to.deep.equal({ id: 3, name: 'front cover' });
+      expect(tags['/music/c.mp3']).to.deep.equal({ TIT2: 'x' });
+    });
+
+    it('should fail the files whose cover cannot be downloaded', async () => {
+      const { written, failed } = await applyFixes({
+        config: { mpd: { baseDirectory: '/music' } },
+        plan: {
+          context: context(),
+          files: [{ file: 'a.mp3' }],
+          covers: { 'a.mp3': 'https://i/x' }
+        },
+        fetchImpl: async () => ({ ok: false, status: 404 }),
+        write: () => true
+      });
+      expect(written).to.deep.equal([]);
+      expect(failed).to.deep.equal([{ file: 'a.mp3', error: 'cover https://i/x: HTTP 404' }]);
+    });
+  });
+
   describe('planFixes', () => {
     it('should read only the checked songs holding a frame some repair is about', async () => {
       const db = openDatabase(':memory:');

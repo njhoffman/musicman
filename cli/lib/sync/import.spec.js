@@ -6,7 +6,16 @@ const NodeId3 = require('node-id3');
 const { expect } = require('chai');
 
 const { openDatabase } = require('../db/database.js');
-const { importDownloads, importedMoves, importTags, parseBeetsLog } = require('./import.js');
+const yaml = require('js-yaml');
+const {
+  importConfigArgs,
+  importDownloads,
+  importedMoves,
+  importTags,
+  parseBeetsLog,
+  recoverImports,
+  staleDownloads
+} = require('./import.js');
 
 describe('Download Import', () => {
   const idA = 'AAAAAAAAAAAAAAAAAAAAAA';
@@ -135,6 +144,76 @@ describe('Download Import', () => {
     ]);
     expect(events).to.deep.equal(['unknown', 'tagged', 'tagged']);
     expect(summary.files[0].playlist).to.include('playlist_grouping:IndieRock.Artists');
+  });
+
+  // the file's audio behind a tag of only spotDL's popularity POPM (no email, rating 25), as mutagen
+  // writes it: v2.3 header, frame id, size, flags, then an empty email and the rating
+  const withPopularity = file => {
+    NodeId3.removeTags(file);
+    const body = Buffer.from([0, 25]);
+    const frame = Buffer.concat([
+      Buffer.from('POPM'),
+      Buffer.from([0, 0, 0, body.length, 0, 0]),
+      body
+    ]);
+    const header = Buffer.from([0x49, 0x44, 0x33, 3, 0, 0, 0, 0, 0, frame.length]);
+    fs.writeFileSync(file, Buffer.concat([header, frame, fs.readFileSync(file)]));
+  };
+
+  it("should remove spotDL's popularity POPM unless a rating playlist sets one", async () => {
+    const [fileA, fileB] = [download(idA, 'A - One'), download(idB, 'B - Two')];
+    withPopularity(fileA);
+    withPopularity(fileB);
+    expect(NodeId3.read(fileB).raw.POPM).to.include({ rating: 25, email: undefined });
+    manifest.tracks[0].tags.rating = '5.0';
+    const summary = await importDownloads({
+      config: { ...config, rating: { tag: 'POPM', max: 5, email: 'Default' } },
+      client: client(tracks),
+      manifest,
+      files: files(),
+      beetsLog: path.join(directory, 'beets-import.log'),
+      runBeet: fakeBeet([])
+    });
+    expect(_.map(summary.files, 'popularity')).to.deep.equal([false, true]);
+    const imported = name => path.join(library, path.basename(name));
+    expect(NodeId3.read(imported(fileA)).raw.POPM).to.include({ email: 'Default', rating: 255 });
+    expect(NodeId3.read(imported(fileB)).raw.POPM).to.equal(undefined);
+    expect(custom(imported(fileB))).to.include({ sp_popularity: '7' });
+  });
+
+  it('should report the details, tagging, and beets phases', async () => {
+    const progress = [];
+    let gone = 0;
+    await importDownloads({
+      config,
+      client: client(tracks),
+      manifest,
+      files: files(),
+      beetsLog: path.join(directory, 'beets-import.log'),
+      pollMs: 1,
+      // the first download leaves the folder before beets finishes
+      runBeet: async args => {
+        const [first] = args.slice(args.indexOf('-l') + 2);
+        fs.renameSync(first, path.join(library, path.basename(first)));
+        gone = 1;
+        await new Promise(resolve => setTimeout(resolve, 20));
+        return fakeBeet([])(args.filter(arg => arg !== first));
+      },
+      onProgress: (phase, done, total) => progress.push([phase, done, total])
+    });
+    expect(gone).to.equal(1);
+    expect(progress.slice(0, 4)).to.deep.equal([
+      ['details', 0, 2],
+      ['tagging', 1, 2],
+      ['tagging', 2, 2],
+      ['beets', 0, 2]
+    ]);
+    expect(progress).to.deep.include(['beets', 1, 2]);
+    expect(_.last(progress)).to.deep.equal(['beets', 2, 2]);
+    // no counts after beets finished
+    const count = progress.length;
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(progress).to.have.length(count);
   });
 
   it('should write ids and playlist tags without track details and skip imported tracks', async () => {
@@ -280,6 +359,98 @@ describe('Download Import', () => {
           ['Unrated/_Singles/A.mp3', 'Unrated/_Singles/A.1.mp3']
         )
       ).to.deep.equal([]);
+    });
+  });
+
+  describe('importConfigArgs', () => {
+    it('should pass the beets config unless lyrics are left out', () => {
+      expect(importConfigArgs(config)).to.deep.equal(['-c', '/beets/config.yaml']);
+      expect(importConfigArgs({ sync: { downloadDirectory: directory } })).to.deep.equal([]);
+    });
+
+    it('should write a copy of the beets config with lyrics.auto off', () => {
+      const beetsConfig = path.join(directory, 'config.yaml');
+      fs.writeFileSync(
+        beetsConfig,
+        'import:\n  move: true\nlyrics:\n  auto: true\n  force: false\n'
+      );
+      const args = importConfigArgs({
+        sync: { downloadDirectory: directory, beetsConfig, importLyrics: false }
+      });
+      expect(args).to.deep.equal(['-c', path.join(directory, 'beets-import.yaml')]);
+      expect(yaml.load(fs.readFileSync(args[1], 'utf8'))).to.deep.equal({
+        import: { move: true },
+        lyrics: { auto: false, force: false }
+      });
+    });
+  });
+
+  describe('recoverImports', () => {
+    let db;
+    const runId = 'run-1';
+    const record = file =>
+      db
+        .prepare(
+          `INSERT INTO tag_changes (run_id, path, frame, before, after_hash) VALUES (?, ?, 'TIT2', NULL, 'h')`
+        )
+        .run(runId, file);
+    const addSong = (songPath, trackId) => {
+      const id = Number(
+        db.prepare('INSERT INTO songs (path, mtime, size) VALUES (?, 0, 0)').run(songPath)
+          .lastInsertRowid
+      );
+      db.prepare(
+        `INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, 'TXXX.sp_track_id', ?)`
+      ).run(id, trackId);
+    };
+
+    beforeEach(() => {
+      db = openDatabase(':memory:');
+      db.prepare(
+        `INSERT INTO history_runs (id, command, args, started_at) VALUES (?, 'sync', '[]', 'now')`
+      ).run(runId);
+      config.mpd = { baseDirectory: library };
+    });
+
+    afterEach(() => db.close());
+
+    it('should list history paths in the download folder whose files are gone', () => {
+      const present = download(idA, 'A - One');
+      const gone = path.join(directory, 'C - Three [CCCCCCCCCCCCCCCCCCCCCC].mp3');
+      record(present);
+      record(gone);
+      record(path.join(library, 'elsewhere.mp3'));
+      expect(staleDownloads(db, config)).to.deep.equal([gone]);
+    });
+
+    it('should mark moved downloads imported and point their history at the library song', () => {
+      const idC = 'CCCCCCCCCCCCCCCCCCCCCC';
+      const gone = path.join(directory, `C - Three [${idC}].mp3`);
+      manifest.tracks.push({ trackId: idC, artists: 'C', name: 'Three', tags: {} });
+      record(gone);
+      addSong('Unrated/_Singles/C - Three.mp3', idC);
+      const now = new Date('2026-11-02T12:00:00Z');
+      const recovered = recoverImports({ db, config, manifest, stale: [gone], now });
+      const to = path.join(library, 'Unrated/_Singles/C - Three.mp3');
+      expect(recovered).to.deep.equal([{ trackId: idC, from: gone, to }]);
+      expect(_.find(manifest.tracks, { trackId: idC }).importedAt).to.equal(now.toISOString());
+      expect(db.prepare('SELECT path FROM tag_changes').all()).to.deep.equal([{ path: to }]);
+    });
+
+    it('should leave tracks downloaded again, or with no or several songs', () => {
+      const idC = 'CCCCCCCCCCCCCCCCCCCCCC';
+      const idD = 'DDDDDDDDDDDDDDDDDDDDDD';
+      // idA is in the download folder again
+      addSong('Unrated/_Singles/A.mp3', idA);
+      addSong('Unrated/_Singles/D.mp3', idD);
+      addSong('Rated/D.mp3', idD);
+      const stale = [
+        path.join(directory, `A - One old [${idA}].mp3`),
+        path.join(directory, `C [${idC}].mp3`),
+        path.join(directory, `D [${idD}].mp3`)
+      ];
+      expect(recoverImports({ db, config, manifest, stale })).to.deep.equal([]);
+      expect(_.map(manifest.tracks, 'importedAt')).to.deep.equal([undefined, undefined]);
     });
   });
 });

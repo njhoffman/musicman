@@ -7,7 +7,7 @@ const { multiDescriptions } = require('./files.js');
 const { rewriteTags } = require('../metadata/write.js');
 
 // checks check --fix repairs; the others need a decision per song and stay reports
-const fixableChecks = ['drift', 'names', 'standard', 'spotify-id', 'multi', 'case'];
+const fixableChecks = ['drift', 'names', 'standard', 'spotify-id', 'multi', 'case', 'artwork'];
 
 const leftoverDescription = leftoverSpotifyFrame.slice(5);
 const sameText = (a, b) => `${a}`.trim() === `${b}`.trim();
@@ -222,19 +222,28 @@ const planFixes = async ({
       ..._.map([...context.caseTargets.keys()], description => `TXXX.${description}`)
     ])
   );
+  const artworkFindings = _.get(_.find(results, { name: 'artwork' }), 'findings', []);
   const select = db.prepare('SELECT DISTINCT song_id FROM song_tags WHERE frame_id = ?');
   const candidates = _.uniq([
     ..._.flatMap(frames, frame =>
       _.compact(_.map(select.all(frame), ({ song_id: id }) => checked.get(id)))
     ),
-    ..._.map(_.get(_.find(results, { name: 'multi' }), 'findings', []), 'file')
+    ..._.map(_.get(_.find(results, { name: 'multi' }), 'findings', []), 'file'),
+    ..._.map(_.filter(artworkFindings, 'image'), 'file')
   ]).sort();
+  // the Spotify cover each song without one gets, by file
+  const covers = _.fromPairs(
+    _.map(_.filter(artworkFindings, 'image'), ({ file, image }) => [file, image])
+  );
 
   const files = [];
   const skipped = [];
   for (let i = 0; i < candidates.length; i += 1) {
     const file = candidates[i];
     const planned = fixRaw(readRaw(path.join(baseDirectory, file)), context);
+    if (covers[file]) {
+      planned.changes.push({ check: 'artwork', text: 'embed the Spotify album cover' });
+    }
     if (planned.changes.length > 0) {
       files.push({ file, changes: planned.changes });
     }
@@ -244,22 +253,59 @@ const planFixes = async ({
       await new Promise(resolve => setImmediate(resolve));
     }
   }
-  return { context, files, skipped };
+  _.each(_.reject(artworkFindings, 'image'), ({ file }) =>
+    skipped.push({ check: 'artwork', file, text: 'no Spotify album image (not matched on Spotify)' })
+  );
+  return { context, files, skipped, covers };
+};
+
+// an APIC front cover frame (node-id3 raw) from an image URL
+const downloadCover = async (url, fetchImpl) => {
+  const response = await fetchImpl(url);
+  if (!response.ok) {
+    throw new Error(`cover ${url}: HTTP ${response.status}`);
+  }
+  return {
+    mime: `${response.headers.get('content-type') || 'image/jpeg'}`.split(';')[0],
+    type: { id: 3, name: 'front cover' },
+    description: '',
+    imageBuffer: Buffer.from(await response.arrayBuffer())
+  };
 };
 
 /**
  * Writes a plan (planFixes): each file's tag is rewritten once with fixRaw applied to its tag as it is
- * now, keeping frames node-id3 does not understand. Resolves to { written, failed } with absolute paths
+ * now, keeping frames node-id3 does not understand, plus the Spotify cover of the files in plan.covers
+ * (downloaded once per URL with fetchImpl). Resolves to { written, failed } with absolute paths
  * written and [{ file, error }].
  */
-const applyFixes = async ({ config, plan, write = rewriteTags, onProgress = _.noop }) => {
+const applyFixes = async ({
+  config,
+  plan,
+  write = rewriteTags,
+  fetchImpl = fetch,
+  onProgress = _.noop
+}) => {
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
   const written = [];
   const failed = [];
+  // songs of one album share its cover, downloaded once
+  const images = new Map();
+  const cover = url => {
+    if (!images.has(url)) {
+      images.set(url, downloadCover(url, fetchImpl));
+    }
+    return images.get(url);
+  };
   for (let i = 0; i < plan.files.length; i += 1) {
     const file = path.join(baseDirectory, plan.files[i].file);
     try {
-      const result = write(file, raw => fixRaw(raw, plan.context).raw);
+      const url = _.get(plan, ['covers', plan.files[i].file]);
+      const apic = url ? await cover(url) : null;
+      const result = write(file, raw => {
+        const fixed = fixRaw(raw, plan.context).raw;
+        return apic ? { ...fixed, APIC: apic } : fixed;
+      });
       if (result instanceof Error) {
         failed.push({ file: plan.files[i].file, error: result.message });
       } else {

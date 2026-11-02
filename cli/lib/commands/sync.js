@@ -24,7 +24,12 @@ const { membershipChanges } = require('../sync/membership.js');
 const { pushPlan } = require('../sync/push.js');
 const { buildManifest, writeManifest } = require('../sync/pull.js');
 const { downloadedFiles, manifestPath, readManifest } = require('../sync/download.js');
-const { importDownloads, importedMoves } = require('../sync/import.js');
+const {
+  importDownloads,
+  importedMoves,
+  recoverImports,
+  staleDownloads
+} = require('../sync/import.js');
 const { applyBackup, backupPlan, removedFolder } = require('../sync/backup.js');
 const { saveSnapshot } = require('../sync/snapshot.js');
 const { recordSpotifySnapshot } = require('../history/journal.js');
@@ -522,6 +527,8 @@ const runMatch = async ({
       layouts: beetsLayouts(config),
       dryRun,
       refresh,
+      // --recheck also looks matches on compilations up again for their original album
+      releases: recheck,
       onProgress: ({ done, total, ...counts }) =>
         logger.progress(
           progressBar({
@@ -584,6 +591,56 @@ const runMatch = async ({
   }
 };
 
+// the sync --import progress line per phase (importDownloads onProgress); beets' progress is the count
+// of downloads it moved out of the folder, so with copy instead of move only its elapsed time is shown
+const importProgress = moves => {
+  const started = {};
+  return (phase, done, total) => {
+    started[phase] = started[phase] || new Date();
+    const startedAt = started[phase];
+    if (phase === 'details') {
+      logger.progress(`Fetching Spotify details for ${total} tracks`);
+    } else if (phase === 'tagging') {
+      logger.progress(progressBar({ done, total, label: 'Tagging', unit: 'files', startedAt }));
+    } else if (moves) {
+      logger.progress(
+        progressBar({ done, total, label: 'Importing with beets', unit: 'files', startedAt })
+      );
+    } else {
+      logger.progress(
+        `Importing ${total} files with beets  ${dim(formatClock((new Date() - startedAt) / 1000))}`
+      );
+    }
+  };
+};
+
+// downloads beets moved before an import was stopped: the database learns their library paths, then the
+// manifest marks them imported and their undo history follows them (recoverImports)
+const recoverInterrupted = async ({ config, manifest, beets }) => {
+  const db = openSyncLibrary(config);
+  try {
+    const stale = staleDownloads(db, config);
+    if (stale.length === 0) {
+      return [];
+    }
+    await updateDatabase(db, {
+      config,
+      target: path.join(config.mpd.baseDirectory, unsortedFolder(beets))
+    });
+    const recovered = recoverImports({ db, config, manifest, stale });
+    if (recovered.length > 0) {
+      writeManifest(config, manifest);
+      logger.info(
+        `Finished ${recovered.length} downloads an interrupted import moved into the library ` +
+          '(marked imported, undo history pointed at them)'
+      );
+    }
+    return recovered;
+  } finally {
+    db.close();
+  }
+};
+
 // tag downloads from the manifest with their Spotify fields and playlist tags, then import with beets
 const runImport = async ({ credentials, fetchImpl, config, dryRun, confirm }) => {
   const manifest = readManifest(config);
@@ -593,6 +650,9 @@ const runImport = async ({ credentials, fetchImpl, config, dryRun, confirm }) =>
   const beets = readBeetsConfig(config.sync.beetsConfig);
   if (!beets) {
     throw new Error(`No beets config at ${config.sync.beetsConfig} (sync.beetsConfig)`);
+  }
+  if (!dryRun) {
+    await recoverInterrupted({ config, manifest, beets });
   }
   const files = downloadedFiles(config);
   if (files.length === 0) {
@@ -625,21 +685,30 @@ const runImport = async ({ credentials, fetchImpl, config, dryRun, confirm }) =>
       files,
       beetsLog,
       dryRun,
-      onFile: (status, item, detail) =>
-        status === 'unknown'
-          ? logger.warn(`${label('SKIP', '#DD7744')} ${path.basename(item.file)}: ${detail}`)
-          : logger.info(
-              [
-                label('TAG', '#55CC55'),
-                `${item.entry.artists} - ${item.entry.name}`,
-                chalk.hex('#55AA77')(`+${detail.custom.length} fields`),
-                detail.filled.length > 0 && chalk.hex('#5599BB')(`~${detail.filled.length} filled`),
-                dim(_.map(detail.playlist, ({ name, value }) => `${name}:${value}`).join(' '))
-              ]
-                .filter(Boolean)
-                .join(' ')
-            )
+      onFile: (status, item, detail) => {
+        if (status === 'unknown') {
+          logger.warn(`${label('SKIP', '#DD7744')} ${path.basename(item.file)}: ${detail}`);
+          return;
+        }
+        const line = [
+          label('TAG', '#55CC55'),
+          `${item.entry.artists} - ${item.entry.name}`,
+          chalk.hex('#55AA77')(`+${detail.custom.length} fields`),
+          detail.filled.length > 0 && chalk.hex('#5599BB')(`~${detail.filled.length} filled`),
+          dim(_.map(detail.playlist, ({ name, value }) => `${name}:${value}`).join(' '))
+        ]
+          .filter(Boolean)
+          .join(' ');
+        // a dry run lists what it would tag; a real import shows the progress bar and logs each file
+        if (dryRun) {
+          logger.info(line);
+        } else {
+          logger.logToFile('info', line);
+        }
+      },
+      onProgress: importProgress(beets.move)
     });
+    logger.progressDone();
     if (summary.detailsError) {
       logger.warn(
         `Spotify fields could not be fetched (${summary.detailsError}), the downloads got their ids ` +
@@ -650,11 +719,23 @@ const runImport = async ({ credentials, fetchImpl, config, dryRun, confirm }) =>
     if (!dryRun) {
       writeManifest(config, manifest);
       const added = [];
+      const databaseStart = new Date();
       database = await updateDatabase(db, {
         config,
         target: path.join(config.mpd.baseDirectory, unsortedFolder(beets)),
-        onFile: (action, file) => action === 'added' && added.push(file)
+        onFile: (action, file) => action === 'added' && added.push(file),
+        onProgress: ({ done, total }) =>
+          logger.progress(
+            progressBar({
+              done,
+              total,
+              label: 'Updating the database',
+              unit: 'files',
+              startedAt: databaseStart
+            })
+          )
       });
+      logger.progressDone();
       // the tags written to the downloads were recorded at their download paths; beets moved them
       const baseDirectory = path.resolve(config.mpd.baseDirectory);
       relinkHistory(db, importedMoves({ db, baseDirectory, files: summary.files, added }), {
@@ -670,8 +751,16 @@ const runImport = async ({ credentials, fetchImpl, config, dryRun, confirm }) =>
       })
     );
     _.each(summary.skipped, file => logger.warn(`beets skipped ${file}`));
+    if (!dryRun && summary.imported > 0 && _.get(config, 'sync.importLyrics', true) === false) {
+      const folder = path.join(path.resolve(config.mpd.baseDirectory), unsortedFolder(beets));
+      logger.info(
+        `Lyrics were left out (sync.importLyrics: false), fetch them with: beet lyrics ${folder}`
+      );
+    }
     return { import: summary };
   } finally {
+    // a failed beets run leaves no progress line behind
+    logger.progressDone();
     if (db) {
       db.close();
     }

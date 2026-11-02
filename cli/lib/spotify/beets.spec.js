@@ -42,8 +42,14 @@ describe('Beets Spotify Ids', () => {
     expect(readBeetsConfig(configPath)).to.deep.equal({
       library: path.join(directory, 'library.db'),
       directory: path.join(directory, 'music'),
-      paths: {}
+      paths: {},
+      move: false
     });
+  });
+
+  it('should tell whether beets moves imported files', () => {
+    fs.appendFileSync(configPath, 'import:\n  move: true\n');
+    expect(readBeetsConfig(configPath)).to.include({ move: true });
   });
 
   it('should map beets items with a Spotify track id to absolute paths', () => {

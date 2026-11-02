@@ -200,13 +200,22 @@ describe('Sync Output', () => {
         formatMatchSummary(summary, { dryRun: true, threshold: 95, autoAccept: 496, toReview: 260 })
       );
       expect(title).to.equal('Spotify ids (dry run, only the lookups were cached)');
-      expect(rows[0]).to.equal('  songs for Liked Songs or playlists   2642');
-      expect(rows[2]).to.equal(
-        '    recently checked                    809   756 waiting for review, 53 not found'
+      expect(rows[0]).to.match(/^ {2}songs in sync\.scope +2642$/);
+      expect(rows[2]).to.match(
+        /^ {4}recently checked +809 {3}756 waiting for review, 53 not found$/
       );
-      expect(rows).to.include('  to auto-accept                        496   at 95% or more');
-      expect(rows).to.include('  to review                             260   0 new; sync --review');
-      expect(_.uniq(rows.map(row => row.indexOf('   ', 36)))).to.have.length(1);
+      expect(rows.some(row => /^ {2}to auto-accept +496 {3}at 95% or more$/.test(row))).to.equal(
+        true
+      );
+      expect(rows.some(row => /^ {2}to review +260 {3}0 new; sync --review$/.test(row))).to.equal(
+        true
+      );
+      // every count ends in the same column
+      const countEnd = row => {
+        const match = row.match(/^ +\S.*? +(\d+)(?= {3}|$)/);
+        return match ? match[0].length : null;
+      };
+      expect(_.uniq(_.compact(rows.map(countEnd)))).to.have.length(1);
     });
 
     it('should leave out auto-accept without a threshold and show a rate limit', () => {
@@ -271,8 +280,11 @@ describe('Sync Output', () => {
       skipped: [],
       unknown: ['/d/notes.mp3'],
       files: [
-        { playlist: ['playlist_grouping:Indietronica.Singles', 'picks:Hot,Spicy'] },
-        { playlist: ['context:Lift,Run'] },
+        {
+          playlist: ['playlist_grouping:Indietronica.Singles', 'picks:Hot,Spicy'],
+          popularity: true
+        },
+        { playlist: ['context:Lift,Run'], popularity: true },
         { playlist: ['rating:5.0'] }
       ]
     };
@@ -293,6 +305,7 @@ describe('Sync Output', () => {
         '  hint          1   grouping hint from a grouping playlist, applied by musicman sort once rated',
         '  rating        1   rating from a rating playlist',
         '  tags          2   picks, context, or mood from their playlists',
+        "  popm          2   spotDL's Spotify popularity removed from POPM, the rating frame (kept as sp_popularity)",
         '  skipped       0   skipped by beets (e.g. already in the library)',
         '  unknown       1   not in the manifest, or no Spotify track id',
         '  left       1271   manifest tracks not imported yet (pnpm download, then sync --import)',

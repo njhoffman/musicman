@@ -17,7 +17,9 @@ const readBeetsConfig = configPath => {
   return {
     library: expandHome(beets.library || path.join(path.dirname(configPath), 'library.db')),
     directory: expandHome(beets.directory || '~/Music'),
-    paths: beets.paths || {}
+    paths: beets.paths || {},
+    // import.move: beets moves imported files into the library rather than copying them
+    move: Boolean(beets.import && beets.import.move)
   };
 };
 

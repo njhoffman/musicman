@@ -6,6 +6,7 @@ const globalTags = require('musicman-common/config/tags.json');
 const {
   bestCandidate,
   candidateOf,
+  releaseRank,
   looseQuery,
   matchSimilarity,
   sameTitle,
@@ -76,7 +77,7 @@ const lookup = async ({ client, song, beetsId, rejected = new Set() }) => {
   const search = async (query, limit) =>
     _.reject(await searchTracks(client, query, limit), ({ id }) => rejected.has(id));
   if (song.isrc) {
-    const result = bestCandidate(song, await search(`isrc:${song.isrc}`, 5), { isrc: true });
+    const result = bestCandidate(song, await search(`isrc:${song.isrc}`, 10), { isrc: true });
     if (result.status !== 'missing') {
       return { ...result, source: 'isrc' };
     }
@@ -169,6 +170,50 @@ const tryWrite = (file, writes) => {
   }
 };
 
+// releaseRank of a compilation; matches on compilations or various artists releases are rechecked
+const compilationRank = 3;
+
+// the release a song is matched to now, from its sp_ fields, and its releaseRank
+const currentRelease = (db, songId, song) => {
+  const albumType = frameValue(db, songId, 'TXXX.sp_album_type');
+  if (!albumType) {
+    return null;
+  }
+  const albumArtists = `${frameValue(db, songId, 'TXXX.sp_album_artist') || ''}`;
+  const track = {
+    album: {
+      name: frameValue(db, songId, 'TXXX.sp_album'),
+      album_type: albumType,
+      artists: _.map(_.compact(albumArtists.split(', ')), name => ({ name }))
+    }
+  };
+  return { rank: releaseRank(song, track), album: track.album.name };
+};
+
+/**
+ * Looks a song matched to a compilation up again (ISRC, then search) for the same recording on a
+ * better release (releaseRank). The new track replaces the match only as a match (the same recording)
+ * on a better release; otherwise the current match is refreshed, with a better release that is only a
+ * probable match kept as alternative for the report.
+ */
+const lookupRelease = async ({ client, item, ignored }) => {
+  const { trackId, rank } = item.release;
+  const result = await lookup({ client, song: item.song, rejected: ignored });
+  const better =
+    result.candidate && result.candidate.id !== trackId && result.track
+      ? releaseRank(item.song, result.track) < rank
+      : false;
+  if (better && result.status === 'match') {
+    return { item, ...result, replaces: trackId };
+  }
+  return {
+    item,
+    status: 'refresh',
+    candidate: { id: trackId },
+    ...(better ? { alternative: result.candidate } : {})
+  };
+};
+
 /**
  * Finds Spotify track ids for songs (from songTargets) that belong in a Spotify target and do not have
  * one yet, and writes the spotify.fields of matched songs. Confident matches get TXXX.sp_track_id and
@@ -202,6 +247,7 @@ const matchSongs = async ({
   layouts = [],
   dryRun = false,
   refresh = false,
+  releases = false,
   recheckDays = defaultRecheckDays,
   refreshDays = _.get(config, 'spotify.refreshDays', 30),
   imageDirectory = artistImageDirectory(config),
@@ -214,7 +260,8 @@ const matchSongs = async ({
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
   const selectSong = db.prepare('SELECT id, duration FROM songs WHERE path = ?');
   const selectMatch = db.prepare(
-    'SELECT status, track_id, source, checked_at, rejected FROM spotify_matches WHERE song_id = ?'
+    `SELECT status, track_id, source, checked_at, rejected, reviewed_at FROM spotify_matches
+     WHERE song_id = ?`
   );
   const recheckBefore = daysAgo(now, recheckDays);
   const refreshBefore = daysAgo(now, refreshDays);
@@ -239,8 +286,10 @@ const matchSongs = async ({
   const items = [];
   // tracks in sync.ignorePlaylist are never matched, like tracks rejected in review
   const ignored = ignoredTracks(db, config);
-  _.each(songs, ({ file, targets }) => {
-    if (targets.length === 0) {
+  // every song in sync.scope is matched and refreshed, whether or not it belongs in a Spotify target:
+  // targets only decide what sync pushes and pulls
+  _.each(songs, ({ file, outOfScope }) => {
+    if (outOfScope) {
       return;
     }
     counts.targets += 1;
@@ -255,6 +304,15 @@ const matchSongs = async ({
     const trackId = frameValue(db, row.id, spotifyIdFrame);
     if (trackId) {
       const fetchedAt = frameValue(db, row.id, fetchedAtFrame);
+      const current = releases ? currentRelease(db, row.id, song) : null;
+      // a match on a compilation (not one accepted in review) is looked up again for its original album
+      if (current && current.rank >= compilationRank) {
+        const cached = selectMatch.get(row.id);
+        if (!(cached && cached.reviewed_at)) {
+          items.push({ file, songId: row.id, song, album, release: { trackId, ...current } });
+          return;
+        }
+      }
       if (!refresh && fetchedAt && new Date(fetchedAt) > refreshBefore) {
         counts.tagged += 1;
       } else {
@@ -321,6 +379,20 @@ const matchSongs = async ({
       async item => {
         if (item.trackId) {
           return { item, status: 'refresh', candidate: { id: item.trackId } };
+        }
+        if (item.release) {
+          if (rateLimit) {
+            return { item, status: 'skipped' };
+          }
+          try {
+            return await lookupRelease({ client, item, ignored });
+          } catch (err) {
+            if (err.rateLimited) {
+              rateLimit = rateLimit || err;
+              return { item, status: 'skipped' };
+            }
+            return { item, status: 'failed', error: err.message };
+          }
         }
         if (item.cachedMatch) {
           counts.reused += 1;
@@ -516,7 +588,7 @@ const recheckMatches = ({ db, config, songs, dryRun = false }) => {
   );
   const moved = _.compact(
     _.map(
-      _.filter(songs, ({ targets }) => targets.length > 0),
+      _.reject(songs, 'outOfScope'),
       ({ file }) => {
         const row = selectSong.get(path.relative(baseDirectory, file));
         const trackId = row && frameValue(db, row.id, spotifyIdFrame);

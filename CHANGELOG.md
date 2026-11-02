@@ -6,6 +6,45 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `check` has an `artwork` check: songs without an embedded cover, and whether Spotify has their album
+  image. `check --fix` downloads the Spotify album cover (once per album) and embeds it as the front
+  cover in the same tag write as the other repairs, so `musicman undo` removes it again.
+- `sync --match --recheck` also looks matches on a compilation or various artists release up again: the
+  same recording on the song's own album (by name), else an album, else a single, replaces the match;
+  a better release that is only probable is reported as an album version to check.
+- `sync.importLyrics: false` leaves the beets lyrics plugin (most of an import's time) out of
+  `sync --import`, through a copy of the beets config with `lyrics.auto` off, and says how to fetch the
+  lyrics afterwards.
+- `sync --import` finishes an interrupted import first: downloads beets moved before it was stopped are
+  added to the database, marked imported in the manifest (so `pnpm download` does not fetch them again),
+  and their undo history is pointed at the library. Imports from before 1.49.1 are fixed the same way.
+
+### Changed
+
+- `sync --match` matches and refreshes every song in `sync.scope`, not only songs that belong in Liked
+  Songs or a mapped playlist, so unrated imports get their Spotify fields refreshed too.
+- Matching prefers the original release: among Spotify tracks that are the same recording, the song's
+  own album, then an album, a single, a compilation, and a various artists release; ISRC lookups
+  consider 10 results instead of 5.
+- Singles get the `sp_` album fields (album artist, label, track and disc numbers, cover, ...) like songs
+  in albums; only the standard album tags they fall back to stay limited to album folders
+  (`fallbackScope: album`), so singles stay singles for beets and MPD.
+
+- `sync --import` shows progress bars for tagging, the beets import (counted by the downloads beets
+  has moved out of the download folder, with an ETA; elapsed time only when beets copies), and the
+  database update. A real import writes the per-file TAG lines to the run log only; a dry run still
+  lists them.
+- `sync --import` removes the Spotify popularity spotDL writes to POPM (the rating frame, without an
+  email) on purpose, unless a rating playlist sets the rating, and counts it in the summary (`popm`).
+  The popularity stays in `sp_popularity`.
+
+### Fixed
+
+- The `sync --import` beets progress bar never showed (the beets `import.move` setting was not read),
+  only the elapsed time.
+
 ## [1.49.1] - 2026-11-01
 
 ### Fixed

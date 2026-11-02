@@ -117,10 +117,9 @@ Reviewed: 2026-11-01
 
 ## 5. Artwork
 
-- [ ] **Fetch missing artwork for singles.** (p2) [feature] find songs tagged as singles without an embedded cover (no
-      APIC frame) and embed one: the Spotify album image (`sp_album_image`) first, then beets fetchart sources.
-      Report what was found and from where; `--dry-run` to preview. Decide whether this is its own command or part
-      of `check --fix`.
+- [x] **Fetch missing artwork for singles.** (p2) [feature] `check` `artwork`: `check --fix` embeds the Spotify album
+      cover (every song without one, not only singles). beets fetchart cannot cover singletons, so songs not on
+      Spotify stay left for you.
 - [ ] **Generate artwork when none can be found.** (p3) [feature] for singles still without a cover, generate one
       (e.g. artist and title over a color derived from the grouping), clearly marked as generated so a real cover
       can replace it later.
@@ -139,11 +138,9 @@ Reviewed: 2026-11-01
 
 ## 7. Spotify sync (`docs/03-spotify-id.md`, `docs/05-spotify-push.md`)
 
-- [ ] **Prefer the original album over compilations.** (p2) [feature] a match can be the right recording on the wrong
-      release, e.g. Alice in Chains - Heaven Beside You matched to "Alternative Moments" (Various Artists) instead of
-      their own album. When several candidates are the same recording, rank by the local album (TALB) first, then
-      album_type album over single over compilation, and skip various artists releases. Add a `sync --match
-      --recheck` pass (or a review reason) for existing matches on compilations whose song has its own album.
+- [x] **Prefer the original album over compilations.** (p2) [feature] `releaseRank` among same-recording candidates
+      (own album by name, album, single, compilation, various artists); `sync --match --recheck` looks compilation
+      matches up again. Probable album versions are only reported (a review reject would unlink the song).
 - [ ] **`sync --push` export.** (p2) [feature] (also the action of the `musicman ui` local to Spotify list) export songs missing from Spotify to `sync.uploadDirectory`, one
       subfolder per target playlist (hardlinks when possible), with a `README.md` checklist and printed summary.
       Verify first how Spotify desktop Local Files sources handle subfolders.
@@ -196,8 +193,9 @@ Reviewed: 2026-11-01
 
 ## 8. Downloads and import (`docs/04-spotify-pull.md`, `docs/06-spotify-sync-runbook.md`)
 
-- [ ] **Verify `sync --pull`, `pnpm download`, and `sync --import` end to end.** (p2) [test] on a real manifest once
-      the Spotify rate limit lifts; only the beets step was checked against real beets (2026-10-21).
+- [ ] **Verify `sync --pull`, `pnpm download`, and `sync --import` end to end.** (p2) [test] 2026-11-02: 1281 pulled,
+      904 downloaded (367 missing, rerun `pnpm download`), a 20 file slice imported and checked (tags, database,
+      manifest, undo history); 884 left to import. beets takes ~14 s per file, mostly the lyrics plugin.
 - [ ] **`import` command wrapping beets.** (p2) [feature] one command for newly downloaded files, reading the beets
       config (paths, import settings) so it tags and renames like beets would:
       - tell full albums from singles (album import vs `-s` singletons) and import each the right way

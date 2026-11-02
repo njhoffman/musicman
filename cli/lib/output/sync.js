@@ -120,6 +120,10 @@ const formatSongResult = (status, item, result = {}, { verbose = false, dryRun =
     target && `${dim('->')} ${target}`,
     diff && dim(`(${diff})`),
     writes && !verbose && writeCounts(writes),
+    // sync --match --recheck: a compilation match replaced by its original album, or one to check
+    result.replaces && dim('(original album, was a compilation)'),
+    result.alternative &&
+      chalk.hex('#DDCC44')(`album version to check: ${candidateLabel(result.alternative)}`),
     result.error && !verbose && chalk.hex(statusColors.failed)(result.error)
   ]
     .filter(Boolean)
@@ -188,7 +192,7 @@ const formatMatchSummary = (
   const { bySource, artistImages } = summary;
   const notFoundBefore = summary.cached - (summary.cachedReview || 0);
   const rows = _.compact([
-    ['songs for Liked Songs or playlists', summary.targets],
+    ['songs in sync.scope', summary.targets],
     ['  already tagged', summary.tagged],
     [
       '  recently checked',
@@ -337,6 +341,7 @@ const importColors = {
   playlist: '#33CCAA',
   skipped: '#DD7744',
   unknown: '#DD7744',
+  popularity: '#999999',
   left: '#8888FF'
 };
 
@@ -368,6 +373,12 @@ const formatImportSummary = (summary, { dryRun = false, database = null, left = 
     ],
     ['rating', 'rating', having('rating:'), 'rating from a rating playlist'],
     ['playlist', 'tags', playlistTagged, 'picks, context, or mood from their playlists'],
+    [
+      'popularity',
+      'popm',
+      _.filter(files, 'popularity').length,
+      "spotDL's Spotify popularity removed from POPM, the rating frame (kept as sp_popularity)"
+    ],
     [
       'skipped',
       'skipped',

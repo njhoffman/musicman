@@ -81,6 +81,13 @@ const checks = [
     run: library.duplicates
   },
   {
+    name: 'artwork',
+    source: 'db',
+    unit: 'file',
+    description: 'songs without an embedded cover',
+    run: library.artwork
+  },
+  {
     name: 'exclusive',
     source: 'db',
     unit: 'song',

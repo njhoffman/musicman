@@ -7,6 +7,7 @@ const {
   normalizeTitle,
   primaryArtist,
   rateCandidate,
+  releaseRank,
   searchQuery
 } = require('./match.js');
 
@@ -107,6 +108,42 @@ describe('Spotify Matching', () => {
       ]);
       expect(result).to.deep.include({ status: 'match' });
       expect(result.candidate).to.include({ id: 'closest', artists: 'Prince', album: 'Album' });
+    });
+
+    const onRelease = (base, album) => ({ ...base, album });
+
+    it('should match the original album over a compilation of the same recording', () => {
+      const result = bestCandidate(song, [
+        onRelease(track('Automatic', ['Prince'], 568, 'comp'), {
+          name: 'Hits',
+          album_type: 'compilation'
+        }),
+        onRelease(track('Automatic - 2019 Remaster', ['Prince'], 569, 'album'), {
+          name: '1999',
+          album_type: 'album'
+        })
+      ]);
+      expect(result.candidate.id).to.equal('album');
+    });
+
+    it('should prefer the local album by name, and never let a release beat a better status', () => {
+      const local = { ...song, album: 'Purple Rain' };
+      const tracks = [
+        onRelease(track('Automatic', ['Prince'], 568, 'album'), {
+          name: '1999',
+          album_type: 'album'
+        }),
+        onRelease(track('Automatic', ['Prince'], 568, 'own'), {
+          name: 'Purple Rain',
+          album_type: 'compilation'
+        }),
+        onRelease(track('Automatic', ['Prince'], 590, 'longer'), {
+          name: 'Purple Rain',
+          album_type: 'album'
+        })
+      ];
+      expect(bestCandidate(local, tracks).candidate.id).to.equal('own');
+      expect(bestCandidate(local, tracks.slice(2).concat(tracks[1])).status).to.equal('match');
     });
 
     it('should keep a close review candidate in review with its similarity', () => {
@@ -241,5 +278,26 @@ describe('Spotify Matching', () => {
       searchQuery({ title: 'Black (feat. Norah Jones)', artist: 'Danger Mouse & Daniele Luppi' })
     ).to.equal('track:"Black" artist:"Danger Mouse"');
     expect(looseQuery({ title: 'Fix You', artist: 'Coldplay' })).to.equal('fix you coldplay');
+  });
+
+  describe('releaseRank', () => {
+    const on = album => ({ album });
+
+    it('should rank the own album, then album, single, compilation, and various artists', () => {
+      const song = { album: 'OK Computer' };
+      expect(
+        releaseRank(song, on({ name: 'OK Computer (Remastered)', album_type: 'compilation' }))
+      ).to.equal(0);
+      expect(releaseRank(song, on({ name: 'Kid A', album_type: 'album' }))).to.equal(1);
+      expect(releaseRank(song, on({ name: 'Creep', album_type: 'single' }))).to.equal(2);
+      expect(releaseRank(song, on({ name: 'Hits', album_type: 'compilation' }))).to.equal(3);
+      expect(
+        releaseRank(
+          song,
+          on({ name: 'Now 90s', album_type: 'album', artists: [{ name: 'Various Artists' }] })
+        )
+      ).to.equal(4);
+      expect(releaseRank({}, {})).to.equal(2);
+    });
   });
 });

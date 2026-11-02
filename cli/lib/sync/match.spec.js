@@ -123,6 +123,105 @@ describe('Spotify Id Matching', () => {
     expect(stored.value).to.equal('search-id');
   });
 
+  it('should match songs in no Spotify target, like unrated imports', async () => {
+    const searched = meta('testFile03.mp3');
+    const row = db.prepare('SELECT duration FROM songs WHERE path = ?').get('testFile03.mp3');
+    const client = fakeClient({
+      [`track:"${searched.title}" artist:"${searched.artist}"`]: [
+        track('search-id', searched.title, searched.artist, row.duration)
+      ]
+    });
+    const summary = await matchSongs({
+      db,
+      config,
+      client,
+      songs: [{ file: file('testFile03.mp3'), meta: {}, targets: [] }]
+    });
+    expect(summary).to.include({ targets: 1, match: 1 });
+    expect(spotifyId('testFile03.mp3')).to.equal('search-id');
+  });
+
+  describe('original albums (releases)', () => {
+    const duration = () =>
+      db.prepare('SELECT duration FROM songs WHERE path = ?').get('testFile02.mp3').duration;
+    const onRelease = (id, seconds, album) => ({
+      ...track(id, meta('testFile02.mp3').title, 'Anyone', seconds),
+      album
+    });
+    const compilation = { id: 'hits', name: 'Hits', album_type: 'compilation' };
+
+    beforeEach(async () => {
+      NodeId3.update(
+        {
+          userDefinedText: [
+            { description: 'sp_track_id', value: 'comp-id' },
+            { description: 'sp_album', value: 'Hits' },
+            { description: 'sp_album_type', value: 'compilation' },
+            { description: 'sp_fetched_at', value: new Date().toISOString() }
+          ]
+        },
+        file('testFile02.mp3')
+      );
+      await updateDatabase(db, { config, target: library });
+    });
+
+    it('should replace a compilation match with the same recording on its album', async () => {
+      const results = [];
+      const client = fakeClient({
+        'isrc:ISRC0001': [
+          onRelease('comp-id', duration(), compilation),
+          onRelease('album-id', duration(), { id: 'own', name: 'Own', album_type: 'album' })
+        ]
+      });
+      const summary = await matchSongs({
+        db,
+        config,
+        client,
+        releases: true,
+        songs: songs(['testFile02.mp3']),
+        onSong: (status, item, result) => results.push([status, result.replaces])
+      });
+      expect(summary).to.include({ match: 1 });
+      expect(results).to.deep.equal([['match', 'comp-id']]);
+      expect(spotifyId('testFile02.mp3')).to.equal('album-id');
+    });
+
+    it('should keep the match and report an album version that is only probable', async () => {
+      const results = [];
+      const comp = onRelease('comp-id', duration(), compilation);
+      const client = fakeClient(
+        {
+          'isrc:ISRC0001': [
+            onRelease('album-id', duration() + 20, { name: 'Own', album_type: 'album' })
+          ]
+        },
+        { 'comp-id': comp }
+      );
+      await matchSongs({
+        db,
+        config,
+        client,
+        releases: true,
+        songs: songs(['testFile02.mp3']),
+        onSong: (status, item, result) => results.push([status, _.get(result, 'alternative.id')])
+      });
+      expect(results).to.deep.equal([['refresh', 'album-id']]);
+      expect(spotifyId('testFile02.mp3')).to.equal('comp-id');
+    });
+
+    it('should leave compilation matches accepted in review and runs without releases', async () => {
+      const songId = db.prepare('SELECT id FROM songs WHERE path = ?').get('testFile02.mp3').id;
+      const client = fakeClient({});
+      await matchSongs({ db, config, client, songs: songs(['testFile02.mp3']) });
+      db.prepare(
+        `INSERT INTO spotify_matches (song_id, status, track_id, source, checked_at, reviewed_at)
+         VALUES (?, 'match', 'comp-id', 'search', datetime('now'), datetime('now'))`
+      ).run(songId);
+      await matchSongs({ db, config, client, releases: true, songs: songs(['testFile02.mp3']) });
+      expect(client.queries).to.be.empty;
+    });
+  });
+
   it('should never match a song to a track in sync.ignorePlaylist', async () => {
     const ignoreId = 'IgnorePlaylist00000000';
     db.prepare("INSERT INTO spotify_playlists (id, name) VALUES (?, 'Ignore')").run(ignoreId);
@@ -175,7 +274,7 @@ describe('Spotify Id Matching', () => {
     expect(again.queries).to.be.empty;
   });
 
-  it('should skip songs that already have a Spotify id or no targets', async () => {
+  it('should skip songs that already have a Spotify id or are outside sync.scope', async () => {
     NodeId3.update(
       {
         userDefinedText: [
@@ -191,7 +290,10 @@ describe('Spotify Id Matching', () => {
       db,
       config,
       client,
-      songs: [...songs(['testFile01.mp3']), { file: file('testFile02.mp3'), meta: {}, targets: [] }]
+      songs: [
+        ...songs(['testFile01.mp3']),
+        { file: file('testFile02.mp3'), meta: {}, targets: [], outOfScope: true }
+      ]
     });
     expect(summary).to.include({ targets: 1, tagged: 1 });
     expect(client.queries).to.be.empty;

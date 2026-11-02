@@ -409,7 +409,32 @@ const duplicates = ({ db, songs }) => {
   ];
 };
 
+/**
+ * Songs without an embedded cover (no APIC frame), each with the Spotify album image check --fix embeds
+ * (sp_album_image) when the song was matched on Spotify.
+ */
+const artwork = ({ db }) =>
+  _.map(
+    db
+      .prepare(
+        `SELECT songs.path,
+           (SELECT value FROM song_tags i WHERE i.song_id = songs.id
+             AND i.frame_id = 'TXXX.sp_album_image' LIMIT 1) AS image,
+           (SELECT value FROM song_tags a WHERE a.song_id = songs.id
+             AND a.frame_id = 'TXXX.sp_album' LIMIT 1) AS album
+         FROM check_scope s JOIN songs ON songs.id = s.id
+         WHERE NOT EXISTS (SELECT 1 FROM song_tags t WHERE t.song_id = songs.id AND t.frame_id = 'APIC')
+         ORDER BY songs.path`
+      )
+      .all(),
+    ({ path: file, image, album }) =>
+      image
+        ? { file, detail: `no cover, Spotify has the ${album ? `"${album}" ` : ''}cover`, image }
+        : { file, detail: 'no cover, and no Spotify album image (not matched on Spotify)' }
+  );
+
 module.exports = {
+  artwork,
   standardFrames,
   caseVariants,
   editDistance,

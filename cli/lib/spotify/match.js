@@ -312,10 +312,29 @@ const rateCandidate = (song, track, { isrc = false } = {}) => {
   return similar && durationDiff <= 3 ? 'review' : null;
 };
 
+const variousArtists = /^various artists$/i;
+
+/**
+ * Rank of the release a Spotify track is on, lower is better for a song ({ album } is its local album):
+ * the song's own album by name, then an album, a single, a compilation, and a various artists release,
+ * so a recording found on several releases is matched to the original rather than a compilation.
+ */
+const releaseRank = (song, track) => {
+  const album = _.get(track, 'album', {});
+  if (song.album && album.name && normalizeTitle(song.album) === normalizeTitle(album.name)) {
+    return 0;
+  }
+  if (_.some(album.artists, ({ name }) => variousArtists.test(`${name || ''}`.trim()))) {
+    return 4;
+  }
+  return { album: 1, single: 2, compilation: 3 }[album.album_type] || 2;
+};
+
 /**
  * Best of the candidate tracks for a song: { status: 'match' | 'review' | 'missing', candidate, track,
- * similarity } with the full Web API track when one qualifies. Matches beat review candidates; ties go
- * to the most similar (matchSimilarity), then the closest duration.
+ * similarity } with the full Web API track when one qualifies. Matches beat review candidates; among
+ * matches (the same recording) the best release wins (releaseRank); ties go to the most similar
+ * (matchSimilarity), then the closest duration, then the best release.
  */
 const bestCandidate = (song, tracks, options = {}) => {
   const rated = _.compact(
@@ -333,8 +352,10 @@ const bestCandidate = (song, tracks, options = {}) => {
   );
   const best = _.sortBy(rated, [
     ({ status }) => (status === 'match' ? 0 : 1),
+    ({ status, track }) => (status === 'match' ? releaseRank(song, track) : 0),
     ({ similarity }) => -similarity.percent,
-    'diff'
+    'diff',
+    ({ track }) => releaseRank(song, track)
   ])[0];
   return best
     ? _.pick(best, ['status', 'candidate', 'track', 'similarity'])
@@ -365,6 +386,7 @@ const searchQuery = song => {
 const looseQuery = song => `${plain(queryTitle(song.title))} ${plain(queryArtist(song))}`.trim();
 
 module.exports = {
+  releaseRank,
   bestCandidate,
   isLiveAlbum,
   sameTitle,

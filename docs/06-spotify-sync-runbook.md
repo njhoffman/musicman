@@ -44,10 +44,11 @@ musicman sync --match             # writes TXXX.sp_* tags to the files
 - Each song is one line: status (`MATCH`, `REVIEW`, `MISSING`, `REFRESH`, `FAILED`; `dry` in a dry run),
   source (beets, isrc, search), the Spotify track, and `+N fields ~N filled =N kept -N removed`. `-v` lists
   every field.
-- Album fields (`scope: album` in `spotify.fields`: album artist, track and disc numbers, label, album image,
-  ...) only go to songs in album folders, by the beets path rule the song's folder matches (`$album` in it).
-  Singles lose them when their fields are refreshed; `sp_album`, `sp_album_id`, `sp_album_type`, and the
-  release date stay on every song.
+- Every song gets the `sp_` album fields (album, album artist, track and disc numbers, label, album image,
+  ...), singles too. The standard album tags they fall back to (album, album artist, track, disc, publisher,
+  copyright; `fallbackScope: album` in `spotify.fields`) are only filled for songs in album folders, by the
+  beets path rule the song's folder matches (`$album` in it), so singles stay singles. `scope: album` is
+  still available to keep a field off singles entirely.
 - A first full run is about 6440 songs: roughly 45 to 60 minutes. Later runs only look up new songs, recheck
   misses after 30 days, and refresh fields older than `spotify.refreshDays` (30); `--refresh` refreshes all.
 - Standard tags (artist, title, year, ...) are only filled when empty, never overwritten.
@@ -67,8 +68,17 @@ musicman sync --match             # writes TXXX.sp_* tags to the files
 musicman sync --review            # list them; linked ones are already on Spotify
 musicman sync --review --accept   # pick matches to keep with fzf (writes the id and fields if needed)
 musicman sync --review --reject   # pick wrong matches with fzf
-musicman sync --match --recheck   # move existing matches that fail the current title rules to review
+musicman sync --match --recheck   # move existing matches that fail the current title rules to review,
+                                  # and look matches on compilations up again for their original album
 ```
+
+- `--recheck` looks every match on a compilation or various artists release up again (not ones accepted in
+  review). The same recording on a better release (the song's own album by name, then an album, then a
+  single) replaces it as `MATCH ... (original album, was a compilation)`; a better release that is only a
+  probable match is reported as `album version to check` and nothing changes, since rejecting a linked
+  match in review would unlink the song.
+- Every song in `sync.scope` is matched and refreshed, also songs that belong in no Spotify target (unrated
+  imports, groupings with no playlist); targets only decide what `sync` pushes and pulls.
 
 - Rejecting unlinks the song (its `sp_*` tags are removed) and remembers the track: the next `sync --push` removes
   it from every playlist it was pushed to, without `--prune`, it is never offered as a download, and the next

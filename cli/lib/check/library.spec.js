@@ -218,4 +218,28 @@ describe('Library checks', () => {
       'MusicBrainz track m1'
     ]);
   });
+
+  describe('artwork', () => {
+    it('should list songs without a cover, with the Spotify album image when there is one', () => {
+      addSong('covered.mp3', { APIC: '1', 'TXXX.sp_album_image': 'https://i/1' });
+      addSong('spotify.mp3', { 'TXXX.sp_album_image': 'https://i/2', 'TXXX.sp_album': 'Album' });
+      addSong('none.mp3', { TIT2: 'x' });
+      const scope = db
+        .prepare(
+          `SELECT id, path FROM songs WHERE path IN ('covered.mp3', 'spotify.mp3', 'none.mp3')`
+        )
+        .all();
+      expect(check(library.artwork, scope)).to.deep.equal([
+        {
+          file: 'none.mp3',
+          detail: 'no cover, and no Spotify album image (not matched on Spotify)'
+        },
+        {
+          file: 'spotify.mp3',
+          detail: 'no cover, Spotify has the "Album" cover',
+          image: 'https://i/2'
+        }
+      ]);
+    });
+  });
 });
