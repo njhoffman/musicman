@@ -124,4 +124,23 @@ describe('Spotify API Client', () => {
     await Promise.all([api.get('/a'), api.get('/b'), api.get('/c')]);
     expect(slept).to.deep.equal([250, 250]);
   });
+
+  it('should page through a list and report the items fetched of the total', async () => {
+    const { api } = client([
+      {
+        status: 200,
+        body: { items: [1, 2], total: 3, next: 'https://api.spotify.com/v1/me/tracks?offset=2' }
+      },
+      { status: 200, body: { items: [3], total: 3, next: null } }
+    ]);
+    const pages = [];
+    const items = await api.paginate('/me/tracks?limit=2', {
+      onPage: (fetched, total) => pages.push([fetched, total])
+    });
+    expect(items).to.deep.equal([1, 2, 3]);
+    expect(pages).to.deep.equal([
+      [2, 3],
+      [3, 3]
+    ]);
+  });
 });

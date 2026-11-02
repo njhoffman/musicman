@@ -115,12 +115,14 @@ const createClient = ({
   };
 
   // every item of a paged endpoint, following next links
-  const paginate = async url => {
+  // every item of a paged list; onPage(items so far, total items) after each page
+  const paginate = async (url, { onPage = () => {} } = {}) => {
     const items = [];
     let next = url;
     while (next) {
       const page = await request('GET', next);
       items.push(...page.items);
+      onPage(items.length, page.total);
       next = page.next;
     }
     return items;

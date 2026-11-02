@@ -205,10 +205,28 @@ const runPush = async ({ db, client, config, plan, prune, dryRun, confirm, verbo
     'id'
   );
   await refreshCache(db, client, _.without(changed, 'liked'), {
-    onTarget: (id, status) => logger.progress(`Refreshing the changed playlists: ${id} ${status}`)
+    onProgress: refreshProgress('Refreshing the changed playlists')
   });
   logger.progressDone();
   return results;
+};
+
+// a progress bar for refreshCache: playlists done, and the tracks fetched of the one being fetched
+const refreshProgress = label => {
+  const startedAt = new Date();
+  return ({ done, total, name, fetched, tracks }) =>
+    logger.progress(
+      progressBar({
+        done,
+        total,
+        label,
+        unit: 'playlists',
+        startedAt,
+        detail: dim(
+          `${name}${tracks ? ` ${fetched}/${tracks} tracks` : fetched ? ` ${fetched} tracks` : ''}`
+        )
+      })
+    );
 };
 
 // apply the playlist changes made on Spotify to songs in the library as tag changes
@@ -358,10 +376,7 @@ const runPlan = async ({
       ignorePlaylistId(config)
     ]);
     await refreshCache(db, client, playlistIds, {
-      onTarget: (id, status, count) =>
-        logger.progress(
-          `Refreshing Spotify playlists: ${id} ${status}${count === undefined ? '' : ` (${count})`}`
-        )
+      onProgress: refreshProgress('Refreshing Spotify playlists')
     });
     logger.progressDone();
     const plan = syncPlan(db, config, songTargets(await librarySongs(config), config));

@@ -66,6 +66,34 @@ describe('Sync Cache and Plan', () => {
       });
     });
 
+    it('should report the playlists done and the tracks fetched of the one being fetched', async () => {
+      const events = [];
+      const paging = client({ aaa: 's1', bbb: 's2' });
+      paging.paginate.callsFake(async (url, { onPage } = {}) => {
+        const items = url.startsWith('/me/tracks')
+          ? [{ added_at: 'x', track: { id: 'liked1', name: 'L', artists: [], album: {} } }]
+          : [entry('p1'), entry('p2')];
+        onPage(1, items.length);
+        onPage(items.length, items.length);
+        return items;
+      });
+      await refreshCache(db, paging, ['aaa', 'bbb'], {
+        onProgress: event => events.push(_.values(event).join(' '))
+      });
+      expect(events).to.deep.equal([
+        '0 3 Liked Songs 0 ',
+        '0 3 Liked Songs 1 1',
+        '0 3 Liked Songs 1 1',
+        '1 3 Liked Songs 1 1',
+        '1 3 Playlist aaa 1 2',
+        '1 3 Playlist aaa 2 2',
+        '2 3 Playlist aaa 2 2',
+        '2 3 Playlist bbb 1 2',
+        '2 3 Playlist bbb 2 2',
+        '3 3 Playlist bbb 2 2'
+      ]);
+    });
+
     it('should not fetch playlist items again when the snapshot did not change', async () => {
       await refreshCache(db, client({ aaa: 's1' }), ['aaa']);
       const again = client({ aaa: 's1' });

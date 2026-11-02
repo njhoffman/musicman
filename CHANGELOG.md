@@ -15,6 +15,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- `sync` shows a progress bar while it refreshes the Spotify playlists (playlists done, ETA, and the
+  tracks fetched of the one being fetched), also after `--push`.
 - The database moves to schema 10 (the view) the first time this version opens it; older versions refuse it
   afterwards, so update the notify daemon along with the cli.
 
