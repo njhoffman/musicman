@@ -6,6 +6,23 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `sync --backup` deletes the dated folders of `.musicman-removed` older than `backup.keepRemovedDays` (180;
+  0 keeps them for good).
+- `pnpm download` deletes the files spotDL left in `~/.spotdl/temp` more than a day ago (the YouTube audio of
+  stopped downloads).
+- A pre-commit hook refuses staged `.js` files that Prettier would change (`pnpm format` fixes them).
+
+### Fixed
+
+- `pnpm daemon:install` wrote a versioned pnpm store path for node into the service, which a node upgrade
+  removes; it takes the node on PATH outside the store (`~/.local/share/pnpm/bin/node`). Run it again.
+
+### Changed
+
+- The 14 files written before the Prettier reflow are formatted.
+
 ## [1.71.1] - 2026-11-03
 
 ### Fixed

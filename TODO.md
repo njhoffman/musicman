@@ -8,56 +8,6 @@ flag. Feature specs live in `docs/`.
 
 Reviewed: 2026-11-03
 
-## 1. Bugs
-
-- [x] **Unknown fields in filters are ignored silently.** (p3) [bug] `parseFilters`
-      (`cli/lib/parser/options/filters.js`) skips a `field:value` whose field is not a configured tag, so a typo in
-      `stats.filters` or `sync.playlists` matches every song. Now a config error (`filterProblems` in
-      `common/config/validator.js`, also for `menu.buttons`), and refused on the command line except by `search`
-      and `player`, which take such a term as text.
-- [x] **Unknown fields in assignments are ignored silently.** (p3) [bug] `musicman edit contxt=Study` writes nothing
-      and says nothing (`parseAssignments` skips fields that are not library tags); refused like filters now.
-- [x] **Memory use when reading many files.** (p3) [bug] `stats --files` peaked at 3.2 GB on 7363 files: node-id3
-      reads each whole file and gives the UFID identifier as a slice of it, which kept every mp3 in memory.
-      `toRawTags` copies buffers out; 726 MB on 2026-11-03.
-- [x] **Read only the tag when reading files.** (p3) [perf] `readMetadata` (`metadata/read.js`) gives node-id3 the
-      path, so it reads each whole mp3 (2m19s for `stats --files`); reading the tag alone (`readTagBuffer`, as
-      `check --fix` does now) was 7 times faster cold with the same frames. Done: `readTagBufferAsync`
-      (`metadata/tagBuffer.js`), same frames for all 7363 files; `stats --files` 2m19s to 34s.
-- [x] **`-i`/`--include` and `-x`/`--exclude` do nothing.** (p2) [bug] Stale: checked 2026-11-01, `view` applies
-      them to the table, the single file list, and `--format` columns (`commands/view.js`, `songColumns`).
-- [x] **MPD responses cut values at the second colon.** (p2) [bug] `common/mpd/utils.js` `parseMpdReply` splits on
-      the first `: ` only, shared by the client and the menu.
-- [x] **`stats.filters` is never used.** (p3) [bug] `stats` shows a Filters section; the defaults no longer filter on
-      a `type` tag that does not exist.
-- [x] **`--include=`, `--exclude=` and `--write=` are not parsed.** (p2) [bug] they now have a `value` key.
-- [x] **Rating ranges compared as strings.** (p2) [bug] `filterRating` compares numbers, so `rating:4-4` matches.
-- [x] **`edit` asks for confirmation before checking for zero matches.** (p3) [bug] zero matches return first.
-- [x] **Playlist paths use string replace.** (p2) [bug] `commands/playlist.js` uses `path.relative`.
-- [x] **`term-size` spawns `resize`.** (p3) [bug] replaced by `process.stdout.columns` with a fallback.
-- [x] **`pnpm lint` fails with 103 errors.** (p2) [bug] fixed by the ESLint migration.
-- [x] **Logging levels use different scales.** (p3) [bug] `output.verbosity` and `logger.file.level` take level
-      names; the unused `logger.stdout.level` was removed.
-- [x] **Logger ignores `logger.colors`.** (p3) [bug] terminal lines start with a level badge in the level's colors.
-
-## 2. Code quality
-
-- [x] **Combine `filterInclude` and `filterExclude`.** (p3) [refactor] one `matchesFilters` negates the test of each
-      value, so a multi value exclude still means none of the values is present.
-- [x] **Skip the MPD lookup for commands without targets.** (p3) [perf] `cli/lib/cli.js` asks MPD for the playing
-      song before parsing every command, so `shuffle`, `spotify`, `sync`, `logs`, and `undo` wait for it too, up to
-      the 2 s connect timeout when MPD is down. Done: commands with `targetArgs: false` skip it.
-- [x] **Make the notify daemon testable.** (p3) [refactor] `lib/notify/notification.js` builds and sends
-      notifications; `notify-daemon.js` only loads config.
-- [x] **Rename `seperators` to `separators`.** (p3) [refactor] with a legacy-key error.
-- [x] **Replace `bluebird`.** (p3) [refactor] native promises and `utils/promise.js` `mapLimit`.
-- [x] **Replace `prompt-confirm`.** (p3) [refactor] `utils/confirm.js` on `@inquirer/confirm`.
-- [x] **Vendored MPD client.** (p3) [refactor] evaluated 2026-10-31 and kept: `mpd2` adds a fixed ~100 ms idle check
-      to every connect (175 ms vs 53 ms here), which `menu` pays per command, and it renames reply keys.
-- [x] **Move TODO comments out of the code.** (p3) [chore] moved into this file.
-- [x] **`library.tagId` is not used.** (p3) [chore] removed; musicman stays on ID3v2.3 (beets `id3v23: true`,
-      node-id3). Revisit v2.4 only together with beets `id3v23: false` and a v2.4-capable writer.
-
 ## 3. Library data
 
 - [x] **Run `check --fix` on the library.** (p2) [chore] 2026-11-01: trial on Bigbeat & Dubstep (97 files,
@@ -275,7 +225,7 @@ Reviewed: 2026-11-03
       because they are long, resumable, and against YouTube's terms. Decide whether the `download` command should
       start spotDL itself; if it does, keep it resumable and keep the manifest as the record of what to fetch.
       `musicman ui` starts the script detached since 1.66.0 (`lib/ui/download.js`), which a command could reuse.
-- [ ] **Stale spotDL temp files.** (p3) [chore] a stopped download leaves the YouTube source it fetched in
+- [x] **Stale spotDL temp files.** (p3) [chore] a stopped download leaves the YouTube source it fetched in
       `~/.spotdl/temp` (`.webm`, a few MB each, some from 2024 on 2026-11-03); the download script could delete
       those older than a day before it runs.
 - [x] **`sync --pull` manifest.** (p2) [feature] `manifest.json` in `sync.downloadDirectory` with each Spotify-only
@@ -352,13 +302,79 @@ Reviewed: 2026-11-03
 - [x] **rofi menu for the playing song.** (p2) [feature] `musicman menu`: playback controls for MPD and Spotify,
       tag and rating buttons from `menu.buttons` and `menu.ratings`.
 
-## 10. Undo, history, and backups
+## 11. Research and other services
 
-Runs record their tag and Spotify changes for `musicman undo` (since 1.24.0). `sync --backup` keeps deleted
-files in `.musicman-removed/` and replaced ones in `.musicman-replaced/`, and `db --restore` restores the database
-backups.
+- [ ] **Smart playlists on Spotify.** (p3) [feature] generate playlists from the library's own metadata (context,
+      mood, picks, rating, grouping, Spotify genres and popularity) instead of only fixed filters, and push them like
+      the mapped playlists. First look into services or libraries that build better smart playlists from that kind
+      of metadata.
+- [ ] **Mood analysis services.** (p3) [feature] evaluate APIs that tag songs with moods (to fill or suggest the
+      `mood` tag and replace the blocked Spotify audio features): bridge.audio, SonoTeller, Cyanite.ai, Musiio, AIMS
+      API. Compare coverage, price, whether they analyze uploaded audio or only catalogue ids, and rate limits.
+- [ ] **Lyrics analysis and sources.** (p3) [feature] lyric based tags (themes, explicitness, language). Fetching
+      lyrics belongs to sleeve, which has LRCLIB and NetEase; build on its lyrics (`sleeve lyrics --json`) rather
+      than evaluating sources again here.
+- [ ] **Genre analysis services.** (p3) [feature] evaluate Every Noise at Once, Chosic music genre finder, PitchPlus,
+      and SubmitHub "What's my genre" for finer genres than Spotify's artist genres, to help guess groupings.
+      Several are websites without an API, so check what can be automated.
+- [ ] **Other music services.** (p3) [feature] support services besides Spotify (e.g. YouTube Music, SoundCloud) for
+      matching, playlist sync, and playback, starting with which ones have a usable API.
 
-- [ ] **Prune `.musicman-removed` on the backup.** (p3) [feature] `sync --backup` moves files deleted from the library
+## Completed
+
+### 1. Bugs (completed 2026-11-03)
+
+- [x] **Unknown fields in filters are ignored silently.** (p3) [bug] `parseFilters`
+      (`cli/lib/parser/options/filters.js`) skips a `field:value` whose field is not a configured tag, so a typo in
+      `stats.filters` or `sync.playlists` matches every song. Now a config error (`filterProblems` in
+      `common/config/validator.js`, also for `menu.buttons`), and refused on the command line except by `search`
+      and `player`, which take such a term as text.
+- [x] **Unknown fields in assignments are ignored silently.** (p3) [bug] `musicman edit contxt=Study` writes nothing
+      and says nothing (`parseAssignments` skips fields that are not library tags); refused like filters now.
+- [x] **Memory use when reading many files.** (p3) [bug] `stats --files` peaked at 3.2 GB on 7363 files: node-id3
+      reads each whole file and gives the UFID identifier as a slice of it, which kept every mp3 in memory.
+      `toRawTags` copies buffers out; 726 MB on 2026-11-03.
+- [x] **Read only the tag when reading files.** (p3) [perf] `readMetadata` (`metadata/read.js`) gives node-id3 the
+      path, so it reads each whole mp3 (2m19s for `stats --files`); reading the tag alone (`readTagBuffer`, as
+      `check --fix` does now) was 7 times faster cold with the same frames. Done: `readTagBufferAsync`
+      (`metadata/tagBuffer.js`), same frames for all 7363 files; `stats --files` 2m19s to 34s.
+- [x] **`-i`/`--include` and `-x`/`--exclude` do nothing.** (p2) [bug] Stale: checked 2026-11-01, `view` applies
+      them to the table, the single file list, and `--format` columns (`commands/view.js`, `songColumns`).
+- [x] **MPD responses cut values at the second colon.** (p2) [bug] `common/mpd/utils.js` `parseMpdReply` splits on
+      the first `: ` only, shared by the client and the menu.
+- [x] **`stats.filters` is never used.** (p3) [bug] `stats` shows a Filters section; the defaults no longer filter on
+      a `type` tag that does not exist.
+- [x] **`--include=`, `--exclude=` and `--write=` are not parsed.** (p2) [bug] they now have a `value` key.
+- [x] **Rating ranges compared as strings.** (p2) [bug] `filterRating` compares numbers, so `rating:4-4` matches.
+- [x] **`edit` asks for confirmation before checking for zero matches.** (p3) [bug] zero matches return first.
+- [x] **Playlist paths use string replace.** (p2) [bug] `commands/playlist.js` uses `path.relative`.
+- [x] **`term-size` spawns `resize`.** (p3) [bug] replaced by `process.stdout.columns` with a fallback.
+- [x] **`pnpm lint` fails with 103 errors.** (p2) [bug] fixed by the ESLint migration.
+- [x] **Logging levels use different scales.** (p3) [bug] `output.verbosity` and `logger.file.level` take level
+      names; the unused `logger.stdout.level` was removed.
+- [x] **Logger ignores `logger.colors`.** (p3) [bug] terminal lines start with a level badge in the level's colors.
+
+### 2. Code quality (completed 2026-11-03)
+
+- [x] **Combine `filterInclude` and `filterExclude`.** (p3) [refactor] one `matchesFilters` negates the test of each
+      value, so a multi value exclude still means none of the values is present.
+- [x] **Skip the MPD lookup for commands without targets.** (p3) [perf] `cli/lib/cli.js` asks MPD for the playing
+      song before parsing every command, so `shuffle`, `spotify`, `sync`, `logs`, and `undo` wait for it too, up to
+      the 2 s connect timeout when MPD is down. Done: commands with `targetArgs: false` skip it.
+- [x] **Make the notify daemon testable.** (p3) [refactor] `lib/notify/notification.js` builds and sends
+      notifications; `notify-daemon.js` only loads config.
+- [x] **Rename `seperators` to `separators`.** (p3) [refactor] with a legacy-key error.
+- [x] **Replace `bluebird`.** (p3) [refactor] native promises and `utils/promise.js` `mapLimit`.
+- [x] **Replace `prompt-confirm`.** (p3) [refactor] `utils/confirm.js` on `@inquirer/confirm`.
+- [x] **Vendored MPD client.** (p3) [refactor] evaluated 2026-10-31 and kept: `mpd2` adds a fixed ~100 ms idle check
+      to every connect (175 ms vs 53 ms here), which `menu` pays per command, and it renames reply keys.
+- [x] **Move TODO comments out of the code.** (p3) [chore] moved into this file.
+- [x] **`library.tagId` is not used.** (p3) [chore] removed; musicman stays on ID3v2.3 (beets `id3v23: true`,
+      node-id3). Revisit v2.4 only together with beets `id3v23: false` and a v2.4-capable writer.
+
+### 10. Undo, history, and backups (completed 2026-11-03)
+
+- [x] **Prune `.musicman-removed` on the backup.** (p3) [feature] `sync --backup` moves files deleted from the library
       there and never deletes them (folders since 2026-10-21); keep the last N dated folders, as
       `backup.keepReplaced` does for `.musicman-replaced`, or report its size so it can be cleared by hand.
 - [x] **Follow moved songs without a MusicBrainz id in the undo history.** (p3) [feature] `db --update` relinks a
@@ -394,31 +410,13 @@ backups.
 - [x] **Progress feedback for `sync --backup`.** (p2) [feature] status line while comparing, bytes with rate and
       ETA while copying (1.27.0).
 
-## 11. Research and other services
+### 12. Tooling (completed 2026-11-03)
 
-- [ ] **Smart playlists on Spotify.** (p3) [feature] generate playlists from the library's own metadata (context,
-      mood, picks, rating, grouping, Spotify genres and popularity) instead of only fixed filters, and push them like
-      the mapped playlists. First look into services or libraries that build better smart playlists from that kind
-      of metadata.
-- [ ] **Mood analysis services.** (p3) [feature] evaluate APIs that tag songs with moods (to fill or suggest the
-      `mood` tag and replace the blocked Spotify audio features): bridge.audio, SonoTeller, Cyanite.ai, Musiio, AIMS
-      API. Compare coverage, price, whether they analyze uploaded audio or only catalogue ids, and rate limits.
-- [ ] **Lyrics analysis and sources.** (p3) [feature] lyric based tags (themes, explicitness, language). Fetching
-      lyrics belongs to sleeve, which has LRCLIB and NetEase; build on its lyrics (`sleeve lyrics --json`) rather
-      than evaluating sources again here.
-- [ ] **Genre analysis services.** (p3) [feature] evaluate Every Noise at Once, Chosic music genre finder, PitchPlus,
-      and SubmitHub "What's my genre" for finer genres than Spotify's artist genres, to help guess groupings.
-      Several are websites without an API, so check what can be automated.
-- [ ] **Other music services.** (p3) [feature] support services besides Spotify (e.g. YouTube Music, SoundCloud) for
-      matching, playlist sync, and playback, starting with which ones have a usable API.
-
-## 12. Tooling
-
-- [ ] **Format the files Prettier flags.** (p3) [chore] `pnpm format:check` lists 15 files (e.g.
+- [x] **Format the files Prettier flags.** (p3) [chore] `pnpm format:check` lists 15 files (e.g.
       `commands/db.js`, `commands/sync.js`, `sync/plan.js`, `sync/localFiles.js`, `docs/*.md`) written before
       the `.prettierrc` reflow, so every change to them has to leave the rest alone. One `pnpm format` commit,
       then a check in the pre-commit hook (staged files only) keeps it clean.
-- [ ] **The notify daemon runs node from the pnpm store.** (p3) [bug] `pnpm daemon:install` writes `process.execPath`
+- [x] **The notify daemon runs node from the pnpm store.** (p3) [bug] `pnpm daemon:install` writes `process.execPath`
       into the unit, a versioned store path (`.../pnpm/store/v11/links/@/node/24.22.0/...`); a node upgrade or a
       store prune removes it and the service fails to start. Resolve a stable node path at install (the pnpm
       `node` shim on PATH) or check it in `musicman status`.
@@ -440,7 +438,7 @@ backups.
       the padding in `availableWidth`, the status line, the log file, and level badges.
 - [x] **Tests for the notify daemon's notification arguments.** (p3) [test] `lib/notify/notification.spec.js`.
 
-## 13. Housekeeping
+### 13. Housekeeping (completed 2026-11-03)
 
 - [x] **Remove stale tracked files.** (p3) [chore] `cli/test_output.txt`, `cli/test_output2.txt`,
       `cli/SESSION_SUMMARY.md`, and `cli/CONTEXT.md` (superseded by the root `CONTEXT.md`); `docs/scratch.md` holds
@@ -457,7 +455,7 @@ backups.
 - [x] **Remove the untracked repo copy of `.musicmanrc.yml`.** (p3) [chore] it was identical to
       `~/.musicmanrc.yml`, which dotbare tracks; deleted 2026-11-01 and ignored in `.gitignore`.
 
-## 14. Management page (`musicman ui`, `cli/lib/ui/`)
+### 14. Management page (`musicman ui`, `cli/lib/ui/`) (completed 2026-11-03)
 
 - [x] **Cross-site requests can change the library.** (p1) [bug] `checkOrigin` in `cli/lib/ui/server.js`: the
       Host must be 127.0.0.1 or localhost at the server's port, and POSTs must be JSON from the page's origin.
