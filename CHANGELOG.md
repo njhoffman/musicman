@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.67.0] - 2026-11-03
+
 ### Added
 
 - Spotify local files (songs added with `sync --export`) are recognized while they play, in the desktop app
@@ -1295,7 +1297,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.66.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.67.0...HEAD
+[1.67.0]: https://github.com/njhoffman/musicman/compare/v1.66.0...v1.67.0
 [1.66.0]: https://github.com/njhoffman/musicman/compare/v1.65.1...v1.66.0
 [1.65.1]: https://github.com/njhoffman/musicman/compare/v1.65.0...v1.65.1
 [1.65.0]: https://github.com/njhoffman/musicman/compare/v1.64.0...v1.65.0
