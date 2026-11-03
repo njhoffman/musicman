@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { inspect } = require('util');
 const chalk = require('chalk').default;
+const stringWidth = require('string-width').default;
 
 const { defaultConfig } = require('musicman-common/config');
 const { logLevels } = require('musicman-common/config/validator');
@@ -41,13 +42,17 @@ const truncateAnsi = (text, width) => {
     if (match) {
       output += match[0];
       i += match[0].length;
-    } else if (visible < width) {
-      output += text[i];
-      visible += 1;
-      i += 1;
-    } else {
+      continue;
+    }
+    // whole code points by their width on screen: CJK takes two columns, an emoji is one code point
+    const char = String.fromCodePoint(text.codePointAt(i));
+    const columns = stringWidth(char);
+    if (visible + columns > width) {
       break;
     }
+    output += char;
+    visible += columns;
+    i += char.length;
   }
   return `${output}\u001b[0m`;
 };
@@ -55,7 +60,7 @@ const truncateAnsi = (text, width) => {
 // footer cut to the terminal width, a wrapped footer could not be redrawn in place
 const fitFooter = message => {
   const columns = process.stderr.columns || Infinity;
-  if (stripAnsi(message).length < columns) {
+  if (stringWidth(message) < columns) {
     return message;
   }
   return truncateAnsi(message, columns - 1);

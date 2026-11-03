@@ -111,6 +111,17 @@ describe('Logger', () => {
       );
     });
 
+    it('should count wide characters as two columns, so a status line never wraps', () => {
+      process.stderr.isTTY = true;
+      process.stderr.columns = 10;
+      logger.progress('DJ 久遠 - Kuon');
+      logger.progressDone();
+      // 9 columns: "DJ " 3, 久遠 4, " -" 2
+      expect(write.firstCall.args[0]).to.equal(
+        `${chalk.dim('─'.repeat(9))}\n\r\x1b[KDJ 久遠 -\u001b[0m`
+      );
+    });
+
     it('should not write anything when stderr is not a terminal', () => {
       process.stderr.isTTY = false;
       logger.progress('Reading 1/2 files');

@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- A progress line with wide characters (a CJK song name while copying to the phone) wrapped and left its rule
+  on screen: the status line is now cut by its width on screen, two columns for CJK, and emoji are no longer
+  split in half.
+
 ## [1.58.0] - 2026-11-02
 
 ### Added
