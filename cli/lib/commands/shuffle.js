@@ -23,6 +23,9 @@ const lastSourceKey = 'shuffle.lastSource';
 const playlistIdKey = 'shuffle.playlistId';
 // the track ids of the last shuffle, so status can tell its playback (a list without a context) apart
 const orderKey = 'shuffle.order';
+// the tracks of the order the last shuffle started as a list, when they were fewer than the order:
+// { playlistId, count, total, startedAt }, null otherwise; the notify daemon continues from there
+const startedKey = 'shuffle.started';
 
 const defaultPlaylistName = 'musicman shuffle';
 
@@ -122,11 +125,21 @@ const playTracks = async (client, order, { hostname } = {}) => {
 /**
  * Starts the new order: as a list of tracks through the Web API, else (no device, no Premium) by
  * opening the playlist in the desktop app, which can play its old order for a while after a rewrite.
- * Resolves to 'api', 'mpris', or false (warned) when neither starts it.
+ * Resolves to 'api', 'mpris', or false (warned) when neither starts it; onStarted(count) gets how many
+ * tracks the list started.
  */
-const playInOrder = async ({ client, player, order, playlistId, name, hostname }) => {
+const playInOrder = async ({
+  client,
+  player,
+  order,
+  playlistId,
+  name,
+  hostname,
+  onStarted = () => {}
+}) => {
   try {
     const { device, count } = await playTracks(client, order, { hostname });
+    onStarted(count);
     logger.info(
       count < order.length
         ? `Playing the first ${count} of ${order.length} tracks in order on ${device}, Spotify shuffle off; '${name}' holds all of them`
@@ -220,13 +233,29 @@ const shuffleCommand = async ({
     `Wrote ${order.length} tracks of ${source.name} in random order to '${playlistName}'`
   );
 
+  // a list shorter than the order is continued by the notify daemon (shuffleHandoff); the desktop app
+  // opening the playlist plays all of it
+  setMeta(db, startedKey, null);
   const playing = await playInOrder({
     client,
     player,
     order,
     playlistId: playlist.id,
     name: playlistName,
-    hostname
+    hostname,
+    onStarted: count =>
+      setMeta(
+        db,
+        startedKey,
+        count < order.length
+          ? {
+              playlistId: playlist.id,
+              count,
+              total: order.length,
+              startedAt: new Date().toISOString()
+            }
+          : null
+      )
   });
   return { source, order, playlistId: playlist.id, written: true, playing };
 };
@@ -249,6 +278,7 @@ module.exports = {
   lastSource,
   lastSourceKey,
   orderKey,
+  startedKey,
   playlistIdKey,
   librarySourceTracks,
   playDevice,

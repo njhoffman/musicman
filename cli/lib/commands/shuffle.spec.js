@@ -209,10 +209,24 @@ describe('Shuffle Command', () => {
     expect(_.map(plays, ([, , body]) => body.uris.length)).to.deep.equal([300, 150, 100]);
     expect(result.playing).to.equal('mpris');
 
+    // the desktop app opened the whole playlist: nothing for the daemon to continue
+    expect(getMeta(db, shuffle.startedKey)).to.equal(null);
+
     const fits = fakeClient({ maxUris: 200 });
     await runShuffle(['rating:4'], { client: fits, readLibrary });
     const fitPlays = _.filter(fits.writes, ([, url]) => url.startsWith('/me/player/play'));
     expect(_.map(fitPlays, ([, , body]) => body.uris.length)).to.deep.equal([300, 150]);
+    // 150 of 300 started: the notify daemon continues from the playlist at track 151
+    expect(getMeta(db, shuffle.startedKey)).to.deep.include({
+      playlistId: 'shuffleplaylist',
+      count: 150,
+      total: 300
+    });
+    expect(getMeta(db, shuffle.orderKey)).to.have.length(300);
+
+    // every track of the next shuffle starts: nothing to continue
+    await runShuffle(['liked'], { client: fakeClient() });
+    expect(getMeta(db, shuffle.startedKey)).to.equal(null);
   });
 
   it('should open the playlist in the desktop app when the Web API cannot play it', async () => {

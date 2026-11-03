@@ -164,6 +164,36 @@ describe('Notify Daemon', () => {
   });
 
   describe('createNotifier', () => {
+    it('should run onTrack once per new track before notifying, and notify when it fails', async () => {
+      const seen = [];
+      const sent = [];
+      let track = { trackId: 'a', title: 'A' };
+      const player = {
+        source: 'spotify',
+        name: 'Spotify',
+        state: async () => ({ state: 'playing', track })
+      };
+      const notifier = createNotifier({
+        describe: async ({ track: t }) => ({ title: t.title }),
+        send: async notice => {
+          sent.push(notice.title);
+          return 1;
+        },
+        onTrack: async ({ status }) => {
+          seen.push(status.track.trackId);
+          if (status.track.trackId === 'b') {
+            throw new Error('Web API down');
+          }
+        }
+      });
+      await notifier.check(player);
+      await notifier.check(player);
+      track = { trackId: 'b', title: 'B' };
+      await notifier.check(player);
+      expect(seen).to.deep.equal(['a', 'b']);
+      expect(sent).to.deep.equal(['A', 'B']);
+    });
+
     // a player whose state is set by the test
     const fakePlayer = (source, state) => ({
       source,

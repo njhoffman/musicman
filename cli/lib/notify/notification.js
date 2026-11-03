@@ -110,7 +110,7 @@ const songNotice = async ({ player, track }, { config, openDb, readSong, cover =
  * Dependencies: describe(context) builds the notice (songNotice), send(notice, replaceId) shows it and
  * resolves to its id.
  */
-const createNotifier = ({ describe, send }) => {
+const createNotifier = ({ describe, send, onTrack = null }) => {
   const last = {};
   let replaceId = null;
   let queue = Promise.resolve();
@@ -121,6 +121,12 @@ const createNotifier = ({ describe, send }) => {
       return null;
     }
     last[player.source] = key;
+    if (onTrack) {
+      // what else follows the songs (the shuffle handoff); its failure never stops the notification
+      await Promise.resolve(onTrack({ player, status })).catch(err =>
+        logger.error(`After the song change in ${player.name}: ${err.message}`)
+      );
+    }
     const notice = await describe({ player, track: status.track });
     replaceId = (await send(notice, replaceId)) || replaceId;
     return notice;
@@ -273,13 +279,15 @@ const watchSongs = async (
     readSong,
     send = (notice, replaceId) => sendNotification(notice, config.daemon, replaceId),
     cover,
+    onTrack = null,
     mpdWatcher = watchMpd,
     spotifyWatcher = watchSpotify
   }
 ) => {
   const notifier = createNotifier({
     describe: context => songNotice(context, { config, openDb, readSong, cover }),
-    send
+    send,
+    onTrack
   });
   const stopSpotify = spotifyWatcher(() => notifier.check(players.spotify));
   notifier.check(players.spotify);

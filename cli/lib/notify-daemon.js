@@ -6,6 +6,9 @@ const { getFilteredFiles } = require('./commands/common.js');
 const { openLibrary } = require('./db/index.js');
 const { libraryDb, watchSongs } = require('./notify/notification.js');
 const { mpdPlayer, spotifyPlayer } = require('./player/players.js');
+const { shuffleHandoff } = require('./notify/shuffleHandoff.js');
+const { getCredentials, missingCredentials } = require('./spotify/credentials.js');
+const { lazyUserClient } = require('./spotify/userClient.js');
 const { publishPaths } = require('./utils/paths.js');
 
 const pe = new PrettyError();
@@ -28,13 +31,29 @@ const readSong = async file => {
   return meta || null;
 };
 
+// continuing a shuffle past the tracks it started needs the Spotify Web API: the credentials come from
+// the environment (pnpm daemon:install writes them to the service's EnvironmentFile) or the config
+const handoff = openDb => {
+  const missing = missingCredentials(getCredentials(config, process.env));
+  if (missing.length > 0) {
+    logger.info(
+      `No Spotify credentials (${missing.join(', ')}): shuffles stop after the tracks they started; run pnpm daemon:install from a shell that has them`
+    );
+    return null;
+  }
+  return shuffleHandoff({ openDb, client: lazyUserClient(config, process.env) });
+};
+
 // notifies about each new track in MPD or the Spotify desktop app until stopped
-const run = () =>
-  watchSongs(config, {
+const run = () => {
+  const openDb = libraryDb(config, openLibrary);
+  return watchSongs(config, {
     players: { mpd: mpdPlayer(config), spotify: spotifyPlayer() },
-    openDb: libraryDb(config, openLibrary),
-    readSong
+    openDb,
+    readSong,
+    onTrack: handoff(openDb)
   });
+};
 
 run();
 
