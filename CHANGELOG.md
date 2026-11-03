@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.56.1] - 2026-11-02
+
 ### Changed
 
 - The contract lets sleeve replace the plain lyrics beets writes on import with synced ones; synced lyrics already in a
@@ -1133,7 +1135,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.56.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.56.1...HEAD
+[1.56.1]: https://github.com/njhoffman/musicman/compare/v1.56.0...v1.56.1
 [1.56.0]: https://github.com/njhoffman/musicman/compare/v1.55.1...v1.56.0
 [1.55.1]: https://github.com/njhoffman/musicman/compare/v1.55.0...v1.55.1
 [1.55.0]: https://github.com/njhoffman/musicman/compare/v1.54.0...v1.55.0
