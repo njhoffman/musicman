@@ -191,9 +191,14 @@ const runState = run => {
   if (run.undoneBy) {
     return 'undone';
   }
-  const statuses = [...run.files, ...run.matches, ...(run.moves || [])].map(({ status }) => status);
-  if (statuses.includes('changed')) {
-    return 'changed since';
+  const items = [...run.files, ...run.matches, ...(run.moves || [])];
+  const statuses = items.map(({ status }) => status);
+  // a file restored in part keeps the frames changed since: Undo anyway restores those too
+  const keeps = run.files.some(
+    ({ status, changed }) => status === 'restore' && changed && changed.length
+  );
+  if (statuses.includes('changed') || keeps) {
+    return statuses.includes('restore') ? 'partly changed since' : 'changed since';
   }
   if (!statuses.includes('restore')) {
     return 'nothing to undo';
@@ -1425,7 +1430,11 @@ const historyDetails = run => {
         'li',
         { className: status === 'restore' ? null : 'differs' },
         {
-          restore: `Tags of ${file} back: ${frames.join(', ')}`,
+          restore: `Tags of ${file} back: ${frames.join(', ')}${
+            changed && changed.length
+              ? `; ${changed.join(', ')} changed since, kept (Undo anyway puts them back)`
+              : ''
+          }`,
           changed: `Tags of ${file} changed since: ${changed.join(', ')} (Undo anyway puts them back)`,
           missing: `${file} is gone (moved or deleted)`
         }[status]
@@ -1468,12 +1477,13 @@ const historyDetails = run => {
         'button',
         {
           className: 'undo',
-          disabled: state.busy || undoState !== 'can undo',
+          // a run changed in part since restores the rest; Undo anyway restores everything
+          disabled: state.busy || !['can undo', 'partly changed since'].includes(undoState),
           onClick: () => undoRun(run.id, false)
         },
         'Undo'
       ),
-      undoState === 'changed since'
+      undoState === 'changed since' || undoState === 'partly changed since'
         ? h(
             'button',
             { className: 'undo', disabled: state.busy, onClick: () => undoRun(run.id, true) },

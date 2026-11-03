@@ -145,7 +145,7 @@ const historyLimit = 100;
 /**
  * The runs of the page (accept, reject, undo) with what undoing each would do, newest first: per file
  * the frames to restore and per song the Spotify match to put back, each with status restore, changed
- * (changed since; undo with force), or missing.
+ * (changed since; undo with force), or missing; a restore file lists in changed the frames it keeps.
  */
 const historyList = (db, config) => {
   const baseDirectory = path.resolve(config.mpd.baseDirectory);

@@ -130,6 +130,31 @@ describe('Undo History', () => {
     expect(planUndo(db, run('r1'), { force: true }).files[0].status).to.equal('restore');
   });
 
+  it('should restore the frames not changed since and keep the changed ones, force restoring all', async () => {
+    const title = raw('testFile01.mp3').TIT2;
+    begin('r1');
+    // one write changed two frames, e.g. context and a normalized mood
+    updateTags(
+      { TIT2: 'Run Title', userDefinedText: [{ description: 'mood', value: 'calm' }] },
+      file('testFile01.mp3')
+    );
+    endJournal();
+    // a later edit changed mood again
+    updateTags(
+      { userDefinedText: [{ description: 'mood', value: 'later' }] },
+      file('testFile01.mp3')
+    );
+    const plan = planUndo(db, run('r1'));
+    expect(
+      plan.files.map(({ status, frames, changed }) => [status, _.map(frames, 'frame'), changed])
+    ).to.deep.equal([['restore', ['TIT2'], ['TXXX.mood']]]);
+    await undoTags({ db, config, plan });
+    expect(raw('testFile01.mp3').TIT2).to.equal(title);
+    expect(custom('testFile01.mp3', 'mood')).to.equal('later');
+    const forced = planUndo(db, run('r1'), { force: true }).files[0];
+    expect(_.map(forced.frames, 'frame').sort()).to.deep.equal(['TIT2', 'TXXX.mood']);
+  });
+
   it('should restore TXXX fields removed by a rewrite', async () => {
     updateTags(
       { userDefinedText: [{ description: 'sp_track_id', value: 'abc' }] },

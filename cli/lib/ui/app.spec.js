@@ -781,6 +781,28 @@ describe('musicman ui page', () => {
       ]);
     });
 
+    it('should undo a run changed in part since: Undo restores the rest, Undo anyway all', async () => {
+      const history = historyFixture();
+      history.runs[0].files[0] = {
+        path: 'Beta/Two.mp3',
+        frames: ['TXXX.Context'],
+        status: 'restore',
+        changed: ['TXXX.Mood']
+      };
+      routes['GET /api/history'] = history;
+      click(tab('history'));
+      await settle();
+      expect(all('#list-body tbody tr')[0].cells[3].textContent).to.equal('partly changed since');
+      press('j');
+      expect(all('#compare .plan li')[0].textContent).to.equal(
+        'Tags of Beta/Two.mp3 back: TXXX.Context; TXXX.Mood changed since, kept (Undo anyway puts them back)'
+      );
+      expect(undoButtons().map(b => [b.textContent, b.disabled])).to.deep.equal([
+        ['Undo', false],
+        ['Undo anyway', false]
+      ]);
+    });
+
     it('should undo a run and load the history and the review lists again', async () => {
       routes['POST /api/history/20261101-100000-ui/undo'] = { ok: true, files: 0, matches: 1 };
       click(tab('history'));

@@ -64,8 +64,9 @@ const findHistoryRun = (runs, term) =>
 /**
  * What undoing a run would do. files: per file the frames to restore (each frame's value before the
  * run, its first change, and the hash of its value after the run, its last change) with status restore,
- * changed (a frame differs from what the run left, listed in changed), or missing (the file is gone,
- * e.g. moved by beets). force restores changed files too. spotify: the run's Spotify changes newest
+ * changed (every frame differs from what the run left, listed in changed), or missing (the file is gone,
+ * e.g. moved by beets). A file with some frames changed since is restore with only the others, the
+ * changed ones listed in changed and kept. force restores changed frames too. spotify: the run's Spotify changes newest
  * first, each to be reversed. matches: per song the spotify_matches row before the run (null: none)
  * with status restore, changed (the row differs from what the run left, e.g. a later sync --match), or
  * missing (the song left the library); force restores changed rows too. moves: files the run moved
@@ -90,7 +91,14 @@ const planUndo = (db, run, { force = false, baseDirectory } = {}) => {
       _.filter(frames, ({ frame, afterHash }) => hashValue(current[frame]) !== afterHash),
       'frame'
     );
-    return { file, frames, status: changed.length > 0 && !force ? 'changed' : 'restore', changed };
+    if (force || changed.length === 0) {
+      return { file, frames, status: 'restore', changed };
+    }
+    // the frames that did not change since are restored, the changed ones kept (force restores them)
+    const unchanged = _.reject(frames, ({ frame }) => changed.includes(frame));
+    return unchanged.length > 0
+      ? { file, frames: unchanged, status: 'restore', changed }
+      : { file, frames, status: 'changed', changed };
   });
   const spotify = db
     .prepare(

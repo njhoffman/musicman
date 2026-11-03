@@ -57,8 +57,14 @@ const describePlan = (config, plan) => {
       );
     }
   });
-  (byStatus.restore || []).forEach(({ file, frames }) =>
-    lines.push(`  RESTORE ${shortPath(config, file)} ${dim(_.map(frames, 'frame').join(', '))}`)
+  (byStatus.restore || []).forEach(({ file, frames, changed = [] }) =>
+    lines.push(
+      `  RESTORE ${shortPath(config, file)} ${dim(_.map(frames, 'frame').join(', '))}` +
+        (changed.length > 0
+          ? chalk.hex('#DDCC44')(` kept ${changed.join(', ')}`) +
+            dim(' (changed since, --force restores it too)')
+          : '')
+    )
   );
   (byStatus.changed || []).forEach(({ file, changed }) =>
     lines.push(
