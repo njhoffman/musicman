@@ -6,6 +6,20 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman ui` downloads the queued Spotify tracks: Download in the Spotify to local tab runs the download
+  script in the background with progress and its last output lines, and Cancel stops it. The download goes
+  on when the page or the server closes.
+- `pnpm download` runs are archived as `download` runs (`musicman logs`), and a second download refuses to
+  start while one runs, from the page or a terminal.
+
+### Fixed
+
+- A download stopped with ctrl-c left the track being converted cut short under its final name, which the
+  next run skipped as downloaded and `sync --import` imported. Untagged downloads are now deleted after a
+  stop and before every run, and the ffmpeg conversions spotDL leaves running are stopped too.
+
 ## [1.65.1] - 2026-11-03
 
 ### Changed

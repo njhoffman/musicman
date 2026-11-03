@@ -424,3 +424,22 @@ iframe {
   color: var(--dim);
   cursor: default;
 }
+
+progress.download-progress {
+  vertical-align: middle;
+  width: 12em;
+}
+
+.download-count {
+  font-variant-numeric: tabular-nums;
+}
+
+pre.download-log {
+  max-height: 12em;
+  overflow: auto;
+  margin: 0.5em 0 0;
+  padding: 0.4em 0.6em;
+  font-size: 0.85em;
+  white-space: pre-wrap;
+  opacity: 0.8;
+}

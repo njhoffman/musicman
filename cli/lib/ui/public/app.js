@@ -2,6 +2,8 @@
 // keyboard review, and a poll of /api/status for changed lists and runs going on in a terminal
 
 const pollMs = 15000;
+// while a download runs, so its progress moves
+const downloadPollMs = 3000;
 
 const state = {
   tab: 'review',
@@ -651,6 +653,79 @@ const notQueued = () =>
         .filter(item => !item.download)
     : [];
 
+// the download in /api/status: { running: { pid, startedAt, fromPage } or null, queued, downloaded,
+// imported, log }
+const downloadState = () => (state.status && state.status.download) || null;
+
+// starts downloading the manifest, as pnpm download does
+const startDownload = async () => {
+  try {
+    await api('/api/downloads/run', {});
+    showMessage('Download started; it goes on if the page closes');
+  } catch (err) {
+    showMessage(`Starting the download failed: ${err.message}`, true);
+  }
+  await poll();
+};
+
+// stops the download the page started; the track cut short is deleted, the next download resumes
+const cancelDownload = async () => {
+  if (
+    !window.confirm('Stop the download? The track being downloaded is fetched again next time.')
+  ) {
+    return;
+  }
+  try {
+    await api('/api/downloads/cancel', {});
+    showMessage('Download stopping');
+  } catch (err) {
+    showMessage(`Stopping the download failed: ${err.message}`, true);
+  }
+  await poll();
+};
+
+// the download controls of the Spotify to local tab: start, progress, cancel, and the last output
+const downloadControls = () => {
+  const download = downloadState();
+  if (state.tab !== 'toLocal' || !download) {
+    return null;
+  }
+  const { running, queued, downloaded } = download;
+  const total = queued + downloaded;
+  const controls = running
+    ? [
+        ' ',
+        h('progress', { className: 'download-progress', max: total || 1, value: downloaded }),
+        h(
+          'span',
+          { className: 'download-count' },
+          ` ${downloaded} of ${total} downloaded${running.fromPage ? '' : ' (running in a terminal)'} `
+        ),
+        running.fromPage
+          ? h('button', { className: 'reload', onClick: () => cancelDownload() }, 'Cancel download')
+          : null
+      ]
+    : [
+        ' ',
+        h(
+          'button',
+          {
+            className: 'reload',
+            disabled: queued === 0,
+            title: 'Download the queued tracks with spotDL, as pnpm download does',
+            onClick: () => startDownload()
+          },
+          `Download ${queued} queued`
+        )
+      ];
+  return [
+    controls,
+    download.log && download.log.length > 0
+      ? h('pre', { className: 'download-log' }, download.log.join('\n'))
+      : null
+  ];
+};
+
 const transferButtons = () => {
   const waiting = notQueued();
   return [
@@ -678,7 +753,8 @@ const transferButtons = () => {
             `Add ${waiting.length} to downloads`
           )
         ]
-      : null
+      : null,
+    downloadControls()
   ];
 };
 
@@ -709,7 +785,7 @@ const queueDownloads = async trackIds => {
   try {
     const result = await api('/api/downloads', { trackIds });
     showMessage(
-      `Added ${result.added.length} tracks to the download manifest; pnpm download fetches them` +
+      `Added ${result.added.length} tracks to the download manifest; Download (or pnpm download) fetches them` +
         (result.unknown.length > 0
           ? ` (${result.unknown.length} are no longer in the list, reload it)`
           : '')
@@ -812,15 +888,22 @@ const runText = run => {
   return `musicman ${args}${started ? ` (since ${started.toLocaleTimeString()})` : ''}`;
 };
 
-// the banner while runs of other commands change the library
+// runs of other commands that can write the library: a download writes only the download directory
+const writingRuns = () =>
+  ((state.status && state.status.running) || []).filter(run => run.command !== 'download');
+
+// the banner while runs of other commands change the library, or a download runs
 const renderRuns = () => {
   const banner = $('runs');
   const running = (state.status && state.status.running) || [];
+  const writing = writingRuns();
   banner.hidden = running.length === 0;
   banner.textContent =
     running.length === 0
       ? ''
-      : `Running: ${running.map(runText).join(', ')}. It can write the same files and rows as accepting and rejecting here, so the page asks before each.`;
+      : writing.length > 0
+        ? `Running: ${running.map(runText).join(', ')}. It can write the same files and rows as accepting and rejecting here, so the page asks before each.`
+        : `Running: ${running.map(runText).join(', ')}.`;
 };
 
 const field = (label, value, other) => [
@@ -1680,7 +1763,7 @@ const setBusy = busy => {
 
 // while another run changes the library, asks before acting; true to go ahead
 const confirmWhileRunning = kind => {
-  const running = (state.status && state.status.running) || [];
+  const running = writingRuns();
   if (running.length === 0) {
     return true;
   }
@@ -1875,20 +1958,27 @@ const poll = async () => {
       isStale('transfers'),
       isStale('history'),
       isStale('duplicates'),
-      state.status && state.status.running
+      state.status && state.status.running,
+      state.status && state.status.download
     ]);
+    const wasDownloading = Boolean(downloadState() && downloadState().running);
     state.status = status;
     const after = JSON.stringify([
       isStale('review'),
       isStale('transfers'),
       isStale('history'),
       isStale('duplicates'),
-      status.running
+      status.running,
+      status.download
     ]);
     if (before !== after) {
       renderTabs();
       renderHead();
       renderRuns();
+    }
+    // the tracks' download states change when a download ends
+    if (wasDownloading && !(status.download && status.download.running) && state.transfers) {
+      await load('transfers');
     }
   } catch {
     // the server stopped (ctrl-c); the next poll tries again
@@ -1898,11 +1988,16 @@ const poll = async () => {
 let pollTimer = null;
 
 const startPolling = () => {
+  // every pollMs, or downloadPollMs while a download runs
+  let last = 0;
   pollTimer = setInterval(() => {
-    if (!document.hidden) {
+    const download = downloadState();
+    const every = download && download.running ? downloadPollMs : pollMs;
+    if (!document.hidden && Date.now() - last >= every) {
+      last = Date.now();
       poll();
     }
-  }, pollMs);
+  }, downloadPollMs);
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       poll();

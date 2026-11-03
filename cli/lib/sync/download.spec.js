@@ -1,4 +1,5 @@
 const _ = require('lodash');
+const { EventEmitter } = require('events');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -9,9 +10,11 @@ const {
   downloadedFiles,
   pendingTracks,
   readManifest,
+  removePartialDownloads,
   spotdlCommand
 } = require('./download.js');
-const { main } = require('../../scripts/spotdl-download.js');
+const { main: runMain, stopStrays, strayProcesses } = require('../../scripts/spotdl-download.js');
+const { listRuns } = require('../utils/runs.js');
 
 describe('Spotify Downloads', () => {
   const idA = 'AAAAAAAAAAAAAAAAAAAAAA';
@@ -35,7 +38,10 @@ describe('Spotify Downloads', () => {
 
   beforeEach(() => {
     directory = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-download-'));
-    config = { sync: { downloadDirectory: directory, spotdlCommand: 'spotdl --threads 2' } };
+    config = {
+      sync: { downloadDirectory: directory, spotdlCommand: 'spotdl --threads 2' },
+      logger: { archive: { directory: path.join(directory, 'runs') } }
+    };
   });
 
   afterEach(() => {
@@ -79,6 +85,15 @@ describe('Spotify Downloads', () => {
     ]);
   });
 
+  it('should delete only the incomplete downloads', () => {
+    fs.writeFileSync(path.join(directory, 'a.mp3'), 'tagged');
+    fs.writeFileSync(path.join(directory, 'b.mp3'), 'cut');
+    fs.writeFileSync(path.join(directory, 'notes.txt'), 'cut');
+    const isComplete = file => fs.readFileSync(file, 'utf8') === 'tagged';
+    expect(removePartialDownloads(config, { isComplete })).to.deep.equal(['b.mp3']);
+    expect(fs.readdirSync(directory).sort()).to.deep.equal(['a.mp3', 'notes.txt']);
+  });
+
   it('should read the manifest, or null when there is none', () => {
     expect(readManifest(config)).to.be.null;
     fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify(manifest));
@@ -88,6 +103,15 @@ describe('Spotify Downloads', () => {
   describe('download script', () => {
     let log;
     let error;
+    // every download is complete and no run is archived, unless a test says otherwise
+    const main = options =>
+      runMain({
+        isComplete: () => true,
+        archive: false,
+        signals: new EventEmitter(),
+        strays: { find: () => [] },
+        ...options
+      });
 
     beforeEach(() => {
       log = sinon.stub(console, 'log');
@@ -99,7 +123,7 @@ describe('Spotify Downloads', () => {
       error.restore();
     });
 
-    it('should download the pending tracks with spotDL and report what is left', () => {
+    it('should download the pending tracks with spotDL and report what is left', async () => {
       fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify(manifest));
       const runs = [];
       const spawn = (command, args, options) => {
@@ -110,11 +134,11 @@ describe('Spotify Downloads', () => {
         return { status: 0 };
       };
       fs.writeFileSync(path.join(directory, `A - One [${idA}].mp3`), '');
-      expect(main({ args: [], config, spawn })).to.equal(0);
+      expect(await main({ args: [], config, spawn })).to.equal(0);
       expect(runs).to.deep.equal([['spotdl', [`https://open.spotify.com/track/${idB}`]]]);
     });
 
-    it('should download only the first N pending tracks with --limit', () => {
+    it('should download only the first N pending tracks with --limit', async () => {
       const idC = 'CCCCCCCCCCCCCCCCCCCCCC';
       const three = {
         ...manifest,
@@ -133,15 +157,15 @@ describe('Spotify Downloads', () => {
         );
         return { status: 0 };
       };
-      expect(main({ args: ['--limit', '2'], config, spawn })).to.equal(0);
+      expect(await main({ args: ['--limit', '2'], config, spawn })).to.equal(0);
       expect(runs).to.deep.equal([_.map(three.tracks.slice(0, 2), 'url')]);
-      expect(main({ args: ['--limit=5'], config, spawn })).to.equal(0);
+      expect(await main({ args: ['--limit=5'], config, spawn })).to.equal(0);
       expect(runs[1]).to.deep.equal([three.tracks[2].url]);
-      expect(main({ args: ['--limit', 'x'], config, spawn })).to.equal(1);
+      expect(await main({ args: ['--limit', 'x'], config, spawn })).to.equal(1);
       expect(runs).to.have.length(2);
     });
 
-    it('should try the tracks of a failed batch one by one, so one bad track does not block the rest', () => {
+    it('should try the tracks of a failed batch one by one, so one bad track does not block the rest', async () => {
       fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify(manifest));
       const runs = [];
       const spawn = (command, args) => {
@@ -156,7 +180,7 @@ describe('Spotify Downloads', () => {
         );
         return { status: 0 };
       };
-      expect(main({ args: [], config, spawn })).to.equal(1);
+      expect(await main({ args: [], config, spawn })).to.equal(1);
       // C was imported already
       expect(runs).to.deep.equal([
         [manifest.tracks[0].url, manifest.tracks[1].url],
@@ -167,11 +191,109 @@ describe('Spotify Downloads', () => {
       expect(log.args.flat().join('\n')).to.include(`missing: ${manifest.tracks[0].artists}`);
     });
 
-    it('should not run spotDL in a dry run or without a manifest', () => {
-      const spawn = sinon.spy();
-      expect(main({ args: [], config, spawn })).to.equal(1);
+    it('should delete files of stopped downloads first and download those tracks again', async () => {
       fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify(manifest));
-      expect(main({ args: ['--dry-run'], config, spawn })).to.equal(0);
+      const partial = path.join(directory, `A - One [${idA}].mp3`);
+      fs.writeFileSync(partial, 'cut short');
+      fs.writeFileSync(path.join(directory, `B - Two [${idB}].mp3`), 'tagged');
+      const runs = [];
+      const spawn = (command, args) => {
+        runs.push(args.filter(arg => arg.startsWith('https://')));
+        return { status: 0 };
+      };
+      const isComplete = file => fs.readFileSync(file, 'utf8') === 'tagged';
+      await main({ args: [], config, spawn, isComplete });
+      expect(fs.existsSync(partial)).to.equal(false);
+      expect(runs).to.deep.equal([[manifest.tracks[0].url]]);
+    });
+
+    it('should archive the run as a download, and refuse to start beside another download', async () => {
+      fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify(manifest));
+      const spawn = (command, args) => {
+        args
+          .filter(arg => arg.startsWith('https://'))
+          .forEach(url =>
+            fs.writeFileSync(path.join(directory, `X [${url.split('/').pop()}].mp3`), '')
+          );
+        return { status: 0 };
+      };
+      expect(await main({ args: [], config, spawn, archive: true })).to.equal(0);
+      const [report] = listRuns(path.join(directory, 'runs'));
+      expect(report).to.include({ command: 'download', status: 'ok' });
+      expect(report.result).to.deep.include({ downloaded: 2, missing: [] });
+      // a running download of this process blocks a second one
+      fs.writeFileSync(
+        path.join(directory, 'runs', '29990101-000000-download.json'),
+        JSON.stringify({ command: 'download', status: 'running', pid: process.pid })
+      );
+      const spy = sinon.spy();
+      expect(await main({ args: [], config, spawn: spy })).to.equal(1);
+      expect(spy).to.not.have.been.called;
+      expect(error.args.flat().join('\n')).to.include('A download is running already');
+    });
+
+    it('should stop spotDL on a signal, delete the unfinished file, and archive the run as interrupted', async () => {
+      const many = {
+        tracks: _.times(25, n => {
+          const id = `${n}`.padStart(22, 'T');
+          return {
+            trackId: id,
+            url: `https://open.spotify.com/track/${id}`,
+            artists: 'A',
+            name: `${n}`
+          };
+        })
+      };
+      fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify(many));
+      const signals = new EventEmitter();
+      const child = { exitCode: null, kill: sinon.spy() };
+      const runs = [];
+      const spawn = (command, args, options, onChild) => {
+        runs.push(args.filter(arg => arg.startsWith('https://')));
+        onChild(child);
+        // spotDL has written part of the first track when the stop comes
+        fs.writeFileSync(
+          path.join(directory, `A - 0 [${many.tracks[0].trackId}].mp3`),
+          'cut short'
+        );
+        signals.emit('SIGTERM', 'SIGTERM');
+        return { status: null, signal: 'SIGTERM' };
+      };
+      const isComplete = file => fs.readFileSync(file, 'utf8') === 'tagged';
+      const code = await main({ args: [], config, spawn, isComplete, signals, archive: true });
+      expect(code).to.equal(130);
+      expect(child.kill).to.have.been.calledWith('SIGTERM');
+      // the second batch never starts
+      expect(runs).to.have.length(1);
+      expect(downloadedFiles(config)).to.deep.equal([]);
+      const [report] = listRuns(path.join(directory, 'runs'));
+      expect(report).to.include({ command: 'download', status: 'interrupted', exitCode: 130 });
+      expect(signals.listenerCount('SIGTERM')).to.equal(0);
+    });
+
+    it('should find and end the conversions spotDL leaves writing into the download directory', async () => {
+      const list = () =>
+        [
+          `  101 ffmpeg -i /t/a.webm ${directory}/A - One [${idA}].mp3`,
+          `  102 ffmpeg -i /t/b.webm ${directory}-other/B.mp3`,
+          `  103 nvim ${directory}/manifest.json`,
+          `  104 /usr/bin/ffmpeg -i /t/c.webm ${directory}/C.mp3`,
+          '  105 bash'
+        ].join('\n');
+      expect(strayProcesses(directory, { list })).to.deep.equal([101, 104]);
+      const kill = sinon.spy();
+      let calls = 0;
+      // the conversion exits after the first check
+      const find = () => (calls++ === 0 ? [101] : []);
+      expect(await stopStrays(directory, { find, kill })).to.deep.equal([101]);
+      expect(kill).to.have.been.calledOnceWith(101, 'SIGTERM');
+    });
+
+    it('should not run spotDL in a dry run or without a manifest', async () => {
+      const spawn = sinon.spy();
+      expect(await main({ args: [], config, spawn })).to.equal(1);
+      fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify(manifest));
+      expect(await main({ args: ['--dry-run'], config, spawn })).to.equal(0);
       expect(spawn).to.not.have.been.called;
     });
   });

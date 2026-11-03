@@ -120,7 +120,8 @@ musicman sync --push              # adds after a confirmation
 ```sh
 musicman sync --pull --dry-run    # how many Spotify tracks are not in the library
 musicman sync --pull              # writes manifest.json to sync.downloadDirectory
-cd cli && pnpm download           # spotDL downloads the manifest; rerun to resume (--limit N for a trial)
+cd cli && pnpm download           # spotDL downloads the manifest; rerun to resume (--limit N for a trial),
+                                  # or Download in musicman ui (Spotify to local tab)
 musicman sync --import --dry-run  # how each download will be tagged
 musicman sync --import            # tags, imports with beets into Unrated/_Singles, updates the database
 ```

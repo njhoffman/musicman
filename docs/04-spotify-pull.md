@@ -51,6 +51,19 @@ spotDL (`sync.spotdlCommand`) downloads each manifest track to `sync.downloadDir
 only the first N pending tracks (for a trial), `--dry-run` lists them. spotDL takes the audio from YouTube, which is
 against YouTube's terms of service.
 
+- `musicman ui` runs the same script from the Spotify to local tab: Download N queued starts it as a detached
+  process (it goes on when the page or the server closes, output in `download.log` in the download
+  directory), with progress and the last output lines; Cancel stops it. A download started in a terminal
+  shows as running there, but only ctrl-c stops it.
+- Each run is archived as a `download` run (`musicman logs`); a second download refuses to start while one
+  runs, from the page or a terminal.
+- Stopped (ctrl-c, Cancel), a download leaves the file of the track being converted cut short under its
+  final name, which `--overwrite skip` and the import would take as done. spotDL tags a file (WOAS among
+  the frames) only once it is whole, so the script deletes untagged `.mp3` files after a stop and before
+  every run, and ends the ffmpeg conversions spotDL starts outside its process group.
+- When every track fails with `LookupError: No results found`, spotDL or its yt-dlp is out of date
+  (2026-11-03: spotDL 4.5.2 with yt-dlp 2026.8.19 found nothing); `uv tool upgrade spotdl` fixed it.
+
 ### Import (`lib/sync/import.js`)
 
 - A download's track id comes from its file name, or from the WOAS frame (the Spotify URL spotDL writes).

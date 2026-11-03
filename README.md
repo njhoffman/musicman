@@ -71,8 +71,8 @@ before 1.47.0 need `musicman sync --login` again), or in the desktop app),
 and accepts or rejects. Each action is a `ui` run in `musicman logs` that `musicman undo`, or the page's
 History tab, undoes: tags and Spotify match together. It also lists, as of the last `sync`, the tracks in
 mapped playlists missing from the library (with whether each is in the download manifest; Add to
-downloads puts picked ones there for `pnpm download`, and Refresh playlists fetches the playlists again
-first) and the songs that belong on Spotify but have no Spotify id.
+downloads puts picked ones there, Download runs `pnpm download` with progress and Cancel, and Refresh
+playlists fetches the playlists again first) and the songs that belong on Spotify but have no Spotify id.
 
 The Not found tab lists the songs `sync --match` found no candidate for. Every song's panel can search
 Spotify (on Not found as soon as the selection stops on a song): an empty query runs the queries of

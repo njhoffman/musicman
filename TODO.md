@@ -437,8 +437,13 @@ database backups (`db.autoBackup`) have no restore command.
 - [x] **Transfer actions.** (p2) [feature] Spotify to local shows each track's download state, adds picked
       tracks to the download manifest, and refreshes the cached playlists. The upload export waits for `sync --push`
       export (section 7), tracked there.
-- [ ] **Run downloads from the page.** (p3) [feature] `pnpm download` still runs in a terminal; running spotDL
-      from the page needs a background job with progress and cancel, and must not run beside a terminal download.
+- [ ] **Import from the page.** (p3) [feature] after a download, `sync --import` still runs in a terminal; an
+      Import button could run it the way Download runs the download script (a detached run, its output shown).
+- [ ] **Trial downloads from the page.** (p3) [feature] Download fetches every queued track; `pnpm download
+      --limit N` has no counterpart there.
+- [x] **Run downloads from the page.** (p3) [feature] Download and Cancel in the Spotify to local tab run the
+      download script detached (`lib/ui/download.js`); each download is a `download` run, so the page and a
+      terminal never download at once.
 - [x] **Cache the transfer lists.** (p3) [perf] each load reads the library and computes the sync plan, about 5 s;
       the server keeps the result until the transfers change marker changes; Reload asks for it fresh.
 - [x] **Undo from the page.** (p3) [feature] the History tab lists the `ui` runs with what undoing each puts back

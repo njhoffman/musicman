@@ -959,6 +959,66 @@ describe('musicman ui page', () => {
       expect(add().disabled).to.equal(true);
     });
 
+    const downloadStatus = download => ({
+      markers: { review: 'review-1', transfers: 'transfers-1', history: 'history-1' },
+      running: download.running ? [{ id: 'd', command: 'download', args: [] }] : [],
+      download: { queued: 2, downloaded: 1, imported: 0, log: [], ...download }
+    });
+
+    it('should start a download of the queued tracks and show its progress and output', async () => {
+      routes['GET /api/status'] = downloadStatus({ running: null });
+      await app.poll();
+      routes['POST /api/downloads/run'] = { started: true, pid: 7 };
+      routes['GET /api/status'] = downloadStatus({
+        running: { pid: 7, startedAt: '2026-11-03T00:00:00Z', fromPage: true },
+        log: ['Batch 1/1', 'Downloaded "A - One"']
+      });
+      click(headButton('Download 2 queued'));
+      await settle();
+      expect(requests.filter(r => r.method === 'POST').map(r => r.url)).to.deep.equal([
+        '/api/downloads/run'
+      ]);
+      expect(all('#list-head progress')[0].value).to.equal(1);
+      expect($('list-head').textContent).to.include('1 of 3 downloaded');
+      expect(all('#list-head pre')[0].textContent).to.equal('Batch 1/1\nDownloaded "A - One"');
+      expect(headButton('Download ')).to.equal(undefined);
+      // a download writes no library files, so the page does not ask before accepting
+      expect($('runs').textContent).to.not.include('asks before');
+    });
+
+    it('should cancel a download the page started after asking, and reload the lists when it ends', async () => {
+      routes['GET /api/status'] = downloadStatus({
+        running: { pid: 7, startedAt: '2026-11-03T00:00:00Z', fromPage: true }
+      });
+      await app.poll();
+      routes['POST /api/downloads/cancel'] = { cancelled: true, pid: 7 };
+      let answer = false;
+      dom.window.confirm = () => answer;
+      click(headButton('Cancel download'));
+      await settle();
+      expect(requests.filter(r => r.method === 'POST')).to.be.empty;
+      answer = true;
+      routes['GET /api/status'] = downloadStatus({ running: null });
+      const loads = requests.filter(r => r.url.startsWith('/api/transfers')).length;
+      click(headButton('Cancel download'));
+      await settle();
+      expect(requests.filter(r => r.method === 'POST').map(r => r.url)).to.deep.equal([
+        '/api/downloads/cancel'
+      ]);
+      expect(requests.filter(r => r.url.startsWith('/api/transfers'))).to.have.length(loads + 1);
+      expect(headButton('Download 2 queued')).to.not.equal(undefined);
+    });
+
+    it('should show a download in a terminal without Cancel, and not start a second one', async () => {
+      routes['GET /api/status'] = downloadStatus({
+        running: { pid: 9, startedAt: '2026-11-03T00:00:00Z', fromPage: false }
+      });
+      await app.poll();
+      expect($('list-head').textContent).to.include('(running in a terminal)');
+      expect(headButton('Cancel download')).to.equal(undefined);
+      expect(headButton('Download ')).to.equal(undefined);
+    });
+
     it('should refresh the playlists and then load the transfer lists again', async () => {
       routes['POST /api/spotify/refresh'] = { ok: true, refreshed: 3, unchanged: 2 };
       click(headButton('Refresh playlists'));
