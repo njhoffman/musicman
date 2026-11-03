@@ -69,6 +69,7 @@ const beginJournal = ({ run, config, db }) => {
     args: run.args,
     startedAt: run.startedAt,
     dbPath: _.get(config, 'db.path'),
+    backupDirectory: _.get(config, 'db.backupDirectory'),
     db: db || null,
     ownDb: !db,
     created: false,
@@ -80,7 +81,7 @@ const beginJournal = ({ run, config, db }) => {
 // the database of the active run, with its history_runs row created on first use
 const journalDb = () => {
   if (!active.db) {
-    active.db = openDatabase(active.dbPath);
+    active.db = openDatabase(active.dbPath, { backupDirectory: active.backupDirectory });
   }
   if (!active.created) {
     active.db

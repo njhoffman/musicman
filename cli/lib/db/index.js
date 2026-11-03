@@ -1,3 +1,5 @@
+const _ = require('lodash');
+
 const { getMeta, openDatabase, setMeta } = require('./database.js');
 const { syncTagDefinitions } = require('./tags.js');
 const { updateDatabase } = require('./update.js');
@@ -9,7 +11,7 @@ const { autoBackup: autoBackupWith, backupDatabase, backupIfDue } = require('./b
  * Throws if a stored custom field definition changed, with each problem in err.details.
  */
 const openLibrary = (config, dbPath = config.db.path) => {
-  const db = openDatabase(dbPath);
+  const db = openDatabase(dbPath, { backupDirectory: _.get(config, 'db.backupDirectory') });
   const { errors } = syncTagDefinitions(db, config);
   if (errors.length > 0) {
     db.close();

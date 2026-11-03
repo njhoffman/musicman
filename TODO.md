@@ -21,12 +21,21 @@ Reviewed: 2026-11-03
       file write (`modify`, `write`, `replaygain`, ...), over the LRC sleeve put in `USLT`. The `keeplrc` beets
       plugin (`cli/share/beets/keeplrc.py`, 2026-11-03) keeps LRC lyrics out of those writes; musicman's own
       writes were checked to keep `USLT` and `SYLT` (`lib/beets/lyrics.spec.js`).
-- [ ] **Copies of a song in two rating playlists.** (p2) [chore] `check --only=exclusive` (2026-11-01): 82
+- [x] **Copies of a song in two rating playlists.** (p2) [chore] `check --only=exclusive` (2026-11-01): 82
       songs whose linked files disagree on a rating or grouping playlist (e.g. 311 - Beautiful Disaster on
       Transistor at 5.0 and on Live at 4.5). Push no longer adds such tracks (1.42.0, `Conflict` column), but
       the ones already in two playlists stay there. Decide per song: one rating for both, or unlink the copy
       matched to the wrong recording (often a live file matched to the studio track), then remove the
-      track from the playlist it no longer belongs in.
+      track from the playlist it no longer belongs in. Done 2026-11-03: the last 23 songs decided one by one;
+      15 duplicate files trashed, 3 wrong recordings unlinked, 31 Spotify changes; the check reports none.
+- [ ] **`check --only=exclusive` says "not in the library" for songs it has.** (p3) [bug] a playlist track that is
+      another release of a library song (same ISRC) is reported as not in the library: on 2026-11-03 Nas - If I
+      Ruled the World, Incubus - Talk Shows on Mute, and Goldfrapp - Ooh La La all have rated files. Name the file
+      and its rating, since that decides which playlist the track belongs in.
+- [ ] **`sync` can read a playlist as it was just before a change.** (p3) [bug] on 2026-11-03 the first
+      `sync --dry-run` after removing tracks through the Web API still showed the old playlists, and the next one
+      was right (twice), so a change can miss the refresh, whose unchanged-snapshot check skips the fetch. Find out
+      whether `sync --pull` right after a push can act on that, e.g. take a tag off for a stale `-Spotify`.
 - [ ] **Rare values found by `check`.** (p3) [chore] mood:Bluesy (2), Dark, Folksy, Groovy (3 each), and
       picks:Jeremy (1) on 2026-11-01; keep, merge, or rename each.
 - [x] **`check --fix`.** (p2) [feature] `musicman check --fix` (docs/08-check.md): names, standard,
@@ -113,10 +122,10 @@ Reviewed: 2026-11-03
 
 ## 6. Database (`docs/02-database.md`)
 
-- [ ] **Back up before a schema migration.** (p2) [feature] opening the database migrates it, and the interval of
+- [x] **Back up before a schema migration.** (p2) [feature] opening the database migrates it, and the interval of
       the automatic backups can skip right over a migration: on 2026-11-03 the newest copy (2026-11-02 01:12) is
-      schema 5 while the database is schema 11, so restoring it loses every change since. Before `migrate` applies
-      a step, write a copy (`VACUUM INTO`) named `musicman-before-schema-<n>.sqlite` next to the backups.
+      schema 5 while the database is schema 11, so restoring it loses every change since. Done: `openDatabase`
+      writes `musicman-before-schema-<n>.sqlite` next to the backups first, and does not migrate without it.
 - [x] **Backups.** (p2) [feature] the database is backed up to `db.backupDirectory` every `db.backupInterval`
       (before writes, `db --backup` on demand, `db.backupCount` kept).
 - [x] **`search` command.** (p2) [feature] field syntax (`rating:5.0 title:"some title"`) and mpc style

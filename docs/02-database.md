@@ -83,5 +83,9 @@ fields (in my local config) to that table.
   `musicman-before-restore-<time>.sqlite`, so a restore can be taken back the same way, and the old `-wal` and
   `-shm` files are removed. It refuses while another musicman run is going (`musicman ui` included) and copies
   with a newer schema than the build; an older one is migrated the next time the database is opened.
+- Before opening the database migrates it to a newer schema, it saves a copy as
+  `musicman-before-schema-<new schema>.sqlite` in `db.backupDirectory`, with the time added when that name is
+  taken. These are kept, not counted in `db.backupCount`, so delete old ones by hand. `db --restore` lists them.
+  If the copy cannot be written (a full disk), the database is not migrated and the command fails with the reason.
 - Undo history recorded after the copy is lost with it (the run reports in `musicman logs` stay), and files
   changed since are not in it: run `musicman db --update` afterwards.

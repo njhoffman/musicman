@@ -1,4 +1,9 @@
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { DatabaseSync } = require('node:sqlite');
 const { expect } = require('chai');
+const { listRestorable } = require('./restore.js');
 const { getMeta, migrate, openDatabase, setMeta, transaction } = require('./database.js');
 const migrations = require('./migrations.js');
 
@@ -66,6 +71,23 @@ describe('Database', () => {
       expect(db.prepare('PRAGMA user_version').get().user_version).to.equal(migrations.length);
       expect(db.prepare("SELECT name FROM sqlite_master WHERE name = 'extra'").get()).to.be
         .undefined;
+    });
+
+    it('should skip what another process applied while this one waited', () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-migrate-'));
+      const file = path.join(root, 'race.sqlite');
+      const first = new DatabaseSync(file);
+      const second = new DatabaseSync(file);
+      try {
+        const steps = ['CREATE TABLE one (id INTEGER)', 'CREATE TABLE two (id INTEGER)'];
+        // the second process migrates after the first read the version, as during its copy
+        migrate(first, steps, { before: () => migrate(second, steps) });
+        expect(first.prepare('PRAGMA user_version').get().user_version).to.equal(2);
+      } finally {
+        first.close();
+        second.close();
+        fs.rmSync(root, { recursive: true, force: true });
+      }
     });
 
     it('should fetch cached playlists again once their tracks have an isrc column', () => {
@@ -139,6 +161,89 @@ describe('Database', () => {
       setMeta(db, 'lastUpdate', { added: 1 });
       setMeta(db, 'lastUpdate', { added: 2 });
       expect(getMeta(db, 'lastUpdate')).to.deep.equal({ added: 2 });
+    });
+  });
+
+  describe('the copy before a migration', () => {
+    let root;
+    let file;
+    let backups;
+    const target = migrations.length;
+    const copyName = `musicman-before-schema-${target}.sqlite`;
+
+    // a database at an old schema with one song, on disk
+    const oldDatabase = (version = 5) => {
+      const old = new DatabaseSync(file);
+      migrate(old, migrations.slice(0, version));
+      old.prepare("INSERT INTO songs (path, mtime, size) VALUES ('a.mp3', 1, 1)").run();
+      old.close();
+    };
+    const open = (...args) => openDatabase(file, ...args).close();
+    const read = (where, sql) => {
+      const copy = new DatabaseSync(where, { readOnly: true });
+      try {
+        return copy.prepare(sql).get();
+      } finally {
+        copy.close();
+      }
+    };
+
+    beforeEach(() => {
+      root = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-before-schema-'));
+      file = path.join(root, 'musicman.sqlite');
+      backups = path.join(root, 'backups');
+    });
+
+    afterEach(() => {
+      fs.rmSync(root, { recursive: true, force: true });
+    });
+
+    it('should save the database as it was, then migrate it, once', () => {
+      oldDatabase();
+      open({ backupDirectory: backups });
+      const copy = path.join(backups, copyName);
+      expect(read(copy, 'PRAGMA user_version').user_version).to.equal(5);
+      expect(read(copy, 'SELECT path FROM songs').path).to.equal('a.mp3');
+      expect(read(file, 'PRAGMA user_version').user_version).to.equal(target);
+      open({ backupDirectory: backups });
+      expect(fs.readdirSync(backups)).to.deep.equal([copyName]);
+      // db --restore lists it with its schema
+      expect(listRestorable(backups)[0]).to.include({ name: copyName, version: 5, newer: false });
+    });
+
+    it('should save it next to the database without a backup directory', () => {
+      oldDatabase();
+      open();
+      expect(fs.readdirSync(path.join(root, '.musicman'))).to.deep.equal([copyName]);
+    });
+
+    it('should keep an earlier copy of that name', () => {
+      oldDatabase();
+      fs.mkdirSync(backups);
+      fs.writeFileSync(path.join(backups, copyName), 'earlier');
+      open({ backupDirectory: backups });
+      expect(fs.readFileSync(path.join(backups, copyName), 'utf8')).to.equal('earlier');
+      const others = fs.readdirSync(backups).filter(name => name !== copyName);
+      expect(others).to.have.length(1);
+      expect(others[0]).to.match(/^musicman-before-schema-\d+-\d{8}-\d{6}\.sqlite$/);
+      expect(read(path.join(backups, others[0]), 'PRAGMA user_version').user_version).to.equal(5);
+    });
+
+    it('should not migrate when the copy cannot be written', () => {
+      oldDatabase();
+      // a file where the directory should be
+      fs.writeFileSync(backups, '');
+      expect(() => open({ backupDirectory: backups })).to.throw(
+        new RegExp(`Database not migrated to schema ${target}: could not save a copy`)
+      );
+      expect(read(file, 'PRAGMA user_version').user_version).to.equal(5);
+    });
+
+    it('should save nothing for a new database, one up to date, or one in memory', () => {
+      open({ backupDirectory: backups });
+      open({ backupDirectory: backups });
+      openDatabase(':memory:', { backupDirectory: backups }).close();
+      expect(fs.existsSync(backups)).to.equal(false);
     });
   });
 });

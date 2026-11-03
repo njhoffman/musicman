@@ -3,16 +3,9 @@ const fs = require('fs');
 const path = require('path');
 const { parseInterval } = require('musicman-common/config/validator');
 
-const { getMeta, setMeta } = require('./database.js');
+const { getMeta, setMeta, stamp } = require('./database.js');
 
 const backupPattern = /^musicman-\d{8}-\d{6}\.sqlite$/;
-
-const timestamp = date =>
-  date
-    .toISOString()
-    .replace(/\.\d{3}Z$/, '')
-    .replace(/[-:]/g, '')
-    .replace('T', '-');
 
 // backup files in the directory, oldest first (the timestamped names sort by time)
 const listBackups = directory =>
@@ -30,7 +23,7 @@ const listBackups = directory =>
 const backupDatabase = (db, config, now = new Date()) => {
   const { backupDirectory, backupCount = 7 } = config.db;
   fs.mkdirSync(backupDirectory, { recursive: true });
-  const file = path.join(backupDirectory, `musicman-${timestamp(now)}.sqlite`);
+  const file = path.join(backupDirectory, `musicman-${stamp(now)}.sqlite`);
   if (fs.existsSync(file)) {
     fs.unlinkSync(file);
   }

@@ -3,13 +3,12 @@ const fs = require('fs');
 const path = require('path');
 const { DatabaseSync } = require('node:sqlite');
 
+const { stamp } = require('./database.js');
 const migrations = require('./migrations.js');
 
 // the database copies in db.backupDirectory: automatic ones (musicman-<time>.sqlite) and named ones
 // (musicman-before-rebuild-20261020.sqlite)
 const restorablePattern = /^musicman-.+\.sqlite$/;
-
-const stamp = now => now.toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-');
 
 // the schema version of a database file, read without migrating it; null when it cannot be read
 const schemaVersion = file => {

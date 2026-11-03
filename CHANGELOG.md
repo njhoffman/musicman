@@ -6,6 +6,16 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- Opening the database for a schema migration first saves a copy as `musicman-before-schema-<n>.sqlite` next to
+  the backups, and does not migrate if the copy cannot be written. The copies are kept until you delete them.
+
+### Fixed
+
+- Two musicman processes migrating the database at the same moment no longer fail: the second skips the steps
+  the first applied.
+
 ## [1.77.0] - 2026-11-03
 
 ### Added
