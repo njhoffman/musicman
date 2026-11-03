@@ -678,6 +678,21 @@ describe('Spotify Id Matching', () => {
       expect(item).to.include({ path: 'testFile01.mp3', linked: true });
     });
 
+    it('should move a studio song linked to a live track to review, with the reason', async () => {
+      tag('testFile02.mp3', { sp_album: 'In Concert (Live)' });
+      await updateDatabase(db, { config, target: library });
+      const moved = recheckMatches({
+        db,
+        config,
+        songs: songs(['testFile01.mp3', 'testFile02.mp3'])
+      });
+      expect(moved.map(item => [item.candidate.id, item.reason])).to.deep.equal([
+        ['wrong-id', 'title'],
+        ['right-id', 'live']
+      ]);
+      expect(status('testFile02.mp3')).to.include({ status: 'review', track_id: 'right-id' });
+    });
+
     it('should not move anything in a dry run or a match accepted in review', async () => {
       const all = songs(['testFile01.mp3']);
       expect(recheckMatches({ db, config, songs: all, dryRun: true })).to.have.length(1);

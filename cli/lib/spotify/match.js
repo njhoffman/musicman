@@ -147,6 +147,15 @@ const recordingVersions = (title, { album, albumType, live: inLiveFolder = false
   return _.uniq([...versions(title), ...(live ? ['live'] : [])]);
 };
 
+/**
+ * Whether a song and a Spotify track disagree on being live: a live song ({ title, album, albumType,
+ * live }, as recordingVersions takes them) linked to a studio track ({ name, album }) or the other way
+ * round. Matching never pairs them (rateCandidate); links made before it did are found by this.
+ */
+const liveMismatch = (song, track) =>
+  recordingVersions(song.title, song).includes('live') !==
+  recordingVersions(track.name, { album: track.album }).includes('live');
+
 // first credited artist, without features and collaborators
 const primaryArtist = artist =>
   plain(`${artist || ''}`.split(/,|;|\s&\s|\s(?:feat\.?|ft\.?|featuring|with|x|vs\.?)\s/i)[0]);
@@ -403,6 +412,7 @@ module.exports = {
   releaseRank,
   bestCandidate,
   isLiveAlbum,
+  liveMismatch,
   sameTitle,
   titleDescriptors,
   titleWords,

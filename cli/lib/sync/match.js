@@ -9,6 +9,7 @@ const {
   releaseRank,
   looseQuery,
   matchSimilarity,
+  liveMismatch,
   sameTitle,
   searchQuery
 } = require('../spotify/match.js');
@@ -570,8 +571,9 @@ const reviewItems = (db, config) =>
   );
 
 /**
- * Moves matches whose Spotify title fails the current title rule (sameTitle) to review, for songs with
- * targets (songTargets). The files keep their Spotify id and fields, so nothing changes on Spotify until
+ * Moves matches whose Spotify title fails the current title rule (sameTitle), or that link a live song
+ * to a studio track or a studio song to a live one (liveMismatch), to review, for songs with targets
+ * (songTargets); each carries reason: 'title' or 'live'. The files keep their Spotify id and fields, so nothing changes on Spotify until
  * the match is accepted or rejected. Matches accepted in review before are left alone. Returns the songs
  * moved; with dryRun nothing is written.
  */
@@ -597,7 +599,15 @@ const recheckMatches = ({ db, config, songs, dryRun = false }) => {
       const match = selectMatch.get(row.id);
       const title = frameValue(db, row.id, 'TIT2');
       const spotifyTitle = frameValue(db, row.id, 'TXXX.sp_title');
-      if ((match && match.reviewed_at) || !spotifyTitle || sameTitle(title, spotifyTitle)) {
+      if ((match && match.reviewed_at) || !spotifyTitle) {
+        return null;
+      }
+      const song = songFields(db, row);
+      const live = liveMismatch(song, {
+        name: spotifyTitle,
+        album: frameValue(db, row.id, 'TXXX.sp_album')
+      });
+      if (sameTitle(title, spotifyTitle) && !live) {
         return null;
       }
       const candidate = {
@@ -611,8 +621,9 @@ const recheckMatches = ({ db, config, songs, dryRun = false }) => {
         songId: row.id,
         file,
         source: _.get(match, 'source') || null,
-        song: songFields(db, row),
-        candidate
+        song,
+        candidate,
+        reason: live ? 'live' : 'title'
       };
     })
   );

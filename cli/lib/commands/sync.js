@@ -671,9 +671,11 @@ const runMatch = async ({
       )
     );
     if (recheck) {
+      const live = _.filter(rechecked, { reason: 'live' }).length;
       logger.info(
-        `${rechecked.length} matches moved to review by the current title rule (sync --review)` +
-          `${dryRun ? ', dry run' : ''}`
+        `${rechecked.length} matches moved to review by the current title rule` +
+          `${live ? ` (${live} a live song on a studio track or the other way round)` : ''}` +
+          ` (sync --review)${dryRun ? ', dry run' : ''}`
       );
     }
     const startedAt = new Date();

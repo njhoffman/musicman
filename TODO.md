@@ -90,7 +90,8 @@ Reviewed: 2026-11-01
       file's ISRC (beets wrote the studio one) matched the next studio edition, and the plan listed copies
       linked to nothing as "re-match" forever. 1.56.0: live songs only match live tracks, unlinked copies
       leave the group.
-- [ ] **`match recheck` for live files on studio tracks.** (p3) [feature] matches made before 1.56.0 that
+- [x] **`match recheck` for live files on studio tracks.** (p3) [feature] Done in 1.59.0 (31 live files on
+      studio tracks and 1 the other way on the 2026-11-02 library). matches made before 1.56.0 that
       link a live file to a studio track stay until a duplicates fix clears them; `sync match recheck` only
       compares titles. It could send live/studio disagreements to review too (live folder or album against
       `sp_album`).

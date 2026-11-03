@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `sync --match --recheck` also moves matches that pair a live song with a studio track, or a studio song with
+  a live track, to review (they stay linked until accepted or rejected): links made before 1.56.0, when
+  matching did not tell them apart. The summary says how many moved for that reason.
+
 ## [1.58.2] - 2026-11-02
 
 ### Fixed

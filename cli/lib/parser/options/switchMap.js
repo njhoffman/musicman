@@ -86,7 +86,7 @@ module.exports = {
   },
   recheck: {
     description:
-      'With --match, move existing matches that fail the current title rules to review (they stay linked)',
+      'With --match, move existing matches that fail the current title rules, or pair a live song with a studio track, to review (they stay linked)',
     alias: '-C',
     func: () => ({ recheck: true })
   },

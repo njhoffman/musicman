@@ -2,6 +2,7 @@ const { expect } = require('chai');
 const {
   bestCandidate,
   isLiveAlbum,
+  liveMismatch,
   looseQuery,
   matchSimilarity,
   normalizeTitle,
@@ -40,6 +41,17 @@ describe('Spotify Matching', () => {
       'danger mouse'
     );
     expect(primaryArtist('The Doors')).to.equal('doors');
+  });
+
+  describe('liveMismatch', () => {
+    it('should tell a live song on a studio track and a studio song on a live track', () => {
+      const studio = { name: 'Oceans', album: 'Ten' };
+      const live = { name: 'Oceans', album: 'Live at the Garden' };
+      expect(liveMismatch({ title: 'Oceans', album: 'MTV Unplugged', live: true }, studio)).to.be.true;
+      expect(liveMismatch({ title: 'Oceans', album: 'Ten' }, live)).to.be.true;
+      expect(liveMismatch({ title: 'Oceans', album: 'Ten' }, studio)).to.be.false;
+      expect(liveMismatch({ title: 'Oceans', albumType: 'album; live' }, live)).to.be.false;
+    });
   });
 
   describe('rateCandidate', () => {
