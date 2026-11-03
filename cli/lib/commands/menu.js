@@ -4,7 +4,7 @@ const path = require('path');
 
 const { Menu, notifyError, notifyNotice } = require('../menu/menu.js');
 const { songActions: createSongActions } = require('../menu/actions.js');
-const { mpdPlayer, spotifyPlayer } = require('../player/players.js');
+const { mpdPlayer, spotifyConnectPlayer, spotifyPlayer } = require('../player/players.js');
 const { panelTheme, panelView } = require('../menu/rofi.js');
 const { lazyUserClient } = require('../spotify/userClient.js');
 const { autoBackup, getMeta, openLibrary } = require('../db/index.js');
@@ -140,10 +140,13 @@ const menuCommand = async ({
   return true;
 };
 
-const createMenu = ({ config, players, view, songActions, env }) =>
-  new Menu({
+// Spotify on another device (a phone, a speaker) is asked through the Web API only when neither the
+// desktop app nor MPD is playing
+const createMenu = ({ config, players, view, songActions, env }) => {
+  const client = lazyUserClient(config, env);
+  return new Menu({
     reshuffle: reshuffle(config, env),
-    players: players || [spotifyPlayer(), mpdPlayer(config)],
+    players: players || [spotifyPlayer(), mpdPlayer(config), spotifyConnectPlayer({ client })],
     view:
       view ||
       panelView({
@@ -155,13 +158,14 @@ const createMenu = ({ config, players, view, songActions, env }) =>
       createSongActions({
         config,
         openDb: openDb(config),
-        client: lazyUserClient(config, env),
+        client,
         readSongs: readSongs(config),
         writeSong: writeSong(config),
         withRun: withRun(config),
         currentFile: currentPath
       })
   });
+};
 
 const defaultTarget = baseDirectory => baseDirectory;
 

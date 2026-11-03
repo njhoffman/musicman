@@ -1,4 +1,5 @@
 const _ = require('lodash');
+const os = require('os');
 const path = require('path');
 const { execFile } = require('child_process');
 
@@ -279,22 +280,135 @@ const spotifyPlayer = ({ run = runFile } = {}) => {
   };
 };
 
+// Web API repeat states by the menu's repeat modes
+const connectRepeat = { off: 'off', playlist: 'context', track: 'track' };
+const connectRepeatModes = _.invert(connectRepeat);
+
+/**
+ * Spotify playing on another Spotify Connect device (a phone, a speaker) through the Web API player
+ * endpoints (Premium, the playback scopes), for when the desktop app on this computer is not the one
+ * playing. state() is the same shape as spotifyPlayer's, from GET /me/player; it is { state: null } when
+ * nothing plays, when the device is this computer (the desktop app, controlled through MPRIS), or when the
+ * Web API cannot be asked. Commands go to the active device. Its name carries the device's. remote marks
+ * it for choosePlayer, which asks it only when no player on this computer is playing.
+ * client() is the Spotify user client (lazyUserClient).
+ */
+const spotifyConnectPlayer = ({ client, hostname = os.hostname() }) => {
+  let deviceName = null;
+  const playback = async () => (await client().get('/me/player')) || null;
+  const put = (url, body) => client().request('PUT', url, body);
+  const current = async () => {
+    const playing = await playback();
+    if (!playing) {
+      throw new Error('Spotify is not playing on any device');
+    }
+    return playing;
+  };
+  const seekTo = seconds =>
+    put(`/me/player/seek?position_ms=${Math.round(Math.max(0, seconds) * 1000)}`);
+  const setVolume = percent =>
+    put(`/me/player/volume?volume_percent=${_.clamp(Math.round(percent), 0, 100)}`);
+  const setShuffle = on => put(`/me/player/shuffle?state=${on}`);
+  return {
+    source: 'spotify',
+    remote: true,
+    get name() {
+      return deviceName ? `Spotify · ${deviceName}` : 'Spotify';
+    },
+    state: async () => {
+      let playing;
+      try {
+        playing = await playback();
+      } catch (err) {
+        return { state: null, error: err.message };
+      }
+      const device = playing && playing.device;
+      if (!device || _.toLower(device.name) === _.toLower(hostname)) {
+        return { state: null };
+      }
+      deviceName = device.name;
+      const { item } = playing;
+      const volume = device.supports_volume === false ? null : device.volume_percent;
+      return {
+        state: playing.is_playing ? 'playing' : 'paused',
+        volume: _.isNumber(volume) ? volume : null,
+        shuffle: _.isBoolean(playing.shuffle_state) ? playing.shuffle_state : null,
+        repeat: connectRepeatModes[playing.repeat_state] || null,
+        // episodes and local files have no track id, like in the desktop app's MPRIS
+        track:
+          item && item.type === 'track' && item.id
+            ? {
+                trackId: item.id,
+                title: item.name,
+                artist: _.map(item.artists, 'name').join(', '),
+                album: _.get(item, 'album.name') || '',
+                artUrl: _.get(item, 'album.images[0].url') || null,
+                position: (playing.progress_ms || 0) / 1000,
+                duration: (item.duration_ms || 0) / 1000
+              }
+            : null
+      };
+    },
+    toggle: async () => put(`/me/player/${(await current()).is_playing ? 'pause' : 'play'}`),
+    play: () => put('/me/player/play'),
+    pause: () => put('/me/player/pause'),
+    stop: () => put('/me/player/pause'),
+    next: () => client().request('POST', '/me/player/next'),
+    prev: () => client().request('POST', '/me/player/previous'),
+    // the Web API seeks and sets the volume to absolute values, so steps start from the current ones
+    seek: async seconds => seekTo(((await current()).progress_ms || 0) / 1000 + seconds),
+    seekTo,
+    volume: async delta => {
+      const { device } = await current();
+      if (!device || !_.isNumber(device.volume_percent) || device.supports_volume === false) {
+        throw new Error(`${(device && device.name) || 'The device'} does not take volume changes`);
+      }
+      return setVolume(device.volume_percent + delta);
+    },
+    setVolume,
+    shuffle: async mode => {
+      if (!['on', 'off', 'toggle'].includes(mode)) {
+        throw new Error(`Unknown shuffle mode '${mode}', use on, off, or toggle`);
+      }
+      return setShuffle(mode === 'toggle' ? !(await current()).shuffle_state : mode === 'on');
+    },
+    repeat: mode => {
+      if (!connectRepeat[mode]) {
+        throw new Error(`Unknown repeat mode '${mode}', use ${repeatCycle.join(', ')}`);
+      }
+      return put(`/me/player/repeat?state=${connectRepeat[mode]}`);
+    },
+    open: spotifyUri => put('/me/player/play', { context_uri: spotifyUri })
+  };
+};
+
 /**
  * The player the menu controls and the states of all of them: the one playing (Spotify when both
  * are), else a paused one (preferred when both are paused, e.g. the one used last), else null.
- * Players that are not running have state null.
+ * Players that are not running have state null. Remote players (spotifyConnectPlayer) are asked only
+ * when none on this computer is playing, so a menu following local playback makes no Web API calls;
+ * a remote one playing comes before a local one paused, and a remote one paused after.
  */
 const choosePlayer = async (players, { preferred } = {}) => {
-  const states = await Promise.all(_.map(players, player => player.state()));
-  const withState = _.map(players, (player, i) => ({ player, status: states[i] }));
-  const ordered = _.sortBy(withState, ({ player }) => (player.source === preferred ? 0 : 1));
-  const playing = _.filter(withState, ({ status }) => status.state === 'playing');
+  const [remote, local] = _.partition(players, 'remote');
+  const withStates = async list => {
+    const states = await Promise.all(_.map(list, player => player.state()));
+    return _.map(list, (player, i) => ({ player, status: states[i] }));
+  };
+  const isPlaying = ({ status }) => status.state === 'playing';
+  const isPaused = ({ status }) => status.state === 'paused';
+  const locals = await withStates(local);
+  const playing = _.filter(locals, isPlaying);
+  const remotes = playing.length || !remote.length ? [] : await withStates(remote);
+  const ordered = _.sortBy(locals, ({ player }) => (player.source === preferred ? 0 : 1));
   const pick =
     _.find(playing, ({ player }) => player.source === 'spotify') ||
     playing[0] ||
-    _.find(ordered, ({ status }) => status.state === 'paused') ||
+    _.find(remotes, isPlaying) ||
+    _.find(ordered, isPaused) ||
+    _.find(remotes, isPaused) ||
     null;
-  return { active: pick, all: withState };
+  return { active: pick, all: [...locals, ...remotes] };
 };
 
 module.exports = {
@@ -304,6 +418,7 @@ module.exports = {
   nextRepeat,
   repeatCycle,
   seekStep,
+  spotifyConnectPlayer,
   spotifyPlayer,
   spotifyTrackId,
   volumeStep

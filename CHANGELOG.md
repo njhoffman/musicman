@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman menu` and `musicman player` control Spotify playing on another device (a phone, a speaker) through
+  the Web API when the desktop app is not running; the title names the device. The Web API is asked only when
+  neither the desktop app nor MPD is playing. With the desktop app open it mirrors the other device and
+  controls it as before.
+
 ## [1.63.0] - 2026-11-02
 
 ### Added

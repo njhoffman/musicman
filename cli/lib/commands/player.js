@@ -11,6 +11,7 @@ const {
   mpdPlayer,
   nextRepeat,
   repeatCycle,
+  spotifyConnectPlayer,
   spotifyPlayer
 } = require('../player/players.js');
 const { lazyUserClient } = require('../spotify/userClient.js');
@@ -117,7 +118,19 @@ const parseArgs = terms => {
 const pickPlayer = async (players, source) => {
   const { active, all } = await choosePlayer(players);
   if (source) {
-    const named = _.find(all, ({ player }) => player.source === source);
+    // a remote player is asked here even when choosePlayer left it out (another player was playing)
+    const remote = _.filter(
+      players,
+      player => player.remote && player.source === source && !_.find(all, { player })
+    );
+    const candidates = [
+      ...all,
+      ...(await Promise.all(
+        _.map(remote, async player => ({ player, status: await player.state() }))
+      ))
+    ];
+    const sameSource = _.filter(candidates, ({ player }) => player.source === source);
+    const named = _.find(sameSource, ({ status }) => status.state) || sameSource[0];
     if (!named || !named.status.state) {
       const name = source === 'mpd' ? 'MPD' : 'Spotify';
       throw new Error(
@@ -242,7 +255,8 @@ const listQueue = async ({ player, count, client }) => {
 /**
  * player: controls whichever of MPD and the Spotify desktop app is active (or the one named first): play,
  * pause, skip, seek, volume, shuffle, repeat, the queue, and playing or queueing search results. Spotify
- * is controlled through MPRIS, except playing and queueing songs and listing its queue (Web API).
+ * is controlled through MPRIS, except playing and queueing songs and listing its queue (Web API), and
+ * Spotify playing on another device (a phone, a speaker) through the Web API player endpoints.
  * Dependencies (tests): players, client (lazy Spotify user client), find (findSongs), queue
  * (queueSongs), play (playTracks), settle.
  */
@@ -250,8 +264,8 @@ const playerCommand = async ({
   options = {},
   config,
   env = process.env,
-  players = [spotifyPlayer(), mpdPlayer(config)],
   client = lazyUserClient(config, env),
+  players = [spotifyPlayer(), mpdPlayer(config), spotifyConnectPlayer({ client })],
   find = findSongs,
   queue = queueSongs,
   play = playTracks,

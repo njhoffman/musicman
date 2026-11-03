@@ -2,6 +2,7 @@ const { expect } = require('chai');
 
 const {
   choosePlayer,
+  spotifyConnectPlayer,
   mpdPlayer,
   nextRepeat,
   parseMpdSongs,
@@ -295,6 +296,162 @@ describe('Menu players', () => {
     });
   });
 
+  describe('spotifyConnectPlayer', () => {
+    const playback = (extra = {}) => ({
+      is_playing: true,
+      progress_ms: 61000,
+      shuffle_state: false,
+      repeat_state: 'context',
+      device: { id: 'd1', name: 'Pixel 7', volume_percent: 40, supports_volume: true },
+      item: {
+        type: 'track',
+        id: 'tr1',
+        name: 'Song',
+        duration_ms: 180000,
+        artists: [{ name: 'A' }, { name: 'B' }],
+        album: { name: 'Album', images: [{ url: 'https://i/big' }, { url: 'https://i/small' }] }
+      },
+      ...extra
+    });
+    // a Spotify client answering GET /me/player with reply, recording every other request
+    const fakeClient = reply => {
+      const requests = [];
+      const client = {
+        get: async url => {
+          requests.push(['GET', url]);
+          if (reply instanceof Error) {
+            throw reply;
+          }
+          return reply;
+        },
+        request: async (method, url, body) => {
+          requests.push(body === undefined ? [method, url] : [method, url, body]);
+          return null;
+        }
+      };
+      return { requests, client: () => client };
+    };
+    const commands = requests => requests.filter(([method]) => method !== 'GET');
+
+    it('should read the track, cover, position, volume, shuffle and repeat of another device', async () => {
+      const player = spotifyConnectPlayer({ ...fakeClient(playback()), hostname: 'charon' });
+      expect(player.remote).to.equal(true);
+      expect(player.name).to.equal('Spotify');
+      expect(await player.state()).to.deep.equal({
+        state: 'playing',
+        volume: 40,
+        shuffle: false,
+        repeat: 'playlist',
+        track: {
+          trackId: 'tr1',
+          title: 'Song',
+          artist: 'A, B',
+          album: 'Album',
+          artUrl: 'https://i/big',
+          position: 61,
+          duration: 180
+        }
+      });
+      expect(player.name).to.equal('Spotify · Pixel 7');
+    });
+
+    it('should report paused, no volume for a device without it, and no track for an episode', async () => {
+      const reply = playback({
+        is_playing: false,
+        device: { id: 'd1', name: 'Speaker', volume_percent: 30, supports_volume: false },
+        item: { type: 'episode', id: 'ep1', name: 'Show' }
+      });
+      const status = await spotifyConnectPlayer({
+        ...fakeClient(reply),
+        hostname: 'charon'
+      }).state();
+      expect(status).to.include({ state: 'paused', volume: null, track: null });
+    });
+
+    it('should leave this computer to MPRIS, and report null when nothing plays or the API fails', async () => {
+      const local = playback({ device: { id: 'd0', name: 'Charon', volume_percent: 100 } });
+      expect(
+        await spotifyConnectPlayer({ ...fakeClient(local), hostname: 'charon' }).state()
+      ).to.deep.equal({
+        state: null
+      });
+      expect(await spotifyConnectPlayer({ ...fakeClient(null) }).state()).to.deep.equal({
+        state: null
+      });
+      const failed = await spotifyConnectPlayer({
+        ...fakeClient(new Error('failed (403): Premium required'))
+      }).state();
+      expect(failed).to.deep.equal({ state: null, error: 'failed (403): Premium required' });
+    });
+
+    it('should send play, pause, next, previous, absolute seek and volume, repeat and open', async () => {
+      const fake = fakeClient(playback());
+      const player = spotifyConnectPlayer(fake);
+      await player.play();
+      await player.pause();
+      await player.stop();
+      await player.next();
+      await player.prev();
+      await player.seekTo(-5);
+      await player.setVolume(120);
+      await player.repeat('track');
+      await player.open('spotify:playlist:p1');
+      expect(commands(fake.requests)).to.deep.equal([
+        ['PUT', '/me/player/play'],
+        ['PUT', '/me/player/pause'],
+        ['PUT', '/me/player/pause'],
+        ['POST', '/me/player/next'],
+        ['POST', '/me/player/previous'],
+        ['PUT', '/me/player/seek?position_ms=0'],
+        ['PUT', '/me/player/volume?volume_percent=100'],
+        ['PUT', '/me/player/repeat?state=track'],
+        ['PUT', '/me/player/play', { context_uri: 'spotify:playlist:p1' }]
+      ]);
+    });
+
+    it('should toggle, seek, step the volume and toggle shuffle from the current playback', async () => {
+      const fake = fakeClient(playback());
+      const player = spotifyConnectPlayer(fake);
+      await player.toggle();
+      await player.seek(30);
+      await player.seek(-90);
+      await player.volume(-5);
+      await player.shuffle('toggle');
+      await player.shuffle('off');
+      expect(commands(fake.requests)).to.deep.equal([
+        ['PUT', '/me/player/pause'],
+        ['PUT', '/me/player/seek?position_ms=91000'],
+        ['PUT', '/me/player/seek?position_ms=0'],
+        ['PUT', '/me/player/volume?volume_percent=35'],
+        ['PUT', '/me/player/shuffle?state=true'],
+        ['PUT', '/me/player/shuffle?state=false']
+      ]);
+      const paused = fakeClient(playback({ is_playing: false }));
+      await spotifyConnectPlayer(paused).toggle();
+      expect(commands(paused.requests)).to.deep.equal([['PUT', '/me/player/play']]);
+    });
+
+    it('should refuse volume steps on a device without volume, unknown modes, and nothing playing', async () => {
+      const speaker = playback({ device: { id: 'd', name: 'Speaker', supports_volume: false } });
+      await spotifyConnectPlayer(fakeClient(speaker))
+        .volume(5)
+        .then(
+          () => expect.fail('should reject'),
+          err => expect(err.message).to.equal('Speaker does not take volume changes')
+        );
+      const player = spotifyConnectPlayer(fakeClient(null));
+      await player.seek(30).then(
+        () => expect.fail('should reject'),
+        err => expect(err.message).to.equal('Spotify is not playing on any device')
+      );
+      await player.shuffle('maybe').then(
+        () => expect.fail('should reject'),
+        err => expect(err.message).to.match(/Unknown shuffle mode/)
+      );
+      expect(() => player.repeat('all')).to.throw(/Unknown repeat mode 'all'/);
+    });
+  });
+
   describe('choosePlayer', () => {
     const player = (source, state) => ({ source, state: async () => ({ state }) });
 
@@ -316,6 +473,27 @@ describe('Menu players', () => {
       expect(
         (await choosePlayer([player('spotify', null), player('mpd', 'stopped')])).active
       ).to.equal(null);
+    });
+    it('should ask a remote player only when nothing on this computer plays', async () => {
+      const remote = { ...player('spotify', 'playing'), remote: true, state: sinon.stub() };
+      remote.state.resolves({ state: 'playing' });
+      const mpd = player('mpd', 'playing');
+      const { active, all } = await choosePlayer([player('spotify', null), mpd, remote]);
+      expect(active.player).to.equal(mpd);
+      expect(remote.state.called).to.equal(false);
+      expect(all).to.have.length(2);
+      const paused = player('mpd', 'paused');
+      expect((await choosePlayer([paused, remote])).active.player).to.equal(remote);
+      expect(remote.state.calledOnce).to.equal(true);
+    });
+
+    it('should pick a local paused player before a remote paused one, a remote one before none', async () => {
+      const remote = { ...player('spotify', 'paused'), remote: true };
+      const mpd = player('mpd', 'paused');
+      expect((await choosePlayer([mpd, remote])).active.player).to.equal(mpd);
+      const { active, all } = await choosePlayer([player('mpd', 'stopped'), remote]);
+      expect(active.player).to.equal(remote);
+      expect(all).to.have.length(2);
     });
   });
 });

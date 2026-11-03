@@ -141,6 +141,17 @@ describe('Player command', () => {
       );
     });
 
+    it('should act on Spotify on another device when the desktop app is not running', async () => {
+      const remote = { ...fakePlayer('spotify', 'playing'), remote: true };
+      const mpd = fakePlayer('mpd', 'playing');
+      // MPD plays, so choosing the active player leaves the remote one out; naming Spotify asks it
+      await runWith(['spotify', 'next'], [fakePlayer('spotify', null), mpd, remote]);
+      expect(remote.calls).to.deep.equal([['next']]);
+      expect(mpd.calls).to.deep.equal([]);
+      await runWith(['pause'], [fakePlayer('spotify', null), fakePlayer('mpd', 'stopped'), remote]);
+      expect(remote.calls).to.deep.equal([['next'], ['pause']]);
+    });
+
     it('should seek and set the volume relatively or absolutely, and step repeat', async () => {
       const mpd = fakePlayer('mpd', 'paused');
       await runWith(['seek', '-30'], [mpd]);

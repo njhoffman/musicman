@@ -27,9 +27,13 @@ colored per kind of button (playback, modes, song, ratings, like).
 The one playing; Spotify when both are. With neither playing, a paused one, else a stopped MPD (so play
 works). The menu follows whichever player takes over (see Following the song); there is no switch.
 
-Spotify is controlled through MPRIS (`playerctl -p spotify`), so only the desktop app on this machine:
-no Web API player scopes, no Premium requirement. MPD through its protocol (`mpd.host`, `mpd.port`).
-Seek moves 30 seconds.
+The Spotify desktop app on this machine is controlled through MPRIS (`playerctl -p spotify`). Spotify
+playing on another device (a phone, a speaker) is controlled through the Web API player endpoints
+(Premium, the playback scopes of `sync --login`), and the title names the device (` Spotify · Pixel 7`).
+The Web API is asked only when neither the desktop app nor MPD is playing, so the menu makes no Web API
+calls while following local playback; another device playing comes before a paused local player, and
+paused after one. Devices without remote volume have the volume buttons disabled. MPD through its
+protocol (`mpd.host`, `mpd.port`). Seek moves 30 seconds. `musicman player` picks players the same way.
 
 ### Shuffle, repeat, and reshuffle
 
