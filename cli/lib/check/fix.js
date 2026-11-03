@@ -4,6 +4,7 @@ const NodeId3 = require('node-id3');
 
 const { leftoverSpotifyFrame, nameKey, nameTarget, standardFrames } = require('./library.js');
 const { multiDescriptions } = require('./files.js');
+const { readTagBuffer } = require('./frames.js');
 const { rewriteTags } = require('../metadata/write.js');
 
 // checks check --fix repairs; the others need a decision per song and stay reports
@@ -198,6 +199,12 @@ const fixRaw = (raw, context) => {
   return { raw: tags, changes, skipped };
 };
 
+// the raw frames of a file's tag, read without the audio (node-id3 reads the whole file when given a path)
+const readTagRaw = file => {
+  const tag = readTagBuffer(file);
+  return tag ? _.get(NodeId3.read(tag), 'raw', {}) : {};
+};
+
 /**
  * The files check --fix would change and how, reading each candidate file's tag: the songs checked
  * that hold a frame some repair is about (or a multi finding). Resolves to { context, files, skipped }
@@ -208,7 +215,7 @@ const planFixes = async ({
   config,
   results,
   songs,
-  readRaw = file => _.get(NodeId3.read(file), 'raw', {}),
+  readRaw = readTagRaw,
   onProgress = _.noop
 }) => {
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
@@ -254,7 +261,11 @@ const planFixes = async ({
     }
   }
   _.each(_.reject(artworkFindings, 'image'), ({ file }) =>
-    skipped.push({ check: 'artwork', file, text: 'no Spotify album image (not matched on Spotify)' })
+    skipped.push({
+      check: 'artwork',
+      file,
+      text: 'no Spotify album image (not matched on Spotify)'
+    })
   );
   return { context, files, skipped, covers };
 };
@@ -322,4 +333,12 @@ const applyFixes = async ({
   return { written, failed };
 };
 
-module.exports = { applyFixes, cleanMulti, fixContext, fixRaw, fixableChecks, planFixes };
+module.exports = {
+  applyFixes,
+  cleanMulti,
+  fixContext,
+  fixRaw,
+  fixableChecks,
+  planFixes,
+  readTagRaw
+};

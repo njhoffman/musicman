@@ -8,7 +8,7 @@ const { expect } = require('chai');
 const { openDatabase } = require('../db/database.js');
 const { syncTagDefinitions } = require('../db/tags.js');
 const { updateDatabase } = require('../db/update.js');
-const { applyFixes, cleanMulti, fixContext, fixRaw, planFixes } = require('./fix.js');
+const { applyFixes, cleanMulti, fixContext, fixRaw, planFixes, readTagRaw } = require('./fix.js');
 const { run: checkCommand } = require('../commands/check.js');
 
 // a fix context with every repair off, and the given ones on
@@ -480,5 +480,12 @@ describe('check --fix', () => {
       ]);
       db.close();
     });
+  });
+
+  it('should read the frames of a file from its tag alone, the same as reading the whole file', () => {
+    const file = path.join(process.cwd(), 'test/data/source/dir1/testFile01.mp3');
+    const whole = _.omit(NodeId3.read(file).raw, ['APIC']);
+    expect(_.omit(readTagRaw(file), ['APIC'])).to.deep.equal(whole);
+    expect(_.keys(whole)).to.not.be.empty;
   });
 });
