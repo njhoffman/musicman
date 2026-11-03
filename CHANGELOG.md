@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.56.0] - 2026-11-02
+
 ### Changed
 
 - `sync --match` matches a live recording only to a live track and a studio recording only to a studio
@@ -1119,7 +1121,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.55.1...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.56.0...HEAD
+[1.56.0]: https://github.com/njhoffman/musicman/compare/v1.55.1...v1.56.0
 [1.55.1]: https://github.com/njhoffman/musicman/compare/v1.55.0...v1.55.1
 [1.55.0]: https://github.com/njhoffman/musicman/compare/v1.54.0...v1.55.0
 [1.54.0]: https://github.com/njhoffman/musicman/compare/v1.53.0...v1.54.0
