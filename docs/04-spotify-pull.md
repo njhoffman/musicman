@@ -66,6 +66,8 @@ against YouTube's terms of service.
   final name, which `--overwrite skip` and the import would take as done. spotDL tags a file (WOAS among
   the frames) only once it is whole, so the script deletes untagged `.mp3` files after a stop and before
   every run, and ends the ffmpeg conversions spotDL starts outside its process group.
+- A stopped download also leaves the YouTube audio spotDL fetched in `~/.spotdl/temp`; each run deletes the
+  files there older than a day first.
 - When every track fails with `LookupError: No results found`, spotDL or its yt-dlp is out of date
   (2026-11-03: spotDL 4.5.2 with yt-dlp 2026.8.19 found nothing); `uv tool upgrade spotdl` fixed it.
 

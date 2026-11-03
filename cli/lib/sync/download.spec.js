@@ -13,7 +13,12 @@ const {
   removePartialDownloads,
   spotdlCommand
 } = require('./download.js');
-const { main: runMain, stopStrays, strayProcesses } = require('../../scripts/spotdl-download.js');
+const {
+  main: runMain,
+  removeStaleTemp,
+  stopStrays,
+  strayProcesses
+} = require('../../scripts/spotdl-download.js');
 const { listRuns } = require('../utils/runs.js');
 
 describe('Spotify Downloads', () => {
@@ -110,6 +115,8 @@ describe('Spotify Downloads', () => {
         archive: false,
         signals: new EventEmitter(),
         strays: { find: () => [] },
+        // never the real ~/.spotdl/temp
+        spotdlTemp: path.join(directory, 'spotdl-temp'),
         ...options
       });
 
@@ -300,6 +307,26 @@ describe('Spotify Downloads', () => {
       const find = () => (calls++ === 0 ? [101] : []);
       expect(await stopStrays(directory, { find, kill })).to.deep.equal([101]);
       expect(kill).to.have.been.calledOnceWith(101, 'SIGTERM');
+    });
+
+    it('should delete spotDL temp files older than a day before downloading', async () => {
+      const temp = path.join(directory, 'spotdl-temp');
+      fs.mkdirSync(temp);
+      const now = Date.now();
+      const file = (name, hoursAgo) => {
+        fs.writeFileSync(path.join(temp, name), 'webm');
+        const time = new Date(now - hoursAgo * 3600 * 1000);
+        fs.utimesSync(path.join(temp, name), time, time);
+      };
+      file('old.webm', 30);
+      file('running.webm.part', 1);
+      expect(removeStaleTemp(temp, now)).to.deep.equal(['old.webm']);
+      expect(fs.readdirSync(temp)).to.deep.equal(['running.webm.part']);
+      expect(removeStaleTemp(path.join(directory, 'none'))).to.deep.equal([]);
+      file('stale.webm', 48);
+      fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify(manifest));
+      await main({ args: [], config, spawn: () => ({ status: 0 }) });
+      expect(fs.readdirSync(temp)).to.deep.equal(['running.webm.part']);
     });
 
     it('should not run spotDL in a dry run or without a manifest', async () => {

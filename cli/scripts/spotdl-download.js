@@ -10,6 +10,7 @@
 // deletes the file of the track cut short, and archives the run as interrupted.
 const _ = require('lodash');
 const fs = require('fs');
+const os = require('os');
 const { execFileSync, spawn: spawnChild } = require('child_process');
 const path = require('path');
 const { loadConfig } = require('musicman-common/config');
@@ -85,6 +86,33 @@ const stopStrays = async (directory, { find = strayProcesses, kill = process.kil
   return pids;
 };
 
+// where spotDL keeps the YouTube audio it fetched until converted; a stopped download leaves it there
+const spotdlTempDirectory = path.join(os.homedir(), '.spotdl', 'temp');
+// temp files older than this are left over from stopped downloads (a running one is younger)
+const staleTempMs = 24 * 3600 * 1000;
+
+// deletes the files in spotDL's temp folder older than a day; returns their names
+const removeStaleTemp = (directory = spotdlTempDirectory, now = Date.now()) => {
+  if (!fs.existsSync(directory)) {
+    return [];
+  }
+  return _.compact(
+    _.map(fs.readdirSync(directory), name => {
+      const file = path.join(directory, name);
+      try {
+        const stat = fs.statSync(file);
+        if (!stat.isFile() || now - stat.mtimeMs < staleTempMs) {
+          return null;
+        }
+        fs.unlinkSync(file);
+        return name;
+      } catch {
+        return null;
+      }
+    })
+  );
+};
+
 const parseLimit = args => {
   const limitArg = _.find(args, arg => arg.startsWith('--limit'));
   if (!limitArg) {
@@ -100,7 +128,8 @@ const parseLimit = args => {
  * Downloads the pending manifest tracks; resolves to the exit code (0 when every track it tried is
  * downloaded, 1 otherwise, 130 when stopped). Dependencies (tests): spawn(command, args, options,
  * onChild) resolving to { status, error }, isComplete(file), archive (false: no run report),
- * signals (an EventEmitter for the stop signals, process by default), and strays (stopStrays options).
+ * signals (an EventEmitter for the stop signals, process by default), strays (stopStrays options), and
+ * spotdlTemp (spotDL's temp folder, whose files older than a day are deleted first).
  */
 const main = async ({
   args = process.argv.slice(2),
@@ -109,7 +138,8 @@ const main = async ({
   isComplete = isCompleteDownload,
   archive = true,
   signals = process,
-  strays = {}
+  strays = {},
+  spotdlTemp = spotdlTempDirectory
 } = {}) => {
   const dryRun = args.includes('--dry-run') || args.includes('-n');
   const { limit, error: limitError } = parseLimit(args);
@@ -142,6 +172,11 @@ const main = async ({
     const removed = removePartialDownloads(config, { isComplete });
     if (removed.length > 0) {
       console.log(`Removed ${removed.length} files of stopped downloads: ${removed.join(', ')}`);
+    }
+    // no other download runs (checked above), so spotDL's older temp files belong to none
+    const stale = removeStaleTemp(spotdlTemp);
+    if (stale.length > 0) {
+      console.log(`Removed ${stale.length} leftover spotDL temp files from ${spotdlTemp}`);
     }
   }
   const allPending = pendingTracks(manifest, downloadedFiles(config));
@@ -273,4 +308,4 @@ if (require.main === module) {
   );
 }
 
-module.exports = { main, runCommand, stopStrays, strayProcesses };
+module.exports = { main, removeStaleTemp, runCommand, stopStrays, strayProcesses };
