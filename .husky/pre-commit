@@ -1,0 +1,12 @@
+# staged .js files under the paths pnpm format covers must be formatted: the commit stops and lists them
+# (run pnpm format, stage them again). Checks only, never rewrites what was staged.
+files=$(git diff --cached --name-only --diff-filter=ACMR |
+  grep -E '^((cli/(lib|test|scripts)|common/(config|mpd)|scripts)/.+|eslint\.config)\.js$' |
+  grep -v '^cli/test/data/' || true)
+[ -z "$files" ] && exit 0
+# shellcheck disable=SC2086
+pnpm exec prettier --check $files >/dev/null 2>&1 && exit 0
+echo "pre-commit: these staged files are not formatted (pnpm format, then stage them again):" >&2
+# shellcheck disable=SC2086
+pnpm exec prettier --list-different $files >&2
+exit 1

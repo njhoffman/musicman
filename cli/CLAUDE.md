@@ -8,7 +8,8 @@ history in `CHANGELOG.md`; open work in `TODO.md`.
 From the repo root (a pnpm workspace: `cli`, `common`):
 
 - `pnpm test`: the cli mocha suite (`cli/.mocharc.yml`, `NODE_ENV=test`), then `node --test scripts/*.test.js`
-- `pnpm lint`, `pnpm format:check` (prettier; run it on the files you touch only, some files predate it)
+- `pnpm lint`, `pnpm format` / `pnpm format:check` (prettier); the pre-commit hook refuses staged `.js` files
+  that are not formatted
 - `pnpm release --release-as patch|minor|major`: commit-and-tag-version; bumps `package.json`, moves the
   `CHANGELOG.md` [Unreleased] entries under the new version (`scripts/release-changelog.js`), commits, tags
 - The post-commit hook runs `scripts/publish-local.sh`: every commit is built into
