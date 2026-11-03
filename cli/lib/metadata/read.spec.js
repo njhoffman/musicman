@@ -7,6 +7,7 @@ describe('Metadata Read', () => {
   let mp3DurationStub;
   let headerDurationStub;
   let fsStub;
+  let tagBufferStub;
   let readModule;
 
   beforeEach(() => {
@@ -14,11 +15,14 @@ describe('Metadata Read', () => {
     mp3DurationStub = sinon.stub();
     headerDurationStub = sinon.stub().resolves(null);
     fsStub = { stat: sinon.stub() };
+    // no tag at the start: node-id3 is given the path, as for a file without an ID3v2 tag
+    tagBufferStub = sinon.stub().resolves(null);
 
     readModule = proxyquire('./read.js', {
       'node-id3': nodeId3Stub,
       'mp3-duration': mp3DurationStub,
       './duration.js': { readHeaderDuration: headerDurationStub },
+      './tagBuffer.js': { readTagBufferAsync: tagBufferStub },
       fs: fsStub
     });
   });
@@ -35,6 +39,15 @@ describe('Metadata Read', () => {
       const result = await readModule.getMetadata(['test.mp3']);
       expect(result).to.have.length(1);
       expect(result[0]).to.deep.equal(['test.mp3', mockTags.raw]);
+    });
+
+    it('should give node-id3 the tag alone when the file starts with one, not the whole file', async () => {
+      const tag = Buffer.from('ID3 tag bytes');
+      tagBufferStub.withArgs('/test/file.mp3').resolves(tag);
+      nodeId3Stub.read.callsArgWith(1, null, { raw: { TIT2: 'Song' } });
+      const result = await readModule.getMetadata('/test/file.mp3');
+      expect(nodeId3Stub.read.firstCall.args[0]).to.equal(tag);
+      expect(result).to.deep.equal([['/test/file.mp3', { TIT2: 'Song' }]]);
     });
 
     it('should replace cover art with a presence marker', async () => {

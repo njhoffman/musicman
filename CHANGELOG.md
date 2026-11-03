@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- An edit with a field that is not a library tag (or rating), e.g. `contxt=Study`, stops with an error naming
+  the fields; before, it wrote nothing and said nothing.
+- Reading tags from files reads only the tag, not the whole mp3: `stats --files` on the full library takes 34
+  seconds instead of 2 minutes 19, and `view --files`, `edit`, and `db --update` read faster too.
+
 ## [1.68.0] - 2026-11-03
 
 ### Changed

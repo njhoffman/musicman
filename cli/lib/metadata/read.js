@@ -5,6 +5,7 @@ const mp3Duration = require('mp3-duration');
 const { flatten } = require('flat');
 const { mapLimit } = require('../utils/promise.js');
 const { readHeaderDuration } = require('./duration.js');
+const { readTagBufferAsync: readTagBuffer } = require('./tagBuffer.js');
 const { progress, progressDone } = require('../utils/logger.js');
 
 const readSize = file =>
@@ -48,9 +49,9 @@ const toRawTags = tags => {
   return rawTags;
 };
 
-const readMetadata = file =>
+const readId3 = source =>
   new Promise((resolve, reject) => {
-    NodeId3.read(file, (err, tags) => {
+    NodeId3.read(source, (err, tags) => {
       if (err) {
         reject(err);
       } else {
@@ -58,6 +59,13 @@ const readMetadata = file =>
       }
     });
   });
+
+// the raw tags of a file from its tag alone, not the audio (node-id3 given a path reads the whole
+// file); a file without an ID3v2 tag at its start is left to node-id3, which looks for one anywhere
+const readMetadata = async file => {
+  const tag = await readTagBuffer(file);
+  return readId3(tag || file);
+};
 
 // raw tags with duration and size, rejects if any of the reads fail
 const readMetadataFull = async file => {

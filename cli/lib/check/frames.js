@@ -1,31 +1,6 @@
 const fs = require('fs');
 
-// 28 bit integer stored in 4 bytes of 7 bits, used for ID3v2 tag sizes and v2.4 frame sizes
-const syncsafe = (buffer, offset) =>
-  ((buffer[offset] & 0x7f) << 21) |
-  ((buffer[offset + 1] & 0x7f) << 14) |
-  ((buffer[offset + 2] & 0x7f) << 7) |
-  (buffer[offset + 3] & 0x7f);
-
-/**
- * The ID3v2 tag at the start of an mp3 file (header included), read without the audio; null when the
- * file has no ID3v2 tag.
- */
-const readTagBuffer = file => {
-  const fd = fs.openSync(file, 'r');
-  try {
-    const header = Buffer.alloc(10);
-    if (fs.readSync(fd, header, 0, 10, 0) < 10 || header.toString('latin1', 0, 3) !== 'ID3') {
-      return null;
-    }
-    const size = 10 + syncsafe(header, 6) + (header[5] & 0x10 ? 10 : 0);
-    const tag = Buffer.alloc(size);
-    fs.readSync(fd, tag, 0, size, 0);
-    return tag;
-  } finally {
-    fs.closeSync(fd);
-  }
-};
+const { readTagBuffer, syncsafe } = require('../metadata/tagBuffer.js');
 
 /**
  * Frames of an ID3v2.3 or v2.4 tag buffer as { id, start, end } byte ranges (header included), parsed from
