@@ -6,7 +6,7 @@ describe('Target assignment', () => {
 
   const config = {
     mpd: { baseDirectory: 'testBaseDir' },
-    library: { tags: [] }
+    library: { tags: [{ name: 'artist', id: 'TPE1' }] }
   };
   const currentSong = { file: 'testDir/testSong.mp3' };
 

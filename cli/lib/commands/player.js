@@ -321,6 +321,8 @@ const defaultTarget = baseDirectory => baseDirectory;
 
 module.exports = {
   name: 'player',
+  // field:value with an unknown field is free text here, not a filter mistake
+  ownTerms: true,
   description:
     'Control MPD or the Spotify desktop app: play, pause, skip, seek, volume, queue, play search results',
   usage,

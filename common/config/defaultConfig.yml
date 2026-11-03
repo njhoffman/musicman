@@ -249,7 +249,8 @@ stats:
   - context
   - mood
   # Named filters counted by stats, in the view/search filter syntax (rating:4.0 is 4.0 and up,
-  # grouping:Singles matches every grouping containing Singles); counted within the scanned files
+  # grouping:Singles matches every grouping containing Singles); counted within the scanned files.
+  # Fields must be in library.tags (or rating), else the config is refused
   filters:
   - name: Rated 4.0+
     filter: rating:4.0
@@ -257,8 +258,6 @@ stats:
     filter: rating:4.5
   - name: Rated 5.0
     filter: rating:5.0
-  - name: Singles rated 4.0+
-    filter: rating:4.0 grouping:Singles
 
 # ID3 tag definitions and display settings
 tags:

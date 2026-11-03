@@ -476,6 +476,30 @@ function validateConfig(config) {
  * Validates library.tags and views of the merged config, returns errors.
  * `missingTags` are library.tags names not found in the user tags or tags.json.
  */
+// filter terms the way the cli splits a configured filter: before each field:, a value may hold spaces
+const filterTerms = filter => `${filter}`.trim().split(/\s+(?=~?[\w]+:)/);
+
+/**
+ * What is wrong with the terms of a filter (field:value, ~field:value, or a rating number): terms that
+ * are none of these, and fields that are not rating or a library tag (fieldNames). The cli ignores such
+ * terms, so a typo would match every song (a push would add the whole library to a playlist).
+ */
+const filterProblems = (terms, fieldNames) =>
+  _.compact(
+    _.map(_.compact(terms), term => {
+      if (/^\d+(?:\.\d+)?$/.test(term)) {
+        return null;
+      }
+      const match = /^~?([\w-]+):/.exec(term);
+      if (!match) {
+        return `'${term}' is not field:value`;
+      }
+      return match[1] === 'rating' || fieldNames.has(match[1])
+        ? null
+        : `unknown field '${match[1]}' in '${term}'`;
+    })
+  );
+
 function validateLibrary(config, missingTags = []) {
   const errors = _.map(
     missingTags,
@@ -499,6 +523,24 @@ function validateLibrary(config, missingTags = []) {
       errors.push(`Tags '${_.map(tags, 'name').join("', '")}' in library.tags share frame '${id}'`);
     }
   });
+
+  // configured filters may only use known fields: a typo would match every song
+  const fieldNames = new Set(_.map(libraryTags, 'name'));
+  _.each(
+    [
+      ['stats.filters', _.get(config, 'stats.filters', [])],
+      ['sync.playlists', _.get(config, 'sync.playlists', [])],
+      ['menu.buttons', _.get(config, 'menu.buttons', [])]
+    ],
+    ([key, entries]) =>
+      _.each(entries, (entry, i) => {
+        if (_.isPlainObject(entry) && _.isString(entry.filter)) {
+          _.each(filterProblems(filterTerms(entry.filter), fieldNames), problem =>
+            errors.push(`${key}[${i}].filter: ${problem}`)
+          );
+        }
+      })
+  );
 
   // Spotify fallbacks fill standard tags, custom fields are written by the mapping itself
   const knownTags = _.uniqBy((config.tags || []).concat(globalTags), 'name');
@@ -570,6 +612,8 @@ function readUserConfig(userConfigPath = getUserConfigPath()) {
 }
 
 module.exports = {
+  filterProblems,
+  filterTerms,
   logLevels,
   parseInterval,
   parsePlaylistId,

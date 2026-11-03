@@ -6,6 +6,25 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- A filter with a field that is not a library tag (or rating) is an error: in `stats.filters`, `sync.playlists`,
+  and `menu.buttons` musicman refuses to start until it is fixed, and on the command line the command stops
+  (`search` and `player` still take such a term as text). Before, the term was ignored, so a typo matched every
+  song, and a push would have added the whole library to that playlist.
+
+### Removed
+
+- The default `stats.filters` entry "Singles rated 4.0+" (`rating:4.0 grouping:Singles`): `grouping` is not a
+  default library tag, so it only ever counted `rating:4.0`. Configs with `grouping` can add it to their own
+  `stats.filters`.
+
+### Fixed
+
+- Reading many files from disk (`stats --files`, `view --files`) kept every mp3 in memory: 3.2 GB for the whole
+  library, now 726 MB.
+- `check --fix` reads only the tag of each file it plans to change, not the whole file (about 7 times faster).
+
 ## [1.67.0] - 2026-11-03
 
 ### Added

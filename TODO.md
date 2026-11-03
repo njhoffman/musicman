@@ -10,12 +10,20 @@ Reviewed: 2026-11-01
 
 ## 1. Bugs
 
-- [ ] **Unknown fields in filters are ignored silently.** (p3) [bug] `parseFilters`
+- [x] **Unknown fields in filters are ignored silently.** (p3) [bug] `parseFilters`
       (`cli/lib/parser/options/filters.js`) skips a `field:value` whose field is not a configured tag, so a typo in
-      `stats.filters` or `sync.playlists` matches every song. Validate configured filters at load time and warn.
-- [ ] **Memory use when reading many files.** (p3) [bug] an old comment in `getFilteredFiles`
-      (`cli/lib/commands/common.js`) reported memory overflow reading the whole library from disk. Check peak memory
-      of `stats --files` on the full library; reading in batches (as `db/update.js` does) would bound it.
+      `stats.filters` or `sync.playlists` matches every song. Now a config error (`filterProblems` in
+      `common/config/validator.js`, also for `menu.buttons`), and refused on the command line except by `search`
+      and `player`, which take such a term as text.
+- [ ] **Unknown fields in assignments are ignored silently.** (p3) [bug] `musicman edit contxt=Study` writes nothing
+      and says nothing (`parseAssignments` skips fields that are not library tags); refuse it like filters.
+- [x] **Memory use when reading many files.** (p3) [bug] `stats --files` peaked at 3.2 GB on 7363 files: node-id3
+      reads each whole file and gives the UFID identifier as a slice of it, which kept every mp3 in memory.
+      `toRawTags` copies buffers out; 726 MB on 2026-11-03.
+- [ ] **Read only the tag when reading files.** (p3) [perf] `readMetadata` (`metadata/read.js`) gives node-id3 the
+      path, so it reads each whole mp3 (2m19s for `stats --files`); reading the tag alone (`readTagBuffer`, as
+      `check --fix` does now) was 7 times faster cold with the same frames. Duration reading needs the audio
+      headers still.
 - [x] **`-i`/`--include` and `-x`/`--exclude` do nothing.** (p2) [bug] Stale: checked 2026-11-01, `view` applies
       them to the table, the single file list, and `--format` columns (`commands/view.js`, `songColumns`).
 - [x] **MPD responses cut values at the second colon.** (p2) [bug] `common/mpd/utils.js` `parseMpdReply` splits on
@@ -105,9 +113,10 @@ Reviewed: 2026-11-01
       the newest copy by mtime, but any tag write (an artwork repair, a sync --match refresh) makes a file
       newer without a new rating. The POPM change times in the undo history (`tag_changes`) would tell when
       each rating was set, for runs still kept (`history.keep`).
-- [ ] **`check --fix` reads the candidate files a second time.** (p3) [perf] the report reads every file, then
+- [x] **`check --fix` reads the candidate files a second time.** (p3) [perf] the report reads every file, then
       `planFixes` (`check/fix.js`) reads each candidate again; on a messy library that is most of it. Keeping
-      the raw frames of candidates from the first pass (without APIC images) would skip the second read.
+      the raw frames of candidates from the first pass (without APIC images) would skip the second read. Done
+      differently: the second read takes the tag alone (`readTagRaw`), 7 times faster cold, nothing kept.
 - [x] **Progress bar and colored output for `check`.** (p2) [feature] `progressBar` with ETA per phase; report
       and plan colored like the sync plan (`output/check.js`).
 - [x] **Complete tag values and run ids in zsh.** (p3) [feature] node needed 0.35-1.9 s per Tab, so the script

@@ -9,6 +9,7 @@ const getOptions = require('./options.js');
 //   options:  includes switches, field filters and assignments
 const _ = require('lodash');
 const commands = require('../commands/index.js');
+const { filterProblems } = require('musicman-common/config/validator.js');
 const { checkExists } = require('../utils/files.js');
 
 /**
@@ -22,6 +23,28 @@ const unknownCommand = word => {
       ? `did you mean ${withSwitch.map(({ name }) => `musicman ${name} --${word}`).join(' or ')}?`
       : `commands are ${_.map(commands, 'name').join(', ')}`;
   return new Error(`Unknown command '${word}', ${suggestion} (musicman --help)`);
+};
+
+/**
+ * Refuses filters with a field that is not a library tag (or rating): parseFilters ignores them, so a
+ * typo like contxt:Study would list (or change) every song. Commands that read their own terms (search
+ * and player, where such a term is free text) are left alone, and so are URLs and spotify: URIs.
+ */
+const checkFilterFields = (terms, config, command) => {
+  if (command.ownTerms) {
+    return;
+  }
+  const filterLike = _.filter(
+    terms,
+    term => /^~?[\w-]+:/.test(term) && !/^[a-z]+:\/\//i.test(term) && !/^spotify:/.test(term)
+  );
+  const fieldNames = new Set(_.map(_.get(config, 'library.tags'), 'name'));
+  const [problem] = filterProblems(filterLike, fieldNames);
+  if (problem) {
+    throw new Error(
+      `Filter ${problem}: fields are rating, ${_.sortBy([...fieldNames]).join(', ')}`
+    );
+  }
 };
 
 const parser = ({ args, currentSong, config }) => {
@@ -46,6 +69,7 @@ const parser = ({ args, currentSong, config }) => {
   // whether an argument named the target, or it is the command's default (or the playing song)
   const targetGiven = remainingArgs.length < args.length - (args[0] === command.name ? 1 : 0);
   const options = { ...getOptions(remainingArgs, config, command.name), targetGiven };
+  checkFilterFields(options.terms, config, command);
   // commands that take only switches reject other words, e.g. sync push for sync --push
   if (command.terms === false && options.terms.length > 0) {
     const [word] = options.terms;

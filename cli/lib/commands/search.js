@@ -124,6 +124,8 @@ const defaultTarget = baseDirectory => baseDirectory;
 
 module.exports = {
   name: 'search',
+  // field:value with an unknown field is free text here, not a filter mistake
+  ownTerms: true,
   description: 'Search the whole library by field:value, mpc style pairs, or free text',
   usage:
     'musicman search [field:value | field value | text ...] [--add | --play] [--format=<format> | --fzf]',

@@ -3,7 +3,13 @@ const parser = require('./index.js');
 describe('Command assignment', () => {
   const config = {
     mpd: { baseDirectory: 'testBaseDir' },
-    library: { tags: [] }
+    library: {
+      tags: [
+        { name: 'artist', id: 'TPE1' },
+        { name: 'filter', id: 'TXXX.filter' },
+        { name: 'field', id: 'TXXX.field' }
+      ]
+    }
   };
   const currentSong = { file: 'testDir/testSong.mp3' };
 

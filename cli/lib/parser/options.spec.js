@@ -97,10 +97,28 @@ describe('Options assignment', () => {
       expect(test1.options.filters).to.deep.include(filters);
     });
 
-    it('Should ignore field filters for tags not in library.tags', () => {
+    it('Should refuse field filters for tags not in library.tags, which would match every song', () => {
       const tagsConfig = { ...config, tags: [{ name: 'genre', id: 'TCON' }] };
-      const test1 = parser({ args: ['genre:Rock', 'artist:TestArtist'], config: tagsConfig });
-      expect(test1.options.filters.include).to.deep.equal({ artist: 'TestArtist' });
+      expect(() =>
+        parser({ args: ['genre:Rock', 'artist:TestArtist'], config: tagsConfig })
+      ).to.throw(
+        "Filter unknown field 'genre' in 'genre:Rock': fields are rating, CustomField1, CustomField2, CustomField3, album, artist, title"
+      );
+      expect(() => parser({ args: ['~contxt:Study'], config })).to.throw(/unknown field 'contxt'/);
+    });
+
+    it('Should leave URLs and Spotify URIs alone, and unknown fields to commands that read their own terms', () => {
+      expect(() =>
+        parser({ args: ['shuffle', 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M'], config })
+      ).to.not.throw();
+      expect(() =>
+        parser({ args: ['shuffle', 'https://open.spotify.com/playlist/37i9dQZF1DX'], config })
+      ).to.not.throw();
+      expect(() => parser({ args: ['search', 'contxt:Study'], config })).to.not.throw();
+      expect(() => parser({ args: ['player', 'play', 'a:b'], config })).to.not.throw();
+      expect(parser({ args: ['rating:4.5', '4.5'], config }).options.filters.rating.min).to.equal(
+        '4.5'
+      );
     });
 
     it('Should parse field filters with empty values correctly', () => {

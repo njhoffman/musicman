@@ -557,7 +557,8 @@ describe('Config Tests', () => {
           sync: {
             playlists: [
               {
-                filter: 'grouping:Rock',
+                // genre is a default library tag, so this entry is valid
+                filter: 'genre:Rock',
                 playlist: 'https://open.spotify.com/playlist/5MUDXMSHkjbA2CIYXjj1Vz?si=a1'
               },
               { filter: 'mood:Happy' },
@@ -572,6 +573,23 @@ describe('Config Tests', () => {
         "sync.playlists[2].playlist 'not a playlist' is not a Spotify playlist URL or id"
       );
       expect(output).to.not.include('sync.playlists[0]');
+    });
+
+    it('should refuse a configured filter whose field is not a library tag', () => {
+      const result = captureFatal(() =>
+        loadConfig({
+          sync: { playlists: [{ filter: 'grouping:Rock', playlist: '5MUDXMSHkjbA2CIYXjj1Vz' }] }
+        })
+      );
+      expect(result.exitCalled).to.be.true;
+      expect(result.messages.join('\n')).to.include(
+        "sync.playlists[0].filter: unknown field 'grouping' in 'grouping:Rock'"
+      );
+    });
+
+    it('should accept the default stats filters with the default library tags', () => {
+      const result = captureFatal(() => loadConfig({}));
+      expect(result.messages.join('\n')).to.not.include('stats.filters');
     });
 
     it('should parse Spotify playlist URLs, URIs, and ids', () => {
