@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.65.0] - 2026-11-02
+
 ### Fixed
 
 - `sync --export` counted Liked Songs at 0 of its local files forever and staged them again on every run:
@@ -1253,7 +1255,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.64.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.65.0...HEAD
+[1.65.0]: https://github.com/njhoffman/musicman/compare/v1.64.0...v1.65.0
 [1.64.0]: https://github.com/njhoffman/musicman/compare/v1.63.0...v1.64.0
 [1.63.0]: https://github.com/njhoffman/musicman/compare/v1.62.1...v1.63.0
 [1.62.1]: https://github.com/njhoffman/musicman/compare/v1.62.0...v1.62.1
