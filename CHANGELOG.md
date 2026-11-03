@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.58.2] - 2026-11-02
+
 ### Fixed
 
 - The `sync --export` checklist (`README.md`) is dated in the local time zone, not a day ahead in the evening.
@@ -1181,7 +1183,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.58.1...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.58.2...HEAD
+[1.58.2]: https://github.com/njhoffman/musicman/compare/v1.58.1...v1.58.2
 [1.58.1]: https://github.com/njhoffman/musicman/compare/v1.58.0...v1.58.1
 [1.58.0]: https://github.com/njhoffman/musicman/compare/v1.57.2...v1.58.0
 [1.57.2]: https://github.com/njhoffman/musicman/compare/v1.57.1...v1.57.2
