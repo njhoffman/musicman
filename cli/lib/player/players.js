@@ -202,6 +202,9 @@ const runFile = (bin, args) =>
   );
 
 // the track id in a Spotify URL or URI, e.g. https://open.spotify.com/track/65iXgVBjiF7oOORNWo0hRV
+// the URL MPRIS gives a Spotify local file
+const localTrackPattern = /open\.spotify\.com\/local\//;
+
 const spotifyTrackId = text => {
   const match = /track[/:]([A-Za-z0-9]{22})/.exec(text || '');
   return match ? match[1] : null;
@@ -229,24 +232,28 @@ const spotifyPlayer = ({ run = runFile } = {}) => {
       }
       const values = _.zipObject(spotifyFields, output.replace(/\n$/, '').split('\t'));
       const trackId = spotifyTrackId(values['xesam:url']);
+      // a local file has no track id: https://open.spotify.com/local/<artist>/<album>/<title>/<seconds>
+      const local = !trackId && localTrackPattern.test(values['xesam:url'] || '');
       const volume = parseFloat(values.volume);
       return {
         state: _.toLower(values.status) || null,
         volume: _.isNaN(volume) ? null : Math.round(volume * 100),
         shuffle: parseShuffle(values.shuffle),
         repeat: repeatModes[values.loop] || null,
-        track: trackId
-          ? {
-              trackId,
-              title: values['xesam:title'],
-              artist: values['xesam:artist'],
-              album: values['xesam:album'],
-              artUrl: values['mpris:artUrl'] || null,
-              // MPRIS times are in microseconds
-              position: Number(values.position) / 1e6 || 0,
-              duration: Number(values['mpris:length']) / 1e6 || 0
-            }
-          : null
+        track:
+          trackId || local
+            ? {
+                trackId,
+                ...(local ? { local: true, localUri: values['xesam:url'] } : {}),
+                title: values['xesam:title'],
+                artist: values['xesam:artist'],
+                album: values['xesam:album'],
+                artUrl: values['mpris:artUrl'] || null,
+                // MPRIS times are in microseconds
+                position: Number(values.position) / 1e6 || 0,
+                duration: Number(values['mpris:length']) / 1e6 || 0
+              }
+            : null
       };
     },
     toggle: () => playerctl('play-pause'),
@@ -334,11 +341,12 @@ const spotifyConnectPlayer = ({ client, hostname = os.hostname() }) => {
         volume: _.isNumber(volume) ? volume : null,
         shuffle: _.isBoolean(playing.shuffle_state) ? playing.shuffle_state : null,
         repeat: connectRepeatModes[playing.repeat_state] || null,
-        // episodes and local files have no track id, like in the desktop app's MPRIS
+        // episodes have no track; local files have no track id, marked local as MPRIS ones are
         track:
-          item && item.type === 'track' && item.id
+          item && item.type === 'track' && (item.id || item.is_local)
             ? {
-                trackId: item.id,
+                trackId: item.id || null,
+                ...(item.is_local ? { local: true, localUri: item.uri || null } : {}),
                 title: item.name,
                 artist: _.map(item.artists, 'name').join(', '),
                 album: _.get(item, 'album.name') || '',

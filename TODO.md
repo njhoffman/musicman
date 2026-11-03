@@ -267,10 +267,11 @@ Reviewed: 2026-11-01
 
 ## 9. Playback, menu, and shuffle (`docs/07-menu.md`, README "Spotify shuffle")
 
-- [ ] **Menu: Spotify local files are not recognized.** (p2) [feature] a local file playing in Spotify (desktop
+- [x] **Menu: Spotify local files are not recognized.** (p2) [feature] a local file playing in Spotify (desktop
       app or phone) has no track id (`https://open.spotify.com/local/<artist>/<album>/<title>/<seconds>` over MPRIS,
       `is_local` without an id in the Web API), so the menu shows nothing playing and no song buttons. Match the
-      URL's artist, title, and length to a library song, as `isLocalTrackOf` does for the export.
+      URL's artist, title, and length to a library song, as `isLocalTrackOf` does for the export. Done:
+      `libraryFileForPlaying` (`lib/player/library.js`), used by the menu, `status`, and the notifications.
 - [x] **Menu: control Spotify on other devices.** (p3) [feature] `spotifyConnectPlayer` (Web API) when neither the
       desktop app nor MPD plays. With the desktop app open, it mirrors the phone over MPRIS and playerctl
       controls it (tested 2026-11-03), so the Web API player covers the app being closed.

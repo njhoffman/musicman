@@ -77,7 +77,9 @@ const followMs = 1000;
 // what identifies the song a menu shows: its player and track
 const trackKey = active =>
   active && active.status.track
-    ? `${active.player.source}:${active.status.track.trackId || active.status.track.file}`
+    ? `${active.player.source}:${
+        active.status.track.trackId || active.status.track.localUri || active.status.track.file
+      }`
     : null;
 
 // a rating as stars, a half star for .5

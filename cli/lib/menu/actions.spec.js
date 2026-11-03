@@ -282,6 +282,53 @@ describe('Menu song actions', () => {
       track: { trackId: 'tz', title: 'Z', artist: 'Y' }
     };
 
+    // a Spotify local file made from b.mp3 (no Spotify id), and one with no library song
+    const localFile = {
+      player: { source: 'spotify' },
+      track: { trackId: null, local: true, title: 'bee', artist: 'Y', album: 'B', duration: 200 }
+    };
+    const strayLocal = {
+      player: { source: 'spotify' },
+      track: { trackId: null, local: true, title: 'Nowhere', artist: 'Y', duration: 200 }
+    };
+    const addLocalSong = () => {
+      const { lastInsertRowid: id } = db
+        .prepare("INSERT INTO songs (path, mtime, size, duration) VALUES ('b.mp3', 1, 1, 200.5)")
+        .run();
+      const tag = db.prepare('INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, ?, ?)');
+      tag.run(id, 'TIT2', 'Bee');
+      tag.run(id, 'TPE1', 'Y');
+      metas['/music/b.mp3'] = { title: 'Bee', artist: 'Y', rating: '', context: '', picks: '' };
+    };
+    afterEach(() => {
+      delete metas['/music/b.mp3'];
+    });
+
+    it('should treat a Spotify local file as its library song: local tag changes, nothing pushed', async () => {
+      addLocalSong();
+      const song = await actions().song(localFile);
+      expect(song).to.include({ file: '/music/b.mp3' });
+      expect(song.status).to.deep.equal(['in library']);
+      await (await tagChoice(localFile, 'Study')).run();
+      expect(writes).to.deep.equal([['/music/b.mp3', { context: ['+Study'] }]]);
+      expect(requests).to.be.empty;
+      const { entry } = await press(localFile, 'i');
+      const rows = (await entry.choices()).map(({ label }) => label.replace(/\s+/, ' '));
+      expect(rows).to.include('spotify local file (no Spotify track)');
+      expect(rows.some(row => row.startsWith('uri '))).to.equal(false);
+    });
+
+    it('should show a Spotify local file without a library song as not in the library, acting on nothing', async () => {
+      addLocalSong();
+      const { entries } = await press(strayLocal, 'y');
+      expect((await actions().song(strayLocal)).status).to.deep.equal(['not in library']);
+      const like = entries.find(candidate => candidate.key === 'y');
+      const ignoreEntry = entries.find(candidate => candidate.key === 'x');
+      expect(like.disabled).to.equal(true);
+      expect(ignoreEntry.disabled).to.equal(true);
+      expect(requests).to.be.empty;
+    });
+
     it('should show the local tags of an MPD song and toggle them with + and -', async () => {
       const study1 = await tagChoice(mpd, 'Study');
       expect(study1.entry.active).to.equal(true);

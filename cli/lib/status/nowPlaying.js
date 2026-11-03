@@ -3,7 +3,7 @@ const _ = require('lodash');
 const { choosePlayer } = require('../player/players.js');
 const {
   cachedPlaylists,
-  libraryFileForTrack,
+  libraryFileForPlaying,
   trackForLibraryFile
 } = require('../player/library.js');
 
@@ -22,13 +22,12 @@ const fieldValue = (value, multi) => {
 };
 
 /**
- * The library side of the playing track: its file (MPD's, or the one linked to the Spotify track), its
- * Spotify id, its status fields, and the cached playlists holding it. db is null without a library
- * database, which leaves only the file of an MPD song.
+ * The library side of the playing track: its file (MPD's, the one linked to the Spotify track, or the
+ * one a Spotify local file was made from), its Spotify id, its status fields, and the cached playlists
+ * holding it. db is null without a library database, which leaves only the file of an MPD song.
  */
 const librarySong = async ({ config, db, readSong, player, track }) => {
-  const file =
-    player.source === 'mpd' ? track.file : db && libraryFileForTrack(db, config, track.trackId);
+  const file = libraryFileForPlaying(db, config, player, track);
   const trackId =
     player.source === 'spotify'
       ? track.trackId

@@ -6,6 +6,18 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- Spotify local files (songs added with `sync --export`) are recognized while they play, in the desktop app
+  or on another device: `musicman menu`, `musicman status`, and the song notifications find the library song
+  by title, artist, and length. In the menu its tags and rating are written to the file, with nothing pushed;
+  a local file with no library song shows as not in the library.
+
+### Fixed
+
+- The sync plan's `Local files` column still counted Liked Songs at 0 after `sync --export --confirm`; the
+  plan now counts the confirmed songs too, the same way the export does.
+
 ## [1.66.0] - 2026-11-03
 
 ### Added

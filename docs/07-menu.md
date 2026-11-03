@@ -35,6 +35,13 @@ calls while following local playback; another device playing comes before a paus
 paused after one. Devices without remote volume have the volume buttons disabled. MPD through its
 protocol (`mpd.host`, `mpd.port`). Seek moves 30 seconds. `musicman player` picks players the same way.
 
+A Spotify local file (a song added with `sync --export`) has no Spotify id, so the menu finds its library
+song by title, artist, and length (within 2 seconds; the same album first when there are copies), as the
+export does. Found, it acts like an MPD song: tags and ratings are written to the file and nothing is
+pushed (the next `sync --export` stages it for any playlist a change puts it in). Not found, it shows as
+not in the library, with like and ignore disabled. `musicman status` and the song notifications find it
+the same way.
+
 ### Shuffle, repeat, and reshuffle
 
 After the playback controls:

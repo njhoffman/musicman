@@ -218,6 +218,24 @@ describe('Menu players', () => {
       });
     });
 
+    it('should report a Spotify local file as a local track without an id', async () => {
+      const { run } = fakeRun(
+        'Playing\thttps://open.spotify.com/local/Boards+of+Canada/The+Campfire+Headphase/Macquarie+Ridge/297\tMacquarie Ridge\tBoards of Canada\tThe Campfire Headphase\t\t297000000\t5000000\t1.0\tfalse\tNone\n'
+      );
+      expect((await spotifyPlayer({ run }).state()).track).to.deep.equal({
+        trackId: null,
+        local: true,
+        localUri:
+          'https://open.spotify.com/local/Boards+of+Canada/The+Campfire+Headphase/Macquarie+Ridge/297',
+        title: 'Macquarie Ridge',
+        artist: 'Boards of Canada',
+        album: 'The Campfire Headphase',
+        artUrl: null,
+        position: 5,
+        duration: 297
+      });
+    });
+
     it('should report shuffle and repeat as null when playerctl leaves them out', async () => {
       const { run } = fakeRun('Paused\t\t\t\t\t\t\t\t\t\t\n');
       const state = await spotifyPlayer({ run }).state();
@@ -366,6 +384,33 @@ describe('Menu players', () => {
         hostname: 'charon'
       }).state();
       expect(status).to.include({ state: 'paused', volume: null, track: null });
+    });
+
+    it('should report a local file on another device as a local track without an id', async () => {
+      const reply = playback({
+        item: {
+          type: 'track',
+          id: null,
+          is_local: true,
+          uri: 'spotify:local:Boards+of+Canada:The+Campfire+Headphase:Macquarie+Ridge:297',
+          name: 'Macquarie Ridge',
+          duration_ms: 297000,
+          artists: [{ name: 'Boards of Canada' }],
+          album: { name: 'The Campfire Headphase', images: [] }
+        }
+      });
+      const { track } = await spotifyConnectPlayer({
+        ...fakeClient(reply),
+        hostname: 'charon'
+      }).state();
+      expect(track).to.deep.include({
+        trackId: null,
+        local: true,
+        localUri: 'spotify:local:Boards+of+Canada:The+Campfire+Headphase:Macquarie+Ridge:297',
+        title: 'Macquarie Ridge',
+        artUrl: null,
+        duration: 297
+      });
     });
 
     it('should leave this computer to MPRIS, and report null when nothing plays or the API fails', async () => {

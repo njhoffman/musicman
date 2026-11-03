@@ -4,7 +4,7 @@ const fs = require('fs');
 const { chipColors, clock, defaultChip, icons, stars, tones } = require('./menu.js');
 const { escapeMarkup } = require('./rofi.js');
 const parseFilters = require('../parser/options/filters.js');
-const { libraryFileForTrack } = require('../player/library.js');
+const { libraryFileForPlaying } = require('../player/library.js');
 const { filterTag } = require('../sync/membership.js');
 const { refreshPlaylist } = require('../sync/cache.js');
 const { cachedIn, changeTrack, pushSong } = require('../sync/song.js');
@@ -274,6 +274,9 @@ const songInfo = ({ track, file, meta, playlists, stat = fs.statSync }) => {
     }
     rows.push(detailRow('library', 'not in the library'));
   }
+  if (track.local) {
+    rows.push(detailRow('spotify', 'local file (no Spotify track)'));
+  }
   const trackId = track.trackId || _.get(meta, 'sp_track_id');
   if (trackId) {
     rows.push(detailRow('spotify', `https://open.spotify.com/track/${trackId}`));
@@ -359,7 +362,8 @@ const songActions = ({
     }
   };
 
-  // the local file of the playing song (MPD's, or the first linked to the Spotify track) and its tags
+  // the local file of the playing song (MPD's, the first linked to the Spotify track, or the one a
+  // Spotify local file was made from) and its tags
   const song = async ({ player, track }) => {
     if (!track) {
       return {};
@@ -367,7 +371,7 @@ const songActions = ({
     const file =
       player.source === 'mpd'
         ? track.file
-        : await withDb(db => libraryFileForTrack(db, config, track.trackId));
+        : await withDb(db => libraryFileForPlaying(db, config, player, track));
     if (!file) {
       return {
         file: null,
@@ -481,7 +485,8 @@ const songActions = ({
 
   const entries = async ({ player, track, song: current }) => {
     const local = Boolean(current && current.file);
-    const remote = !local && player.source === 'spotify' && Boolean(track);
+    // a Spotify local file without a library match has no track id to act on
+    const remote = !local && player.source === 'spotify' && Boolean(track && track.trackId);
     const context = { player, track, song: current };
     const inTarget = await withDb(db => {
       const ids = _.compact([

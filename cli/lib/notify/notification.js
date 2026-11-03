@@ -7,7 +7,7 @@ const { connectMpd } = require('../clients/mpd.js');
 const { coverFor } = require('../menu/cover.js');
 const { chipColors, defaultChip, stars, tones } = require('../menu/menu.js');
 const { escapeMarkup } = require('../menu/rofi.js');
-const { libraryFileForTrack } = require('../player/library.js');
+const { libraryFileForPlaying } = require('../player/library.js');
 const logger = require('../utils/logger.js');
 
 // fields shown as tags when daemon.fields is not set
@@ -75,16 +75,16 @@ const buildNotification = (notice, { bin, icon = true, duration, urgency, fields
 
 /**
  * What a notification shows for a player's track: the track, and for a song in the library (MPD's file,
- * or the one linked to the Spotify track) its tags and rating; the cover of either.
+ * the one linked to the Spotify track, or the one a Spotify local file was made from) its tags and rating; the cover of either.
  * Dependencies: openDb() the library database or null without one, readSong(file) its parsed tags.
  */
 const songNotice = async ({ player, track }, { config, openDb, readSong, cover = coverFor }) => {
   let file = player.source === 'mpd' ? track.file : null;
-  if (!file && track.trackId) {
+  if (!file && (track.trackId || track.local)) {
     const db = openDb();
     if (db) {
       try {
-        file = libraryFileForTrack(db, config, track.trackId);
+        file = libraryFileForPlaying(db, config, player, track);
       } finally {
         db.close();
       }

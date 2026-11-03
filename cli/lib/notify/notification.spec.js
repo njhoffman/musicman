@@ -145,6 +145,22 @@ describe('Notify Daemon', () => {
       );
       expect(noDb.inLibrary).to.equal(false);
     });
+
+    it('should find the library song of a Spotify local file by its tags', async () => {
+      db.prepare("UPDATE songs SET duration = 200 WHERE path = 'a.mp3'").run();
+      const tag = db.prepare('INSERT INTO song_tags (song_id, frame_id, value) VALUES (1, ?, ?)');
+      tag.run('TIT2', 'A');
+      tag.run('TPE1', 'X');
+      const spotify = { source: 'spotify', name: 'Spotify' };
+      const local = { trackId: null, local: true, title: 'A', artist: 'X', duration: 201 };
+      const found = await songNotice({ player: spotify, track: local }, deps());
+      expect(found).to.deep.include({ rating: '4.0', inLibrary: true, cover: '/music/a.mp3.jpg' });
+      const stray = await songNotice(
+        { player: spotify, track: { ...local, title: 'Elsewhere' } },
+        deps()
+      );
+      expect(stray.inLibrary).to.equal(false);
+    });
   });
 
   describe('createNotifier', () => {
