@@ -95,6 +95,7 @@ is kept, by rules in order:
    with a version in its title (`(radio edit)`, `(acoustic)`, `(Arsenal mix)`, `(new vocal version)`),
    stays in the library and is matched again: its studio Spotify id and fields are removed and that
    track is rejected for it, so `sync --match` finds its own track and push adds it to the playlists.
+   One linked to no track (its match rejected before, no live track found yet) is left out of the group.
 2. A Rated copy is kept over `Unrated/` imports.
 3. Of numbered copies (`Song.1.mp3` next to `Song.mp3`) with the same audio (compared without the ID3
    tags), the file without the number is kept. Numbered copies with other audio are picked.

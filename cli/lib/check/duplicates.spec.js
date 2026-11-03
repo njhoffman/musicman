@@ -49,7 +49,12 @@ describe('Duplicates repair', () => {
   });
 
   describe('planGroup', () => {
-    const song = (songPath, mtime = 1, audio = null) => ({ path: songPath, mtime, audio });
+    const song = (songPath, mtime = 1, audio = null) => ({
+      path: songPath,
+      mtime,
+      audio,
+      trackId: 'track'
+    });
     const album = 'Rated/R/I/Artists/A/album/2000 - Album/01 - Song.mp3';
     const ep = 'Rated/R/I/Artists/A/ep/1999 - EP/01 - Song.mp3';
     const single = 'Rated/R/I/Artists/A/single/1999 - Song/01 - Song.mp3';
@@ -100,6 +105,17 @@ describe('Duplicates repair', () => {
     it('should match a live copy again instead of dropping it', () => {
       const plan = planGroup([song(live), song(album)]);
       expect(plan).to.deep.include({ keep: album, clear: [live], trash: [], exclude: [] });
+    });
+
+    it('should leave out a live copy linked to no track, its match rejected before', () => {
+      const plan = planGroup([{ ...song(live), trackId: null }, song(album)]);
+      expect(plan).to.deep.include({ keep: album, clear: [], trash: [], exclude: [] });
+      expect(plan.candidates).to.be.empty;
+    });
+
+    it('should clear a live copy linked by its match alone, without a Spotify id tag', () => {
+      const plan = planGroup([{ ...song(live), trackId: null, matchedTrack: 't2' }, song(album)]);
+      expect(plan.clear).to.deep.equal([live]);
     });
 
     it('should match a remix or a named version again, and drop an album version', () => {
@@ -468,6 +484,36 @@ describe('Duplicates repair', () => {
         )
       ).to.deep.equal(['track1']);
       expect(fs.existsSync(abs(live))).to.be.true;
+    });
+
+    it('should reject the matched track of a live copy without a Spotify id tag', async () => {
+      const live = 'Rated/G/Artists/A/live/2005 - Live/01 - Song.mp3';
+      fs.mkdirSync(path.dirname(abs(live)), { recursive: true });
+      fs.renameSync(abs(copy), abs(live));
+      setTags(
+        live,
+        raw => ({
+          ...raw,
+          TXXX: _.reject([].concat(raw.TXXX || []), ({ description }) => /^sp_/.test(description))
+        }),
+        new Date(2020, 0, 1)
+      );
+      await updateDatabase(db, { config, target: library });
+      const songId = db.prepare('SELECT id FROM songs WHERE path = ?').get(live).id;
+      db.prepare(
+        `INSERT INTO spotify_matches (song_id, status, track_id, source) VALUES (?, 'match', 'studio', 'isrc')`
+      ).run(songId);
+      const groups = planOf([kept, live]);
+      expect(groups[0].clear).to.deep.equal([live]);
+      const result = await applyDuplicates({ db, config, groups, runId: 'r1', beet });
+      expect(result.cleared).to.deep.equal([live]);
+      const row = db
+        .prepare('SELECT status, track_id, rejected FROM spotify_matches WHERE song_id = ?')
+        .get(songId);
+      expect(row).to.deep.include({ status: 'rejected', track_id: null });
+      expect(JSON.parse(row.rejected)).to.deep.equal(['studio']);
+      // rejected now and linked to nothing, the next plan has nothing left to do for it
+      expect(planOf([kept, live])).to.be.empty;
     });
 
     it('should be undone: the copy moved back and imported into beets as is', async () => {

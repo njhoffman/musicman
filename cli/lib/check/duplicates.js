@@ -78,7 +78,7 @@ const otherRecording = songPath => {
  * What to do with one group of duplicates ({ path, mtime, rating, audio }), by rules in order:
  *   another recording (a live or remix release, or a version like a radio edit in the title) next to
  *   the song is a wrong match, not a duplicate: its match is cleared so sync --match finds its own
- *   track (clear), the file and the song stay
+ *   track (clear), the file and the song stay; one linked to no track is left out of the group
  *   a Rated copy wins over Unrated imports
  *   of numbered copies (Song.1.mp3 and Song.mp3) the one without the number wins when their audio is
  *   the same; numbered copies with other audio are left to pick
@@ -92,6 +92,9 @@ const otherRecording = songPath => {
  * the others go to the trash from a Singles
  * folder or are excluded elsewhere. audio(item) gives a copy's audioHash (null when unknown).
  */
+// the Spotify track a copy is linked to: its Spotify id tag, else its match (a review candidate too)
+const linkedTrack = item => item.trackId || item.matchedTrack || null;
+
 const planGroup = (files, { audio = item => item.audio || null } = {}) => {
   const reasons = {};
   const trash = [];
@@ -99,11 +102,15 @@ const planGroup = (files, { audio = item => item.audio || null } = {}) => {
   const losers = [];
   let members = files;
   const [others, originals] = _.partition(members, item => otherRecording(item.path));
-  const clear = others.length > 0 && originals.length > 0 ? _.map(others, 'path') : [];
+  // another recording linked to no track (its match rejected before) is no duplicate, nothing to clear
+  const clear =
+    others.length > 0 && originals.length > 0
+      ? _.map(_.filter(others, linkedTrack), 'path')
+      : [];
   _.each(clear, file => {
     reasons[file] = otherRecording(file);
   });
-  if (clear.length > 0) {
+  if (others.length > 0 && originals.length > 0) {
     members = originals;
   }
   const [imports, rated] = _.partition(members, item => unsorted(item.path));
@@ -256,14 +263,18 @@ const joinOverlapping = fileGroups => {
 
 /**
  * The duplicates findings of check (groups of files, overlapping ones joined) with the song rows the
- * plan needs and shows: { files: [{ id, path, mtime, size, duration, rating, trackId, title,
- * spotifyTitle }] }.
+ * plan needs and shows: { files: [{ id, path, mtime, size, duration, rating, trackId, matchedTrack,
+ * title, spotifyTitle }] } (trackId from the Spotify id tag, matchedTrack from a match or review row).
  */
 const duplicateGroups = (db, findings) => {
   const select = db.prepare(
     'SELECT id, path, mtime, size, duration, rating FROM songs WHERE path = ?'
   );
   const trackOf = db.prepare('SELECT value FROM song_tags WHERE song_id = ? AND frame_id = ?');
+  const matchOf = db.prepare(
+    `SELECT track_id FROM spotify_matches
+     WHERE song_id = ? AND status IN ('match', 'review') AND track_id IS NOT NULL`
+  );
   // "artist - title" on Spotify, to tell apart copies whose names match their own titles alike
   const spotifyTitleOf = id => {
     const title = _.get(trackOf.get(id, 'TXXX.sp_title'), 'value');
@@ -280,6 +291,7 @@ const duplicateGroups = (db, findings) => {
         files: _.map(rows, row => ({
           ...row,
           trackId: _.get(trackOf.get(row.id, spotifyIdFrame), 'value') || null,
+          matchedTrack: _.get(matchOf.get(row.id), 'track_id') || null,
           title: _.get(trackOf.get(row.id, 'TIT2'), 'value') || null,
           spotifyTitle: spotifyTitleOf(row.id)
         }))
@@ -465,23 +477,24 @@ const applyDuplicates = async ({
     }
     if (group.clear.length > 0) {
       const items = _.compact(
-        _.map(group.clear, file =>
-          byPath[file].trackId
+        _.map(group.clear, file => {
+          const trackId = linkedTrack(byPath[file]);
+          return trackId
             ? {
                 songId: byPath[file].id,
                 file: absolute(file),
-                linked: true,
-                candidate: { id: byPath[file].trackId }
+                linked: Boolean(byPath[file].trackId),
+                candidate: { id: trackId }
               }
-            : null
-        )
+            : null;
+        })
       );
       // a song linked by its tags alone has no match row to hold the rejection
       const ensureRow = db.prepare(
         `INSERT INTO spotify_matches (song_id, status, track_id, source, checked_at)
          VALUES (?, 'match', ?, 'tags', datetime('now')) ON CONFLICT (song_id) DO NOTHING`
       );
-      _.each(items, item =>
+      _.each(_.filter(items, 'linked'), item =>
         journaledMatch(db, item.songId, () => ensureRow.run(item.songId, item.candidate.id))
       );
       const { rejected, failed } = await rejectReview({ db, config, items });
@@ -497,7 +510,7 @@ const applyDuplicates = async ({
       try {
         excludeSong(db, {
           path: file,
-          trackId: byPath[file].trackId,
+          trackId: linkedTrack(byPath[file]),
           kept: group.keep,
           reason: group.reasons[file]
         });
@@ -525,7 +538,7 @@ const applyDuplicates = async ({
         // listed for its Spotify track, which sync removes in favor of the copy kept
         excludeSong(db, {
           path: file,
-          trackId: byPath[file].trackId,
+          trackId: linkedTrack(byPath[file]),
           kept: group.keep,
           reason: group.reasons[file]
         });
