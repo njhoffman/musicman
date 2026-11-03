@@ -145,7 +145,8 @@ takes back one press at a time: the tag change and what it pushed.
 ### Song change notifications
 
 The `musicman-notify` user service (`pnpm daemon:install` in `cli/`, then
-`systemctl --user enable --now musicman-notify`) runs the installed build (`~/.local/share/musicman/current`,
+`systemctl --user enable --now musicman-notify`) runs the node on your PATH (outside `node_modules` and the
+pnpm store, whose versioned paths an upgrade removes) and the installed build (`~/.local/share/musicman/current`,
 published by every commit), never the repo, since it opens the library database; the publish restarts it
 when it runs, so it follows each commit.
 `pnpm daemon:install` also writes the Spotify app credentials of its shell (`SPOTIFY_CLIENT_ID`,

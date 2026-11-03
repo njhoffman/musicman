@@ -3,7 +3,7 @@ const os = require('os');
 const path = require('path');
 const { expect } = require('chai');
 
-const { envFileText, install, paths } = require('../../scripts/install-daemon.js');
+const { envFileText, install, paths, stableNode } = require('../../scripts/install-daemon.js');
 
 describe('notify daemon install', () => {
   let home;
@@ -61,8 +61,27 @@ describe('notify daemon install', () => {
       log: line => logs.push(line)
     });
     expect(fs.existsSync(paths({ home, env: {} }).envFile)).to.equal(false);
-    expect(logs[0]).to.include('are not all set');
+    expect(logs.join('\n')).to.include('are not all set');
     expect(envFileText({})).to.equal(null);
+  });
+
+  it('should run the node on PATH outside node_modules and the pnpm store', () => {
+    const files = {
+      '/repo/node_modules/.bin/node': '/repo/node_modules/.bin/node',
+      '/home/u/.local/share/pnpm/store/v11/links/node/24/bin/node':
+        '/home/u/.local/share/pnpm/store/v11/links/node/24/bin/node',
+      '/home/u/.local/share/pnpm/bin/node': '/home/u/.local/share/pnpm/bin/node'
+    };
+    const fake = { exists: file => file in files, realpath: file => files[file] };
+    const PATH = [
+      '/repo/node_modules/.bin',
+      '/home/u/.local/share/pnpm/store/v11/links/node/24/bin',
+      '/home/u/.local/share/pnpm/bin',
+      '/usr/bin'
+    ].join(':');
+    expect(stableNode({ PATH }, fake)).to.equal('/home/u/.local/share/pnpm/bin/node');
+    expect(stableNode({ PATH: '/repo/node_modules/.bin' }, fake)).to.equal(null);
+    expect(stableNode({}, fake)).to.equal(null);
   });
 
   it('should take the builds from MUSICMAN_HOME', () => {

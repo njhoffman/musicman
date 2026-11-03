@@ -24,7 +24,7 @@ const paths = ({ home = os.homedir(), env = process.env } = {}) => {
   };
 };
 
-// the unit: the node binary running this (systemd user services do not inherit the shell's PATH), the
+// the unit: a node binary by its path (systemd user services do not inherit the shell's PATH), the
 // daemon of the installed build, and the credentials file when there is one (- : optional)
 const unitText = ({ nodePath, daemonPath, envFile }) => `[Unit]
 Description=musicman song change notifications
@@ -40,6 +40,33 @@ RestartSec=5
 WantedBy=default.target
 `;
 
+/**
+ * The node binary for the unit: the first node on PATH outside node_modules/.bin and the pnpm store,
+ * whose paths name a node version (.../store/v11/links/@/node/24.22.0/...) that an upgrade or a store prune
+ * removes; pnpm's bin/node stays put across versions. null when PATH has none.
+ */
+const stableNode = (
+  env = process.env,
+  { exists = fs.existsSync, realpath = fs.realpathSync } = {}
+) => {
+  const dirs = `${env.PATH || ''}`.split(path.delimiter).filter(Boolean);
+  for (const dir of dirs) {
+    const candidate = path.join(dir, 'node');
+    if (!dir.split(path.sep).includes('node_modules') && exists(candidate)) {
+      let real;
+      try {
+        real = realpath(candidate);
+      } catch {
+        continue;
+      }
+      if (!real.split(path.sep).includes('store')) {
+        return candidate;
+      }
+    }
+  }
+  return null;
+};
+
 // the credentials file, or null when the environment lacks one of them
 const envFileText = env =>
   credentialNames.every(name => env[name])
@@ -49,7 +76,7 @@ const envFileText = env =>
 const install = ({
   home = os.homedir(),
   env = process.env,
-  nodePath = process.execPath,
+  nodePath = stableNode(env) || process.execPath,
   run = execFileSync,
   log = console.log
 } = {}) => {
@@ -57,6 +84,11 @@ const install = ({
   if (!fs.existsSync(daemonPath)) {
     throw new Error(
       `No installed build at ${daemonPath}: commit (the post-commit hook publishes one) or run scripts/publish-local.sh`
+    );
+  }
+  if (nodePath.split(path.sep).includes('store')) {
+    log(
+      `No node on PATH outside the pnpm store: the unit runs ${nodePath}, which a node upgrade removes`
     );
   }
   const credentials = envFileText(env);
@@ -87,4 +119,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { envFileText, install, paths, unitText };
+module.exports = { envFileText, install, paths, stableNode, unitText };
