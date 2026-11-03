@@ -149,6 +149,9 @@ const sameFile = (source, target) => {
 
 const stateFile = uploadDirectory => path.join(uploadDirectory, 'export.json');
 
+const writeExportState = (uploadDirectory, state) =>
+  fs.writeFileSync(stateFile(uploadDirectory), `${JSON.stringify(state, null, 2)}\n`);
+
 const readExportState = uploadDirectory => {
   try {
     return JSON.parse(fs.readFileSync(stateFile(uploadDirectory), 'utf8'));
@@ -243,6 +246,8 @@ const applyExport = (exported, { uploadDirectory, previous = {}, now = new Date(
     stateFile(uploadDirectory),
     `${JSON.stringify(
       {
+        // what other steps keep there (the phone mirror's state) stays
+        ...previous,
         names: _.fromPairs(_.map(exported.songs, song => [song.path, song.name])),
         stage: staged,
         staged: exported.staged ? exported.staged.id : null
@@ -263,5 +268,6 @@ module.exports = {
   isLocalTrackOf,
   localTracks,
   planExport,
-  readExportState
+  readExportState,
+  writeExportState
 };

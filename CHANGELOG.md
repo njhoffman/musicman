@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `sync --export` mirrors the exported songs to the phone set in `sync.phone` (a KDE Connect device and a folder
+  in its storage, `Music/musicman` by default): it mounts the phone over KDE Connect's SFTP plugin, copies the
+  songs new or changed since the last copy (with a progress bar), removes the ones it copied that left the
+  export, and unmounts. Files it did not copy are never touched; a failed copy stops it, and the next run goes
+  on from there.
+
 ## [1.57.2] - 2026-11-02
 
 ### Changed

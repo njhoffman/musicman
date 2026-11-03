@@ -20,7 +20,13 @@ const { autoAcceptItems, confirmAutoAccept } = require('../sync/accept.js');
 const { ignorePlaylistId, playlistTargets, songTargets } = require('../sync/targets.js');
 const { refreshCache } = require('../sync/cache.js');
 const { recordSynced, syncPlan } = require('../sync/plan.js');
-const { applyExport, planExport, readExportState } = require('../sync/localFiles.js');
+const {
+  applyExport,
+  planExport,
+  readExportState,
+  writeExportState
+} = require('../sync/localFiles.js');
+const { mirrorToPhone } = require('../sync/phone.js');
 const { membershipChanges } = require('../sync/membership.js');
 const { pushPlan } = require('../sync/push.js');
 const { buildManifest, writeManifest } = require('../sync/pull.js');
@@ -398,7 +404,70 @@ const outputPlan = (plan, { config, switches, highlighted = [] }) => {
 };
 
 // the export of songs Spotify has no track for to sync.uploadDirectory (sync --export)
-const runExport = ({ config, plan, dryRun }) => {
+// the exported songs mirrored to the phone in sync.phone (KDE Connect), when one is set
+const runPhone = async ({ config, exported, dryRun, connect }) => {
+  const phone = _.get(config, 'sync.phone');
+  if (!phone) {
+    return undefined;
+  }
+  if (!phone.device) {
+    logger.warn('sync.phone has no device (its KDE Connect name or id), the phone is not synced');
+    return undefined;
+  }
+  const uploadDirectory = config.sync.uploadDirectory;
+  const state = readExportState(uploadDirectory);
+  const songs = _.map(exported.songs, song => ({
+    file: path.join(uploadDirectory, 'files', song.name),
+    name: song.name
+  }));
+  const startedAt = new Date();
+  const result = await mirrorToPhone({
+    songs,
+    phone,
+    sent: state.phone || {},
+    dryRun,
+    connect,
+    onProgress: (done, total, name) =>
+      logger.progress(
+        progressBar({
+          label: `Copying to ${phone.device}`,
+          done,
+          total,
+          startedAt,
+          unit: 'songs',
+          detail: name
+        })
+      )
+  });
+  logger.progressDone();
+  if (result.status === 'dry') {
+    logger.info(
+      `Dry run: would copy ${result.plan.copy.length} songs to ${phone.device} and remove ` +
+        `${result.plan.remove.length} (as of the last copy)`
+    );
+  } else if (result.status === 'unreachable') {
+    logger.warn(`${phone.device} is not reachable through KDE Connect, the phone is not synced`);
+  } else if (result.status === 'unmounted') {
+    logger.warn(
+      `${phone.device}: its storage could not be mounted (allow file access in the KDE Connect app)`
+    );
+  } else {
+    writeExportState(uploadDirectory, { ...readExportState(uploadDirectory), phone: result.sent });
+    logger.info(
+      `${phone.device}: ${result.copied} songs copied, ${result.removed} removed (${result.directory})`
+    );
+    if (result.error) {
+      logger.error(
+        `Copying to ${phone.device} stopped (the phone full, or the connection gone?): ${result.error}; ` +
+          'run sync --export again to go on'
+      );
+      process.exitCode = 1;
+    }
+  }
+  return result;
+};
+
+const runExport = async ({ config, plan, dryRun, connect }) => {
   const uploadDirectory = config.sync.uploadDirectory;
   const previous = readExportState(uploadDirectory);
   const exported = planExport(plan, {
@@ -423,7 +492,7 @@ const runExport = ({ config, plan, dryRun }) => {
         ? `Dry run: would stage ${staged.pending.length} songs for ${staged.name}`
         : 'Dry run: every song is in its playlists, nothing to stage'
     );
-    return { exported };
+    return { exported, phone: await runPhone({ config, exported, dryRun, connect }) };
   }
   const counts = applyExport(exported, { uploadDirectory, previous });
   logger.info(
@@ -438,7 +507,7 @@ const runExport = ({ config, plan, dryRun }) => {
           'sync --export again (README.md has the checklist)'
       : 'stage/: empty, every song is in its playlists'
   );
-  return { exported, counts };
+  return { exported, counts, phone: await runPhone({ config, exported, dryRun, connect }) };
 };
 
 const runPlan = async ({
@@ -483,7 +552,7 @@ const runPlan = async ({
         })
       : undefined;
     const pulled = pull ? await runPull({ config, plan, dryRun, confirm }) : undefined;
-    const exported = exportFiles ? runExport({ config, plan, dryRun }) : undefined;
+    const exported = exportFiles ? await runExport({ config, plan, dryRun }) : undefined;
     // what Spotify and the tags agree on now is the state the next sync compares with
     if (!dryRun) {
       recordSynced(db, syncPlan(db, config, songTargets(await librarySongs(config), config)));

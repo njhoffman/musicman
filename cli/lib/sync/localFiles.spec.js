@@ -195,10 +195,10 @@ describe('Local files export', () => {
       // a write through a temporary file replaces the library file, the link keeps the old one
       fs.unlinkSync(one);
       write('one.mp3', 'one, new tags');
-      const counts = applyExport(exportOf([first[0]]), {
-        uploadDirectory: upload,
-        previous: readExportState(upload)
-      });
+      // the phone mirror's state is kept when the export rewrites the state file
+      const previous = { ...readExportState(upload), phone: { 'A - One.mp3': { size: 3, mtimeMs: 1 } } };
+      const counts = applyExport(exportOf([first[0]]), { uploadDirectory: upload, previous });
+      expect(readExportState(upload).phone).to.deep.equal(previous.phone);
       expect(counts).to.include({ linked: 0, relinked: 1, removed: 1, staged: 0 });
       expect(ino(path.join(upload, 'files', 'A - One.mp3'))).to.equal(ino(one));
       expect(fs.readdirSync(path.join(upload, 'files'))).to.have.members(['A - One.mp3', 'mine.txt']);

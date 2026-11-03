@@ -135,6 +135,13 @@ sync:
   ignorePlaylist:
   # Songs to add to Spotify through the desktop app, defaults to .musicman/upload in mpd.baseDirectory
   uploadDirectory:
+  # Phone that sync --export mirrors the exported songs to (files/ of uploadDirectory), through KDE Connect's
+  # SFTP plugin: device is its KDE Connect name or id, directory a folder in its shared storage that musicman
+  # fills (only files it copied there are ever removed). Spotify on the phone plays them with "Show audio
+  # files from this device" on.
+  #   phone:
+  #     device: Galaxy Z Fold7
+  #     directory: Music/musicman
   # spotDL downloads, defaults to .musicman/download in mpd.baseDirectory
   downloadDirectory:
   # Command used by the spotDL download script

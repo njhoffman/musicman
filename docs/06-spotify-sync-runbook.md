@@ -182,10 +182,11 @@ track (artist and title agree, lengths within 2 seconds), and keeps `sync.upload
 (`.musicman/upload` by default) in line:
 
 - `files/`: every such song once, as a hard link to the library file (a copy on another filesystem), named
-  `Artist - Title.mp3`. Spotify plays them from here: add it as a Local Files source in the desktop app, and
-  keep it synced to the phone (e.g. Syncthing), where "Show audio files from this device" is on. Songs that
-  get a Spotify id or leave every playlist are removed; a library file replaced by a write through a
-  temporary file is linked again.
+  `Artist - Title.mp3`. Spotify plays them from here: add it as a Local Files source in the desktop app.
+  Songs that get a Spotify id or leave every playlist are removed; a library file replaced by a write through
+  a temporary file is linked again.
+- The phone (`sync.phone`, below): the same songs mirrored into a folder of its storage, where Spotify on the
+  phone plays them with "Show audio files from this device" on.
 - `stage/`: the songs still missing from one playlist, in plan order with Liked Songs last. Add it as a
   second source, then for each run: turn the `files` source off (the desktop app shows a file in two sources
   once, so Local Files then lists only `stage/`), select all in Local Files, drag them into the playlist, turn
@@ -196,6 +197,27 @@ track (artist and title agree, lengths within 2 seconds), and keeps `sync.upload
 - `export.json`: the names given, so a song keeps its file name; only files listed there are ever removed.
 
 The plan's `Local files` column shows, per playlist, the songs added as local tracks of those that need one.
+
+### The phone
+
+With `sync.phone` set, `sync --export` also mirrors `files/` to the phone through KDE Connect (paired, on the
+same network, file access allowed in its app):
+
+```yaml
+sync:
+  phone:
+    device: Galaxy Z Fold7      # its KDE Connect name or id (kdeconnect-cli -l)
+    directory: Music/musicman   # in its shared storage, the default
+```
+
+It mounts the phone's storage over KDE Connect's SFTP plugin (and unmounts it afterwards when it was not
+mounted before), copies the songs that are new or changed since they were copied (by size and modification
+time, recorded in `export.json`), each through a `.part` name so an interrupted copy leaves no half song, and
+removes the songs it copied before that left the export. Files in the folder it did not copy are left alone.
+A copy that fails (the phone full, the connection gone) stops the mirror and is picked up by the next run;
+an unreachable phone is a warning, the rest of the export goes on. The first copy of ~620 songs takes about
+15 minutes over Wi-Fi. `--dry-run` says what it would copy and remove as of the last copy, without the
+phone.
 
 Notes:
 

@@ -51,6 +51,14 @@ const configSchema = {
       scope: { type: 'string', required: false },
       playlists: { type: 'array', required: false },
       uploadDirectory: { type: 'string', required: false },
+      phone: {
+        type: 'object',
+        required: false,
+        properties: {
+          device: { type: 'string', required: true },
+          directory: { type: 'string', required: false }
+        }
+      },
       downloadDirectory: { type: 'string', required: false },
       spotdlCommand: { type: 'string', required: false },
       beetsConfig: { type: 'string', required: false },
