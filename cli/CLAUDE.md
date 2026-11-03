@@ -12,7 +12,8 @@ From the repo root (a pnpm workspace: `cli`, `common`):
 - `pnpm release --release-as patch|minor|major`: commit-and-tag-version; bumps `package.json`, moves the
   `CHANGELOG.md` [Unreleased] entries under the new version (`scripts/release-changelog.js`), commits, tags
 - The post-commit hook runs `scripts/publish-local.sh`: every commit is built into
-  `~/.local/share/musicman/builds/` and `current` points at it; the `musicman` alias runs that build
+  `~/.local/share/musicman/builds/` and `current` points at it; the `musicman` alias runs that build, and
+  the `musicman-notify` daemon is restarted on it when it runs
 
 From `cli/`: `pnpm start` (`node lib/cli.js`), `pnpm test:coverage` (c8), `pnpm config:check`,
 `pnpm download` (spotDL, `scripts/spotdl-download.js`), `pnpm daemon:install` (notify daemon service).

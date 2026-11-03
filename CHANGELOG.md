@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- Publishing a commit as the local build (the post-commit hook) restarts the `musicman-notify` daemon when it
+  runs, so it runs the new build; `MUSICMAN_RESTART_DAEMON=0` leaves it alone. A republish of the same build
+  does not restart it.
+
 ## [1.70.0] - 2026-11-03
 
 ### Added

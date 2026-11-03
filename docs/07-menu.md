@@ -146,7 +146,8 @@ takes back one press at a time: the tag change and what it pushed.
 
 The `musicman-notify` user service (`pnpm daemon:install` in `cli/`, then
 `systemctl --user enable --now musicman-notify`) runs the installed build (`~/.local/share/musicman/current`,
-published by every commit), never the repo, since it opens the library database; restart it after a release.
+published by every commit), never the repo, since it opens the library database; the publish restarts it
+when it runs, so it follows each commit.
 `pnpm daemon:install` also writes the Spotify app credentials of its shell (`SPOTIFY_CLIENT_ID`,
 `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI`) to `~/.config/musicman/spotify.env` (mode 600), which the
 service loads, for continuing a `musicman shuffle` past the tracks it started. It shows a notification when a new track starts in MPD or
