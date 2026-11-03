@@ -88,7 +88,8 @@ const configSchema = {
   shuffle: {
     type: 'object',
     properties: {
-      playlist: { type: 'string', required: false }
+      playlist: { type: 'string', required: false },
+      listSize: { type: 'number', min: 1, required: false }
     }
   },
   ui: {

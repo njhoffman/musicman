@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `shuffle.listSize` (1000): how many tracks `musicman shuffle` starts as a list before the notify daemon
+  hands off to the playlist; set a few to see the handoff within minutes.
+- The notify daemon continues a shuffle played on the phone with the desktop app closed: while a shuffle
+  waits for its handoff and the app plays nothing, it asks the Web API what plays every 30 seconds.
+
 ## [1.76.0] - 2026-11-03
 
 ### Added

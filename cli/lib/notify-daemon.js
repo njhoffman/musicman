@@ -5,8 +5,8 @@ const logger = require('./utils/logger.js');
 const { getFilteredFiles } = require('./commands/common.js');
 const { openLibrary } = require('./db/index.js');
 const { libraryDb, watchSongs } = require('./notify/notification.js');
-const { mpdPlayer, spotifyPlayer } = require('./player/players.js');
-const { shuffleHandoff } = require('./notify/shuffleHandoff.js');
+const { mpdPlayer, spotifyConnectPlayer, spotifyPlayer } = require('./player/players.js');
+const { pollHandoff, shuffleHandoff } = require('./notify/shuffleHandoff.js');
 const { getCredentials, missingCredentials } = require('./spotify/credentials.js');
 const { lazyUserClient } = require('./spotify/userClient.js');
 const { publishPaths } = require('./utils/paths.js');
@@ -41,7 +41,15 @@ const handoff = openDb => {
     );
     return null;
   }
-  return shuffleHandoff({ openDb, client: lazyUserClient(config, process.env) });
+  const client = lazyUserClient(config, process.env);
+  const onTrack = shuffleHandoff({ openDb, client });
+  // a shuffle played on the phone with the desktop app closed is followed through the Web API
+  pollHandoff({
+    handoff: onTrack,
+    local: spotifyPlayer(),
+    remote: spotifyConnectPlayer({ client })
+  });
+  return onTrack;
 };
 
 // notifies about each new track in MPD or the Spotify desktop app until stopped

@@ -94,17 +94,18 @@ const playDevice = async (client, hostname = os.hostname()) => {
 /**
  * Plays the first tracks of order as a list (not the playlist) with shuffle off, through the Web API
  * (Premium, the playback scopes). A playlist rewritten moments ago still plays its previous order, from
- * the app's copy, for a minute or more; a list of tracks is played exactly as sent. Resolves to
+ * the app's copy, for a minute or more; a list of tracks is played exactly as sent. The list holds at
+ * most listSize tracks (shuffle.listSize, 1000; fewer to see the daemon's handoff soon). Resolves to
  * { device, count }.
  */
-const playTracks = async (client, order, { hostname } = {}) => {
+const playTracks = async (client, order, { hostname, listSize = maxPlayTracks } = {}) => {
   const device = await playDevice(client, hostname);
   if (!device) {
     throw new Error('no Spotify Connect device is available');
   }
   const deviceQuery = `device_id=${encodeURIComponent(device.id)}`;
   await client.request('PUT', `/me/player/shuffle?state=false&${deviceQuery}`);
-  let count = Math.min(order.length, maxPlayTracks);
+  let count = Math.min(order.length, listSize);
   for (;;) {
     try {
       await client.request('PUT', `/me/player/play?${deviceQuery}`, {
@@ -135,10 +136,11 @@ const playInOrder = async ({
   playlistId,
   name,
   hostname,
+  listSize,
   onStarted = () => {}
 }) => {
   try {
-    const { device, count } = await playTracks(client, order, { hostname });
+    const { device, count } = await playTracks(client, order, { hostname, listSize });
     onStarted(count);
     logger.info(
       count < order.length
@@ -243,6 +245,7 @@ const shuffleCommand = async ({
     playlistId: playlist.id,
     name: playlistName,
     hostname,
+    listSize: _.get(config, 'shuffle.listSize') || maxPlayTracks,
     onStarted: count =>
       setMeta(
         db,

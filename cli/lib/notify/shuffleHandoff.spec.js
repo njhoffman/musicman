@@ -2,7 +2,7 @@ const { expect } = require('chai');
 
 const { openDatabase, setMeta } = require('../db/database.js');
 const { orderKey, startedKey } = require('../commands/shuffle.js');
-const { shuffleHandoff } = require('./shuffleHandoff.js');
+const { pollHandoff, shuffleHandoff } = require('./shuffleHandoff.js');
 
 describe('shuffle handoff', () => {
   let db;
@@ -92,5 +92,77 @@ describe('shuffle handoff', () => {
       startedAt: '2026-11-03T11:00:00.000Z'
     });
     expect(await onTrack(at('t2'))).to.equal('queued');
+  });
+
+  it('should be pending until the playlist plays, and not without a list shorter than the order', async () => {
+    const onTrack = handoff();
+    expect(onTrack.pending()).to.equal(true);
+    await onTrack(at('t2'));
+    expect(onTrack.pending()).to.equal(true);
+    await onTrack(at('t3'));
+    expect(onTrack.pending()).to.equal(false);
+    setMeta(db, startedKey, null);
+    expect(handoff().pending()).to.equal(false);
+  });
+
+  describe('pollHandoff', () => {
+    // runs the timer by hand: tick() runs the next poll, as setTimeout would after the interval
+    const timers = () => {
+      const pending = [];
+      return {
+        setTimer: fn => {
+          pending.push(fn);
+          return pending.length;
+        },
+        clearTimer: () => pending.splice(0),
+        tick: () => pending.shift()()
+      };
+    };
+    const phone = trackId => ({
+      source: 'spotify',
+      remote: true,
+      name: 'Spotify · Phone',
+      calls: 0,
+      async state() {
+        this.calls += 1;
+        return { state: 'playing', track: { trackId, position: 12 } };
+      }
+    });
+    const desktop = state => ({ state: async () => ({ state }) });
+
+    it('should give what the phone plays to the handoff while the desktop app plays nothing', async () => {
+      const clock = timers();
+      const onTrack = handoff();
+      const remote = phone('t2');
+      pollHandoff({ handoff: onTrack, local: desktop(null), remote, ...clock });
+      await clock.tick();
+      expect(requests).to.deep.equal([['POST', '/me/player/queue?uri=spotify%3Atrack%3At3']]);
+      remote.state = async () => ({ state: 'playing', track: { trackId: 't3', position: 4 } });
+      await clock.tick();
+      expect(requests[2]).to.deep.equal([
+        'PUT',
+        '/me/player/play',
+        { context_uri: 'spotify:playlist:pl1', offset: { position: 3 }, position_ms: 2300 }
+      ]);
+    });
+
+    it('should not ask the Web API with nothing pending, or while the desktop app plays', async () => {
+      const clock = timers();
+      const remote = phone('t2');
+      const stop = pollHandoff({
+        handoff: handoff(),
+        local: desktop('playing'),
+        remote,
+        ...clock
+      });
+      await clock.tick();
+      setMeta(db, startedKey, null);
+      const idle = timers();
+      pollHandoff({ handoff: handoff(), local: desktop(null), remote, ...idle });
+      await idle.tick();
+      expect(remote.calls).to.equal(0);
+      expect(requests).to.deep.equal([]);
+      stop();
+    });
   });
 });

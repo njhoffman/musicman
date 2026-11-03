@@ -1,6 +1,7 @@
 const _ = require('lodash');
 
 const { getMeta } = require('../db/database.js');
+const logger = require('../utils/logger.js');
 // meta keys musicman shuffle writes: the order, and the tracks it started
 const { orderKey, startedKey } = require('../commands/shuffle.js');
 
@@ -12,7 +13,8 @@ const { orderKey, startedKey } = require('../commands/shuffle.js');
  *   - when that queued track starts, playback moves to the shuffle playlist at that track and position,
  *     unless the playlist is what plays already.
  * Each step is taken once per shuffle (by its startedAt), and only for the latest shuffle's tracks.
- * Returns onTrack({ player, status }) for the notify daemon, resolving to 'queued', 'handed', or null.
+ * Returns onTrack({ player, status }) for the notify daemon, resolving to 'queued', 'handed', or null;
+ * onTrack.pending() tells whether the latest shuffle still has a step to take (pollHandoff asks it).
  * Dependencies: openDb() the library database or null, client() the Spotify user client.
  */
 const shuffleHandoff = ({ openDb, client }) => {
@@ -30,7 +32,7 @@ const shuffleHandoff = ({ openDb, client }) => {
     }
   };
 
-  return async ({ player, status }) => {
+  const onTrack = async ({ player, status }) => {
     const trackId = _.get(status, 'track.trackId');
     if (player.source !== 'spotify' || !trackId) {
       return null;
@@ -68,6 +70,64 @@ const shuffleHandoff = ({ openDb, client }) => {
     }
     return null;
   };
+
+  onTrack.pending = () => {
+    const { order, started } = read();
+    return Boolean(
+      started &&
+      _.isArray(order) &&
+      started.count < order.length &&
+      steps.get(started.startedAt) !== 'handed'
+    );
+  };
+
+  return onTrack;
 };
 
-module.exports = { shuffleHandoff };
+// seconds between polls of the Web API: shorter than any track, so the last listed one is seen playing
+const pollSeconds = 30;
+
+/**
+ * Follows a shuffle played without the desktop app (on the phone alone), which MPRIS cannot see: every
+ * pollSeconds, while the handoff has a step to take and the desktop app plays nothing, asks the Web API
+ * what plays elsewhere (remote, spotifyConnectPlayer) and gives it to the handoff. No calls otherwise.
+ * Returns stop(). Dependencies: handoff (shuffleHandoff), local (spotifyPlayer), remote, setTimer.
+ */
+const pollHandoff = ({
+  handoff,
+  local,
+  remote,
+  interval = pollSeconds * 1000,
+  setTimer = setTimeout,
+  clearTimer = clearTimeout
+}) => {
+  let timer = null;
+  let stopped = false;
+  const poll = async () => {
+    if (!handoff.pending()) {
+      return null;
+    }
+    // the desktop app (also mirroring the phone) is followed through MPRIS
+    if ((await local.state()).state === 'playing') {
+      return null;
+    }
+    const status = await remote.state();
+    if (status.state !== 'playing' || !_.get(status, 'track.trackId')) {
+      return null;
+    }
+    return handoff({ player: remote, status });
+  };
+  const tick = async () => {
+    await poll().catch(err => logger.error(`Following the shuffle on Spotify: ${err.message}`));
+    if (!stopped) {
+      timer = setTimer(tick, interval);
+    }
+  };
+  timer = setTimer(tick, interval);
+  return () => {
+    stopped = true;
+    clearTimer(timer);
+  };
+};
+
+module.exports = { pollHandoff, pollSeconds, shuffleHandoff };

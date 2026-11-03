@@ -268,11 +268,13 @@ Reviewed: 2026-11-03
       track as the last listed one starts, then moves playback to the playlist there (`notify/shuffleHandoff.js`).
       It follows Spotify through MPRIS, so only while the desktop app runs (also when it mirrors the phone).
 - [ ] **See a shuffle continue past its list.** (p3) [test] the daemon's handoff (queue the next track, then move to
-      the playlist) has run only in specs; check it the first time a shuffle of more than 1000 tracks reaches the
-      end of its list (`journalctl --user -u musicman-notify` logs a failure).
-- [ ] **Continue shuffles played on the phone alone.** (p3) [feature] the handoff follows Spotify through MPRIS, so
+      the playlist) has run only in specs. Set `shuffle.listSize` to 3 or so (1.77.0), shuffle, and listen past
+      the third track, once with the desktop app and once on the phone with the app closed
+      (`journalctl --user -u musicman-notify` logs a failure).
+- [x] **Continue shuffles played on the phone alone.** (p3) [feature] the handoff follows Spotify through MPRIS, so
       it needs the desktop app running (it mirrors the phone); with the app closed the shuffle stops after its
-      list. The daemon could ask `GET /me/player` while no local player plays, at one Web API call per poll.
+      list. Done: the daemon asks `GET /me/player` every 30 seconds while a shuffle waits for its handoff and
+      the desktop app plays nothing (`pollHandoff` in `notify/shuffleHandoff.js`); no calls otherwise.
 - [x] **Menu: unbound letters filter the main menu unseen.** (p3) [bug] Cannot reproduce, 2026-11-02: on rofi
       2.0.0 a theme whose `inputbar` has no `entry` drops typed text, so `f`, `z`, ... filter nothing on the main
       menu (tested with xdotool). Binding the free keys is not possible anyway: the main menu fills all 19

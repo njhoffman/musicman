@@ -210,6 +210,9 @@ status:
 # rewritten on each run) and plays the new order with Spotify's shuffle off
 shuffle:
   playlist: musicman shuffle
+  # tracks started as a list (the playlist plays the rest once the notify daemon hands off to it); set a
+  # few to see the handoff within minutes
+  listSize: 1000
 
 # musicman ui: the management page, served on 127.0.0.1 at this port
 ui:

@@ -97,7 +97,7 @@ describe('Shuffle Command', () => {
   const runShuffle = (terms, deps = {}) =>
     shuffle.run({
       options: { terms, switches: deps.switches || {} },
-      config,
+      config: deps.config || config,
       db,
       client: () => deps.client,
       player: deps.player || fakePlayer(),
@@ -227,6 +227,16 @@ describe('Shuffle Command', () => {
     // every track of the next shuffle starts: nothing to continue
     await runShuffle(['liked'], { client: fakeClient() });
     expect(getMeta(db, shuffle.startedKey)).to.equal(null);
+  });
+
+  it('should start at most shuffle.listSize tracks as a list, for the daemon to go on from', async () => {
+    const client = fakeClient();
+    await runShuffle(['liked'], { client, config: { ...config, shuffle: { listSize: 2 } } });
+    const plays = _.filter(client.writes, ([, url]) => url.startsWith('/me/player/play'));
+    expect(_.map(plays, ([, , body]) => body.uris.length)).to.deep.equal([2]);
+    expect(getMeta(db, shuffle.startedKey)).to.deep.include({ count: 2, total: 5 });
+    // the playlist holds all of them
+    expect(uris(client.writes)).to.have.length(5);
   });
 
   it('should open the playlist in the desktop app when the Web API cannot play it', async () => {

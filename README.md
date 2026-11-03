@@ -153,12 +153,15 @@ spread apart) to one playlist of your own, `musicman shuffle` (`shuffle.playlist
 run and rewritten on every run. Your playlists keep their order and their dates added.
 
 Then it starts the new order with Spotify's shuffle off, through the Web API on the active Spotify Connect
-device (else this computer's desktop app). It starts the tracks as a list, up to the first 1000, rather
-than the playlist: right after a rewrite Spotify plays a playlist's previous order for a minute or more,
-while a list plays exactly as sent. When the order is longer, the notify daemon (`musicman-notify`)
-continues it: as the last listed track starts it queues the next one, and when that one starts it moves
-playback to the playlist at that track, which is current by then. Without the daemon (or its Spotify
-credentials, see `pnpm daemon:install`) playback stops after the list; the playlist keeps the whole order. Starting playback this way needs Premium and the playback scopes (`musicman sync --login` asks for
+device (else this computer's desktop app). It starts the tracks as a list, up to the first 1000
+(`shuffle.listSize`), rather than the playlist: right after a rewrite Spotify plays a playlist's previous
+order for a minute or more, while a list plays exactly as sent. When the order is longer, the notify daemon
+(`musicman-notify`) continues it: as the last listed track starts it queues the next one, and when that one
+starts it moves playback to the playlist at that track, which is current by then. It follows the desktop
+app through MPRIS, and with the app closed (the phone alone) asks the Web API every 30 seconds, only while
+a shuffle waits for that handoff. Without the daemon (or its Spotify credentials, see
+`pnpm daemon:install`) playback stops after the list; the playlist keeps the whole order. To see the
+handoff happen, set `shuffle.listSize` to a few tracks and shuffle. Starting playback this way needs Premium and the playback scopes (`musicman sync --login` asks for
 them); without them, or with no device, it opens the playlist in the desktop app instead and warns that
 the old order may play first.
 
