@@ -10,6 +10,7 @@ musicman                                    # the song playing in MPD or Spotify
 musicman status --watch                     # the same, redrawn every second until q
 musicman rating:4.5 grouping:Dubstep        # view songs rated 4.5 and up in a grouping
 musicman edit some/dir mood=+Upbeat         # add a value to a multi value field
+musicman values mood context               # the values in use, with song counts
 musicman search artist "Mazzy Star" --play  # replace the MPD queue with the results
 musicman sync --push                        # push Liked Songs and mapped playlists to Spotify
 musicman sync --export                      # songs Spotify lacks, as Local Files to add (runbook)

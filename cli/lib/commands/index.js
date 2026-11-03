@@ -15,12 +15,14 @@ const playerCommand = require('./player.js');
 const checkCommand = require('./check.js');
 const statusCommand = require('./status.js');
 const uiCommand = require('./ui.js');
+const valuesCommand = require('./values.js');
 
 module.exports = [
   viewCommand,
   editCommand,
   playlistCommand,
   statsCommand,
+  valuesCommand,
   dbCommand,
   searchCommand,
   syncCommand,

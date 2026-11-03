@@ -50,6 +50,27 @@ SELECT path, duration FROM spotify_track_files WHERE track_id = ? ORDER BY exclu
 A database older than schema 10 has no view; readers should treat that as "no library" and suggest updating
 musicman, not fall back to the tables, which may change.
 
+### musicman values
+
+`musicman values [field ...] --format json` prints the values of library fields with the number of songs that
+have each, from the library database (no file scan; about a second). Without fields it lists `menu.tagFields`.
+The second user is [fzx](https://github.com/njhoffman/fzx), whose music module offers the values in its tag
+editor before writing them with `musicman edit`.
+
+```json
+{
+  "mood": [
+    { "value": "Mellow", "count": 960 },
+    { "value": "Upbeat", "count": 324 }
+  ]
+}
+```
+
+- Keys are the fields' names as `library.tags` spells them (a field given as `Mood` is listed as `mood`), in the
+  order given.
+- Each list is most used first, then by value. Comma-joined values count as their parts, once per song.
+- An unknown field is an error (exit status 1, nothing on stdout).
+
 ### Lyrics in the library's tags
 
 sleeve writes synced lyrics into the library's mp3 files; musicman writes the other frames of the same tags.

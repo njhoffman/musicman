@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman values [field ...]` lists the values of library fields with the number of songs that have each,
+  most used first, from the library database (about a second, where `stats` scans every file); without
+  fields it lists `menu.tagFields`. `--format json` is part of the contract for other programs
+  (docs/09-contract.md): fzx's music module offers the values in its tag editor.
+
 ## [1.60.0] - 2026-11-02
 
 ### Added
