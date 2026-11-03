@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.57.1] - 2026-11-02
+
 ### Fixed
 
 - `sync --export` has the short alias `-e`; `--help` listed it as `--export, undefined`.
@@ -1150,7 +1152,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.57.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.57.1...HEAD
+[1.57.1]: https://github.com/njhoffman/musicman/compare/v1.57.0...v1.57.1
 [1.57.0]: https://github.com/njhoffman/musicman/compare/v1.56.1...v1.57.0
 [1.56.1]: https://github.com/njhoffman/musicman/compare/v1.56.0...v1.56.1
 [1.56.0]: https://github.com/njhoffman/musicman/compare/v1.55.1...v1.56.0
