@@ -49,3 +49,35 @@ SELECT path, duration FROM spotify_track_files WHERE track_id = ? ORDER BY exclu
 
 A database older than schema 10 has no view; readers should treat that as "no library" and suggest updating
 musicman, not fall back to the tables, which may change.
+
+### Lyrics in the library's tags
+
+sleeve writes synced lyrics into the library's mp3 files; musicman writes the other frames of the same tags.
+Each keeps to its own frames, so neither undoes the other.
+
+What musicman keeps:
+
+- It never sets, clears or edits `USLT` or `SYLT` on its own. Its tag writes (`cli/lib/metadata/write.js`,
+  node-id3 0.2) rewrite the whole tag but carry both frames over as they were: node-id3 parses them, holding one
+  `USLT` and any number of `SYLT`.
+- Two exceptions, both leaving lyrics that are there alone: `check --fix` moves a custom lyrics field into an
+  empty `USLT` (never over one with text), and `check --duplicates` keeps the kept copy's tag, so the lyrics of
+  the copies it takes out go with them.
+- It notices a file sleeve changed by its mtime and size, like any other change, and reads it again on the next
+  `db --update`; the `USLT` text lands in its database with the rest.
+
+What sleeve keeps:
+
+- It writes `USLT` and `SYLT` only, and changes no other frame, byte for byte, nor the tag's version.
+- One `USLT` per file: it replaces the one there rather than adding a second, which a node-id3 rewrite would drop
+  (node-id3 keeps a repeated frame only from an ID3v2.3 tag). `SYLT` frames may be several (one per language or
+  content type).
+- `USLT` with text in it is not replaced unless asked (`--force`): beets' lyrics plugin fills it on import
+  (`sync.importLyrics`), and a person may have written it. An empty `USLT` (most of the library's) is replaced.
+- It writes a file in place only if its mtime and size are what they were when sleeve read it, through a temporary
+  file renamed over it, so a musicman write in between is never lost, only retried. It never touches the mtime
+  afterwards: musicman needs the change to see it.
+- It reads musicman's database only as the sections above allow, and never writes it.
+
+Outside both: `beet write` and `beet modify` write the lyrics beets holds in its own library back into the
+file, over what sleeve wrote. musicman runs neither on library files.

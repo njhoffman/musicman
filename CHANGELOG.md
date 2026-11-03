@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- The contract (`docs/09-contract.md`) says who writes the lyrics in the library's tags: sleeve writes `USLT` and
+  `SYLT` only, and musicman never changes them on its own, carrying both over when it rewrites a tag.
+
 ## [1.55.0] - 2026-11-02
 
 ### Added
