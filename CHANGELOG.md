@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- `sync --export` counted Liked Songs at 0 of its local files forever and staged them again on every run:
+  the Web API never lists local files in Liked Songs. After dragging the staged songs in, `sync --export
+  --confirm` (`-y`) records them as added, and later exports stage only songs liked since.
+
 ## [1.64.0] - 2026-11-02
 
 ### Added

@@ -17,11 +17,12 @@ const {
   reviewItems
 } = require('../sync/match.js');
 const { autoAcceptItems, confirmAutoAccept } = require('../sync/accept.js');
-const { ignorePlaylistId, playlistTargets, songTargets } = require('../sync/targets.js');
+const { ignorePlaylistId, likedId, playlistTargets, songTargets } = require('../sync/targets.js');
 const { refreshCache } = require('../sync/cache.js');
 const { recordSynced, syncPlan } = require('../sync/plan.js');
 const {
   applyExport,
+  confirmStaged,
   planExport,
   readExportState,
   spotifyReadable,
@@ -468,9 +469,19 @@ const runPhone = async ({ config, exported, dryRun, connect }) => {
   return result;
 };
 
-const runExport = async ({ config, plan, dryRun, connect }) => {
+const runExport = async ({ config, plan, dryRun, connect, confirmLiked = false }) => {
   const uploadDirectory = config.sync.uploadDirectory;
-  const previous = readExportState(uploadDirectory);
+  let previous = readExportState(uploadDirectory);
+  if (confirmLiked) {
+    const { state, count } = confirmStaged(previous);
+    previous = state;
+    if (!dryRun) {
+      writeExportState(uploadDirectory, previous);
+    }
+    logger.info(
+      `${dryRun ? 'Dry run: would confirm' : 'Confirmed'} ${count} staged songs as added to Liked Songs`
+    );
+  }
   const exported = planExport(plan, {
     baseDirectory: path.resolve(config.mpd.baseDirectory),
     previous,
@@ -508,11 +519,18 @@ const runExport = async ({ config, plan, dryRun, connect }) => {
       counts.copied ? ` (${counts.copied} copied, not linked)` : ''
     }, ${counts.relinked} linked again, ${counts.removed} removed`
   );
+  const liked = staged && staged.id === likedId;
   logger.info(
     staged
       ? `stage/: ${counts.staged} songs for ${chalk.bold(staged.name)}: in the desktop app, turn the files ` +
-          'source off, select all in Local Files, drag them into the playlist, turn files back on, then run ' +
-          'sync --export again (README.md has the checklist)'
+          `source off, select all in Local Files, drag them into the ${
+            liked ? 'Liked Songs (or like them all)' : 'playlist'
+          }, turn files back on, then run ${
+            liked
+              ? 'sync --export --confirm (the Web API does not list local files in Liked Songs, so the ' +
+                'export cannot see them there)'
+              : 'sync --export again'
+          } (README.md has the checklist)`
       : 'stage/: empty, every song is in its playlists'
   );
   return { exported, counts, phone: await runPhone({ config, exported, dryRun, connect }) };
@@ -525,6 +543,7 @@ const runPlan = async ({
   pull = false,
   prune = false,
   exportFiles = false,
+  confirmLiked = false,
   dryRun = false,
   confirm = confirmPrompt,
   switches = {}
@@ -560,7 +579,9 @@ const runPlan = async ({
         })
       : undefined;
     const pulled = pull ? await runPull({ config, plan, dryRun, confirm }) : undefined;
-    const exported = exportFiles ? await runExport({ config, plan, dryRun }) : undefined;
+    const exported = exportFiles
+      ? await runExport({ config, plan, dryRun, confirmLiked })
+      : undefined;
     // what Spotify and the tags agree on now is the state the next sync compares with
     if (!dryRun) {
       recordSynced(db, syncPlan(db, config, songTargets(await librarySongs(config), config)));
@@ -1297,6 +1318,9 @@ const syncCommand = async ({
     if (switches.review) {
       return await runReview({ config, switches, credentials, fetchImpl, pick });
     }
+    if (switches.confirm && !switches.export) {
+      throw new Error('--confirm goes with --export: sync --export --confirm');
+    }
     const status = await showStatus({ credentials, file, fetchImpl, env, config });
     if (!status.loggedIn) {
       return status;
@@ -1308,6 +1332,7 @@ const syncCommand = async ({
       pull: Boolean(switches.pull),
       prune: Boolean(switches.prune),
       exportFiles: Boolean(switches.export),
+      confirmLiked: Boolean(switches.confirm),
       dryRun: Boolean(switches.dryRun),
       confirm,
       switches
@@ -1327,7 +1352,7 @@ module.exports = {
   name: 'sync',
   description: 'Sync Liked Songs and playlists with Spotify; without switches, show the plan',
   usage:
-    'musicman sync [--login | --match [--refresh] [--recheck] [--verbose] | --review [--accept | --reject] | --push [--prune] | --pull | --export | --import | --backup [--force]] [--dry-run]',
+    'musicman sync [--login | --match [--refresh] [--recheck] [--verbose] | --review [--accept | --reject] | --push [--prune] | --pull | --export [--confirm] | --import | --backup [--force]] [--dry-run]',
   switches: [
     'login',
     'match',
@@ -1341,6 +1366,7 @@ module.exports = {
     'prune',
     'pull',
     'export',
+    'confirm',
     'import',
     'backup',
     'force',

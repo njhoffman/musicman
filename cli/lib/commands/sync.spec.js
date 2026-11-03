@@ -68,6 +68,11 @@ describe('Sync Command', () => {
     expect(process.exitCode).to.equal(1);
   });
 
+  it('should refuse --confirm without --export', async () => {
+    expect(await run({ confirm: true })).to.be.false;
+    expect(process.exitCode).to.equal(1);
+  });
+
   it('should report when not logged in', async () => {
     expect(await run({})).to.deep.equal({ loggedIn: false });
   });

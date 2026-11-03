@@ -6,6 +6,7 @@ const { expect } = require('chai');
 const {
   applyExport,
   assignNames,
+  confirmStaged,
   exportName,
   isLocalTrackOf,
   localTracks,
@@ -119,12 +120,59 @@ describe('Local files export', () => {
       expect(exported.staged.pending).to.deep.equal(['A - One.mp3', 'A - Two.mp3']);
     });
 
+    it('should count confirmed Liked Songs as added, and stage only the songs liked since', () => {
+      const one = song('/m/one.mp3', 'missing', 'One');
+      const two = song('/m/two.mp3', 'missing', 'Two');
+      const exported = planExport([target('liked', 'Liked Songs', [one, two])], {
+        baseDirectory: '/m',
+        previous: { confirmed: { liked: ['one.mp3'] } }
+      });
+      expect(exported.targets[0]).to.deep.include({
+        total: 2,
+        added: ['A - One.mp3'],
+        pending: ['A - Two.mp3'],
+        confirmed: 1
+      });
+      expect(exported.staged).to.include({ id: 'liked' });
+    });
+
     it('should stage nothing when every song is in its playlists', () => {
       const one = song('/m/one.mp3', 'missing', 'One');
       const exported = planExport([target('p1', 'Done', [one], ['/m/one.mp3'])], {
         baseDirectory: '/m'
       });
       expect(exported.staged).to.be.null;
+    });
+  });
+
+  describe('confirmStaged', () => {
+    const previous = {
+      names: {
+        'a/one.mp3': 'A - One.mp3',
+        'a/two.mp3': 'A - Two.mp3',
+        'a/three.mp3': 'A - Three.mp3'
+      },
+      stage: ['A - Two.mp3', 'A - One.mp3'],
+      staged: 'liked',
+      phone: { 'A - One.mp3': 1 }
+    };
+
+    it('should record the staged songs as added to Liked Songs and keep the rest of the state', () => {
+      const { state, count } = confirmStaged({
+        ...previous,
+        confirmed: { liked: ['a/three.mp3'] }
+      });
+      expect(count).to.equal(2);
+      expect(state.confirmed).to.deep.equal({ liked: ['a/one.mp3', 'a/three.mp3', 'a/two.mp3'] });
+      expect(state).to.deep.include({ staged: 'liked', phone: { 'A - One.mp3': 1 } });
+      expect(confirmStaged(state).state.confirmed.liked).to.have.length(3);
+    });
+
+    it('should refuse a staged playlist and an empty stage', () => {
+      expect(() => confirmStaged({ ...previous, staged: 'p1' })).to.throw(
+        /only Liked Songs is confirmed/
+      );
+      expect(() => confirmStaged({})).to.throw(/nothing is staged to confirm/);
     });
   });
 

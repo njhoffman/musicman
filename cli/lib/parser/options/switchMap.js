@@ -158,6 +158,12 @@ module.exports = {
     alias: '-e',
     func: () => ({ export: true })
   },
+  confirm: {
+    description:
+      'With --export, record the songs staged for Liked Songs as added once dragged in (the Web API does not list local files in Liked Songs)',
+    alias: '-y',
+    func: () => ({ confirm: true })
+  },
   import: {
     description:
       'Tag the downloads of the sync --pull manifest with their Spotify fields and playlist tags, then import them with beets',

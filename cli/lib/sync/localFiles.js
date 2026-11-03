@@ -114,15 +114,19 @@ const planExport = (plan, { baseDirectory, previous = {}, readable = () => true 
     _.sortBy(plan, target => (target.id === likedId ? 1 : 0)),
     target => {
       const local = target.localFiles || { added: [], pending: [], stray: [] };
-      const added = kept(local.added);
-      const pending = kept(local.pending);
+      const confirmed = new Set(_.get(previous, ['confirmed', target.id]) || []);
+      const [byConfirm, pending] = _.partition(kept(local.pending), ({ file }) =>
+        confirmed.has(path.relative(baseDirectory, file))
+      );
+      const added = [...kept(local.added), ...byConfirm];
       return {
         id: target.id,
         name: target.name,
         total: added.length + pending.length,
         added: _.map(added, ({ file }) => nameOf(file)),
         pending: _.map(pending, ({ file }) => nameOf(file)),
-        stray: _.map(local.stray, track => `${track.artists || '?'} - ${track.name || '?'}`)
+        stray: _.map(local.stray, track => `${track.artists || '?'} - ${track.name || '?'}`),
+        confirmed: byConfirm.length
       };
     }
   );
@@ -131,6 +135,33 @@ const planExport = (plan, { baseDirectory, previous = {}, readable = () => true 
     targets,
     staged: _.find(targets, target => target.pending.length > 0) || null,
     unreadable: _.map(unreadable, song => path.relative(baseDirectory, song.file))
+  };
+};
+
+/**
+ * The export state with the songs the last export staged recorded as added to Liked Songs (sync --export
+ * --confirm), for after dragging them in: the Web API never lists local files in Liked Songs, so the
+ * export cannot see them there. Only Liked Songs is confirmed this way; a staged playlist is checked
+ * through the Web API. Returns { state, count }.
+ */
+const confirmStaged = (previous = {}) => {
+  if (previous.staged !== likedId) {
+    throw new Error(
+      previous.staged
+        ? 'only Liked Songs is confirmed with --confirm: the staged playlist is checked through the Web ' +
+            'API, run sync --export to count it again'
+        : 'nothing is staged to confirm, run sync --export first'
+    );
+  }
+  const pathOf = _.invert(previous.names || {});
+  const paths = _.compact(_.map(previous.stage, name => pathOf[name]));
+  const confirmed = _.get(previous, ['confirmed', likedId]) || [];
+  return {
+    state: {
+      ...previous,
+      confirmed: { ...previous.confirmed, [likedId]: _.uniq([...confirmed, ...paths]).sort() }
+    },
+    count: paths.length
   };
 };
 
@@ -373,6 +404,7 @@ module.exports = {
   applyExport,
   assignNames,
   checklist,
+  confirmStaged,
   exportName,
   exportable,
   isLocalTrackOf,
