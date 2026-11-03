@@ -170,7 +170,7 @@ Reviewed: 2026-11-01
       exported songs (artist, title, length within 2 s): the `Local files` column, the checklist, and the local
       tracks that are none of the songs. Completed songs stay in `files/`, which is what plays them.
 - [x] **Desktop playback of local files.** (p2) [chore] the apt `spotify-client` 1.2.63 only loads ffmpeg 4.x
-      (`libavcodec.so.54`-`.58`); the system has `.61`. Done 2026-11-02 in `~/.shell` 0.54.0: the spotify
+      (`libavcodec.so.54`-`.58`); the system has `.61`. Done 2026-11-02 in `~/.shell` 0.58.0: the spotify
       recipe builds a minimal ffmpeg 4.4.5 into `~/.local/lib/spotify-ffmpeg` and links it into
       `/usr/share/spotify` (the client's RUNPATH is `$ORIGIN`); `spotify.update` keeps it across upgrades.
 - [ ] **Try the review listen keys in a real session.** (p3) [test] ctrl-l (mpv), ctrl-s (Spotify), and ctrl-x in the
