@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.64.0] - 2026-11-02
+
 ### Added
 
 - `musicman menu` and `musicman player` control Spotify playing on another device (a phone, a speaker) through
@@ -1245,7 +1247,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.63.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.64.0...HEAD
+[1.64.0]: https://github.com/njhoffman/musicman/compare/v1.63.0...v1.64.0
 [1.63.0]: https://github.com/njhoffman/musicman/compare/v1.62.1...v1.63.0
 [1.62.1]: https://github.com/njhoffman/musicman/compare/v1.62.0...v1.62.1
 [1.62.0]: https://github.com/njhoffman/musicman/compare/v1.61.0...v1.62.0
