@@ -115,6 +115,24 @@ musicman sync --push              # adds after a confirmation
   unlink the wrong copy (`sync --review --reject`). `musicman check --only=exclusive` lists them, and the
   menu's rating buttons skip such a playlist with a notification.
 
+### 4. Audio features
+
+```sh
+musicman sync --features --dry-run  # how many songs ReccoBeats knows
+musicman sync --features            # writes them after a confirmation (--yes: without)
+```
+
+Spotify's own audio features answer 403 to apps made after 2024-11-27, so they come from ReccoBeats, looked
+up by Spotify track id (no key; the ids are sent to it). Its values are estimates, not Spotify's numbers.
+`features.fields` picks among acousticness, danceability, energy, instrumentalness, key, liveness, loudness,
+speechiness, tempo, and valence (all by default): tempo goes to `TBPM` (the `bpm` tag), key with its mode to
+`TKEY` (`key`, e.g. `C#m`), the others to `rb_<field>` (0 to 1 with two decimals, loudness in dB), with
+`rb_fetched_at`. All are library tags, so `view rb_energy:0.8` and the views can use them.
+
+- Songs with `rb_fetched_at` are skipped, and so are ids ReccoBeats did not know before; `--refresh` asks for all
+  again. On 2026-11-03 it knew 83 of 100 sampled library tracks.
+- The writes are recorded for `musicman undo`.
+
 ## Spotify to local
 
 ```sh

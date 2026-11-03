@@ -56,6 +56,29 @@ const registerSpotifyTags = config => {
   config.library.tags = _.uniq((config.library.tags || []).concat(_.map(spotifyTags, 'name')));
 };
 
+// the audio feature fields sync --features writes (cli/lib/sync/features.js): tempo to TBPM (the bpm tag),
+// key to TKEY (key), the others to TXXX.rb_<field>, and rb_fetched_at; all are library tags, so they can
+// be viewed and filtered like the Spotify fields
+const featureTagNames = { tempo: 'bpm', key: 'key' };
+const registerFeatureTags = config => {
+  const fields = _.get(config, 'features.fields') || [];
+  if (fields.length === 0) {
+    return;
+  }
+  const custom = _.map(
+    _.reject(fields, field => featureTagNames[field]).concat('fetched_at'),
+    field => ({ id: `TXXX.rb_${field}`, name: `rb_${field}` })
+  );
+  const defined = new Set(_.map(config.tags, 'name'));
+  config.tags = (config.tags || []).concat(_.reject(custom, ({ name }) => defined.has(name)));
+  config.library.tags = _.uniq(
+    (config.library.tags || []).concat(
+      _.map(custom, 'name'),
+      _.compact(_.map(fields, field => featureTagNames[field]))
+    )
+  );
+};
+
 // merged config with all validation errors and warnings, nothing is reported or exited here
 const buildConfig = ({
   userConfigPath = getUserConfigPath(),
@@ -126,6 +149,7 @@ const buildConfig = ({
   }
 
   registerSpotifyTags(config);
+  registerFeatureTags(config);
   const { tags, missing } = resolveLibraryTags(config);
   config.library.tags = tags;
   errors.push(...validateLibrary(config, missing));

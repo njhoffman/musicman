@@ -126,6 +126,12 @@ const configSchema = {
       keepRemovedDays: { type: 'number', min: 0, required: false }
     }
   },
+  features: {
+    type: 'object',
+    properties: {
+      fields: { type: 'array', required: false }
+    }
+  },
   daemon: {
     type: 'object',
     properties: {
@@ -437,6 +443,26 @@ function validateConfig(config) {
     } else if (!parsePlaylistId(entry.playlist)) {
       result.errors.push(
         `sync.playlists[${i}].playlist '${entry.playlist}' is not a Spotify playlist URL or id`
+      );
+    }
+  });
+
+  const featureFields = [
+    'acousticness',
+    'danceability',
+    'energy',
+    'instrumentalness',
+    'key',
+    'liveness',
+    'loudness',
+    'speechiness',
+    'tempo',
+    'valence'
+  ];
+  _.each(_.get(config, 'features.fields', []), (field, i) => {
+    if (!featureFields.includes(field)) {
+      result.errors.push(
+        `features.fields[${i}] '${field}' must be one of ${featureFields.join(', ')}`
       );
     }
   });

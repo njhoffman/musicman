@@ -170,6 +170,22 @@ backup:
   # than this many days are deleted (0: kept for good)
   keepRemovedDays: 180
 
+# Audio features (sync --features) from ReccoBeats, looked up by Spotify track id: Spotify's own audio
+# features answer 403 to newer apps. tempo is written to TBPM (bpm) and key with its mode to TKEY (key, e.g.
+# C#m); the others, ReccoBeats' estimates from 0 to 1 (loudness in dB), to TXXX.rb_<field>
+features:
+  fields:
+  - acousticness
+  - danceability
+  - energy
+  - instrumentalness
+  - key
+  - liveness
+  - loudness
+  - speechiness
+  - tempo
+  - valence
+
 # musicman status (and musicman alone while a song plays): the now playing screen
 status:
   # Nerd Font icons before the player and each field

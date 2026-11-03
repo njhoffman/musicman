@@ -82,6 +82,14 @@ const { outputFormat } = require('../output/formats.js');
 const { previewCommand } = require('../output/fzf.js');
 const { relinkHistory } = require('../history/relink.js');
 const { openLibrary, updateDatabase } = require('../db/index.js');
+const { getMeta, setMeta } = require('../db/database.js');
+const { updateTags } = require('../metadata/write.js');
+const {
+  featureFields,
+  featureWrites,
+  fetchFeatures,
+  songsForFeatures
+} = require('../sync/features.js');
 const {
   assignMetadata,
   getFilteredFiles,
@@ -1002,6 +1010,92 @@ const listBackupFiles = (
 };
 
 // mirror the library files to backup.directory after showing and confirming the changes
+// Spotify track ids ReccoBeats did not know, by the day they were asked, skipped until --refresh
+const featuresMissingKey = 'features.missing';
+
+/**
+ * sync --features: audio features from ReccoBeats for the songs with a Spotify id and none yet
+ * (--refresh: all of them), written to their tags after a confirmation (--yes: without): tempo to
+ * TBPM, key to TKEY, the rest to rb_<field>, as features.fields picks. Recorded for musicman undo.
+ */
+const runFeatures = async ({ config, dryRun, refresh, confirm, fetchImpl = fetch }) => {
+  const fields = _.get(config, 'features.fields') || featureFields;
+  const db = openSyncLibrary(config);
+  try {
+    const missing = getMeta(db, featuresMissingKey) || {};
+    const songs = songsForFeatures(db, { refresh, missing: new Set(_.keys(missing)) });
+    const skipped = refresh ? 0 : _.size(missing);
+    logger.info(
+      `${songs.length} songs to look up on ReccoBeats${
+        skipped ? ` (${skipped} it did not know before are skipped, --refresh asks again)` : ''
+      }`
+    );
+    if (songs.length === 0) {
+      return { features: { songs: 0 } };
+    }
+    const startedAt = new Date();
+    const found = await fetchFeatures(_.map(songs, 'trackId'), {
+      fetchImpl,
+      onBatch: (done, total) =>
+        logger.progress(progressBar({ done, total, startedAt, label: 'Looking up' }))
+    });
+    logger.progressDone();
+    const known = _.filter(songs, ({ trackId }) => found.has(trackId));
+    const unknown = _.reject(songs, ({ trackId }) => found.has(trackId));
+    logger.info(`ReccoBeats knows ${known.length} of them, not ${unknown.length}`);
+    if (dryRun || known.length === 0) {
+      return { features: { songs: songs.length, found: known.length, written: 0, dryRun } };
+    }
+    if (
+      !(await confirm(`Write the audio features (${fields.join(', ')}) to ${known.length} songs?`))
+    ) {
+      logger.info('Features cancelled');
+      return { features: { songs: songs.length, found: known.length, written: 0 } };
+    }
+    const baseDirectory = path.resolve(config.mpd.baseDirectory);
+    const written = [];
+    const failed = [];
+    const now = new Date();
+    known.forEach(({ path: songPath, trackId }, i) => {
+      const file = path.join(baseDirectory, songPath);
+      const { custom, standard } = featureWrites(found.get(trackId), fields, now);
+      const result = updateTags(
+        {
+          userDefinedText: _.map(custom, ({ name, value }) => ({ description: name, value })),
+          ...standard
+        },
+        file
+      );
+      if (result instanceof Error) {
+        failed.push({ file: songPath, error: result.message });
+      } else {
+        written.push(file);
+      }
+      logger.progress(
+        progressBar({ done: i + 1, total: known.length, startedAt: now, label: 'Writing' })
+      );
+    });
+    logger.progressDone();
+    if (written.length > 0) {
+      await updateDatabase(db, { config, files: written });
+    }
+    const day = now.toISOString().slice(0, 10);
+    setMeta(db, featuresMissingKey, {
+      ...(refresh ? {} : missing),
+      ..._.fromPairs(_.map(unknown, ({ trackId }) => [trackId, day]))
+    });
+    failed.forEach(({ file, error }) => logger.warn(`FAILED  ${file}: ${error}`));
+    logger.info(
+      `Wrote the audio features of ${written.length} songs${failed.length ? `, ${failed.length} failed` : ''}`
+    );
+    return {
+      features: { songs: songs.length, found: known.length, written: written.length, failed }
+    };
+  } finally {
+    db.close();
+  }
+};
+
 const runBackup = async ({ config, dryRun, force = false, confirm }) => {
   const directory = _.get(config, 'backup.directory');
   const keepReplaced = _.get(config, 'backup.keepReplaced', defaultKeepReplaced);
@@ -1331,6 +1425,15 @@ const syncCommand = async ({
         confirm: confirm || confirmPrompt
       });
     }
+    if (switches.features) {
+      return await runFeatures({
+        config,
+        dryRun: Boolean(switches.dryRun),
+        refresh: Boolean(switches.refresh),
+        confirm: importConfirm(switches, confirm),
+        fetchImpl: fetchImpl || fetch
+      });
+    }
     if (switches.import) {
       return await runImport({
         credentials,
@@ -1378,7 +1481,7 @@ module.exports = {
   name: 'sync',
   description: 'Sync Liked Songs and playlists with Spotify; without switches, show the plan',
   usage:
-    'musicman sync [--login | --match [--refresh] [--recheck] [--verbose] | --review [--accept | --reject] | --push [--prune] | --pull | --export [--confirm] | --import [--yes] | --backup [--force]] [--dry-run]',
+    'musicman sync [--login | --match [--refresh] [--recheck] [--verbose] | --review [--accept | --reject] | --push [--prune] | --pull | --export [--confirm] | --import [--yes] | --features [--refresh] [--yes] | --backup [--force]] [--dry-run]',
   switches: [
     'login',
     'match',
@@ -1394,6 +1497,7 @@ module.exports = {
     'export',
     'confirm',
     'import',
+    'features',
     'yes',
     'backup',
     'force',

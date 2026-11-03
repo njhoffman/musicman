@@ -153,6 +153,12 @@ module.exports = {
     alias: '-G',
     func: () => ({ readmit: true })
   },
+  features: {
+    description:
+      'With sync, write audio features from ReccoBeats (tempo, key, energy, ...) to the songs with a Spotify id and none yet (--refresh: all)',
+    alias: '-B',
+    func: () => ({ features: true })
+  },
   restore: {
     description:
       'With db, list the database backups, or replace the library database with the one named (the current one is saved first)',
@@ -167,7 +173,7 @@ module.exports = {
   },
   yes: {
     description:
-      'Answer yes to the question: sync --import (musicman ui runs it, without a terminal), db --restore',
+      'Answer yes to the question: sync --import (musicman ui runs it, without a terminal), sync --features, db --restore',
     alias: '-Q',
     func: () => ({ yes: true })
   },
