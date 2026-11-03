@@ -101,5 +101,16 @@ What sleeve keeps:
   afterwards: musicman needs the change to see it.
 - It reads musicman's database only as the sections above allow, and never writes it.
 
-Outside both: `beet write` and `beet modify` write the lyrics beets holds in its own library back into the
-file, over what sleeve wrote. musicman runs neither on library files.
+What beets keeps, with musicman's `keeplrc` plugin:
+
+- beets writes every field of its own library whenever it writes a file (import with `import.write`, `modify`,
+  `write`, `replaygain`, `ftintitle`, `lyrics --force`, ...), and its copy of the lyrics is the plain text it
+  fetched on import, or nothing, since sleeve writes the file directly. `keeplrc`
+  (`cli/share/beets/keeplrc.py`) reads the file's lyrics just before each beets write: when they are LRC and
+  beets would write anything else, it takes the lyrics out of that write and sets beets' copy to the file's.
+  The other fields are written as usual. `SYLT` frames beets does not know, and mutagen carries them over.
+- It is loaded from the installed build: in `~/.config/beets/config.yaml`,
+  `pluginpath: [~/.local/share/musicman/current/cli/share/beets]` and `keeplrc` in `plugins`.
+- `beet scrub` deletes the tags before it writes, which no plugin can undo: never scrub library files.
+- musicman runs only `beet import -s -q -A`, `beet update -m` and `beet remove` on library files.
+- `cli/lib/beets/lyrics.spec.js` checks musicman's writes and, where beets is installed, the plugin.

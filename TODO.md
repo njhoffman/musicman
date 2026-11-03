@@ -17,6 +17,10 @@ Reviewed: 2026-11-03
 - [x] **One ReplayGain spelling.** (p3) [chore] uppercase, as beets' mediafile creates new frames (it
       matches existing ones in any case): the `gain` tag id is `TXXX.REPLAYGAIN_TRACK_GAIN` in
       `~/.musicmanrc.yml` (2026-11-01), so `check --fix` renames all four ReplayGain fields to uppercase.
+- [x] **Keep sleeve's timed lyrics from beets.** (p2) [bug] beets writes its stale copy of the lyrics with any
+      file write (`modify`, `write`, `replaygain`, ...), over the LRC sleeve put in `USLT`. The `keeplrc` beets
+      plugin (`cli/share/beets/keeplrc.py`, 2026-11-03) keeps LRC lyrics out of those writes; musicman's own
+      writes were checked to keep `USLT` and `SYLT` (`lib/beets/lyrics.spec.js`).
 - [ ] **Copies of a song in two rating playlists.** (p2) [chore] `check --only=exclusive` (2026-11-01): 82
       songs whose linked files disagree on a rating or grouping playlist (e.g. 311 - Beautiful Disaster on
       Transistor at 5.0 and on Live at 4.5). Push no longer adds such tracks (1.42.0, `Conflict` column), but

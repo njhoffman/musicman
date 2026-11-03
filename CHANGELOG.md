@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `keeplrc`, a beets plugin in `cli/share/beets`, keeps the timed (LRC) lyrics sleeve writes from being written
+  over by beets, which writes its own, older copy of the lyrics whenever it writes a file (`modify`, `write`,
+  `replaygain`, ...). Load it from the installed build: `pluginpath:
+  [~/.local/share/musicman/current/cli/share/beets]` and `keeplrc` in `plugins` of the beets config. Never run
+  `beet scrub` on library files, which deletes the tags before any plugin can keep them.
+- Specs check that musicman's own tag writes keep `USLT` and `SYLT`.
+
 ## [1.73.0] - 2026-11-03
 
 ### Added
