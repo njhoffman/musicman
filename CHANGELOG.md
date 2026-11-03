@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- The sync runbook points to the `~/.shell` spotify recipe for desktop playback of local files: the apt client
+  only loads ffmpeg 4.x, and the recipe builds and links a minimal ffmpeg 4.4 for it.
+
 ## [1.57.1] - 2026-11-02
 
 ### Fixed

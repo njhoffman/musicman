@@ -201,7 +201,10 @@ Notes:
 
 - The Linux desktop client plays local files only with the ffmpeg libraries it was built for: the apt
   `spotify-client` 1.2.63 loads `libavcodec.so.54` to `.58` (ffmpeg 4.x and older), so on a system with a
-  newer ffmpeg it lists local files but shows them as unplayable. The phone plays its own copies regardless.
+  newer ffmpeg it lists local files but shows them as unplayable. The `~/.shell` spotify recipe builds a
+  minimal ffmpeg 4.4 and links it into the client's directory (`recipe install -f spotify --variant ffmpeg`;
+  `spotify.update` keeps it in place across client upgrades, with spicetify). The phone plays its own copies
+  regardless.
 - A song with an unresolved duplicate copy is exported twice (`Song (2).mp3`); pick one first (`check --pick`).
 
 ## Backing up the library files

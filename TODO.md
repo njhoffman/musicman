@@ -169,10 +169,10 @@ Reviewed: 2026-11-01
 - [x] **Verify pushed local files.** (p2) [feature] each `sync` matches the playlists' local tracks to the
       exported songs (artist, title, length within 2 s): the `Local files` column, the checklist, and the local
       tracks that are none of the songs. Completed songs stay in `files/`, which is what plays them.
-- [ ] **Desktop playback of local files.** (p2) [chore] the apt `spotify-client` 1.2.63 only loads ffmpeg 4.x
-      (`libavcodec.so.54`-`.58`); the system has `.61`, so local files list but do not play on the desktop.
-      Options: the Flatpak client (own ffmpeg; check the rofi menu's MPRIS control still finds it), or
-      ffmpeg 4.4 libraries unpacked privately behind an `LD_LIBRARY_PATH` launcher.
+- [x] **Desktop playback of local files.** (p2) [chore] the apt `spotify-client` 1.2.63 only loads ffmpeg 4.x
+      (`libavcodec.so.54`-`.58`); the system has `.61`. Done 2026-11-02 in `~/.shell` 0.54.0: the spotify
+      recipe builds a minimal ffmpeg 4.4.5 into `~/.local/lib/spotify-ffmpeg` and links it into
+      `/usr/share/spotify` (the client's RUNPATH is `$ORIGIN`); `spotify.update` keeps it across upgrades.
 - [ ] **Try the review listen keys in a real session.** (p3) [test] ctrl-l (mpv), ctrl-s (Spotify), and ctrl-x in the
       `sync --review` list have only run in tests; MPD is not paused while they play.
 - [ ] **Spotify artist metadata for every credited artist.** (p3) [feature] `fetchDetails` only fetches
