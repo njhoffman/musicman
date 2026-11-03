@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.69.0] - 2026-11-03
+
 ### Changed
 
 - An edit with a field that is not a library tag (or rating), e.g. `contxt=Study`, stops with an error naming
@@ -1325,7 +1327,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.68.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.69.0...HEAD
+[1.69.0]: https://github.com/njhoffman/musicman/compare/v1.68.0...v1.69.0
 [1.68.0]: https://github.com/njhoffman/musicman/compare/v1.67.0...v1.68.0
 [1.67.0]: https://github.com/njhoffman/musicman/compare/v1.66.0...v1.67.0
 [1.66.0]: https://github.com/njhoffman/musicman/compare/v1.65.1...v1.66.0
