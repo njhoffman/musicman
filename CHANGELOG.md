@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.57.2] - 2026-11-02
+
 ### Changed
 
 - The sync runbook points to the `~/.shell` spotify recipe for desktop playback of local files: the apt client
@@ -1157,7 +1159,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.57.1...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.57.2...HEAD
+[1.57.2]: https://github.com/njhoffman/musicman/compare/v1.57.1...v1.57.2
 [1.57.1]: https://github.com/njhoffman/musicman/compare/v1.57.0...v1.57.1
 [1.57.0]: https://github.com/njhoffman/musicman/compare/v1.56.1...v1.57.0
 [1.56.1]: https://github.com/njhoffman/musicman/compare/v1.56.0...v1.56.1
