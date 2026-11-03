@@ -141,6 +141,17 @@ module.exports = {
     alias: '-d',
     func: () => ({ pull: true })
   },
+  excluded: {
+    description: 'With db, list the songs taken out of the library (duplicate copies) whose files stay',
+    alias: '-K',
+    func: () => ({ excluded: true })
+  },
+  readmit: {
+    description:
+      'With db, let an excluded song back into the library: the file given, or picked with fzf from a directory',
+    alias: '-G',
+    func: () => ({ readmit: true })
+  },
   export: {
     description:
       'Link the songs Spotify has no track for into sync.uploadDirectory: files/ for the phone, stage/ with the next playlist to drag them into in the desktop app',

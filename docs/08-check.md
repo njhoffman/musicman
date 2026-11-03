@@ -116,6 +116,12 @@ playlists (like tracks rejected in review) instead of `sync --pull` fetching the
 gets their context, picks, and mood values (multi value fields), and the rating of the newest copy that
 has one (by file time) when it differs.
 
+`musicman db --excluded` lists them (date, path, reason, the copy kept instead; trashed copies marked).
+`musicman db --readmit <file>` lets one back in: no longer excluded, read into the database again, its
+Spotify track no longer removed by push; `musicman db --readmit [directory]` picks among the exclusions
+under a directory (the whole library without one) with fzf. A trashed copy has to be moved back first
+(`musicman undo`, or by hand). A readmit is recorded too: `musicman undo` excludes the song again.
+
 Tied copies with the same audio are decided too: the copy whose file name is closest to its own ID3
 title is kept, then (when those tie) closest to its Spotify artist and title; the others go to the
 trash from a Singles folder and leave the library elsewhere.

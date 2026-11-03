@@ -36,8 +36,22 @@ const exclusionOf = (db, path) => {
   return row ? { ...row } : null;
 };
 
+// every exclusion, newest first: [{ path, track_id, kept, reason, excluded_at }]
+const excludedSongs = db =>
+  _.map(
+    db.prepare('SELECT * FROM excluded_songs ORDER BY excluded_at DESC, path').all(),
+    row => ({ ...row })
+  );
+
 // lets an excluded path back in (db --update reads it again)
 const includeSong = (db, path) =>
   db.prepare('DELETE FROM excluded_songs WHERE path = ?').run(path).changes > 0;
 
-module.exports = { excludeSong, excludedPaths, excludedTracks, exclusionOf, includeSong };
+module.exports = {
+  excludeSong,
+  excludedPaths,
+  excludedSongs,
+  excludedTracks,
+  exclusionOf,
+  includeSong
+};

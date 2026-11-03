@@ -95,7 +95,8 @@ Reviewed: 2026-11-01
       link a live file to a studio track stay until a duplicates fix clears them; `sync match recheck` only
       compares titles. It could send live/studio disagreements to review too (live folder or album against
       `sp_album`).
-- [ ] **Manage excluded songs.** (p3) [feature] songs `check --fix` took out of the library (table
+- [x] **Manage excluded songs.** (p3) [feature] Done in 1.60.0: `db --excluded` and `db --readmit [path]`
+      (CLI only; a page list was left out). songs `check --fix` took out of the library (table
       `excluded_songs`, files kept) can only come back through `musicman undo`. A command or a page list
       to show them and let one back in (e.g. `db --include <path>`) would help once the undo history is
       pruned (`history.keep`).

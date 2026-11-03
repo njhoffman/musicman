@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `db --excluded` (`-K`) lists the songs taken out of the library (duplicate copies whose files stay, and
+  trashed ones, marked), with the reason and the copy kept instead; `db --readmit [path]` (`-G`) lets one back
+  in, read into the database again, or picks several with fzf from a directory (the whole library without a
+  path). Readmits are recorded, so `musicman undo` excludes them again. Until now only `musicman undo` could
+  bring a song back, and only while its run was in the kept history.
+
 ## [1.59.0] - 2026-11-02
 
 ### Added
