@@ -1,104 +1,65 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code in this repository. User-facing behavior is in the root `README.md` and `docs/`;
+history in `CHANGELOG.md`; open work in `TODO.md`.
 
-## Development Commands
+## Commands
 
-- **Start CLI**: `pnpm start` or `node lib/cli.js`
-- **Development mode**: `pnpm dev` (uses nodemon for auto-restart)
-- **Run tests**: `pnpm test` (uses Mocha)
-- **Test with coverage**: `pnpm test:coverage` (uses c8)
-- **Test watch mode**: `pnpm test:watch`
-- **Lint code**: `pnpm lint` (ESLint)
-- **Fix lint issues**: `pnpm lint:fix`
-- **Lint watch mode**: `pnpm lint:watch`
-- **Check config**: `pnpm config:check` (validates configuration)
+From the repo root (a pnpm workspace: `cli`, `common`):
 
-## Architecture Overview
+- `pnpm test`: the cli mocha suite (`cli/.mocharc.yml`, `NODE_ENV=test`), then `node --test scripts/*.test.js`
+- `pnpm lint`, `pnpm format:check` (prettier; run it on the files you touch only, some files predate it)
+- `pnpm release --release-as patch|minor|major`: commit-and-tag-version; bumps `package.json`, moves the
+  `CHANGELOG.md` [Unreleased] entries under the new version (`scripts/release-changelog.js`), commits, tags
+- The post-commit hook runs `scripts/publish-local.sh`: every commit is built into
+  `~/.local/share/musicman/builds/` and `current` points at it; the `musicman` alias runs that build
 
-This is a Node.js CLI application for MP3 metadata management that integrates with MPD (Music Player Daemon).
+From `cli/`: `pnpm start` (`node lib/cli.js`), `pnpm test:coverage` (c8), `pnpm config:check`,
+`pnpm download` (spotDL, `scripts/spotdl-download.js`), `pnpm daemon:install` (notify daemon service).
 
-### Core Components
+A single spec: `NODE_ENV=test npx mocha --no-config --require ./test/setup.js lib/x/y.spec.js` (from `cli/`;
+`--no-config` drops the 20 s timeout, so slow specs may time out there but not in `pnpm test`).
 
-- **Entry Point**: `lib/cli.js` - Main application entry, handles command parsing and execution
-- **Command Parser**: `lib/parser/` - Parses CLI arguments into command, target, and options
-  - Commands are parsed from args and current MPD song context
-  - Targets can be files/directories or current playing song
-  - Options include switches, filters, and field assignments
-- **Commands**: `lib/commands/` - Available CLI commands (view, edit, playlist, stats)
-- **MPD Client**: `lib/clients/mpd.js` - Connects to MPD and gets current song info
-- **Metadata Handling**: `lib/metadata/` - Read/write MP3 metadata using node-id3
-- **Output Formatters**: `lib/output/` - Various output formats (table, list, stats, differences), table and list configured by `views.table` and `views.list`
+## Rules
 
-### Key Dependencies
+- Never run dev code against the live database (`db.path` in `~/.musicmanrc.yml`): opening it migrates the
+  schema and breaks the installed build. Read it with `sqlite3 "file:...?mode=ro"`; test with temp databases.
+- CommonJS only (`.js`, no `"type": "module"`); ESM-only dependencies load with `require()` and `.default`.
+- Config is loaded explicitly with `loadConfig()` from `musicman-common/config` (always `~/.musicmanrc.yml`);
+  nothing reads config on require, tests pass configs in.
+- Commits: conventional commits (`feat:`, `fix:`, `chore:`, `docs:`), header at most 72 characters
+  (commitlint), each finished change gets a CHANGELOG entry and a release.
 
-- Uses CommonJS modules (`.js` files)
-- **musicman-common**: Local dependency for shared configuration
-- **node-id3**: MP3 metadata reading/writing
-- **node:sqlite**: Built-in SQLite (Node 24) for the planned library database, no native dependency
-- **cli-table3**: Column layout for table, list, and differences output via `lib/output/render.js` (cells are truncated before colors are applied)
-- **Notify daemon**: `lib/notify-daemon.js` (setup only; notification building, sending and the MPD watch are in `lib/notify/notification.js`) runs as a systemd user service (`pnpm daemon:install`, then `systemctl --user enable --now musicman-notify`)
+## Layout (`cli/lib/`)
 
-### Testing Setup
+| Folder        | What it holds                                                                           |
+| ------------- | --------------------------------------------------------------------------------------- |
+| `cli.js`      | entry point: parse, run the command, archive the run                                    |
+| `parser/`     | command, target, switches (`options/switchMap.js`), filters, assignments                |
+| `commands/`   | one module per command (`view`, `edit`, `sync`, `menu`, `player`, `ui`, ...)            |
+| `metadata/`   | ID3 read and write (node-id3), tag definitions, filters                                 |
+| `db/`         | the library database (`node:sqlite`): migrations, update, search, backups               |
+| `sync/`       | Spotify sync: plan, push, pull, match, import, local files export, phone mirror         |
+| `spotify/`    | Web API client, auth, matching, track fields                                            |
+| `beets/`      | the beets layout and sorting of rated songs                                             |
+| `check/`      | `musicman check`: library, frames, duplicates, playlists, fixes                         |
+| `history/`    | run journal and `musicman undo`                                                         |
+| `menu/`       | the rofi menu (`musicman menu`)                                                         |
+| `player/`     | MPD, Spotify MPRIS, and Spotify Connect (Web API) players                               |
+| `status/`     | now playing and its Spotify context                                                     |
+| `notify/`     | song change notifications (the `musicman-notify` daemon, `notify-daemon.js`)            |
+| `ui/`         | `musicman ui`: the local management page (`server.js`, `public/`)                       |
+| `output/`     | table, list, stats, and other formatters; `views.table` and `views.list` configure them |
+| `completion/` | zsh completion                                                                          |
+| `clients/`    | the MPD connection                                                                      |
+| `utils/`      | logger, runs directory, files, paths, clipboard, prompts                                |
 
-- **Framework**: Mocha with Chai assertions
-- **Test data**: `test/data/` contains MP3 files and metadata for testing
-- **Global setup**: `test/setup.js` configures sinon, chai, and test globals
-- **Integration tests**: `test/integration/` for command testing
+`common/` holds the config (`config/`: defaults, validation, `tags.json`) and the MPD protocol helpers.
 
-### File Structure Notes
+## Tests
 
-- All source files use `.js` extension (CommonJS, no `"type": "module"`)
-- Test files mirror the `lib/` structure
-- Uses absolute imports and proper CommonJS module.exports
-
-## Development Workflow
-
-### Mandatory Steps After Any Updates
-
-1. **Always run tests** after completing any set of updates to ensure no regressions
-2. **Run linter** and fix any issues before committing
-3. **Check configuration** with `npm run config:check` to ensure config is valid
-4. **Add comprehensive tests** for new functionality:
-   - Unit tests for individual functions/modules
-   - Integration tests for command interactions
-   - Be thorough but avoid testing trivial/obvious functionality
-5. **Commit and version** based on update scope:
-   - **Patch bump**: Bug fixes, minor improvements, dependency patches
-   - **Minor bump**: New features, significant improvements, dependency minor updates
-   - **Major bump**: Breaking changes (decided together with user)
-
-### Testing Guidelines
-
-- Follow existing test structure in `test/` directory
-- Use Mocha + Chai + Sinon pattern established in codebase
-- Integration tests should use fixtures from `test/data/`
-- Unit tests should be co-located with source files (`.spec.js` suffix)
-- Test real functionality, not implementation details
-- Mock external dependencies (MPD, file system when appropriate)
-
-## Testing Patterns (Current Implementation)
-
-### Unit Test Structure
-- **Use proxyquire** for dependency mocking instead of direct sinon stubbing
-- **Environment-dependent testing**: Delete require.cache and set NODE_ENV when needed
-- **Constructor mocking**: Use function constructors for testing user interaction components
-- **Comprehensive coverage**: Tests exist for all major modules with 91 passing tests
-
-### Established Test Files
-- `lib/metadata/read.spec.js` - Metadata reading with proxyquire mocking
-- `lib/metadata/write.spec.js` - Metadata writing and assignment merging
-- `lib/clients/mpd.spec.js` - MPD client connection and song operations
-- `lib/utils/files.spec.js` - File system operations and utilities
-- `lib/commands/edit.spec.js` - Edit command workflow including confirmations
-- `lib/integration.spec.js` - Parser-to-command integration workflows
-
-## Current Session Context
-Last worked on major configuration restructuring. Implemented library.tags system, views configuration, and converted logger colors to hex format. Added comprehensive config validation and test suite. All 9 config tests passing. Ready for database integration phase.
-
-### Key Changes This Session
-- **Config Structure**: Added library.tags and views properties
-- **Tag Resolution**: User custom tags now take precedence over global tags.json
-- **Logger Format**: Converted to hex colors with GUI styling support
-- **Validation**: Enhanced schema for new config properties
-- **Tests**: Added `test/unit/config.js` with comprehensive coverage
+- Mocha, Chai, Sinon (`test/setup.js` puts them on global); specs sit next to the code as `*.spec.js`.
+- Command integration tests in `test/integration/` use fixtures from `test/data/` and `test/fakeMpd.js`.
+- Dependencies are passed in (players, clients, `spawnProcess`, `exec`, `openDb`) rather than stubbed
+  with proxyquire, which only a few older specs use.
+- Mock MPD, Spotify, rofi, and the file system; never the live library or a real Spotify account.

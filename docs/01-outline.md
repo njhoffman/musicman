@@ -1,88 +1,57 @@
-# Project Outline
+# Project outline
 
-- This is an existing NodeJS project that manages mp3 files and its metadata.
-- It contains a command line interface (CLI) that allows you to add, remove, and list mp3 files.
-- It allows custom fields to be added to the mp3 file, and then those fields can be used to generate a playlist.
-- Configuration is stored in a file called `common/config/defaultConfig.yml` with user overrides in `~/.musicmanrc.yml`.
-  - The tags field in the config file contains a list of all the ID3 available with attributes.
-  - Attributes effect how fields are displayed and manipulated, user fields start with 'TXXX'.
+musicman manages a library of MP3 files and their tags (ratings, groupings, and custom `TXXX` fields such as
+context and mood), keeps a SQLite database of them, and syncs Liked Songs and playlists with Spotify. Commands
+and their options: the root `README.md` and `musicman --help`; each area has its own document in `docs/`.
 
-## Project Structure
+Configuration: `common/config/defaultConfig.yml`, overridden by `~/.musicmanrc.yml`. `library.tags` picks the
+tags musicman reads and writes from the definitions in `common/config/tags.json` and the config's `tags`.
 
-├──  cli/
-│   ├──  lib/
-│   │   ├──  clients/              - Client wrappers, only has mpd for currently playing song
-│   │   ├──  commands/             - Command callback handlers after parsing from `parser`
-│   │   ├──  metadata/             - Metadata filtering, reading, writing
-│   │   ├──  output/               - Handling output and table formatting
-│   │   ├──  parser/               - Interface for cli commands and options/arguments
-│   │   └──  utils/                - Utility functions and helpers
-│   └──  test/                     - Contains integration tests for the CLI
-├──  common/                       - Shared code between cli and future services
-│   ├──  config/                   - Configuration handlers and defaults
-│   ├──  docs/                     - Project specs and design docs
-│   ├──  mpd/                      - MPD base client interface
+## Layout
 
-Testing is done using [Mocha](https://mochajs.org/) and [Chai](https://www.chaijs.com/)
+```
+cli/                      the musicman command (package musicman-cli)
+├── lib/
+│   ├── cli.js            entry point: parse, run the command, archive the run
+│   ├── parser/           command, target, switches, tag filters (field:value) and assignments (field=value)
+│   ├── commands/         one module per command: view, edit, playlist, stats, db, sync, check, sort,
+│   │                     menu, player, shuffle, spotify, status, search, logs, undo, ui, ...
+│   ├── metadata/         ID3 read and write, tag definitions, filters
+│   ├── db/               the library database (node:sqlite): migrations, update, search, backups
+│   ├── sync/             Spotify sync: plan, push, pull, match, review, import, local files export, phone
+│   ├── spotify/          Web API client, login, track matching and fields, shuffle
+│   ├── beets/            the beets layout, and sorting rated songs out of Unrated
+│   ├── check/            musicman check: library, frames, duplicates, playlists, fixes
+│   ├── history/          the run journal and musicman undo
+│   ├── menu/             the rofi menu
+│   ├── player/           MPD, the Spotify desktop app (MPRIS), and Spotify Connect (Web API)
+│   ├── status/           now playing and what Spotify plays it from
+│   ├── notify/           song change notifications (the musicman-notify daemon)
+│   ├── ui/               musicman ui, the local management page (server and public/)
+│   ├── output/           table, list, stats, review, and progress output
+│   ├── completion/       zsh completion
+│   ├── clients/          the MPD connection
+│   └── utils/            logger, runs directory, files, paths, prompts, clipboard
+├── scripts/              spotDL download, notify daemon install, config check
+├── share/                the rofi theme
+└── test/                 integration tests, fixtures (data/), a fake MPD server
+common/                   shared by the cli (package musicman-common)
+├── config/               defaults, validation, tags.json
+└── mpd/                  MPD protocol client
+docs/                     design documents and runbooks
+scripts/                  release changelog step, local build publishing (post-commit hook)
+```
 
-Unit tests occupy the same folder as the code, with a `.spec` suffix.
+## Testing
 
-There are command integration tests in `cli/test/integration/commands` that uses fixtures from
-`cli/test/data/`.
+`pnpm test` from the root runs the cli suite (Mocha, Chai, Sinon) and the root scripts' tests (`node
+--test`). Unit specs sit next to the code as `*.spec.js`; command integration tests are in
+`cli/test/integration/` with fixtures from `cli/test/data/`. Specs pass fakes in (players, Spotify clients,
+child processes, temporary databases) instead of touching MPD, Spotify, or the live library.
 
-## CLI Commands
+## Conventions
 
-- The main command is `view`, which shows the currently playing song if no target path given.
-  - If a target path is given, it will list all the mp3 files in that directory that match provided
-    criteria. The `-r` flag can be used to recursively search subdirectories.
-  - Tag filters are given as `tag:value`, i.e. `rating:4.5 context:"relax"`
-  - Rating is treated as a special case, as it uses a range filter.
-  - Fields that are defined as 'multi' can have multiple values separated by `,` when searching or editing.
-- The edit command is triggered when the tag arguments are set with `tag=value`
-  - If no target is given, it will edit the currently playing song.
-  - Otherwise, it will edit all the mp3 files in the target directory (asks confirmation first).
-  - i.e. `rating=3.0 mood="upbeat,energetic" ~/Music` will set all the mp3 files in `~/Music` to a
-    rating of 3.0 and mood to the two separate values.
-  - If no path is given, it will edit the currently playing song if available.
-  - The multi fields allow the `+` and `-` operators to be used to add/remove single values.
-- The playlist command is triggered when the `playlist` argument is set.
-  - By default it will generate a playlist set by the configuration of `playlist.outputPath` and
-      `playlist.outputDirectory`
-- The stats command is triggered when the `stats` argument is set.
-  - It will show a table of stats about the mp3 files in the given directory.
-
-## CLI Argument Summary
-
-| Argument               | Description                                 |
-| --------               | -----------                                 |
-| (empty)                | Show currently playing song                 |
-| `4.5`                  | If song playing, assign rating of 4.5       |
-| [path]                 | List mp3 files in [path]                    |
-| rating=5               | Assign rating of 5.0 to current song        |
-| rating:5 [path]        | List mp3 files in [path] with rating of 5.0 |
-| genre="rock" [path]    | Assign files in [path] to genre "rock"      |
-| playlist -r rating:3.5 [path] | Generate playlist recursively with rating >= 3.5 |
-
-## Next Steps
-- Create a sqlite database and `db` commands that allow you to sync file metadata with the database.
-- Have the cli commands use the db for filtering when viewing, making a playlist, or listing stats.
-- Integrate spotify API with `spotify` commands.
-  - First to link local files with spotify using track, album, and artist ids.
-  - Second, find liked spotify songs that don't have a local file. Add option to download these.
-  - Third, push playlists to spotify and upload any necessary songs.
-  - Fourth, add spotify extras like spotify suggestions and a 'Do Not Suggest' playlist.
-
-## Architecture and technical requirements
-- Code Style: Clean, modern ES6/ES7 with minimal comments and consistent naming
-- Error Handling: Comprehensive logging to file with timestamps for all operations
-- Testing: Mocha tests with Chai assertions (`npm run test`), add unit and integration tests when
-  needed following existing structure.
-- Dependencies: Minimize external dependencies, prefer built-in Node.js modules
-- Version Control: Use git for version control, commit messages following conventional commit format
-  with gitmoji.  Project root `package.json` and git tags track version number.
-- Documentation: Add necessary documentation for project, including README.md, USAGE.md for cli
-  interface, and CHANGELOG.md for version history (automatically generate and update this file
-  only when minor or major version bumps occur).
-
-Before starting with the larger plans in #2 we are going to complete some smaller chores such as
-updating dependencies.
+- CommonJS throughout; ESM-only dependencies load with `require()` and `.default`.
+- Conventional commits; every finished change gets a `CHANGELOG.md` entry and a release
+  (`pnpm release`), and each commit is published as a local build (`scripts/publish-local.sh`).
+- Code notes for contributors and Claude Code: `cli/CLAUDE.md`.

@@ -398,16 +398,17 @@ database backups (`db.autoBackup`) have no restore command.
 
 ## 13. Housekeeping
 
-- [ ] **Remove stale tracked files.** (p3) [chore] `cli/test_output.txt`, `cli/test_output2.txt`,
+- [x] **Remove stale tracked files.** (p3) [chore] `cli/test_output.txt`, `cli/test_output2.txt`,
       `cli/SESSION_SUMMARY.md`, and `cli/CONTEXT.md` (superseded by the root `CONTEXT.md`); `docs/scratch.md` holds
       early notes on `library.tags` that the config now implements.
 - [x] **Placeholder `server/` and `client/`.** (p3) [chore] removed with their `server.port` and `websocket.port`
       options; `musicman ui` serves the page from the cli.
-- [ ] **Refresh the developer docs.** (p3) [docs] `cli/CLAUDE.md` lists the commands as view, edit, playlist, stats,
+- [x] **Refresh the developer docs.** (p3) [docs] `cli/CLAUDE.md` lists the commands as view, edit, playlist, stats,
       quotes 91 passing tests and nyc coverage, and ends with a stale "Current Session Context"; root `CONTEXT.md`
       says commits use gitmoji; `docs/01-outline.md` shows a 2020 layout without `db/`, `sync/`, `spotify/`,
-      `menu/`, or `history/`. Bring them in line with the code, or point them at the README.
-- [ ] **Delete the local `install.sh`.** (p3) [chore] an untracked copy of the nvm installer, ignored by a
+      `menu/`, or `history/`. Done 2026-11-03: `cli/CLAUDE.md` rewritten, root `CONTEXT.md` removed (its lasting
+      notes moved to `cli/CLAUDE.md`), `docs/01-outline.md` holds the current layout and points at the README.
+- [x] **Delete the local `install.sh`.** (p3) [chore] an untracked copy of the nvm installer, ignored by a
       `.gitignore` entry of its own; delete the file and that entry.
 - [x] **Remove the untracked repo copy of `.musicmanrc.yml`.** (p3) [chore] it was identical to
       `~/.musicmanrc.yml`, which dotbare tracks; deleted 2026-11-01 and ignored in `.gitignore`.

@@ -6,6 +6,16 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- Developer docs brought in line with the code: `cli/CLAUDE.md` rewritten, `docs/01-outline.md` shows the
+  current layout; the root `CONTEXT.md` session notes are removed.
+
+### Removed
+
+- Stale tracked files: old test output, session notes (`cli/SESSION_SUMMARY.md`, `cli/CONTEXT.md`), and
+  `docs/scratch.md`.
+
 ## [1.65.0] - 2026-11-02
 
 ### Fixed
