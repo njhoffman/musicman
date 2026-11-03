@@ -185,20 +185,24 @@ describe('Sync Cache and Plan', () => {
 
     it('should tell the songs Spotify has no track for that are in the target as local tracks', () => {
       const id = db.prepare("SELECT id FROM songs WHERE path = 'd.mp3'").get().id;
-      db.prepare("UPDATE songs SET duration = 200.4 WHERE id = ?").run(id);
+      db.prepare('UPDATE songs SET duration = 200.4 WHERE id = ?').run(id);
       const frame = db.prepare('INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, ?, ?)');
       frame.run(id, 'TPE1', 'Artist');
       frame.run(id, 'TIT2', 'Title');
       db.prepare("INSERT INTO spotify_matches (song_id, status) VALUES (?, 'missing')").run(id);
-      expect(syncPlan(db, config, songs)[0].localFiles.pending.map(song => song.file)).to.deep.equal([
-        '/music/d.mp3'
-      ]);
+      expect(
+        syncPlan(db, config, songs)[0].localFiles.pending.map(song => song.file)
+      ).to.deep.equal(['/music/d.mp3']);
       db.prepare(
         `INSERT INTO spotify_playlist_tracks (playlist_id, track_id, is_local, name, artists, duration_ms)
          VALUES ('liked', NULL, 1, 'Title', 'Artist', 200000), ('liked', NULL, 1, 'Gone', 'Artist', 1000)`
       ).run();
       const [liked] = syncPlan(db, config, songs);
-      expect(liked.noId[0].tags).to.deep.include({ artist: 'Artist', title: 'Title', duration: 200.4 });
+      expect(liked.noId[0].tags).to.deep.include({
+        artist: 'Artist',
+        title: 'Title',
+        duration: 200.4
+      });
       expect(liked.localFiles.added.map(song => song.file)).to.deep.equal(['/music/d.mp3']);
       expect(liked.localFiles.pending).to.be.empty;
       // the nameless local track of the fixture is none of the songs either

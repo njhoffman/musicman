@@ -138,7 +138,12 @@ const syncPlan = (db, config, songs) => {
     const frame = id => _.get(frameOf.get(row.id, id), 'value') || null;
     return {
       match: row.status || null,
-      tags: { artist: frame('TPE1'), title: frame('TIT2'), album: frame('TALB'), duration: row.duration }
+      tags: {
+        artist: frame('TPE1'),
+        title: frame('TIT2'),
+        album: frame('TALB'),
+        duration: row.duration
+      }
     };
   });
   // the library track a remote track stands for: itself, or the song it is another release of

@@ -104,9 +104,7 @@ const planGroup = (files, { audio = item => item.audio || null } = {}) => {
   const [others, originals] = _.partition(members, item => otherRecording(item.path));
   // another recording linked to no track (its match rejected before) is no duplicate, nothing to clear
   const clear =
-    others.length > 0 && originals.length > 0
-      ? _.map(_.filter(others, linkedTrack), 'path')
-      : [];
+    others.length > 0 && originals.length > 0 ? _.map(_.filter(others, linkedTrack), 'path') : [];
   _.each(clear, file => {
     reasons[file] = otherRecording(file);
   });

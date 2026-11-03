@@ -39,14 +39,22 @@ describe('db command: excluded songs', () => {
     });
     config = {
       mpd: { baseDirectory: library },
-      db: { path: path.join(library, 'musicman.sqlite'), backupDirectory: path.join(library, '.musicman') },
+      db: {
+        path: path.join(library, 'musicman.sqlite'),
+        backupDirectory: path.join(library, '.musicman')
+      },
       rating: { tag: 'POPM', max: 5 },
       library: { tags: [{ id: 'TIT2', name: 'title' }] },
       tags: []
     };
     const db = openLibrary(config);
     await updateDatabase(db, { config, target: library });
-    excludeSong(db, { path: comp, trackId: 't1', kept, reason: 'compilation copy of an album song' });
+    excludeSong(db, {
+      path: comp,
+      trackId: 't1',
+      kept,
+      reason: 'compilation copy of an album song'
+    });
     excludeSong(db, { path: other, kept: null, reason: 'Unrated import of a Rated song' });
     db.close();
     fs.unlinkSync(abs(other));

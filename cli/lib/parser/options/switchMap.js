@@ -142,7 +142,8 @@ module.exports = {
     func: () => ({ pull: true })
   },
   excluded: {
-    description: 'With db, list the songs taken out of the library (duplicate copies) whose files stay',
+    description:
+      'With db, list the songs taken out of the library (duplicate copies) whose files stay',
     alias: '-K',
     func: () => ({ excluded: true })
   },

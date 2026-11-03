@@ -38,10 +38,9 @@ const exclusionOf = (db, path) => {
 
 // every exclusion, newest first: [{ path, track_id, kept, reason, excluded_at }]
 const excludedSongs = db =>
-  _.map(
-    db.prepare('SELECT * FROM excluded_songs ORDER BY excluded_at DESC, path').all(),
-    row => ({ ...row })
-  );
+  _.map(db.prepare('SELECT * FROM excluded_songs ORDER BY excluded_at DESC, path').all(), row => ({
+    ...row
+  }));
 
 // lets an excluded path back in (db --update reads it again)
 const includeSong = (db, path) =>

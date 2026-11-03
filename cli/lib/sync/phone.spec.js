@@ -44,7 +44,11 @@ describe('Phone mirror', () => {
       };
       const existing = new Set(['same.mp3', 'changed.mp3', 'gone.mp3', 'mine.mp3']);
       const plan = planMirror([same, changed, missing, fresh], { sent, existing });
-      expect(plan.copy.map(song => song.name)).to.deep.equal(['changed.mp3', 'missing.mp3', 'new.mp3']);
+      expect(plan.copy.map(song => song.name)).to.deep.equal([
+        'changed.mp3',
+        'missing.mp3',
+        'new.mp3'
+      ]);
       expect(plan.remove).to.deep.equal(['gone.mp3']);
     });
   });
@@ -66,7 +70,10 @@ describe('Phone mirror', () => {
       fs.mkdirSync(target, { recursive: true });
       fs.writeFileSync(path.join(target, 'old.mp3'), 'old');
       const result = applyMirror(
-        { copy: [one, { file: path.join(source, 'vanished.mp3'), name: 'vanished.mp3' }], remove: ['old.mp3'] },
+        {
+          copy: [one, { file: path.join(source, 'vanished.mp3'), name: 'vanished.mp3' }],
+          remove: ['old.mp3']
+        },
         { directory: target, sent: { 'old.mp3': { size: 3, mtimeMs: 1 } } }
       );
       expect(result.copied).to.equal(1);
@@ -118,7 +125,8 @@ describe('Phone mirror', () => {
 
     it('should report a phone that is not reachable or cannot be mounted', async () => {
       expect(
-        (await mirrorToPhone({ songs: [], phone: { device: 'Other' }, connect: fakeConnect() })).status
+        (await mirrorToPhone({ songs: [], phone: { device: 'Other' }, connect: fakeConnect() }))
+          .status
       ).to.equal('unreachable');
       expect(
         (

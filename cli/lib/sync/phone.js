@@ -6,7 +6,9 @@ const { execFile } = require('child_process');
 const run = (command, args) =>
   new Promise((resolve, reject) =>
     execFile(command, args, { timeout: 60000 }, (err, stdout, stderr) =>
-      err ? reject(new Error(`${command}: ${`${stderr}`.trim() || err.message}`)) : resolve(`${stdout}`)
+      err
+        ? reject(new Error(`${command}: ${`${stderr}`.trim() || err.message}`))
+        : resolve(`${stdout}`)
     )
   );
 

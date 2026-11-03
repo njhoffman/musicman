@@ -81,9 +81,7 @@ const withFile = baseDirectory => row => ({
 });
 
 const exclusionLine = row =>
-  `${row.day}  ${row.path}  (${row.reason || 'no reason'}${
-    row.inLibrary ? '' : ', in the trash'
-  })`;
+  `${row.day}  ${row.path}  (${row.reason || 'no reason'}${row.inLibrary ? '' : ', in the trash'})`;
 
 // db --excluded: the songs taken out of the library whose files stay (or went to the trash)
 const listExcluded = (db, { config }) => {
@@ -94,18 +92,20 @@ const listExcluded = (db, { config }) => {
     return rows;
   }
   logger.info(
-    `${rows.length} songs excluded from the library (db --readmit [path] lets one back in)\n${renderColumns({
-      head: ['Excluded', 'Path', 'Reason', 'Kept instead'],
-      rows: _.map(rows, row => [
-        row.day,
-        `${row.path}${row.inLibrary ? '' : ' (in the trash)'}`,
-        row.reason || '',
-        row.kept || ''
-      ]),
-      columns: [{}, { maxWidth: 90 }, { maxWidth: 40 }, { maxWidth: 70 }],
-      splitter: '   ',
-      maxLineWidth: process.stdout.columns || Infinity
-    })}`
+    `${rows.length} songs excluded from the library (db --readmit [path] lets one back in)\n${renderColumns(
+      {
+        head: ['Excluded', 'Path', 'Reason', 'Kept instead'],
+        rows: _.map(rows, row => [
+          row.day,
+          `${row.path}${row.inLibrary ? '' : ' (in the trash)'}`,
+          row.reason || '',
+          row.kept || ''
+        ]),
+        columns: [{}, { maxWidth: 90 }, { maxWidth: 40 }, { maxWidth: 70 }],
+        splitter: '   ',
+        maxLineWidth: process.stdout.columns || Infinity
+      }
+    )}`
   );
   return rows;
 };
@@ -212,7 +212,9 @@ const restore = async ({ config, name, yes, confirm, running }) => {
   }
   const copy = findRestorable(copies, name);
   if (!copy) {
-    throw new Error(`No database backup '${name}' in ${config.db.backupDirectory}, see db --restore`);
+    throw new Error(
+      `No database backup '${name}' in ${config.db.backupDirectory}, see db --restore`
+    );
   }
   const busy = running();
   if (busy.length > 0) {

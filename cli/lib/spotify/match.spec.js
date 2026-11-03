@@ -47,7 +47,8 @@ describe('Spotify Matching', () => {
     it('should tell a live song on a studio track and a studio song on a live track', () => {
       const studio = { name: 'Oceans', album: 'Ten' };
       const live = { name: 'Oceans', album: 'Live at the Garden' };
-      expect(liveMismatch({ title: 'Oceans', album: 'MTV Unplugged', live: true }, studio)).to.be.true;
+      expect(liveMismatch({ title: 'Oceans', album: 'MTV Unplugged', live: true }, studio)).to.be
+        .true;
       expect(liveMismatch({ title: 'Oceans', album: 'Ten' }, live)).to.be.true;
       expect(liveMismatch({ title: 'Oceans', album: 'Ten' }, studio)).to.be.false;
       expect(liveMismatch({ title: 'Oceans', albumType: 'album; live' }, live)).to.be.false;
@@ -72,15 +73,17 @@ describe('Spotify Matching', () => {
     });
 
     it('should match a live song only to a live track, even under the same ISRC', () => {
-      const studio = (name, album) => ({ ...track(name, ['The Doors'], 186), album: { name: album } });
+      const studio = (name, album) => ({
+        ...track(name, ['The Doors'], 186),
+        album: { name: album }
+      });
       const inLiveFolder = { ...song, album: 'Absolutely Live', live: true };
       expect(rateCandidate(inLiveFolder, studio('Strange Days', 'Strange Days'))).to.be.null;
+      expect(rateCandidate(inLiveFolder, studio('Strange Days', 'Strange Days'), { isrc: true })).to
+        .be.null;
       expect(
-        rateCandidate(inLiveFolder, studio('Strange Days', 'Strange Days'), { isrc: true })
-      ).to.be.null;
-      expect(rateCandidate(inLiveFolder, studio('Strange Days - Live', 'Absolutely Live'))).to.equal(
-        'match'
-      );
+        rateCandidate(inLiveFolder, studio('Strange Days - Live', 'Absolutely Live'))
+      ).to.equal('match');
       expect(
         rateCandidate(inLiveFolder, studio('Strange Days (Live at the Hollywood Bowl)', 'Bowl'))
       ).to.equal('match');

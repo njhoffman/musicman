@@ -128,7 +128,10 @@ describe('Database Update', () => {
       touch(file);
       await update();
       expect(song(file).rated_at).to.be.null;
-      NodeId3.update({ popularimeter: { email: 'musicman', rating: 196, counter: 0 } }, path.join(library, file));
+      NodeId3.update(
+        { popularimeter: { email: 'musicman', rating: 196, counter: 0 } },
+        path.join(library, file)
+      );
       touch(file);
       await update();
       const stamped = song(file).rated_at;

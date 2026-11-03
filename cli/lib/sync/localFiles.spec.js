@@ -29,8 +29,8 @@ describe('Local files export', () => {
 
   describe('isLocalTrackOf', () => {
     it('should match artist and title in any case and spacing, lengths within 2 seconds', () => {
-      expect(isLocalTrackOf(tags('3.MF Doom', 'Licorice'), local('3.mf  doom', 'licorice', 201)))
-        .to.be.true;
+      expect(isLocalTrackOf(tags('3.MF Doom', 'Licorice'), local('3.mf  doom', 'licorice', 201))).to
+        .be.true;
       expect(isLocalTrackOf(tags('Nas', 'Song', 216.7), local('Nas', 'Song', 216))).to.be.true;
       expect(isLocalTrackOf(tags('Nas', 'Song', 216), local('Nas', 'Song', 222))).to.be.false;
       expect(isLocalTrackOf(tags('Nas', 'Song'), local('Nas', 'Other'))).to.be.false;
@@ -94,9 +94,9 @@ describe('Local files export', () => {
 
   describe('names', () => {
     it('should name a file after artist and title, without characters phones refuse', () => {
-      expect(exportName({ file: '/m/x.MP3', tags: { artist: 'AC/DC', title: 'Why? "Now"' } })).to.equal(
-        'AC_DC - Why_ _Now_.mp3'
-      );
+      expect(
+        exportName({ file: '/m/x.MP3', tags: { artist: 'AC/DC', title: 'Why? "Now"' } })
+      ).to.equal('AC_DC - Why_ _Now_.mp3');
       expect(exportName({ file: '/m/01 - Song.mp3', tags: {} })).to.equal('01 - Song.mp3');
     });
 
@@ -204,7 +204,11 @@ describe('Local files export', () => {
           ])
         )
       );
-    const id3 = Buffer.concat([Buffer.from('ID3'), Buffer.from([3, 0, 0, 0, 0, 0, 20]), Buffer.alloc(20)]);
+    const id3 = Buffer.concat([
+      Buffer.from('ID3'),
+      Buffer.from([3, 0, 0, 0, 0, 0, 20]),
+      Buffer.alloc(20)
+    ]);
     const write = (name, ...parts) => {
       const file = path.join(directory, name);
       fs.writeFileSync(file, Buffer.concat(parts));
@@ -220,7 +224,9 @@ describe('Local files export', () => {
     it('should read the layer of the first frame the next one follows, past the ID3 tag and junk', () => {
       expect(mpegLayer(write('mp3.mp3', id3, frames(0xfb)))).to.equal(3);
       expect(mpegLayer(write('mp2.mp3', id3, frames(0xfd)))).to.equal(2);
-      expect(mpegLayer(write('junk.mp3', id3, Buffer.from([0xff, 0xfd, 0x90, 0x00, 0x12]), frames(0xfb)))).to.equal(3);
+      expect(
+        mpegLayer(write('junk.mp3', id3, Buffer.from([0xff, 0xfd, 0x90, 0x00, 0x12]), frames(0xfb)))
+      ).to.equal(3);
       expect(mpegLayer(write('none.mp3', id3, Buffer.alloc(100)))).to.be.null;
     });
 
@@ -234,7 +240,14 @@ describe('Local files export', () => {
       const good = { file: '/m/good.mp3', match: 'missing', tags: tags('A', 'Good') };
       const bad = { file: '/m/bad.mp3', match: 'missing', tags: tags('A', 'Bad') };
       const exported = planExport(
-        [{ id: 'p1', name: 'P', noId: [good, bad], localFiles: { added: [good], pending: [bad], stray: [] } }],
+        [
+          {
+            id: 'p1',
+            name: 'P',
+            noId: [good, bad],
+            localFiles: { added: [good], pending: [bad], stray: [] }
+          }
+        ],
         { baseDirectory: '/m', readable: file => file !== '/m/bad.mp3' }
       );
       expect(exported.songs.map(song => song.path)).to.deep.equal(['good.mp3']);
@@ -310,19 +323,32 @@ describe('Local files export', () => {
         { file: one, path: 'one.mp3', name: 'A - One.mp3' },
         { file: two, path: 'two.mp3', name: 'A - Two.mp3' }
       ];
-      const staged = { id: 'p1', name: 'P', total: 1, added: [], pending: ['A - One.mp3'], stray: [] };
+      const staged = {
+        id: 'p1',
+        name: 'P',
+        total: 1,
+        added: [],
+        pending: ['A - One.mp3'],
+        stray: []
+      };
       applyExport(exportOf(first, staged), { uploadDirectory: upload });
       fs.writeFileSync(path.join(upload, 'files', 'mine.txt'), 'not ours');
       // a write through a temporary file replaces the library file, the link keeps the old one
       fs.unlinkSync(one);
       write('one.mp3', 'one, new tags');
       // the phone mirror's state is kept when the export rewrites the state file
-      const previous = { ...readExportState(upload), phone: { 'A - One.mp3': { size: 3, mtimeMs: 1 } } };
+      const previous = {
+        ...readExportState(upload),
+        phone: { 'A - One.mp3': { size: 3, mtimeMs: 1 } }
+      };
       const counts = applyExport(exportOf([first[0]]), { uploadDirectory: upload, previous });
       expect(readExportState(upload).phone).to.deep.equal(previous.phone);
       expect(counts).to.include({ linked: 0, relinked: 1, removed: 1, staged: 0 });
       expect(ino(path.join(upload, 'files', 'A - One.mp3'))).to.equal(ino(one));
-      expect(fs.readdirSync(path.join(upload, 'files'))).to.have.members(['A - One.mp3', 'mine.txt']);
+      expect(fs.readdirSync(path.join(upload, 'files'))).to.have.members([
+        'A - One.mp3',
+        'mine.txt'
+      ]);
       expect(fs.readdirSync(path.join(upload, 'stage'))).to.be.empty;
       expect(fs.readFileSync(path.join(upload, 'README.md'), 'utf8')).to.include(
         'Every song is in its playlists'

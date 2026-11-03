@@ -316,9 +316,7 @@ const withoutIdsMessage = plan => {
     unchecked,
     message:
       `${songs.length} songs in the targets have no Spotify id: ${parts.join(', ')}` +
-      (unchecked > 0
-        ? '; the manifest may list the ones not looked up though you have them'
-        : '')
+      (unchecked > 0 ? '; the manifest may list the ones not looked up though you have them' : '')
   };
 };
 

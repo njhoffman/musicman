@@ -10,7 +10,8 @@ const exportStatuses = ['missing', 'rejected'];
 
 const exportable = song => exportStatuses.includes(song.match);
 
-const plainText = text => `${text || ''}`.normalize('NFC').toLowerCase().replace(/\s+/g, ' ').trim();
+const plainText = text =>
+  `${text || ''}`.normalize('NFC').toLowerCase().replace(/\s+/g, ' ').trim();
 
 /**
  * Whether a local track in a playlist is a song ({ artist, title, duration } from its tags): Spotify
@@ -96,17 +97,20 @@ const assignNames = (songs, previous = {}) => {
     names[song.path] = previous[song.path];
     taken.add(previous[song.path].toLowerCase());
   });
-  _.each(_.reject(songs, song => previous[song.path]), song => {
-    const name = exportName(song);
-    const extension = path.extname(name);
-    const stem = name.slice(0, name.length - extension.length);
-    let candidate = name;
-    for (let n = 2; taken.has(candidate.toLowerCase()); n += 1) {
-      candidate = `${stem} (${n})${extension}`;
+  _.each(
+    _.reject(songs, song => previous[song.path]),
+    song => {
+      const name = exportName(song);
+      const extension = path.extname(name);
+      const stem = name.slice(0, name.length - extension.length);
+      let candidate = name;
+      for (let n = 2; taken.has(candidate.toLowerCase()); n += 1) {
+        candidate = `${stem} (${n})${extension}`;
+      }
+      names[song.path] = candidate;
+      taken.add(candidate.toLowerCase());
     }
-    names[song.path] = candidate;
-    taken.add(candidate.toLowerCase());
-  });
+  );
   return names;
 };
 
@@ -196,11 +200,19 @@ const bitrates = {
   '2-2': [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160]
 };
 bitrates['2-3'] = bitrates['2-2'];
-const sampleRates = { 1: [44100, 48000, 32000], 2: [22050, 24000, 16000], 2.5: [11025, 12000, 8000] };
+const sampleRates = {
+  1: [44100, 48000, 32000],
+  2: [22050, 24000, 16000],
+  2.5: [11025, 12000, 8000]
+};
 
 // the frame header at offset: { version, layer, sampleRate, length }, null when the bytes are not one
 const frameHeader = (buffer, offset) => {
-  if (offset + 4 > buffer.length || buffer[offset] !== 0xff || (buffer[offset + 1] & 0xe0) !== 0xe0) {
+  if (
+    offset + 4 > buffer.length ||
+    buffer[offset] !== 0xff ||
+    (buffer[offset + 1] & 0xe0) !== 0xe0
+  ) {
     return null;
   }
   const version = { 3: 1, 2: 2, 0: 2.5 }[(buffer[offset + 1] >> 3) & 0x03];
@@ -347,7 +359,10 @@ const checklist = (exported, { date }) => {
       _.each(_.sortBy(target.pending), name => lines.push(`- [ ] ${name}`));
       _.each(_.sortBy(target.added), name => lines.push(`- [x] ${name}`));
       if (target.stray.length > 0) {
-        lines.push('', 'Local tracks in the playlist that are none of these songs (tags changed since?):');
+        lines.push(
+          '',
+          'Local tracks in the playlist that are none of these songs (tags changed since?):'
+        );
         _.each(target.stray, name => lines.push(`- ${name}`));
       }
       lines.push('');
