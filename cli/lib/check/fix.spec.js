@@ -10,6 +10,8 @@ const { syncTagDefinitions } = require('../db/tags.js');
 const { updateDatabase } = require('../db/update.js');
 const { applyFixes, cleanMulti, fixContext, fixRaw, planFixes, readTagRaw } = require('./fix.js');
 const { run: checkCommand } = require('../commands/check.js');
+const { beginJournal, endJournal } = require('../history/journal.js');
+const { applyUndo, findHistoryRun, listHistory, planUndo } = require('../history/undo.js');
 
 // a fix context with every repair off, and the given ones on
 const context = (overrides = {}) => ({
@@ -342,6 +344,37 @@ describe('check --fix', () => {
       expect(after).to.not.have.property('spotify_track_id');
       expect(stored('testFile01.mp3', 'TXXX.spotify_track_id')).to.equal(undefined);
       expect(stored('testFile01.mp3', 'TXXX.sp_track_id')).to.equal('new');
+    });
+
+    it('should record the repairs of a run, so musicman undo puts the frames back', async () => {
+      const db = openDatabase(dbPath);
+      try {
+        const run = id => ({
+          id,
+          command: 'check',
+          args: ['check', '--fix'],
+          startedAt: new Date()
+        });
+        beginJournal({ run: run('fix1'), config, db });
+        await fix({}, async () => true);
+        endJournal();
+        expect(custom('testFile01.mp3')).to.not.have.property('spotify_track_id');
+        const plan = planUndo(db, findHistoryRun(listHistory(db), 'fix1'), {
+          baseDirectory: library
+        });
+        expect(
+          plan.files.map(({ status, frames }) => [status, _.map(frames, 'frame').sort()])
+        ).to.deep.equal([['restore', ['TXXX.Context', 'TXXX.spotify_track_id']]]);
+        beginJournal({ run: run('undo1'), config, db });
+        await applyUndo({ db, config, plan });
+        endJournal();
+        expect(custom('testFile01.mp3')).to.include({
+          spotify_track_id: 'old',
+          Context: 'Lounge,Study,'
+        });
+      } finally {
+        db.close();
+      }
     });
   });
 
