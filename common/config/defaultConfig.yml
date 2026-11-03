@@ -163,6 +163,9 @@ backup:
   - musicman.sqlite*
   - .musicman/download/**
   - .musicman/upload/**
+  # The backup copies an update replaces are moved to .musicman-replaced/<run time>/ first, so a bad tag
+  # write that reached the backup can be recovered; the folders of this many backup runs are kept (0: none)
+  keepReplaced: 2
 
 # musicman status (and musicman alone while a song plays): the now playing screen
 status:

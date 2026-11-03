@@ -6,7 +6,7 @@ const sinon = require('sinon');
 const { expect } = require('chai');
 
 const { appendFrames } = require('../check/frames.js');
-const { applyBackup, backupPlan, removedFolder } = require('./backup.js');
+const { applyBackup, backupPlan, removedFolder, replacedFolder } = require('./backup.js');
 
 describe('Library Backup', () => {
   let root;
@@ -128,6 +128,44 @@ describe('Library Backup', () => {
     // the next plan has nothing to do
     const again = backupPlan({ source, directory });
     expect(again.copy.length + again.update.length + again.remove.length).to.equal(0);
+  });
+
+  it('should keep the copy an update replaces, for the last backups only', () => {
+    const replaced = (stamp, relative) => path.join(directory, replacedFolder, stamp, relative);
+    write(directory, 'Rated/song.txt', 'v1');
+    write(source, 'Rated/song.txt', 'v2', new Date('2026-10-20T00:00:00Z'));
+    const first = applyBackup(backupPlan({ source, directory }), {
+      now: new Date('2026-10-21T12:00:00Z')
+    });
+    expect(first).to.include({ updated: 1, replaced: 1, prunedReplaced: 0 });
+    expect(first.replacedTo).to.equal(path.join(directory, replacedFolder, '20261021-120000'));
+    expect(fs.readFileSync(replaced('20261021-120000', 'Rated/song.txt'), 'utf8')).to.equal('v1');
+    expect(fs.readFileSync(path.join(directory, 'Rated/song.txt'), 'utf8')).to.equal('v2');
+    // the folder of replaced copies is no part of the backup: the next plan has nothing to do
+    const again = backupPlan({ source, directory });
+    expect(again.copy.length + again.update.length + again.remove.length).to.equal(0);
+
+    // two more runs that same day: each has its own folder, the oldest is deleted beyond keepReplaced
+    write(source, 'Rated/song.txt', 'v3', new Date('2026-10-21T13:00:00Z'));
+    applyBackup(backupPlan({ source, directory }), { now: new Date('2026-10-21T13:30:00Z') });
+    write(source, 'Rated/song.txt', 'v4', new Date('2026-10-21T14:00:00Z'));
+    const third = applyBackup(backupPlan({ source, directory }), {
+      now: new Date('2026-10-21T14:30:00Z')
+    });
+    expect(third.prunedReplaced).to.equal(1);
+    expect(fs.readdirSync(path.join(directory, replacedFolder)).sort()).to.deep.equal([
+      '20261021-133000',
+      '20261021-143000'
+    ]);
+    expect(fs.readFileSync(replaced('20261021-143000', 'Rated/song.txt'), 'utf8')).to.equal('v3');
+  });
+
+  it('should overwrite the copy an update replaces with keepReplaced 0', () => {
+    write(directory, 'Rated/song.txt', 'v1');
+    write(source, 'Rated/song.txt', 'v2', new Date('2026-10-20T00:00:00Z'));
+    const result = applyBackup(backupPlan({ source, directory }), { keepReplaced: 0 });
+    expect(result).to.include({ updated: 1, replaced: 0, replacedTo: null });
+    expect(fs.existsSync(path.join(directory, replacedFolder))).to.equal(false);
   });
 
   it('should set the time of a copy after renaming it into place', () => {

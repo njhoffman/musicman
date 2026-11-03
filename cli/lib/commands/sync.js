@@ -40,7 +40,13 @@ const {
   recoverImports,
   staleDownloads
 } = require('../sync/import.js');
-const { applyBackup, backupPlan, removedFolder } = require('../sync/backup.js');
+const {
+  applyBackup,
+  backupPlan,
+  defaultKeepReplaced,
+  removedFolder,
+  replacedFolder
+} = require('../sync/backup.js');
 const { saveSnapshot } = require('../sync/snapshot.js');
 const { recordSpotifySnapshot } = require('../history/journal.js');
 const {
@@ -999,6 +1005,7 @@ const listBackupFiles = (
 // mirror the library files to backup.directory after showing and confirming the changes
 const runBackup = async ({ config, dryRun, force = false, confirm }) => {
   const directory = _.get(config, 'backup.directory');
+  const keepReplaced = _.get(config, 'backup.keepReplaced', defaultKeepReplaced);
   if (!directory) {
     throw new Error('Set backup.directory in the config to the folder to back up to');
   }
@@ -1085,7 +1092,8 @@ const runBackup = async ({ config, dryRun, force = false, confirm }) => {
   const message =
     `${plan.rename.length ? `Rename ${plan.rename.length} folders and files to the library's capitalization, c` : 'C'}` +
     `opy ${plan.copy.length} and update ${plan.update.length} files in ${directory}` +
-    `${plan.remove.length ? `, and move ${plan.remove.length} files only in the backup to ${removedFolder}/` : ''}?`;
+    `${plan.remove.length ? `, and move ${plan.remove.length} files only in the backup to ${removedFolder}/` : ''}` +
+    `${plan.update.length && keepReplaced > 0 ? ` (the copies updates replace go to ${replacedFolder}/, the last ${keepReplaced} backups kept)` : ''}?`;
   if (!(await confirm(message))) {
     logger.info('Backup cancelled');
     return { backup: { plan: summary, applied: null } };
@@ -1097,6 +1105,7 @@ const runBackup = async ({ config, dryRun, force = false, confirm }) => {
   let done = 0;
   let bytes = 0;
   const applied = applyBackup(plan, {
+    keepReplaced,
     onFile: (action, entry) => {
       logger.logToFile('debug', `${action} ${entry.path}`);
       if (action === 'copy' || action === 'update') {
@@ -1120,7 +1129,9 @@ const runBackup = async ({ config, dryRun, force = false, confirm }) => {
   logger.info(
     `Backed up ${applied.copied + applied.updated} files (${formatSize(applied.bytes)})` +
       `${applied.renamed ? `, renamed ${applied.renamed} to the library's capitalization` : ''}` +
-      `${applied.moved ? `, moved ${applied.moved} to ${applied.removedTo}` : ''}`
+      `${applied.moved ? `, moved ${applied.moved} to ${applied.removedTo}` : ''}` +
+      `${applied.replaced ? `, kept ${applied.replaced} replaced copies in ${applied.replacedTo}` : ''}` +
+      `${applied.prunedReplaced ? ` (deleted the ${applied.prunedReplaced} oldest runs of them)` : ''}`
   );
   if (applied.timesLost.length > 0) {
     logger.warn(

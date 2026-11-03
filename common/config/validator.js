@@ -121,7 +121,8 @@ const configSchema = {
     type: 'object',
     properties: {
       directory: { type: 'string', required: false },
-      exclude: { type: 'array', required: false }
+      exclude: { type: 'array', required: false },
+      keepReplaced: { type: 'number', min: 0, required: false }
     }
   },
   daemon: {

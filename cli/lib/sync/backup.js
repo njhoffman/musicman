@@ -7,6 +7,10 @@ const { listFrameIds, readTagBuffer } = require('../check/frames.js');
 
 // files only in the backup are moved here instead of deleted, and this folder is never scanned
 const removedFolder = '.musicman-removed';
+// the backup copies an update replaces are moved here first, one folder per backup run, never scanned
+const replacedFolder = '.musicman-replaced';
+// the replaced copies of this many backup runs are kept, unless backup.keepReplaced says otherwise
+const defaultKeepReplaced = 2;
 
 const globTokens = { '/**': '(?:/.*)?', '**': '.*', '*': '[^/]*' };
 
@@ -121,7 +125,7 @@ const backupPlan = ({ source, directory, exclude = [], onProgress = _.noop }) =>
   );
   const backupFiles = listTree(
     directory,
-    relative => relative === removedFolder || excluded(relative),
+    relative => relative === removedFolder || relative === replacedFolder || excluded(relative),
     count => onProgress({ phase: 'list', side: 'backup', count })
   );
 
@@ -198,6 +202,25 @@ const backupPlan = ({ source, directory, exclude = [], onProgress = _.noop }) =>
 
 const dateStamp = now => now.toISOString().slice(0, 10).replace(/-/g, '');
 
+// one folder of replaced copies per backup run, sorting by time
+const runStamp = now => now.toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-');
+const runStampPattern = /^\d{8}-\d{6}$/;
+
+// deletes the oldest run folders of replaced copies beyond keep; returns how many it deleted
+const pruneReplaced = (directory, keep) => {
+  const root = path.join(directory, replacedFolder);
+  if (!fs.existsSync(root)) {
+    return 0;
+  }
+  const runs = fs
+    .readdirSync(root)
+    .filter(name => runStampPattern.test(name))
+    .sort();
+  const old = _.dropRight(runs, keep);
+  old.forEach(name => fs.rmSync(path.join(root, name), { recursive: true, force: true }));
+  return old.length;
+};
+
 // copies through a temporary file in the same folder, so an interrupted copy never leaves a partial file;
 // the time is set after the rename: a CIFS mount closes a written file late (closetimeo) and the server
 // then stamps it with the current time, replacing a time set before the rename forced that close
@@ -219,12 +242,18 @@ const renameCase = (directory, { from, to }) => {
 
 /**
  * Applies a backup plan: renames backup paths to the library's capitalization, copies new and changed
- * files (not held ones), and moves files only in the backup to .musicman-removed/<date>/.
+ * files (not held ones), and moves files only in the backup to .musicman-removed/<date>/. The backup
+ * copy an update replaces is moved to .musicman-replaced/<run time>/ first, so a bad write that reached
+ * the backup can be recovered; the folders of the newest keepReplaced runs are kept (0: none, the copy
+ * is overwritten).
  * onFile(action, entry) is called after each file or rename. timesLost lists the copies whose
  * modification time is not the one set on them, which the next backup would copy again; a file that
  * changed while it was copied (e.g. the log of this run) is not one.
  */
-const applyBackup = (plan, { now = new Date(), onFile = _.noop } = {}) => {
+const applyBackup = (
+  plan,
+  { now = new Date(), onFile = _.noop, keepReplaced = defaultKeepReplaced } = {}
+) => {
   const { source, directory } = plan;
   const result = {
     renamed: 0,
@@ -233,8 +262,12 @@ const applyBackup = (plan, { now = new Date(), onFile = _.noop } = {}) => {
     moved: 0,
     bytes: 0,
     removedTo: null,
+    replaced: 0,
+    replacedTo: null,
+    prunedReplaced: 0,
     timesLost: []
   };
+  const replacedTo = keepReplaced > 0 ? path.join(directory, replacedFolder, runStamp(now)) : null;
   (plan.rename || []).forEach(entry => {
     renameCase(directory, entry);
     result.renamed += 1;
@@ -247,7 +280,15 @@ const applyBackup = (plan, { now = new Date(), onFile = _.noop } = {}) => {
   ].forEach(([action, entry]) => {
     const from = path.join(source, entry.path);
     const { mtimeMs } = fs.statSync(from);
-    copyFile(from, path.join(directory, entry.path), mtimeMs);
+    const to = path.join(directory, entry.path);
+    if (action === 'update' && replacedTo && fs.existsSync(to)) {
+      const kept = path.join(replacedTo, entry.path);
+      fs.mkdirSync(path.dirname(kept), { recursive: true });
+      fs.renameSync(to, kept);
+      result.replaced += 1;
+      result.replacedTo = replacedTo;
+    }
+    copyFile(from, to, mtimeMs);
     timesSet.push({ path: entry.path, mtimeMs });
     result[action === 'copy' ? 'copied' : 'updated'] += 1;
     result.bytes += entry.size;
@@ -272,7 +313,17 @@ const applyBackup = (plan, { now = new Date(), onFile = _.noop } = {}) => {
       onFile('move', entry);
     });
   }
+  if (keepReplaced > 0) {
+    result.prunedReplaced = pruneReplaced(directory, keepReplaced);
+  }
   return result;
 };
 
-module.exports = { applyBackup, backupPlan, globPattern, removedFolder };
+module.exports = {
+  applyBackup,
+  backupPlan,
+  defaultKeepReplaced,
+  globPattern,
+  removedFolder,
+  replacedFolder
+};
