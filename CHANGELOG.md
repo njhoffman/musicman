@@ -6,6 +6,24 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman db --restore` lists the database backups (automatic and named `musicman-*.sqlite`), and
+  `db --restore <name>` replaces the library database with one, after saving the current database first. It
+  refuses while another musicman run is going and copies with a newer schema; `--yes` (`-Q`) restores
+  without asking.
+- `sync --backup` keeps the backup copy an update replaces in `.musicman-replaced/<run time>/`, for the last
+  `backup.keepReplaced` backup runs (2; 0 overwrites as before), so a bad tag write that reached the backup can
+  be recovered.
+
+### Changed
+
+- `musicman undo` restores the frames of a file that did not change since the run and keeps the ones that did
+  (listed as kept; `--force` restores them too). Before, one changed frame held back the whole file. The
+  History tab of `musicman ui` offers Undo for such a run as well as Undo anyway.
+- `db --update` follows a moved song without a MusicBrainz id by its Spotify track id, else by artist, title,
+  and length when one song matches, so its undo history moves with it instead of reading as removed and added.
+
 ## [1.70.1] - 2026-11-03
 
 ### Changed

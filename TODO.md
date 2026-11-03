@@ -6,7 +6,7 @@ open/done counts and pick items. Every item has a priority, `(p1)` high, `(p2)` 
 category: bug, feature, refactor, docs, test, chore, or perf. `(due YYYY-MM-DD)` adds a date and an OVERDUE
 flag. Feature specs live in `docs/`.
 
-Reviewed: 2026-11-01
+Reviewed: 2026-11-03
 
 ## 1. Bugs
 
@@ -159,6 +159,10 @@ Reviewed: 2026-11-01
 
 ## 6. Database (`docs/02-database.md`)
 
+- [ ] **Back up before a schema migration.** (p2) [feature] opening the database migrates it, and the interval of
+      the automatic backups can skip right over a migration: on 2026-11-03 the newest copy (2026-11-02 01:12) is
+      schema 5 while the database is schema 11, so restoring it loses every change since. Before `migrate` applies
+      a step, write a copy (`VACUUM INTO`) named `musicman-before-schema-<n>.sqlite` next to the backups.
 - [x] **Backups.** (p2) [feature] the database is backed up to `db.backupDirectory` every `db.backupInterval`
       (before writes, `db --backup` on demand, `db.backupCount` kept).
 - [x] **`search` command.** (p2) [feature] field syntax (`rating:5.0 title:"some title"`) and mpc style
@@ -236,6 +240,9 @@ Reviewed: 2026-11-01
       904 downloaded (367 missing, rerun `pnpm download`), a 20 file slice imported and checked (tags, database,
       manifest, undo history), then the rest: 894 imported into `Unrated/_Singles`, every one with the manifest's
       track id. beets takes ~14 s per file, mostly the lyrics plugin. Left: the 367 downloads that failed.
+      2026-11-03: spotDL 4.5.2 (yt-dlp 2026.8.19) found no track at all, which explains them; `uv tool upgrade
+      spotdl` (4.6.0) downloads again. 175 tracks are queued now: download them (the page's Download, a first N
+      trial first) and import them.
 - [x] **Second Spotify versions of a library song are pulled again on every sync.** (p2) [bug] the plan
       counts a track with the ISRC of a library song (`sp_isrc`) as that song: not pulled, its playlists
       reach the song as +Spotify, and push does not add the library's release next to it. The playlist
@@ -267,6 +274,10 @@ Reviewed: 2026-11-01
 - [ ] **Revisit running spotDL from musicman.** (p3) [feature] downloads run as a separate script (`pnpm download`)
       because they are long, resumable, and against YouTube's terms. Decide whether the `download` command should
       start spotDL itself; if it does, keep it resumable and keep the manifest as the record of what to fetch.
+      `musicman ui` starts the script detached since 1.66.0 (`lib/ui/download.js`), which a command could reuse.
+- [ ] **Stale spotDL temp files.** (p3) [chore] a stopped download leaves the YouTube source it fetched in
+      `~/.spotdl/temp` (`.webm`, a few MB each, some from 2024 on 2026-11-03); the download script could delete
+      those older than a day before it runs.
 - [x] **`sync --pull` manifest.** (p2) [feature] `manifest.json` in `sync.downloadDirectory` with each Spotify-only
       track's URL, targets, and implied tags.
 - [x] **spotDL download script.** (p2) [feature] `pnpm download` (in `cli/`); reruns skip downloaded and imported
@@ -290,6 +301,12 @@ Reviewed: 2026-11-01
       (needs a watcher), or queue the next tracks from the notify daemon. Done: the daemon queues the next
       track as the last listed one starts, then moves playback to the playlist there (`notify/shuffleHandoff.js`).
       It follows Spotify through MPRIS, so only while the desktop app runs (also when it mirrors the phone).
+- [ ] **See a shuffle continue past its list.** (p3) [test] the daemon's handoff (queue the next track, then move to
+      the playlist) has run only in specs; check it the first time a shuffle of more than 1000 tracks reaches the
+      end of its list (`journalctl --user -u musicman-notify` logs a failure).
+- [ ] **Continue shuffles played on the phone alone.** (p3) [feature] the handoff follows Spotify through MPRIS, so
+      it needs the desktop app running (it mirrors the phone); with the app closed the shuffle stops after its
+      list. The daemon could ask `GET /me/player` while no local player plays, at one Web API call per poll.
 - [x] **Menu: unbound letters filter the main menu unseen.** (p3) [bug] Cannot reproduce, 2026-11-02: on rofi
       2.0.0 a theme whose `inputbar` has no `entry` drops typed text, so `f`, `z`, ... filter nothing on the main
       menu (tested with xdotool). Binding the free keys is not possible anyway: the main menu fills all 19
@@ -337,30 +354,37 @@ Reviewed: 2026-11-01
 
 ## 10. Undo, history, and backups
 
-Runs record their tag and Spotify changes for `musicman undo` (since 1.24.0). Still missing: `sync --backup` moves
-files deleted from the library to `.musicman-removed/<date>/` but overwrites changed ones, and the automatic
-database backups (`db.autoBackup`) have no restore command.
+Runs record their tag and Spotify changes for `musicman undo` (since 1.24.0). `sync --backup` keeps deleted
+files in `.musicman-removed/` and replaced ones in `.musicman-replaced/`, and `db --restore` restores the database
+backups.
 
-- [ ] **Follow moved songs without a MusicBrainz id in the undo history.** (p3) [feature] `db --update` relinks a
+- [ ] **Prune `.musicman-removed` on the backup.** (p3) [feature] `sync --backup` moves files deleted from the library
+      there and never deletes them (folders since 2026-10-21); keep the last N dated folders, as
+      `backup.keepReplaced` does for `.musicman-replaced`, or report its size so it can be cleared by hand.
+- [x] **Follow moved songs without a MusicBrainz id in the undo history.** (p3) [feature] `db --update` relinks a
       moved song (and its history) only by MusicBrainz track id; 1622 of 6454 songs (2026-11-01) have none, so
       their moves read as a removal plus an addition and undo reports them missing. A fallback key such as
-      `sp_track_id`, or duration plus artist and title for songs with a single match, would cover most.
+      `sp_track_id`, or duration plus artist and title for songs with a single match, would cover most. Done:
+      `findMoved` (`db/update.js`) falls back to both, each only when one song matches.
 - [x] **Follow moved files in the undo history.** (p2) [feature] `relinkHistory` (`history/relink.js`) from the
       `db --update` move branch and after `sync --import` (download path to library path by `sp_track_id`).
-- [ ] **Keep replaced files in `sync --backup`.** (p2) [feature] move the backup copy of an updated file to
+- [x] **Keep replaced files in `sync --backup`.** (p2) [feature] move the backup copy of an updated file to
       `.musicman-removed/<date>/` (or a versions folder) before overwriting it, like deleted files, so a bad tag
-      write that reached the backup can still be recovered.
-- [ ] **Undo the frames that did not change since.** (p3) [feature] `planUndo` (`cli/lib/history/undo.js`)
+      write that reached the backup can still be recovered. Done: `.musicman-replaced/<run time>/`, the last
+      `backup.keepReplaced` runs (2) kept.
+- [x] **Undo the frames that did not change since.** (p3) [feature] `planUndo` (`cli/lib/history/undo.js`)
       already compares per frame, but one changed frame marks the whole file `changed`, so undo restores none of
       it without `--force`, and `--force` restores the changed frames too. E.g. 2026-11-01: undo of
       `20261027-005126-edit` (`context=-Relax`) was refused because that write also normalized `TXXX.Mood`
       (dropped a trailing comma) and a later edit changed Mood again. Restore the unchanged frames (Context
-      here), skip and list the changed ones, and keep `--force` for those.
-- [ ] **Restore the database from a backup.** (p3) [feature] `db --restore [<backup>]` to list and restore the
-      automatic database backups.
-- [ ] **Record `check --fix` changes.** (p3) [feature] once `check --fix` exists it writes through
+      here), skip and list the changed ones, and keep `--force` for those. Done, also in the History tab.
+- [x] **Restore the database from a backup.** (p3) [feature] `db --restore [<backup>]` to list and restore the
+      automatic database backups. Done, named copies (`musicman-*.sqlite`) included; the current database is
+      saved first.
+- [x] **Record `check --fix` changes.** (p3) [feature] once `check --fix` exists it writes through
       `lib/metadata/write.js` and is recorded automatically; make sure its run archives (the `archive` flag) so
-      `undo` covers it.
+      `undo` covers it. Checked 2026-11-03: it archives with `--fix` and writes through `journaledWrite`; a spec
+      undoes a fix run.
 - [x] **Tag change journal and `undo`.** (p1) [feature] `tag_changes` (schema 5) through `lib/history/journal.js`;
       `musicman undo [<run> | --list] [--dry-run] [--force]`.
 - [x] **Spotify change journal and undo.** (p1) [feature] `spotify_changes` and the snapshot before each push;
@@ -390,6 +414,14 @@ database backups (`db.autoBackup`) have no restore command.
 
 ## 12. Tooling
 
+- [ ] **Format the files Prettier flags.** (p3) [chore] `pnpm format:check` lists 15 files (e.g.
+      `commands/db.js`, `commands/sync.js`, `sync/plan.js`, `sync/localFiles.js`, `docs/*.md`) written before
+      the `.prettierrc` reflow, so every change to them has to leave the rest alone. One `pnpm format` commit,
+      then a check in the pre-commit hook (staged files only) keeps it clean.
+- [ ] **The notify daemon runs node from the pnpm store.** (p3) [bug] `pnpm daemon:install` writes `process.execPath`
+      into the unit, a versioned store path (`.../pnpm/store/v11/links/@/node/24.22.0/...`); a node upgrade or a
+      store prune removes it and the service fails to start. Resolve a stable node path at install (the pnpm
+      `node` shim on PATH) or check it in `musicman status`.
 - [x] **Test tooling.** (p3) [chore] mocha 12, chai 6 and sinon-chai 4 (ES modules through `require(esm)`), sinon 22,
       and c8 (`.c8rc.json`); `.mocharc.yml` keeps the settings used, with `retries: 0` and a 20 s timeout.
 - [x] **Package versions.** (p3) [chore] `cli` and `common` dropped their `version` and are marked private; only

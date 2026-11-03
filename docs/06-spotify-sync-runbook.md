@@ -247,6 +247,10 @@ musicman sync --backup            # mirrors mpd.baseDirectory to backup.director
 ```
 
 - Files only in the backup are moved to `<backup>/.musicman-removed/<date>/`, never deleted.
+- The backup copy an update replaces is moved to `<backup>/.musicman-replaced/<run time>/` first, so a bad tag
+  write that reached the backup can be recovered; the folders of the last `backup.keepReplaced` runs (2) are
+  kept, older ones deleted (0 keeps none). A run updating most of the library (3480 files, 27 GB on 2026-11-01)
+  keeps that much more on the backup share.
 - A file is held back when its backup copy has tag frames with data that the library copy lacks (this is how
   frames lost on 2026-10-21 were found and restored); `--force` takes the library version anyway.
 
@@ -262,8 +266,12 @@ musicman undo latest --dry-run    # what undoing the newest run would restore an
 musicman undo <run id>            # undo one run, after confirming; an id prefix works too
 ```
 
-- Files changed again since the run are held back (`CHANGED`); `--force` restores them anyway. Files moved or
-  deleted since (e.g. by `sort` or a beets import) are listed as `MISSING`.
+- Frames changed again since the run are kept: the file's other frames are restored (`RESTORE ... kept`), and a
+  file whose frames all changed is held back (`CHANGED`); `--force` restores them anyway. Files moved or
+  deleted since (e.g. by `sort` or a beets import) are listed as `MISSING`. A song moved by `db --update` keeps
+  its history: it is recognized by MusicBrainz track id, else Spotify track id, else artist, title, and length
+  when only one song matches.
+- `check --fix` runs are recorded too, so `musicman undo` takes back a repair.
 - Spotify match rows are put back as they were (`MATCH` lines), so an undone accept waits for review again and
   an undone reject leaves the rejected tracks; a row changed since (e.g. by `sync --match`) is held back the
   same way. Accepts and rejects from before 1.48.0 restore only their tags.
