@@ -147,6 +147,12 @@ const sameFile = (source, target) => {
   return a.ino === b.ino || (a.size === b.size && b.mtimeMs >= a.mtimeMs);
 };
 
+// YYYY-MM-DD in the local time zone (toISOString gives the UTC date, a day ahead in the evening)
+const localDate = date =>
+  [date.getFullYear(), date.getMonth() + 1, date.getDate()]
+    .map(part => `${part}`.padStart(2, '0'))
+    .join('-');
+
 const stateFile = uploadDirectory => path.join(uploadDirectory, 'export.json');
 
 const writeExportState = (uploadDirectory, state) =>
@@ -240,7 +246,7 @@ const applyExport = (exported, { uploadDirectory, previous = {}, now = new Date(
   });
   fs.writeFileSync(
     path.join(uploadDirectory, 'README.md'),
-    `${checklist(exported, { date: now.toISOString().slice(0, 10) })}\n`
+    `${checklist(exported, { date: localDate(now) })}\n`
   );
   fs.writeFileSync(
     stateFile(uploadDirectory),

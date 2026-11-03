@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- The `sync --export` checklist (`README.md`) is dated in the local time zone, not a day ahead in the evening.
+
 ## [1.58.1] - 2026-11-02
 
 ### Fixed

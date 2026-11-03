@@ -166,12 +166,15 @@ describe('Local files export', () => {
         pending: ['A - Two.mp3'],
         stray: []
       };
-      const counts = applyExport(exportOf(songs, staged), { uploadDirectory: upload });
+      // 23:30 local time is the same local day, whatever the UTC date
+      const now = new Date(2026, 10, 2, 23, 30);
+      const counts = applyExport(exportOf(songs, staged), { uploadDirectory: upload, now });
       expect(counts).to.include({ linked: 2, relinked: 0, removed: 0, staged: 1 });
       expect(ino(path.join(upload, 'files', 'A - One.mp3'))).to.equal(ino(one));
       expect(fs.readdirSync(path.join(upload, 'stage'))).to.deep.equal(['A - Two.mp3']);
       expect(ino(path.join(upload, 'stage', 'A - Two.mp3'))).to.equal(ino(two));
       const readme = fs.readFileSync(path.join(upload, 'README.md'), 'utf8');
+      expect(readme).to.include('on 2026-11-02.');
       expect(readme).to.include('## Playlist (1 of 2 added)');
       expect(readme).to.include('- [ ] A - Two.mp3');
       expect(readme).to.include('- [x] A - One.mp3');
