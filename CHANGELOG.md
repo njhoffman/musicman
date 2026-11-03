@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.78.0] - 2026-11-03
+
 ### Added
 
 - Opening the database for a schema migration first saves a copy as `musicman-before-schema-<n>.sqlite` next to
@@ -1460,7 +1462,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.77.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.78.0...HEAD
+[1.78.0]: https://github.com/njhoffman/musicman/compare/v1.77.0...v1.78.0
 [1.77.0]: https://github.com/njhoffman/musicman/compare/v1.76.0...v1.77.0
 [1.76.0]: https://github.com/njhoffman/musicman/compare/v1.75.0...v1.76.0
 [1.75.0]: https://github.com/njhoffman/musicman/compare/v1.74.0...v1.75.0
