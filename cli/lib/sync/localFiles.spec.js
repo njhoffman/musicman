@@ -7,6 +7,7 @@ const {
   applyExport,
   assignNames,
   confirmStaged,
+  confirmedFiles,
   exportName,
   isLocalTrackOf,
   localTracks,
@@ -49,6 +50,35 @@ describe('Local files export', () => {
       expect(result.added).to.deep.equal([a]);
       expect(result.pending).to.deep.equal([b]);
       expect(result.stray.map(track => track.name)).to.deep.equal(['Renamed']);
+    });
+
+    it('should count confirmed songs as added without a local track, and say how many', () => {
+      const one = { file: '/m/one.mp3', tags: tags('A', 'One') };
+      const two = { file: '/m/two.mp3', tags: tags('A', 'Two') };
+      const result = localTracks([one, two], [], new Set(['/m/one.mp3']));
+      expect(result.added).to.deep.equal([one]);
+      expect(result.pending).to.deep.equal([two]);
+      expect(result.confirmed).to.equal(1);
+      expect(localTracks([one], []).confirmed).to.equal(0);
+    });
+
+    it('should read the confirmed songs of a target from the export state, as absolute paths', () => {
+      const upload = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-confirmed-'));
+      try {
+        fs.writeFileSync(
+          path.join(upload, 'export.json'),
+          JSON.stringify({ confirmed: { liked: ['a/one.mp3'] } })
+        );
+        const confirmedIn = confirmedFiles({
+          mpd: { baseDirectory: '/music' },
+          sync: { uploadDirectory: upload }
+        });
+        expect([...confirmedIn('liked')]).to.deep.equal(['/music/a/one.mp3']);
+        expect([...confirmedIn('p1')]).to.deep.equal([]);
+        expect([...confirmedFiles({ sync: {} })('liked')]).to.deep.equal([]);
+      } finally {
+        fs.rmSync(upload, { recursive: true, force: true });
+      }
     });
 
     it('should count one local track for one song only', () => {
@@ -118,22 +148,6 @@ describe('Local files export', () => {
       expect(exported.targets.map(t => t.name)).to.deep.equal(['Done', 'Next', 'Liked Songs']);
       expect(exported.staged).to.include({ id: 'p2', total: 2 });
       expect(exported.staged.pending).to.deep.equal(['A - One.mp3', 'A - Two.mp3']);
-    });
-
-    it('should count confirmed Liked Songs as added, and stage only the songs liked since', () => {
-      const one = song('/m/one.mp3', 'missing', 'One');
-      const two = song('/m/two.mp3', 'missing', 'Two');
-      const exported = planExport([target('liked', 'Liked Songs', [one, two])], {
-        baseDirectory: '/m',
-        previous: { confirmed: { liked: ['one.mp3'] } }
-      });
-      expect(exported.targets[0]).to.deep.include({
-        total: 2,
-        added: ['A - One.mp3'],
-        pending: ['A - Two.mp3'],
-        confirmed: 1
-      });
-      expect(exported.staged).to.include({ id: 'liked' });
     });
 
     it('should stage nothing when every song is in its playlists', () => {

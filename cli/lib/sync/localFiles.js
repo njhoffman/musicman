@@ -24,13 +24,20 @@ const isLocalTrackOf = (tags, track) =>
 
 /**
  * The songs of a playlist that only a local file can bring there (songs: [{ file, tags }]) against its
- * local tracks (remote rows with is_local): { added, pending, stray }, stray being local tracks that are
- * none of the songs (a song whose tags changed since, or one that is not exported).
+ * local tracks (remote rows with is_local): { added, pending, stray, confirmed }, stray being local tracks
+ * that are none of the songs (a song whose tags changed since, or one that is not exported). The Web API
+ * never lists local files in Liked Songs, so songs whose file is in confirmed (sync --export --confirm)
+ * count as added; confirmed is how many did.
  */
-const localTracks = (songs, remote) => {
+const localTracks = (songs, remote, confirmed = new Set()) => {
   const local = _.filter(remote, 'is_local');
   const used = new Set();
+  let byConfirm = 0;
   const [added, pending] = _.partition(songs, song => {
+    if (confirmed.size > 0 && confirmed.has(path.resolve(song.file))) {
+      byConfirm += 1;
+      return true;
+    }
     const index = _.findIndex(
       local,
       (track, i) => !used.has(i) && isLocalTrackOf(song.tags || {}, track)
@@ -41,7 +48,23 @@ const localTracks = (songs, remote) => {
     used.add(index);
     return true;
   });
-  return { added, pending, stray: _.filter(local, (track, i) => !used.has(i)) };
+  return {
+    added,
+    pending,
+    stray: _.filter(local, (track, i) => !used.has(i)),
+    confirmed: byConfirm
+  };
+};
+
+/**
+ * The library files confirmed as added to a target (sync --export --confirm), from the export state in
+ * sync.uploadDirectory: a function of the target id to a Set of absolute paths.
+ */
+const confirmedFiles = config => {
+  const directory = _.get(config, 'sync.uploadDirectory');
+  const confirmed = directory ? readExportState(directory).confirmed || {} : {};
+  const base = path.resolve(_.get(config, 'mpd.baseDirectory', '.'));
+  return id => new Set(_.map(confirmed[id] || [], relative => path.join(base, relative)));
 };
 
 // characters a phone's shared storage or Windows refuse in file names
@@ -90,8 +113,10 @@ const assignNames = (songs, previous = {}) => {
 /**
  * What the export holds for a sync plan: every exportable song once in files/ (for the phone) and the
  * pending songs of one playlist in stage/ (the desktop app's Local Files source to drag from). Playlists
- * are staged in plan order, Liked Songs last. previous is the last export's state ({ names }).
- * Returns { songs: [{ file, path, name }], targets: [{ id, name, total, added, pending, stray }], staged }.
+ * are staged in plan order, Liked Songs last. previous is the last export's state ({ names }). Songs
+ * confirmed as added to Liked Songs (confirmStaged) are added in the plan already (localTracks).
+ * Returns { songs: [{ file, path, name }], targets: [{ id, name, total, added, pending, stray, confirmed }],
+ * staged }.
  */
 const planExport = (plan, { baseDirectory, previous = {}, readable = () => true }) => {
   const [byFile, unreadable] = _.partition(
@@ -113,12 +138,9 @@ const planExport = (plan, { baseDirectory, previous = {}, readable = () => true 
   const targets = _.map(
     _.sortBy(plan, target => (target.id === likedId ? 1 : 0)),
     target => {
-      const local = target.localFiles || { added: [], pending: [], stray: [] };
-      const confirmed = new Set(_.get(previous, ['confirmed', target.id]) || []);
-      const [byConfirm, pending] = _.partition(kept(local.pending), ({ file }) =>
-        confirmed.has(path.relative(baseDirectory, file))
-      );
-      const added = [...kept(local.added), ...byConfirm];
+      const local = target.localFiles || { added: [], pending: [], stray: [], confirmed: 0 };
+      const added = kept(local.added);
+      const pending = kept(local.pending);
       return {
         id: target.id,
         name: target.name,
@@ -126,7 +148,7 @@ const planExport = (plan, { baseDirectory, previous = {}, readable = () => true 
         added: _.map(added, ({ file }) => nameOf(file)),
         pending: _.map(pending, ({ file }) => nameOf(file)),
         stray: _.map(local.stray, track => `${track.artists || '?'} - ${track.name || '?'}`),
-        confirmed: byConfirm.length
+        confirmed: local.confirmed || 0
       };
     }
   );
@@ -405,6 +427,7 @@ module.exports = {
   assignNames,
   checklist,
   confirmStaged,
+  confirmedFiles,
   exportName,
   exportable,
   isLocalTrackOf,

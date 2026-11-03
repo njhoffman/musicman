@@ -194,8 +194,8 @@ track (artist and title agree, lengths within 2 seconds), and keeps `sync.upload
   `files` back on, and run `sync --export` again for the next playlist.
 - Liked Songs cannot be checked: the Web API never lists local files there (`/me/tracks` leaves them out),
   so after dragging the staged songs into Liked Songs run `sync --export --confirm` (`-e -y`). It records
-  exactly the songs `stage/` held as added (in `export.json`, `confirmed`), so later exports stage only
-  songs liked since. A song unliked in the app afterwards is not noticed. `--confirm` refuses a staged
+  exactly the songs `stage/` held as added (in `export.json`, `confirmed`), so later exports and the plan's
+  `Local files` column count them, and stage only songs liked since. A song unliked in the app afterwards is not noticed. `--confirm` refuses a staged
   playlist, which `sync --export` counts through the Web API.
 - `README.md`: a checklist per playlist (added and still missing), with local tracks in a playlist that are
   none of the songs, e.g. after a title or artist was changed in the library: drag the song in again and

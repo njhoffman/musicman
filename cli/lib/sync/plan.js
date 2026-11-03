@@ -3,7 +3,7 @@ const path = require('path');
 
 const { transaction } = require('../db/database.js');
 const { excludedTracks } = require('../db/exclusions.js');
-const { exportable, localTracks } = require('./localFiles.js');
+const { confirmedFiles, exportable, localTracks } = require('./localFiles.js');
 const { rejectedTracks, spotifyIdFrame } = require('./match.js');
 const {
   conflictingTargets,
@@ -71,7 +71,7 @@ const syncedTracks = db =>
  *     playlists of an exclusive group (conflictingTargets), so it is added to none of them
  * and noId (songs that belong without a Spotify id, with match: their match status or null, and tags:
  * { artist, title, album, duration }), localFiles (localTracks of the noId songs Spotify has no track
- * for: added, pending, stray), reject (tracks rejected in review for a song, which push removes), and pull (tracks in the target not in the library, nor in sync.ignorePlaylist).
+ * for: added, pending, stray, with the songs confirmed by sync --export --confirm added), reject (tracks rejected in review for a song, which push removes), and pull (tracks in the target not in the library, nor in sync.ignorePlaylist).
  * Songs marked outOfScope (outside sync.scope) are in none of these.
  *
  * A track in a target that is another release of a library song (the same ISRC, e.g. the single and
@@ -85,6 +85,8 @@ const syncPlan = (db, config, songs) => {
   const filesByTrack = _.groupBy([...ids.keys()], file => ids.get(file));
   const songByTrack = new Map(_.map(filesByTrack, (files, id) => [id, files[0]]));
   const synced = syncedTracks(db);
+  // songs confirmed as added to Liked Songs, which the Web API never lists as local tracks
+  const confirmedIn = confirmedFiles(config);
   // per track, the group playlists its copies disagree on (in sync.scope; outOfScope songs have none)
   const groups = exclusiveGroups(config);
   const targetsByFile = new Map(_.map(songs, ({ file, targets }) => [file, targets]));
@@ -194,7 +196,7 @@ const syncPlan = (db, config, songs) => {
       add,
       conflict: _.uniqBy(conflict, 'trackId'),
       noId,
-      localFiles: localTracks(_.filter(noId, exportable), remote),
+      localFiles: localTracks(_.filter(noId, exportable), remote, confirmedIn(id)),
       prune,
       spotifyAdded,
       spotifyRemoved,
