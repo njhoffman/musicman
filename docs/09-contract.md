@@ -72,8 +72,9 @@ What sleeve keeps:
 - One `USLT` per file: it replaces the one there rather than adding a second, which a node-id3 rewrite would drop
   (node-id3 keeps a repeated frame only from an ID3v2.3 tag). `SYLT` frames may be several (one per language or
   content type).
-- `USLT` with text in it is not replaced unless asked (`--force`): beets' lyrics plugin fills it on import
-  (`sync.importLyrics`), and a person may have written it. An empty `USLT` (most of the library's) is replaced.
+- Synced lyrics it finds replace unsynced text in `USLT` (beets' lyrics plugin fills it with plain lyrics on import,
+  `sync.importLyrics`) and an empty `USLT` (most of the library's). A `USLT` already holding synced lyrics (LRC
+  text) is not replaced unless asked (`--force`), and no text is replaced by unsynced lyrics.
 - It writes a file in place only if its mtime and size are what they were when sleeve read it, through a temporary
   file renamed over it, so a musicman write in between is never lost, only retried. It never touches the mtime
   afterwards: musicman needs the change to see it.
