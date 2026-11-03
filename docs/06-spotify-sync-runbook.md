@@ -44,6 +44,10 @@ musicman sync --match             # writes TXXX.sp_* tags to the files
 - Each song is one line: status (`MATCH`, `REVIEW`, `MISSING`, `REFRESH`, `FAILED`; `dry` in a dry run),
   source (beets, isrc, search), the Spotify track, and `+N fields ~N filled =N kept -N removed`. `-v` lists
   every field.
+- A live recording only matches a live track, and a studio recording a studio track. A song is live when it
+  is in a `live` folder, its MusicBrainz album type says live, or its album or title does ("(Live)",
+  "Live at ..."); a track when its title or album does. This holds for ISRC lookups too, since a live file
+  can carry its studio song's ISRC: the search then looks for the live track.
 - Every song gets the `sp_` album fields (album, album artist, track and disc numbers, label, album image,
   ...), singles too. The standard album tags they fall back to (album, album artist, track, disc, publisher,
   copyright; `fallbackScope: album` in `spotify.fields`) are only filled for songs in album folders, by the

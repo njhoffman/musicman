@@ -6,6 +6,19 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- `sync --match` matches a live recording only to a live track and a studio recording only to a studio
+  track, ISRC lookups included (a live file can carry its studio song's ISRC), so a live copy whose studio
+  match was rejected now finds its own live track. A song is live by its `live` folder, MusicBrainz album
+  type, album, or title; a track by its title or album.
+
+### Fixed
+
+- `check --fix` no longer lists a live or remix copy as "re-match" on every run once its match is rejected
+  and it is linked to no track; a copy matched without a Spotify id tag (by its match or review row) is
+  cleared too, and an excluded copy's Spotify track is taken from its match when it has no tag.
+
 ## [1.55.1] - 2026-11-02
 
 ### Added

@@ -54,11 +54,15 @@ const albumType = (db, songId) =>
   _.find(_.map(albumTypeFrames, frame => frameValue(db, songId, frame)));
 
 // the song fields lookups and similarity use, from the database
+// a release in a live folder of the library layout (Artists/A/live/1992 - Unplugged/...)
+const liveFolder = /(^|\/)live\//;
+
 const songFields = (db, row) => ({
   artist: frameValue(db, row.id, 'TPE1'),
   title: frameValue(db, row.id, 'TIT2'),
   album: frameValue(db, row.id, 'TALB'),
   albumType: albumType(db, row.id),
+  live: liveFolder.test(`${row.path || ''}`),
   duration: row.duration
 });
 
@@ -258,7 +262,7 @@ const matchSongs = async ({
   onSong = _.noop
 }) => {
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
-  const selectSong = db.prepare('SELECT id, duration FROM songs WHERE path = ?');
+  const selectSong = db.prepare('SELECT id, path, duration FROM songs WHERE path = ?');
   const selectMatch = db.prepare(
     `SELECT status, track_id, source, checked_at, rejected, reviewed_at FROM spotify_matches
      WHERE song_id = ?`
@@ -573,7 +577,7 @@ const reviewItems = (db, config) =>
  */
 const recheckMatches = ({ db, config, songs, dryRun = false }) => {
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
-  const selectSong = db.prepare('SELECT id, duration FROM songs WHERE path = ?');
+  const selectSong = db.prepare('SELECT id, path, duration FROM songs WHERE path = ?');
   const selectMatch = db.prepare(
     'SELECT source, reviewed_at FROM spotify_matches WHERE song_id = ?'
   );

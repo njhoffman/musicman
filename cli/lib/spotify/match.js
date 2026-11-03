@@ -141,9 +141,9 @@ const liveAlbumMarker =
 const isLiveAlbum = album => liveAlbumMarker.test(`${album || ''}`.trim());
 
 // version markers of a song or candidate, with live added when only its album says so: a song's MusicBrainz
-// album type (albumType) or album, a candidate's album
-const recordingVersions = (title, { album, albumType } = {}) => {
-  const live = /\blive\b/i.test(`${albumType || ''}`) || isLiveAlbum(album);
+// album type (albumType), album or live folder (live), a candidate's album
+const recordingVersions = (title, { album, albumType, live: inLiveFolder = false } = {}) => {
+  const live = inLiveFolder || /\blive\b/i.test(`${albumType || ''}`) || isLiveAlbum(album);
   return _.uniq([...versions(title), ...(live ? ['live'] : [])]);
 };
 
@@ -278,25 +278,39 @@ const candidateOf = track => ({
 });
 
 /**
- * How well a Spotify track matches a local song ({ artist, title, duration } in seconds):
- * 'match' when it is the same recording, 'review' when it probably is, otherwise null.
+ * How well a Spotify track matches a local song ({ artist, title, duration } in seconds, album, albumType
+ * and live as recordingVersions takes them): 'match' when it is the same recording, 'review' when it
+ * probably is, otherwise null. A live song only matches a live track and a studio song a studio track.
  */
+// a title without its live suffix ("Icky Thump - Live", "Song (Live at Mile End)"), for comparing two
+// live recordings
+const withoutLive = title =>
+  `${title || ''}`.replace(/\s*(?:[-\u2013:]\s*live\b.*$|[([]\s*live\b[^)\]]*[)\]])/i, '').trim();
+
 const rateCandidate = (song, track, { isrc = false } = {}) => {
   const durationDiff =
     song.duration && track.duration_ms ? Math.abs(song.duration - track.duration_ms / 1000) : 0;
-  // an ISRC can be shared by versions with different titles (Happy Home, Happy Home II)
-  if (isrc) {
-    return durationDiff <= 5 && sameTitle(song.title, track.name) ? 'match' : 'review';
-  }
-  if (
-    !_.isEqual(versions(song.title), versions(track.name)) ||
-    !artistMatches(song.artist, track.artists)
-  ) {
+  // a live recording is another recording than the studio one, even under the same ISRC: a live file
+  // can carry its studio song's ISRC
+  const live = recordingVersions(song.title, song).includes('live');
+  const liveTrack = recordingVersions(track.name, {
+    album: _.get(track, 'album.name')
+  }).includes('live');
+  if (live !== liveTrack) {
     return null;
   }
-  const local = normalizeTitle(song.title);
-  const spotify = normalizeTitle(track.name);
-  if (sameTitle(song.title, track.name)) {
+  const title = live ? withoutLive(song.title) : song.title;
+  const name = live ? withoutLive(track.name) : track.name;
+  // an ISRC can be shared by versions with different titles (Happy Home, Happy Home II)
+  if (isrc) {
+    return durationDiff <= 5 && sameTitle(title, name) ? 'match' : 'review';
+  }
+  if (!_.isEqual(versions(title), versions(name)) || !artistMatches(song.artist, track.artists)) {
+    return null;
+  }
+  const local = normalizeTitle(title);
+  const spotify = normalizeTitle(name);
+  if (sameTitle(title, name)) {
     if (durationDiff <= 3) {
       return 'match';
     }

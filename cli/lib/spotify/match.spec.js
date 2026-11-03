@@ -59,6 +59,27 @@ describe('Spotify Matching', () => {
       expect(rateCandidate(song, track('Strange Days', ['Someone Else'], 186))).to.be.null;
     });
 
+    it('should match a live song only to a live track, even under the same ISRC', () => {
+      const studio = (name, album) => ({ ...track(name, ['The Doors'], 186), album: { name: album } });
+      const inLiveFolder = { ...song, album: 'Absolutely Live', live: true };
+      expect(rateCandidate(inLiveFolder, studio('Strange Days', 'Strange Days'))).to.be.null;
+      expect(
+        rateCandidate(inLiveFolder, studio('Strange Days', 'Strange Days'), { isrc: true })
+      ).to.be.null;
+      expect(rateCandidate(inLiveFolder, studio('Strange Days - Live', 'Absolutely Live'))).to.equal(
+        'match'
+      );
+      expect(
+        rateCandidate(inLiveFolder, studio('Strange Days (Live at the Hollywood Bowl)', 'Bowl'))
+      ).to.equal('match');
+      // the live album alone makes a song live, and a studio song never matches a live album's track
+      const onLiveAlbum = { ...song, album: 'In Concert (Live)' };
+      expect(rateCandidate(onLiveAlbum, studio('Strange Days', 'In Concert (Live)'))).to.equal(
+        'match'
+      );
+      expect(rateCandidate(song, studio('Strange Days', 'In Concert (Live)'))).to.be.null;
+    });
+
     it('should trust ISRC matches with the same title within 5 seconds and review the rest', () => {
       expect(
         rateCandidate(song, track(`${song.title} - 2011 Remaster`, ['Anyone'], 190), { isrc: true })

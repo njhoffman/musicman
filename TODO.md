@@ -86,6 +86,14 @@ Reviewed: 2026-11-01
       rating, fzf picks and confirmation, trash with beets removal, undo (file_changes, migration 8), and
       the Duplicates tab of `musicman ui`. 2026-11-02 plan on the library: 271 groups, 183 copies removed,
       47 matches cleared, 47 groups to pick.
+- [x] **Live copies keep their studio match.** (p2) [bug] the fix rejected the studio match, but the live
+      file's ISRC (beets wrote the studio one) matched the next studio edition, and the plan listed copies
+      linked to nothing as "re-match" forever. 1.56.0: live songs only match live tracks, unlinked copies
+      leave the group.
+- [ ] **`match recheck` for live files on studio tracks.** (p3) [feature] matches made before 1.56.0 that
+      link a live file to a studio track stay until a duplicates fix clears them; `sync match recheck` only
+      compares titles. It could send live/studio disagreements to review too (live folder or album against
+      `sp_album`).
 - [ ] **Manage excluded songs.** (p3) [feature] songs `check --fix` took out of the library (table
       `excluded_songs`, files kept) can only come back through `musicman undo`. A command or a page list
       to show them and let one back in (e.g. `db --include <path>`) would help once the undo history is

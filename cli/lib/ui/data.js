@@ -241,7 +241,7 @@ const transferLists = (db, config, plan) => {
     ),
     entries => {
       const songPath = path.relative(baseDirectory, entries[0].file);
-      const row = db.prepare('SELECT id, duration FROM songs WHERE path = ?').get(songPath);
+      const row = db.prepare('SELECT id, path, duration FROM songs WHERE path = ?').get(songPath);
       const match = row
         ? db.prepare('SELECT status FROM spotify_matches WHERE song_id = ?').get(row.id)
         : null;
