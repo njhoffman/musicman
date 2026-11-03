@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.62.1] - 2026-11-02
+
 ### Fixed
 
 - `sync --export` stuck on a playlist whose songs never appear in the desktop app's Local Files: `.mp3` files
@@ -1229,7 +1231,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.62.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.62.1...HEAD
+[1.62.1]: https://github.com/njhoffman/musicman/compare/v1.62.0...v1.62.1
 [1.62.0]: https://github.com/njhoffman/musicman/compare/v1.61.0...v1.62.0
 [1.61.0]: https://github.com/njhoffman/musicman/compare/v1.60.0...v1.61.0
 [1.60.0]: https://github.com/njhoffman/musicman/compare/v1.59.0...v1.60.0
