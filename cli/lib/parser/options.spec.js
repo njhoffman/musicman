@@ -165,10 +165,22 @@ describe('Options assignment', () => {
       expect(test1.options.assignments).to.deep.include(assignments);
     });
 
-    it('Should ignore field assignments for tags not in library.tags', () => {
-      const tagsConfig = { ...config, tags: [{ name: 'genre', id: 'TCON' }] };
-      const test1 = parser({ args: ['genre=Rock', 'artist=TestArtist'], config: tagsConfig });
-      expect(test1.options.assignments).to.deep.equal({ artist: 'TestArtist' });
+    it('Should refuse field assignments for tags not in library.tags, which would write nothing', () => {
+      expect(() => parser({ args: ['contxt=Study', 'artist=A'], config })).to.throw(
+        "Assignment unknown field 'contxt' in 'contxt=Study': fields are rating, CustomField1, CustomField2, CustomField3, album, artist, title"
+      );
+      expect(() =>
+        parser({
+          args: ['shuffle', 'https://open.spotify.com/playlist/5MUDXMSHkjbA2CIYXjj1Vz?si=a1'],
+          config
+        })
+      ).to.not.throw();
+      expect(
+        parser({ args: ['rating=4.5', 'artist=A'], config }).options.assignments
+      ).to.deep.equal({
+        rating: '4.5',
+        artist: 'A'
+      });
     });
 
     it('Should parse field assignments with empty values correctly', () => {

@@ -26,8 +26,9 @@ const unknownCommand = word => {
 };
 
 /**
- * Refuses filters with a field that is not a library tag (or rating): parseFilters ignores them, so a
- * typo like contxt:Study would list (or change) every song. Commands that read their own terms (search
+ * Refuses filters and assignments with a field that is not a library tag (or rating): parseFilters and
+ * parseAssignments ignore them, so a typo like contxt:Study would list (or change) every song, and
+ * contxt=Study would write nothing. Commands that read their own terms (search
  * and player, where such a term is free text) are left alone, and so are URLs and spotify: URIs.
  */
 const checkFilterFields = (terms, config, command) => {
@@ -39,11 +40,19 @@ const checkFilterFields = (terms, config, command) => {
     term => /^~?[\w-]+:/.test(term) && !/^[a-z]+:\/\//i.test(term) && !/^spotify:/.test(term)
   );
   const fieldNames = new Set(_.map(_.get(config, 'library.tags'), 'name'));
+  const fieldList = `fields are rating, ${_.sortBy([...fieldNames]).join(', ')}`;
   const [problem] = filterProblems(filterLike, fieldNames);
   if (problem) {
-    throw new Error(
-      `Filter ${problem}: fields are rating, ${_.sortBy([...fieldNames]).join(', ')}`
-    );
+    throw new Error(`Filter ${problem}: ${fieldList}`);
+  }
+  // field=value assignments (edit): parseAssignments skips unknown fields, so a typo writes nothing
+  const unknownAssignment = _.find(terms, term => {
+    const match = /^(\w[\w-]*)=/.exec(term);
+    return match && match[1] !== 'rating' && !fieldNames.has(match[1]);
+  });
+  if (unknownAssignment) {
+    const field = unknownAssignment.split('=')[0];
+    throw new Error(`Assignment unknown field '${field}' in '${unknownAssignment}': ${fieldList}`);
   }
 };
 
