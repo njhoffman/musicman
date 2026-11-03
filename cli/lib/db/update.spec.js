@@ -157,6 +157,35 @@ describe('Database Update', () => {
       expect(song('moved.mp3')).to.include({ id, mb_track_id: 'mb-1', added_at: addedAt });
     });
 
+    it('should re-link a moved file without a MusicBrainz id by its Spotify track id', async () => {
+      const file = path.join(library, 'dir1/testFile02.mp3');
+      NodeId3.update(
+        { userDefinedText: [{ description: 'sp_track_id', value: '4uLU6hMCjMI75M1A2tKUQC' }] },
+        file
+      );
+      await update();
+      const { id } = song('dir1/testFile02.mp3');
+      fs.renameSync(file, path.join(library, 'moved.mp3'));
+      const summary = await update();
+      expect(summary).to.include({ moved: 1, added: 0, removed: 0 });
+      expect(song('moved.mp3')).to.include({ id });
+    });
+
+    it('should re-link a moved file without ids by artist, title and length, one song only', async () => {
+      await update();
+      const { id } = song('dir1/testFile03.mp3');
+      fs.renameSync(path.join(library, 'dir1/testFile03.mp3'), path.join(library, 'moved.mp3'));
+      expect(await update()).to.include({ moved: 1, added: 0, removed: 0 });
+      expect(song('moved.mp3')).to.include({ id });
+
+      // two copies of one song moved at once: which is which cannot be told, so neither is followed
+      fs.copyFileSync(path.join(library, 'moved.mp3'), path.join(library, 'copy.mp3'));
+      await update();
+      fs.renameSync(path.join(library, 'moved.mp3'), path.join(library, 'moved2.mp3'));
+      fs.renameSync(path.join(library, 'copy.mp3'), path.join(library, 'copy2.mp3'));
+      expect(await update()).to.include({ moved: 0, added: 2, removed: 2 });
+    });
+
     it('should point the undo history of a moved file at its new path', async () => {
       const file = path.join(library, 'dir1/testFile02.mp3');
       const moved = path.join(library, 'moved.mp3');

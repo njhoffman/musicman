@@ -8,6 +8,7 @@ const { excludedPaths } = require('./exclusions.js');
 const { readMetadataFull, parseMetadata } = require('../metadata/read.js');
 const { isPopulated } = require('../metadata/tags.js');
 const { relinkHistory } = require('../history/relink.js');
+const { trackIdName } = require('../spotify/fields.js');
 const { setMeta, transaction } = require('./database.js');
 
 const mbTrackIdFrame = 'TXXX.MusicBrainz Release Track Id';
@@ -70,9 +71,10 @@ const likePrefix = prefix => `${prefix.replace(/[\\%_]/g, char => `\\${char}`)}/
 
 /**
  * Updates the database from the mp3 files at target, which must be inside mpd.baseDirectory.
- * Files with unchanged mtime and size are skipped; a new file with the MusicBrainz track id of a
- * song whose file no longer exists is treated as that song moved (its undo history follows it); songs
- * whose files are gone from the scanned scope are removed.
+ * Files with unchanged mtime and size are skipped; a new file that is a song whose file no longer
+ * exists (findMoved: the same MusicBrainz track id, else Spotify track id, else artist, title, and
+ * length) is treated as that song moved (its undo history follows it); songs whose files are gone from
+ * the scanned scope are removed.
  */
 const updateDatabase = async (
   db,
@@ -151,6 +153,16 @@ const updateDatabase = async (
        updated_at = datetime('now') WHERE id = ?`
     ),
     movedSongs: db.prepare('SELECT id, path FROM songs WHERE mb_track_id = ?'),
+    // the fallbacks for songs without a MusicBrainz id: the Spotify id, else artist, title and length
+    movedBySpotifyId: db.prepare(
+      `SELECT s.id, s.path FROM songs s JOIN song_tags t ON t.song_id = s.id
+       WHERE t.frame_id = ? AND t.value = ?`
+    ),
+    movedByTags: db.prepare(
+      `SELECT s.id, s.path, s.duration FROM songs s
+       JOIN song_tags a ON a.song_id = s.id AND a.frame_id = 'TPE1' AND a.value = ? COLLATE NOCASE
+       JOIN song_tags t ON t.song_id = s.id AND t.frame_id = 'TIT2' AND t.value = ? COLLATE NOCASE`
+    ),
     deleteTags: db.prepare('DELETE FROM song_tags WHERE song_id = ?'),
     insertTag: db.prepare('INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, ?, ?)'),
     deleteSong: db.prepare('DELETE FROM songs WHERE id = ?')
@@ -167,15 +179,51 @@ const updateDatabase = async (
   };
   const relinked = new Set();
 
-  // a song whose stored file no longer exists, with the same MusicBrainz track id
-  const findMoved = mbTrackId =>
-    _.find(
-      statements.movedSongs.all(mbTrackId),
+  // songs of rows whose stored file no longer exists (and that no file took over in this update)
+  const gone = rows =>
+    _.filter(
+      rows,
       row =>
         !seen.has(row.path) &&
         !relinked.has(row.id) &&
         !fs.existsSync(path.join(baseDirectory, row.path))
     );
+
+  /**
+   * The song a new file is, moved from a path that no longer exists: by MusicBrainz track id, else (for
+   * songs without one) by Spotify track id, else by artist, title, and length within a second. The
+   * fallbacks count only one song: two copies of a song gone at once are left as removed and added.
+   */
+  const findMoved = (mbTrackId, rows, duration) => {
+    if (mbTrackId) {
+      return _.first(gone(statements.movedSongs.all(mbTrackId))) || null;
+    }
+    const value = frameId =>
+      _.get(
+        _.find(rows, ([id]) => id === frameId),
+        1,
+        null
+      );
+    const only = candidates => (candidates.length === 1 ? candidates[0] : null);
+    const spotifyId = value(`TXXX.${trackIdName}`);
+    if (spotifyId) {
+      const bySpotify = gone(statements.movedBySpotifyId.all(`TXXX.${trackIdName}`, spotifyId));
+      if (bySpotify.length > 0) {
+        return only(bySpotify);
+      }
+    }
+    const artist = value('TPE1');
+    const title = value('TIT2');
+    if (!artist || !title || !duration) {
+      return null;
+    }
+    return only(
+      _.filter(
+        gone(statements.movedByTags.all(artist, title)),
+        row => row.duration && Math.abs(row.duration - duration) <= 1
+      )
+    );
+  };
 
   const writeSong = ({ file, rawTags }) => {
     const rows = frameRows(rawTags, multiFrames);
@@ -195,7 +243,7 @@ const updateDatabase = async (
     ];
 
     const existing = rowsByPath[file.path];
-    const moved = !existing && mbTrackId ? findMoved(mbTrackId) : null;
+    const moved = existing ? null : findMoved(mbTrackId, rows, rawTags.duration);
     let songId;
     let action;
     if (existing) {
