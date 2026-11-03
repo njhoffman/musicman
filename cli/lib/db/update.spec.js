@@ -120,6 +120,27 @@ describe('Database Update', () => {
       expect(songTags('dir1/testFile01.mp3')).to.not.deep.include(['TPE1', 'Artist J']);
     });
 
+    it('should stamp rated_at when the rating changes, and only then', async () => {
+      await update();
+      const file = 'dir1/testFile01.mp3';
+      expect(song(file).rated_at).to.be.null;
+      NodeId3.update({ artist: 'Another Artist' }, path.join(library, file));
+      touch(file);
+      await update();
+      expect(song(file).rated_at).to.be.null;
+      NodeId3.update({ popularimeter: { email: 'musicman', rating: 196, counter: 0 } }, path.join(library, file));
+      touch(file);
+      await update();
+      const stamped = song(file).rated_at;
+      expect(stamped).to.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+      // another tag write leaves the rating time alone
+      db.prepare('UPDATE songs SET rated_at = ? WHERE path = ?').run('2026-01-01 00:00:00', file);
+      NodeId3.update({ artist: 'Third Artist' }, path.join(library, file));
+      touch(file);
+      await update();
+      expect(song(file).rated_at).to.equal('2026-01-01 00:00:00');
+    });
+
     it('should re-link a moved file by MusicBrainz track id and keep its song id', async () => {
       const file = path.join(library, 'dir1/testFile02.mp3');
       NodeId3.update(

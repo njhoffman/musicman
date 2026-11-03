@@ -144,8 +144,10 @@ const updateDatabase = async (
     insertSong: db.prepare(
       'INSERT INTO songs (path, mb_track_id, mtime, size, duration, rating) VALUES (?, ?, ?, ?, ?, ?)'
     ),
+    // rated_at: when the stored rating last changed (the CASE sees the row as it was before the update)
     updateSong: db.prepare(
       `UPDATE songs SET path = ?, mb_track_id = ?, mtime = ?, size = ?, duration = ?, rating = ?,
+       rated_at = CASE WHEN rating IS ? THEN rated_at ELSE datetime('now') END,
        updated_at = datetime('now') WHERE id = ?`
     ),
     movedSongs: db.prepare('SELECT id, path FROM songs WHERE mb_track_id = ?'),
@@ -197,11 +199,11 @@ const updateDatabase = async (
     let songId;
     let action;
     if (existing) {
-      statements.updateSong.run(...values, existing.id);
+      statements.updateSong.run(...values, values[5], existing.id);
       songId = existing.id;
       action = 'updated';
     } else if (moved) {
-      statements.updateSong.run(...values, moved.id);
+      statements.updateSong.run(...values, values[5], moved.id);
       // the undo history follows the file, in the same transaction as the song
       relinkHistory(db, [{ from: path.join(baseDirectory, moved.path), to: file.file }], {
         baseDirectory

@@ -113,8 +113,9 @@ What happens to a copy that is not kept:
 Copies out of the library are listed in the `excluded_songs` table: `db --update`, the commands reading
 the library, and the drift check skip them, and `sync --push` removes their Spotify tracks from the
 playlists (like tracks rejected in review) instead of `sync --pull` fetching them again. The kept copy
-gets their context, picks, and mood values (multi value fields), and the rating of the newest copy that
-has one (by file time) when it differs.
+gets their context, picks, and mood values (multi value fields), and the rating of the copy rated last
+when it differs: by `rated_at` (when `db --update` saw its rating change, from 1.62.0 on), a copy with one
+before a copy without, and by file time only between copies with none (any tag write makes a file newer).
 
 `musicman db --excluded` lists them (date, path, reason, the copy kept instead; trashed copies marked).
 `musicman db --readmit <file>` lets one back in: no longer excluded, read into the database again, its

@@ -160,5 +160,10 @@ module.exports = [
       EXISTS (SELECT 1 FROM excluded_songs e WHERE e.path = s.path) AS excluded
     FROM song_tags t JOIN songs s ON s.id = t.song_id
     WHERE t.frame_id = 'TXXX.sp_track_id';
+  `,
+  // when a song's rating last changed, stamped by db --update when it sees another rating than stored;
+  // existing songs have none (unknown), the duplicates merge falls back to the file time for them
+  `
+  ALTER TABLE songs ADD COLUMN rated_at TEXT;
   `
 ];

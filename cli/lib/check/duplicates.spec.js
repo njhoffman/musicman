@@ -279,6 +279,28 @@ describe('Duplicates repair', () => {
       expect(changes).to.deep.equal(['Context +Lift', 'rating of the newer copy']);
     });
 
+    it('should take the rating set last by rated_at, not the newer file', () => {
+      // the kept copy's file is newer (a tag write), but the other copy was rated later
+      const { raw } = mergedTags({
+        keepRaw: tags('Run', 128),
+        keepMtime: 9,
+        keepRatedAt: '2026-10-01 10:00:00',
+        others: [{ raw: tags('Run', 255), mtime: 5, ratedAt: '2026-11-01 10:00:00' }],
+        descriptions: ['Context']
+      });
+      expect(raw.POPM.rating).to.equal(255);
+      // a copy with a rating time beats a newer file without one
+      expect(
+        mergedTags({
+          keepRaw: tags('Run', 128),
+          keepMtime: 1,
+          keepRatedAt: '2026-10-01 10:00:00',
+          others: [{ raw: tags('Run', 255), mtime: 9, ratedAt: null }],
+          descriptions: ['Context']
+        }).changes
+      ).to.be.empty;
+    });
+
     it('should keep the rating when the kept copy is newer or the newer copy has none', () => {
       expect(
         mergedTags({

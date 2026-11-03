@@ -100,7 +100,8 @@ Reviewed: 2026-11-01
       `excluded_songs`, files kept) can only come back through `musicman undo`. A command or a page list
       to show them and let one back in (e.g. `db --include <path>`) would help once the undo history is
       pruned (`history.keep`).
-- [ ] **Rating conflicts use the file time.** (p3) [bug] `check --fix` gives the kept duplicate the rating of
+- [x] **Rating conflicts use the file time.** (p3) [bug] Done in 1.62.0 with `songs.rated_at` (migration 11)
+      rather than the undo history, which keeps only 50 runs. `check --fix` gives the kept duplicate the rating of
       the newest copy by mtime, but any tag write (an artwork repair, a sync --match refresh) makes a file
       newer without a new rating. The POPM change times in the undo history (`tag_changes`) would tell when
       each rating was set, for runs still kept (`history.keep`).

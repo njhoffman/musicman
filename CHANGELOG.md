@@ -6,6 +6,16 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- The database records when each song's rating last changed (`rated_at`, schema 11): `db --update` stamps it
+  whenever it reads another rating than it stored, whoever wrote it (the menu, the page, `edit`, another
+  tool). The duplicates repair gives the kept copy the rating set last by that time, rather than the rating of
+  the copy whose file is newest, which any tag write (artwork, Spotify fields) made newer. Ratings from before
+  this version have no time; between those the file time still decides.
+- The database moves to schema 11 the first time this version opens it; older versions refuse it afterwards,
+  so update the notify daemon along with the cli.
+
 ## [1.61.0] - 2026-11-02
 
 ### Added

@@ -263,12 +263,12 @@ const joinOverlapping = fileGroups => {
 
 /**
  * The duplicates findings of check (groups of files, overlapping ones joined) with the song rows the
- * plan needs and shows: { files: [{ id, path, mtime, size, duration, rating, trackId, matchedTrack,
+ * plan needs and shows: { files: [{ id, path, mtime, size, duration, rating, rated_at, trackId, matchedTrack,
  * title, spotifyTitle }] } (trackId from the Spotify id tag, matchedTrack from a match or review row).
  */
 const duplicateGroups = (db, findings) => {
   const select = db.prepare(
-    'SELECT id, path, mtime, size, duration, rating FROM songs WHERE path = ?'
+    'SELECT id, path, mtime, size, duration, rating, rated_at FROM songs WHERE path = ?'
   );
   const trackOf = db.prepare('SELECT value FROM song_tags WHERE song_id = ? AND frame_id = ?');
   const matchOf = db.prepare(
@@ -372,9 +372,11 @@ const splitValues = value => _.compact(_.map(`${value || ''}`.split(','), _.trim
 
 /**
  * The kept copy's raw tags with the multi value fields of the removed copies merged in (each value
- * once, in any case), and the rating (POPM) of the newest copy that has one when it differs. Pure.
+ * once, in any case), and the rating (POPM) of the copy rated last when it differs: by ratedAt (when
+ * db --update saw its rating change), a copy with one before a copy without; the file time (mtime) only
+ * between copies with none, since any tag write makes a file newer. Pure.
  */
-const mergedTags = ({ keepRaw, keepMtime, others, descriptions }) => {
+const mergedTags = ({ keepRaw, keepMtime, keepRatedAt = null, others, descriptions }) => {
   const raw = _.cloneDeep(keepRaw);
   const changes = [];
   _.each(descriptions, description => {
@@ -395,10 +397,13 @@ const mergedTags = ({ keepRaw, keepMtime, others, descriptions }) => {
     }
   });
   const rated = _.filter(
-    [{ raw: keepRaw, mtime: keepMtime }, ...others],
+    [{ raw: keepRaw, mtime: keepMtime, ratedAt: keepRatedAt }, ...others],
     ({ raw: tags }) => !_.isEmpty(tags.POPM)
   );
-  const newest = _.maxBy(rated, 'mtime');
+  // rated_at is datetime('now') text, which sorts as it reads
+  const newest = _.last(
+    _.sortBy(rated, [({ ratedAt }) => (ratedAt ? 1 : 0), ({ ratedAt }) => ratedAt || '', 'mtime'])
+  );
   if (newest && newest.raw !== keepRaw && !_.isEqual(newest.raw.POPM, keepRaw.POPM)) {
     raw.POPM = _.cloneDeep(newest.raw.POPM);
     changes.push('rating of the newer copy');
@@ -452,12 +457,14 @@ const applyDuplicates = async ({
       try {
         const others = _.map(removedCopies(group), file => ({
           raw: read(absolute(file)),
-          mtime: byPath[file].mtime
+          mtime: byPath[file].mtime,
+          ratedAt: byPath[file].rated_at || null
         }));
         const keepRaw = read(absolute(group.keep));
         const { raw, changes } = mergedTags({
           keepRaw,
           keepMtime: byPath[group.keep].mtime,
+          keepRatedAt: byPath[group.keep].rated_at || null,
           others,
           descriptions
         });

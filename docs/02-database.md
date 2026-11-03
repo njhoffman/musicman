@@ -24,6 +24,7 @@
 ### Schema
 
 - `songs`: `id`, `path` (unique, relative), `mb_track_id`, `mtime`, `size`, `duration`, `rating`,
+  `rated_at` (when `db --update` last saw the rating change, UTC; empty for ratings older than schema 11),
   `added_at`, `updated_at`.
 - `song_tags`: `song_id`, `frame_id`, `value`. One row per populated frame, including every custom TXXX
   field (`TXXX.<description>`), not just `library.tags`, so `stats` accounting and `search` work on any
