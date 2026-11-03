@@ -35,9 +35,13 @@ const readDuration = async file => {
   return duration === null ? decodeDuration(file) : duration;
 };
 
-// raw id3 frames, cover art is reduced to a presence marker so image data is not kept in memory
+// raw id3 frames, cover art is reduced to a presence marker so image data is not kept in memory. node-id3
+// reads the whole file and gives binary frame data (the UFID identifier, PRIV data) as slices of it, so
+// such a value kept for one frame would keep the whole mp3 in memory: buffers are copied out.
 const toRawTags = tags => {
-  const rawTags = _.omit(tags.raw, ['APIC']);
+  const rawTags = _.cloneDeepWith(_.omit(tags.raw, ['APIC']), value =>
+    Buffer.isBuffer(value) ? Buffer.from(value) : undefined
+  );
   if (_.has(tags.raw, 'APIC')) {
     rawTags.APIC = true;
   }
@@ -129,4 +133,10 @@ const parseMetadata = (rawTags = {}, config) => {
   return parsedTags;
 };
 
-module.exports = { getMetadata, getMetadataFull, parseMetadata, readMetadataFull };
+module.exports = {
+  toRawTags,
+  getMetadata,
+  getMetadataFull,
+  parseMetadata,
+  readMetadataFull
+};

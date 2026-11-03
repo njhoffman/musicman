@@ -75,6 +75,25 @@ describe('Metadata Read', () => {
     });
   });
 
+  describe('toRawTags', () => {
+    it('should copy binary frame data out of the file buffer node-id3 slices it from', () => {
+      // node-id3 reads the whole file and slices frames out of it
+      const file = Buffer.alloc(1024 * 1024, 7);
+      const raw = readModule.toRawTags({
+        raw: {
+          UFID: { ownerIdentifier: 'http://musicbrainz.org', identifier: file.subarray(10, 46) },
+          PRIV: [{ ownerIdentifier: 'x', data: file.subarray(100, 108) }],
+          TIT2: 'Song',
+          APIC: { imageBuffer: file }
+        }
+      });
+      expect(raw.UFID.identifier.equals(file.subarray(10, 46))).to.equal(true);
+      expect(raw.UFID.identifier.buffer.byteLength).to.be.below(file.length);
+      expect(raw.PRIV[0].data.buffer.byteLength).to.be.below(file.length);
+      expect(raw).to.include({ TIT2: 'Song', APIC: true });
+    });
+  });
+
   describe('getMetadataFull', () => {
     it('should read duration from frame headers without decoding', async () => {
       nodeId3Stub.read.yields(null, { raw: { TPE1: 'Test Artist' } });
