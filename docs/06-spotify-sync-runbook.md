@@ -246,7 +246,8 @@ musicman sync --backup --dry-run  # what would be copied, updated, held back, an
 musicman sync --backup            # mirrors mpd.baseDirectory to backup.directory after a confirmation
 ```
 
-- Files only in the backup are moved to `<backup>/.musicman-removed/<date>/`, never deleted.
+- Files only in the backup are moved to `<backup>/.musicman-removed/<date>/`; dated folders older than
+  `backup.keepRemovedDays` (180) are deleted, 0 keeps them for good.
 - The backup copy an update replaces is moved to `<backup>/.musicman-replaced/<run time>/` first, so a bad tag
   write that reached the backup can be recovered; the folders of the last `backup.keepReplaced` runs (2) are
   kept, older ones deleted (0 keeps none). A run updating most of the library (3480 files, 27 GB on 2026-11-01)

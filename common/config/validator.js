@@ -122,7 +122,8 @@ const configSchema = {
     properties: {
       directory: { type: 'string', required: false },
       exclude: { type: 'array', required: false },
-      keepReplaced: { type: 'number', min: 0, required: false }
+      keepReplaced: { type: 'number', min: 0, required: false },
+      keepRemovedDays: { type: 'number', min: 0, required: false }
     }
   },
   daemon: {

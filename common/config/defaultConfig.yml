@@ -166,6 +166,9 @@ backup:
   # The backup copies an update replaces are moved to .musicman-replaced/<run time>/ first, so a bad tag
   # write that reached the backup can be recovered; the folders of this many backup runs are kept (0: none)
   keepReplaced: 2
+  # Files only in the backup (removed from the library) are moved to .musicman-removed/<date>/; folders older
+  # than this many days are deleted (0: kept for good)
+  keepRemovedDays: 180
 
 # musicman status (and musicman alone while a song plays): the now playing screen
 status:

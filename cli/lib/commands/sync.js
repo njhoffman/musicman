@@ -43,6 +43,7 @@ const {
 const {
   applyBackup,
   backupPlan,
+  defaultKeepRemovedDays,
   defaultKeepReplaced,
   removedFolder,
   replacedFolder
@@ -1004,6 +1005,7 @@ const listBackupFiles = (
 const runBackup = async ({ config, dryRun, force = false, confirm }) => {
   const directory = _.get(config, 'backup.directory');
   const keepReplaced = _.get(config, 'backup.keepReplaced', defaultKeepReplaced);
+  const keepRemovedDays = _.get(config, 'backup.keepRemovedDays', defaultKeepRemovedDays);
   if (!directory) {
     throw new Error('Set backup.directory in the config to the folder to back up to');
   }
@@ -1104,6 +1106,7 @@ const runBackup = async ({ config, dryRun, force = false, confirm }) => {
   let bytes = 0;
   const applied = applyBackup(plan, {
     keepReplaced,
+    keepRemovedDays,
     onFile: (action, entry) => {
       logger.logToFile('debug', `${action} ${entry.path}`);
       if (action === 'copy' || action === 'update') {
@@ -1129,7 +1132,8 @@ const runBackup = async ({ config, dryRun, force = false, confirm }) => {
       `${applied.renamed ? `, renamed ${applied.renamed} to the library's capitalization` : ''}` +
       `${applied.moved ? `, moved ${applied.moved} to ${applied.removedTo}` : ''}` +
       `${applied.replaced ? `, kept ${applied.replaced} replaced copies in ${applied.replacedTo}` : ''}` +
-      `${applied.prunedReplaced ? ` (deleted the ${applied.prunedReplaced} oldest runs of them)` : ''}`
+      `${applied.prunedReplaced ? ` (deleted the ${applied.prunedReplaced} oldest runs of them)` : ''}` +
+      `${applied.prunedRemoved ? `; deleted ${applied.prunedRemoved} folders of removed files older than ${keepRemovedDays} days` : ''}`
   );
   if (applied.timesLost.length > 0) {
     logger.warn(

@@ -160,6 +160,20 @@ describe('Library Backup', () => {
     expect(fs.readFileSync(replaced('20261021-143000', 'Rated/song.txt'), 'utf8')).to.equal('v3');
   });
 
+  it('should delete folders of removed files older than keepRemovedDays, keeping them for good with 0', () => {
+    const removed = path.join(directory, removedFolder);
+    ['20260401', '20261021', '20261101'].forEach(day =>
+      write(directory, `${removedFolder}/${day}/a.txt`, day)
+    );
+    write(directory, `${removedFolder}/notes/a.txt`, 'not a dated folder');
+    const now = new Date('2026-11-03T12:00:00Z');
+    const kept = applyBackup(backupPlan({ source, directory }), { now, keepRemovedDays: 0 });
+    expect(kept.prunedRemoved).to.equal(0);
+    const result = applyBackup(backupPlan({ source, directory }), { now, keepRemovedDays: 30 });
+    expect(result.prunedRemoved).to.equal(1);
+    expect(fs.readdirSync(removed).sort()).to.deep.equal(['20261021', '20261101', 'notes']);
+  });
+
   it('should overwrite the copy an update replaces with keepReplaced 0', () => {
     write(directory, 'Rated/song.txt', 'v1');
     write(source, 'Rated/song.txt', 'v2', new Date('2026-10-20T00:00:00Z'));

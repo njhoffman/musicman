@@ -11,6 +11,8 @@ const removedFolder = '.musicman-removed';
 const replacedFolder = '.musicman-replaced';
 // the replaced copies of this many backup runs are kept, unless backup.keepReplaced says otherwise
 const defaultKeepReplaced = 2;
+// files removed from the library are kept this many days, unless backup.keepRemovedDays says otherwise
+const defaultKeepRemovedDays = 180;
 
 const globTokens = { '/**': '(?:/.*)?', '**': '.*', '*': '[^/]*' };
 
@@ -206,6 +208,18 @@ const dateStamp = now => now.toISOString().slice(0, 10).replace(/-/g, '');
 const runStamp = now => now.toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-');
 const runStampPattern = /^\d{8}-\d{6}$/;
 
+// deletes the dated folders of removed files (YYYYMMDD) older than days before now; returns how many
+const pruneRemoved = (directory, days, now) => {
+  const root = path.join(directory, removedFolder);
+  if (!fs.existsSync(root)) {
+    return 0;
+  }
+  const oldest = dateStamp(new Date(now.getTime() - days * 24 * 3600 * 1000));
+  const old = fs.readdirSync(root).filter(name => /^\d{8}$/.test(name) && name < oldest);
+  old.forEach(name => fs.rmSync(path.join(root, name), { recursive: true, force: true }));
+  return old.length;
+};
+
 // deletes the oldest run folders of replaced copies beyond keep; returns how many it deleted
 const pruneReplaced = (directory, keep) => {
   const root = path.join(directory, replacedFolder);
@@ -245,14 +259,19 @@ const renameCase = (directory, { from, to }) => {
  * files (not held ones), and moves files only in the backup to .musicman-removed/<date>/. The backup
  * copy an update replaces is moved to .musicman-replaced/<run time>/ first, so a bad write that reached
  * the backup can be recovered; the folders of the newest keepReplaced runs are kept (0: none, the copy
- * is overwritten).
+ * is overwritten). Folders of removed files older than keepRemovedDays (0: kept for good) are deleted.
  * onFile(action, entry) is called after each file or rename. timesLost lists the copies whose
  * modification time is not the one set on them, which the next backup would copy again; a file that
  * changed while it was copied (e.g. the log of this run) is not one.
  */
 const applyBackup = (
   plan,
-  { now = new Date(), onFile = _.noop, keepReplaced = defaultKeepReplaced } = {}
+  {
+    now = new Date(),
+    onFile = _.noop,
+    keepReplaced = defaultKeepReplaced,
+    keepRemovedDays = defaultKeepRemovedDays
+  } = {}
 ) => {
   const { source, directory } = plan;
   const result = {
@@ -265,6 +284,7 @@ const applyBackup = (
     replaced: 0,
     replacedTo: null,
     prunedReplaced: 0,
+    prunedRemoved: 0,
     timesLost: []
   };
   const replacedTo = keepReplaced > 0 ? path.join(directory, replacedFolder, runStamp(now)) : null;
@@ -316,12 +336,16 @@ const applyBackup = (
   if (keepReplaced > 0) {
     result.prunedReplaced = pruneReplaced(directory, keepReplaced);
   }
+  if (keepRemovedDays > 0) {
+    result.prunedRemoved = pruneRemoved(directory, keepRemovedDays, now);
+  }
   return result;
 };
 
 module.exports = {
   applyBackup,
   backupPlan,
+  defaultKeepRemovedDays,
   defaultKeepReplaced,
   globPattern,
   removedFolder,
