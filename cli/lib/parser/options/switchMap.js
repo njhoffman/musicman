@@ -144,6 +144,7 @@ module.exports = {
   export: {
     description:
       'Link the songs Spotify has no track for into sync.uploadDirectory: files/ for the phone, stage/ with the next playlist to drag them into in the desktop app',
+    alias: '-e',
     func: () => ({ export: true })
   },
   import: {

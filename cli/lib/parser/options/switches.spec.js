@@ -2,6 +2,13 @@ const { expect } = require('chai');
 const parseSwitches = require('./switches.js');
 
 describe('Switch Parsing', () => {
+  it('should give every switch its own alias, which help and completion list', () => {
+    const aliases = Object.values(require('./switchMap.js')).map(({ alias }) => alias);
+    expect(aliases.every(Boolean)).to.be.true;
+    expect(new Set(aliases).size).to.equal(aliases.length);
+    expect(parseSwitches(['-e']).switches).to.deep.equal({ export: true });
+  });
+
   it('should read a value from --name=value, --name value, and the alias', () => {
     expect(parseSwitches(['--format=csv']).switches).to.deep.equal({ format: 'csv' });
     expect(parseSwitches(['--format', 'json']).switches).to.deep.equal({ format: 'json' });

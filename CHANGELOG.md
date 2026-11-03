@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- `sync --export` has the short alias `-e`; `--help` listed it as `--export, undefined`.
+
 ## [1.57.0] - 2026-11-02
 
 ### Added
