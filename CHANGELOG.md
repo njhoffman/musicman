@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.75.0] - 2026-11-03
+
 ### Added
 
 - `musicman spotify queue` shows the track Spotify plays and the next few, on whichever device plays (Web API,
@@ -1429,7 +1431,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.74.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.75.0...HEAD
+[1.75.0]: https://github.com/njhoffman/musicman/compare/v1.74.0...v1.75.0
 [1.74.0]: https://github.com/njhoffman/musicman/compare/v1.73.0...v1.74.0
 [1.73.0]: https://github.com/njhoffman/musicman/compare/v1.72.0...v1.73.0
 [1.72.0]: https://github.com/njhoffman/musicman/compare/v1.71.1...v1.72.0
