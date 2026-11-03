@@ -79,6 +79,27 @@ const registerFeatureTags = config => {
   );
 };
 
+// the analysis fields musicman analyze writes (cli/lib/analyze/essentia.js): tempo to TBPM (bpm) and key
+// to TKEY (key) when empty, the others to TXXX.es_<field>, and es_analyzed_at; all library tags
+const registerAnalysisTags = config => {
+  const fields = _.get(config, 'analyze.fields') || [];
+  if (fields.length === 0) {
+    return;
+  }
+  const custom = _.map(
+    _.reject(fields, field => featureTagNames[field]).concat('analyzed_at'),
+    field => ({ id: `TXXX.es_${field}`, name: `es_${field}` })
+  );
+  const defined = new Set(_.map(config.tags, 'name'));
+  config.tags = (config.tags || []).concat(_.reject(custom, ({ name }) => defined.has(name)));
+  config.library.tags = _.uniq(
+    (config.library.tags || []).concat(
+      _.map(custom, 'name'),
+      _.compact(_.map(fields, field => featureTagNames[field]))
+    )
+  );
+};
+
 // merged config with all validation errors and warnings, nothing is reported or exited here
 const buildConfig = ({
   userConfigPath = getUserConfigPath(),
@@ -150,6 +171,7 @@ const buildConfig = ({
 
   registerSpotifyTags(config);
   registerFeatureTags(config);
+  registerAnalysisTags(config);
   const { tags, missing } = resolveLibraryTags(config);
   config.library.tags = tags;
   errors.push(...validateLibrary(config, missing));

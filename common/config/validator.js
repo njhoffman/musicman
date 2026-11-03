@@ -126,6 +126,13 @@ const configSchema = {
       keepRemovedDays: { type: 'number', min: 0, required: false }
     }
   },
+  analyze: {
+    type: 'object',
+    properties: {
+      fields: { type: 'array', required: false },
+      workers: { type: 'number', min: 1, required: false }
+    }
+  },
   features: {
     type: 'object',
     properties: {
@@ -463,6 +470,24 @@ function validateConfig(config) {
     if (!featureFields.includes(field)) {
       result.errors.push(
         `features.fields[${i}] '${field}' must be one of ${featureFields.join(', ')}`
+      );
+    }
+  });
+
+  const analyzeFields = [
+    'tempo',
+    'key',
+    'danceability',
+    'mood_happy',
+    'mood_sad',
+    'mood_relaxed',
+    'mood_aggressive',
+    'mood_party'
+  ];
+  _.each(_.get(config, 'analyze.fields', []), (field, i) => {
+    if (!analyzeFields.includes(field)) {
+      result.errors.push(
+        `analyze.fields[${i}] '${field}' must be one of ${analyzeFields.join(', ')}`
       );
     }
   });

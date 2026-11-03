@@ -186,6 +186,21 @@ features:
   - tempo
   - valence
 
+# Audio analysis of the library files with Essentia (musicman analyze, through uv): tempo and key fill TBPM
+# (bpm) and TKEY (key) only where empty; danceability (0 to about 3) and the mood probabilities (0 to 1, from
+# 90 seconds in the middle of each track) go to TXXX.es_<field>. Each worker is a process of its own
+analyze:
+  workers: 4
+  fields:
+  - tempo
+  - key
+  - danceability
+  - mood_happy
+  - mood_sad
+  - mood_relaxed
+  - mood_aggressive
+  - mood_party
+
 # musicman status (and musicman alone while a song plays): the now playing screen
 status:
   # Nerd Font icons before the player and each field

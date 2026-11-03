@@ -153,6 +153,16 @@ module.exports = {
     alias: '-G',
     func: () => ({ readmit: true })
   },
+  limit: {
+    description: 'With analyze, analyse only the first N songs not analysed yet (a trial)',
+    alias: '-M',
+    value: 'N',
+    examples: ['--limit 20', '-M 5'],
+    func: (used, optionList, i) => {
+      used.push(optionList[i + 1]);
+      return { limit: optionList[i + 1] };
+    }
+  },
   features: {
     description:
       'With sync, write audio features from ReccoBeats (tempo, key, energy, ...) to the songs with a Spotify id and none yet (--refresh: all)',

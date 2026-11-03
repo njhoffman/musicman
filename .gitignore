@@ -8,3 +8,4 @@ node_modules
 .vectorcode
 # the user config lives in ~/.musicmanrc.yml, tracked by dotbare; never a copy here
 /.musicmanrc.yml
+__pycache__/

@@ -153,11 +153,16 @@ Reviewed: 2026-11-03
       and `/audio-analysis` return 403 for this app (checked 2026-10-20); needs another source (see section 11).
       Done 2026-11-03: `sync --features` from ReccoBeats by Spotify track id (`lib/sync/features.js`), tempo to
       TBPM, key to TKEY, the rest to `rb_*`; still 403 from Spotify that day.
-- [ ] **Audio features for the songs ReccoBeats lacks.** (p3) [feature] about 17% of sampled tracks are unknown to
+- [x] **Audio features for the songs ReccoBeats lacks.** (p3) [feature] about 17% of sampled tracks are unknown to
       it, and ~1600 songs have no Spotify id. Analyse the files themselves with Essentia (its music extractor, e.g.
       through the beets xtractor plugin), which also gives mood probabilities (happy, sad, party, relaxed,
       aggressive) for the mood analysis item. Needs the standalone extractor binary and models (beets runs on
-      Python 3.14, which Essentia does not support yet), and hours for a first pass.
+      Python 3.14, which Essentia does not support yet), and hours for a first pass. Done 2026-11-03:
+      `musicman analyze` (Essentia has Python 3.14 wheels after all, run through `uv`): tempo and key where
+      empty, `es_danceability` and five `es_mood_*` probabilities, resumable, about 7 to 9 hours for the library.
+- [ ] **Suggest `mood` values from the Essentia moods.** (p3) [feature] once `analyze` has run, offer `mood` values
+      for songs whose `es_mood_*` probabilities are high (e.g. relaxed above 0.8 and no mood yet), to accept in
+      the page or a picker, never written on their own.
 - [x] **Spotify credentials.** (p1) [feature] from the environment or `spotify.*`; `sync --login` saves OAuth tokens
       to `$XDG_STATE_HOME/musicman/spotify-token.json` (mode 0600).
 - [x] **Sync config.** (p1) [feature] `sync.likedRating`, `sync.playlists`, `sync.uploadDirectory`,

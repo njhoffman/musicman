@@ -16,6 +16,7 @@ const checkCommand = require('./check.js');
 const statusCommand = require('./status.js');
 const uiCommand = require('./ui.js');
 const valuesCommand = require('./values.js');
+const analyzeCommand = require('./analyze.js');
 
 module.exports = [
   viewCommand,
@@ -35,5 +36,6 @@ module.exports = [
   playerCommand,
   checkCommand,
   statusCommand,
-  uiCommand
+  uiCommand,
+  analyzeCommand
 ];

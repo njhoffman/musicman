@@ -133,6 +133,27 @@ speechiness, tempo, and valence (all by default): tempo goes to `TBPM` (the `bpm
   again. On 2026-11-03 it knew 83 of 100 sampled library tracks.
 - The writes are recorded for `musicman undo`.
 
+### 5. Analysing the files (Essentia)
+
+```sh
+musicman analyze --dry-run      # how many songs, and about how long
+musicman analyze --limit 20     # a trial on the first 20
+musicman analyze                # all songs not analysed yet; ctrl-c stops, the next run goes on
+```
+
+For the songs ReccoBeats does not know (or that have no Spotify id), and for moods, `analyze` analyses the
+library's own files with Essentia (`cli/scripts/essentia-analyze.py`, run through `uv`, which builds its
+environment on the first run; the models, about 21 MB, go to `~/.cache/musicman/essentia-models`).
+
+- Tempo and key fill `TBPM` and `TKEY` only where they are empty, so ReccoBeats' values stay.
+- Danceability (Essentia's scale, 0 to about 3) and the probabilities of five moods (happy, sad, relaxed,
+  aggressive, party; 0 to 1, from 90 seconds in the middle of each track) go to `es_<field>` tags, never to
+  `rb_*` ones, whose scales differ; `es_analyzed_at` marks a song done. All are library tags.
+- `analyze.workers` processes (4) share the files; each file's tags are written as soon as it is analysed and
+  recorded for `musicman undo`. About 4 seconds a file with 4 workers (2026-11-03): 7 to 9 hours for the
+  whole library.
+- The moods are only probabilities: the `mood` tag stays yours.
+
 ## Spotify to local
 
 ```sh

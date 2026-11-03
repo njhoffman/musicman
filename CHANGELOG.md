@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman analyze` analyses the library's own files with Essentia, through `uv`: tempo and key fill `TBPM`
+  and `TKEY` where empty, and danceability and the probabilities of five moods (happy, sad, relaxed,
+  aggressive, party) go to `es_<field>` tags. It skips analysed songs, so a run stopped with ctrl-c goes on
+  next time; `--limit N` for a trial, `--refresh` for all, `--yes` without asking. `analyze.workers` (4) and
+  `analyze.fields` configure it.
+
 ## [1.75.0] - 2026-11-03
 
 ### Added
