@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- `sync --export` stuck on a playlist whose songs never appear in the desktop app's Local Files: `.mp3` files
+  holding MPEG layer II (MP2) audio, which Spotify does not list. The export reads each file's first audio
+  frames, leaves such songs out of `files/`, `stage/`, and the playlists' counts, and lists them in the output
+  and the checklist (2 of the 623 songs).
+
 ## [1.62.0] - 2026-11-02
 
 ### Changed

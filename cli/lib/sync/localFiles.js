@@ -93,11 +93,16 @@ const assignNames = (songs, previous = {}) => {
  * are staged in plan order, Liked Songs last. previous is the last export's state ({ names }).
  * Returns { songs: [{ file, path, name }], targets: [{ id, name, total, added, pending, stray }], staged }.
  */
-const planExport = (plan, { baseDirectory, previous = {} }) => {
-  const byFile = _.uniqBy(
-    _.flatMap(plan, target => _.filter(target.noId, exportable)),
-    'file'
+const planExport = (plan, { baseDirectory, previous = {}, readable = () => true }) => {
+  const [byFile, unreadable] = _.partition(
+    _.uniqBy(
+      _.flatMap(plan, target => _.filter(target.noId, exportable)),
+      'file'
+    ),
+    song => readable(song.file)
   );
+  const skipped = new Set(_.map(unreadable, 'file'));
+  const kept = list => _.reject(list, ({ file }) => skipped.has(file));
   const songs = _.map(byFile, song => ({
     file: song.file,
     path: path.relative(baseDirectory, song.file),
@@ -109,12 +114,14 @@ const planExport = (plan, { baseDirectory, previous = {} }) => {
     _.sortBy(plan, target => (target.id === likedId ? 1 : 0)),
     target => {
       const local = target.localFiles || { added: [], pending: [], stray: [] };
+      const added = kept(local.added);
+      const pending = kept(local.pending);
       return {
         id: target.id,
         name: target.name,
-        total: local.added.length + local.pending.length,
-        added: _.map(local.added, ({ file }) => nameOf(file)),
-        pending: _.map(local.pending, ({ file }) => nameOf(file)),
+        total: added.length + pending.length,
+        added: _.map(added, ({ file }) => nameOf(file)),
+        pending: _.map(pending, ({ file }) => nameOf(file)),
         stray: _.map(local.stray, track => `${track.artists || '?'} - ${track.name || '?'}`)
       };
     }
@@ -122,8 +129,97 @@ const planExport = (plan, { baseDirectory, previous = {} }) => {
   return {
     songs: _.map(songs, song => ({ file: song.file, path: song.path, name: names[song.path] })),
     targets,
-    staged: _.find(targets, target => target.pending.length > 0) || null
+    staged: _.find(targets, target => target.pending.length > 0) || null,
+    unreadable: _.map(unreadable, song => path.relative(baseDirectory, song.file))
   };
+};
+
+// MPEG audio frame headers: bitrates (kbps) by version and layer, sample rates by version
+const bitrates = {
+  '1-1': [0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448],
+  '1-2': [0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384],
+  '1-3': [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320],
+  '2-1': [0, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256],
+  '2-2': [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160]
+};
+bitrates['2-3'] = bitrates['2-2'];
+const sampleRates = { 1: [44100, 48000, 32000], 2: [22050, 24000, 16000], 2.5: [11025, 12000, 8000] };
+
+// the frame header at offset: { version, layer, sampleRate, length }, null when the bytes are not one
+const frameHeader = (buffer, offset) => {
+  if (offset + 4 > buffer.length || buffer[offset] !== 0xff || (buffer[offset + 1] & 0xe0) !== 0xe0) {
+    return null;
+  }
+  const version = { 3: 1, 2: 2, 0: 2.5 }[(buffer[offset + 1] >> 3) & 0x03];
+  const layer = { 3: 1, 2: 2, 1: 3 }[(buffer[offset + 1] >> 1) & 0x03];
+  const bitrateIndex = buffer[offset + 2] >> 4;
+  const rateIndex = (buffer[offset + 2] >> 2) & 0x03;
+  if (!version || !layer || bitrateIndex === 0 || bitrateIndex === 15 || rateIndex === 3) {
+    return null;
+  }
+  const bitrate = bitrates[`${version === 1 ? 1 : 2}-${layer}`][bitrateIndex] * 1000;
+  const sampleRate = sampleRates[version][rateIndex];
+  const padding = (buffer[offset + 2] >> 1) & 0x01;
+  const length =
+    layer === 1
+      ? (Math.floor((12 * bitrate) / sampleRate) + padding) * 4
+      : Math.floor(((layer === 3 && version !== 1 ? 72 : 144) * bitrate) / sampleRate) + padding;
+  return { version, layer, sampleRate, length };
+};
+
+/**
+ * The MPEG audio layer of a file (1, 2, or 3): the first frame header after its ID3v2 tag that the next
+ * frame follows right after (a lone sync pattern in junk data is no frame); null when none is found in
+ * the first 64 KiB. Spotify's Local Files only list layer III (MP3): MP2 audio in a file named .mp3
+ * never shows up there.
+ */
+const mpegLayer = file => {
+  const fd = fs.openSync(file, 'r');
+  try {
+    const head = Buffer.alloc(10);
+    fs.readSync(fd, head, 0, 10, 0);
+    // ID3v2 size: four 7-bit bytes, plus the 10 byte header and a footer when flagged
+    const tagSize =
+      head.toString('latin1', 0, 3) === 'ID3'
+        ? 10 +
+          ((head[6] & 0x7f) << 21) +
+          ((head[7] & 0x7f) << 14) +
+          ((head[8] & 0x7f) << 7) +
+          (head[9] & 0x7f) +
+          (head[5] & 0x10 ? 10 : 0)
+        : 0;
+    const buffer = Buffer.alloc(64 * 1024);
+    const length = fs.readSync(fd, buffer, 0, buffer.length, tagSize);
+    const data = buffer.subarray(0, length);
+    for (let i = 0; i < length; i += 1) {
+      const frame = frameHeader(data, i);
+      const next = frame && frameHeader(data, i + frame.length);
+      if (
+        next &&
+        next.version === frame.version &&
+        next.layer === frame.layer &&
+        next.sampleRate === frame.sampleRate
+      ) {
+        return frame.layer;
+      }
+    }
+    return null;
+  } finally {
+    fs.closeSync(fd);
+  }
+};
+
+// whether Spotify can list a file in Local Files: MP3 audio, or a format it is not checked for
+const spotifyReadable = file => {
+  if (path.extname(file).toLowerCase() !== '.mp3') {
+    return true;
+  }
+  try {
+    const layer = mpegLayer(file);
+    return layer === null || layer === 3;
+  } catch {
+    return true;
+  }
 };
 
 // a hard link to the library file, a copy where links are refused (another filesystem)
@@ -183,6 +279,14 @@ const checklist = (exported, { date }) => {
       : '- Every song is in its playlists, `stage/` is empty.',
     ''
   ];
+  if (exported.unreadable && exported.unreadable.length > 0) {
+    lines.push(
+      `Left out, Spotify cannot list them (MPEG layer II audio in a .mp3 file; convert them to MP3):`,
+      '',
+      ..._.map(exported.unreadable, file => `- ${file}`),
+      ''
+    );
+  }
   _.each(
     _.filter(exported.targets, target => target.total > 0 || target.stray.length > 0),
     target => {
@@ -273,7 +377,9 @@ module.exports = {
   exportable,
   isLocalTrackOf,
   localTracks,
+  mpegLayer,
   planExport,
+  spotifyReadable,
   readExportState,
   writeExportState
 };

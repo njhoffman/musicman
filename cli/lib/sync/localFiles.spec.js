@@ -9,8 +9,10 @@ const {
   exportName,
   isLocalTrackOf,
   localTracks,
+  mpegLayer,
   planExport,
-  readExportState
+  readExportState,
+  spotifyReadable
 } = require('./localFiles.js');
 
 describe('Local files export', () => {
@@ -122,6 +124,60 @@ describe('Local files export', () => {
       const exported = planExport([target('p1', 'Done', [one], ['/m/one.mp3'])], {
         baseDirectory: '/m'
       });
+      expect(exported.staged).to.be.null;
+    });
+  });
+
+  describe('mpegLayer', () => {
+    let directory;
+    // MPEG-1 frames at 128 kbps, 44.1 kHz, 417 bytes long: layer III header ff fb 90 00, layer II
+    // ff fd 80 00 (bitrate index 9 and 8), after an ID3v2.3 tag of 20 bytes and, in one file, junk bytes
+    // that look like a frame header
+    const frames = (second, count = 3) =>
+      Buffer.concat(
+        Array.from({ length: count }, () =>
+          Buffer.concat([
+            Buffer.from([0xff, second, second === 0xfd ? 0x80 : 0x90, 0x00]),
+            Buffer.alloc(413)
+          ])
+        )
+      );
+    const id3 = Buffer.concat([Buffer.from('ID3'), Buffer.from([3, 0, 0, 0, 0, 0, 20]), Buffer.alloc(20)]);
+    const write = (name, ...parts) => {
+      const file = path.join(directory, name);
+      fs.writeFileSync(file, Buffer.concat(parts));
+      return file;
+    };
+
+    beforeEach(() => {
+      directory = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-layer-'));
+    });
+
+    afterEach(() => fs.rmSync(directory, { recursive: true, force: true }));
+
+    it('should read the layer of the first frame the next one follows, past the ID3 tag and junk', () => {
+      expect(mpegLayer(write('mp3.mp3', id3, frames(0xfb)))).to.equal(3);
+      expect(mpegLayer(write('mp2.mp3', id3, frames(0xfd)))).to.equal(2);
+      expect(mpegLayer(write('junk.mp3', id3, Buffer.from([0xff, 0xfd, 0x90, 0x00, 0x12]), frames(0xfb)))).to.equal(3);
+      expect(mpegLayer(write('none.mp3', id3, Buffer.alloc(100)))).to.be.null;
+    });
+
+    it('should call MP2 audio in a .mp3 file unreadable for Spotify, and leave other files alone', () => {
+      expect(spotifyReadable(write('mp2.mp3', id3, frames(0xfd)))).to.be.false;
+      expect(spotifyReadable(write('mp3.mp3', id3, frames(0xfb)))).to.be.true;
+      expect(spotifyReadable(write('song.m4a', Buffer.alloc(10)))).to.be.true;
+    });
+
+    it('should leave unreadable songs out of the export, its playlists, and the stage', () => {
+      const good = { file: '/m/good.mp3', match: 'missing', tags: tags('A', 'Good') };
+      const bad = { file: '/m/bad.mp3', match: 'missing', tags: tags('A', 'Bad') };
+      const exported = planExport(
+        [{ id: 'p1', name: 'P', noId: [good, bad], localFiles: { added: [good], pending: [bad], stray: [] } }],
+        { baseDirectory: '/m', readable: file => file !== '/m/bad.mp3' }
+      );
+      expect(exported.songs.map(song => song.path)).to.deep.equal(['good.mp3']);
+      expect(exported.unreadable).to.deep.equal(['bad.mp3']);
+      expect(exported.targets[0]).to.include({ total: 1 });
       expect(exported.staged).to.be.null;
     });
   });

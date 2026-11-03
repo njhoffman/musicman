@@ -228,6 +228,9 @@ Notes:
   `spotify.update` keeps it in place across client upgrades, with spicetify). The phone plays its own copies
   regardless.
 - A song with an unresolved duplicate copy is exported twice (`Song (2).mp3`); pick one first (`check --pick`).
+- Spotify's Local Files list MP3 (MPEG layer III) only: a `.mp3` file holding MPEG layer II audio (MP2) never
+  shows up there, so the export leaves such songs out (found by their first audio frames) and lists them in the
+  output and the checklist. Converting them to MP3 brings them back on the next export.
 
 ## Backing up the library files
 

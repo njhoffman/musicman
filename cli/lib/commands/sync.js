@@ -24,6 +24,7 @@ const {
   applyExport,
   planExport,
   readExportState,
+  spotifyReadable,
   writeExportState
 } = require('../sync/localFiles.js');
 const { mirrorToPhone } = require('../sync/phone.js');
@@ -472,8 +473,15 @@ const runExport = async ({ config, plan, dryRun, connect }) => {
   const previous = readExportState(uploadDirectory);
   const exported = planExport(plan, {
     baseDirectory: path.resolve(config.mpd.baseDirectory),
-    previous
+    previous,
+    readable: spotifyReadable
   });
+  if (exported.unreadable.length > 0) {
+    logger.warn(
+      `${exported.unreadable.length} songs left out, Spotify cannot list them (MPEG layer II audio in a ` +
+        `.mp3 file, convert them to MP3): ${exported.unreadable.join(', ')}`
+    );
+  }
   const { staged } = exported;
   const pending = _.sumBy(exported.targets, target => target.pending.length);
   logger.info(
