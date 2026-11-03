@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.71.1] - 2026-11-03
+
 ### Fixed
 
 - Several commits in a row left the notify daemon stopped: each publish restarted it, which tripped systemd's
@@ -1381,7 +1383,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.71.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.71.1...HEAD
+[1.71.1]: https://github.com/njhoffman/musicman/compare/v1.71.0...v1.71.1
 [1.71.0]: https://github.com/njhoffman/musicman/compare/v1.70.1...v1.71.0
 [1.70.1]: https://github.com/njhoffman/musicman/compare/v1.70.0...v1.70.1
 [1.70.0]: https://github.com/njhoffman/musicman/compare/v1.69.0...v1.70.0
