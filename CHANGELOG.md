@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.61.0] - 2026-11-02
+
 ### Added
 
 - `musicman values [field ...]` lists the values of library fields with the number of songs that have each,
@@ -1208,7 +1210,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.60.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.61.0...HEAD
+[1.61.0]: https://github.com/njhoffman/musicman/compare/v1.60.0...v1.61.0
 [1.60.0]: https://github.com/njhoffman/musicman/compare/v1.59.0...v1.60.0
 [1.59.0]: https://github.com/njhoffman/musicman/compare/v1.58.2...v1.59.0
 [1.58.2]: https://github.com/njhoffman/musicman/compare/v1.58.1...v1.58.2
