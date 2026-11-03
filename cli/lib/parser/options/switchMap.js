@@ -152,6 +152,12 @@ module.exports = {
     alias: '-G',
     func: () => ({ readmit: true })
   },
+  restore: {
+    description:
+      'With db, list the database backups, or replace the library database with the one named (the current one is saved first)',
+    alias: '-D',
+    func: () => ({ restore: true })
+  },
   export: {
     description:
       'Link the songs Spotify has no track for into sync.uploadDirectory: files/ for the phone, stage/ with the next playlist to drag them into in the desktop app',
@@ -160,7 +166,7 @@ module.exports = {
   },
   yes: {
     description:
-      'With --import, import without asking first (musicman ui runs the import, without a terminal)',
+      'Answer yes to the question: sync --import (musicman ui runs it, without a terminal), db --restore',
     alias: '-Q',
     func: () => ({ yes: true })
   },

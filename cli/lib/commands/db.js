@@ -4,11 +4,14 @@ const path = require('path');
 
 const { backupDatabase, getMeta, openLibrary, updateDatabase } = require('../db/index.js');
 const { excludedSongs, exclusionOf, includeSong } = require('../db/exclusions.js');
+const { findRestorable, listRestorable, restoreDatabase } = require('../db/restore.js');
 const { recordFileMove } = require('../history/journal.js');
 const { formatProgress, outputDbStats, outputUpdateSummary } = require('../output/db.js');
 const { pickWithFzf } = require('../output/fzf.js');
 const { renderColumns } = require('../output/render.js');
+const { confirm: confirmPrompt } = require('../utils/confirm.js');
 const logger = require('../utils/logger.js');
+const { runningRuns, runsDirectory } = require('../utils/runs.js');
 
 const fileSize = file => (fs.existsSync(file) ? fs.statSync(file).size : 0);
 
@@ -176,13 +179,89 @@ const readmit = async (db, { config, target, pick }) => {
   return readmitted;
 };
 
+const formatSize = bytes => `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+
+/**
+ * db --restore: lists the database copies in db.backupDirectory; db --restore <name> replaces the library
+ * database with one (restoreDatabase), after asking (--yes: without), never while another musicman run
+ * is going (musicman ui included), which would write to the database being replaced.
+ */
+const restore = async ({ config, name, yes, confirm, running }) => {
+  const copies = listRestorable(config.db.backupDirectory);
+  if (!name) {
+    if (copies.length === 0) {
+      logger.info(`No database backups in ${config.db.backupDirectory}`);
+      return { backups: [] };
+    }
+    logger.consoleLog(
+      renderColumns({
+        head: ['Backup', 'Made', 'Size', 'Schema'],
+        rows: _.map(copies, copy => [
+          copy.name,
+          copy.at.toLocaleString(),
+          formatSize(copy.size),
+          copy.version === null
+            ? 'unreadable'
+            : `${copy.version}${copy.newer ? ' (newer than this musicman)' : ''}`
+        ]),
+        columns: [{}, {}, {}, {}]
+      })
+    );
+    logger.info('musicman db --restore <name> restores one (the current database is saved first)');
+    return { backups: _.map(copies, 'name') };
+  }
+  const copy = findRestorable(copies, name);
+  if (!copy) {
+    throw new Error(`No database backup '${name}' in ${config.db.backupDirectory}, see db --restore`);
+  }
+  const busy = running();
+  if (busy.length > 0) {
+    throw new Error(
+      `${_.map(busy, run => `${run.command} (pid ${run.pid})`).join(', ')} is running: restore when it is done`
+    );
+  }
+  const question =
+    `Replace the library database with ${copy.name} (${copy.at.toLocaleString()})? ` +
+    'Undo history recorded since is lost with it (the run reports stay).';
+  if (!yes && !(await confirm(question))) {
+    logger.info('Restore cancelled');
+    return { restored: null };
+  }
+  const { saved } = restoreDatabase({ config, copy });
+  if (saved) {
+    logger.info(`Saved the database as it was to ${saved}`);
+  }
+  logger.info(
+    `Restored ${copy.name}; files changed since it was made are not in it: run musicman db --update`
+  );
+  return { restored: copy.name, saved };
+};
+
 // db: show database stats; db --update [target]: update the database from mp3 files
 const dbCommand = async ({
   target,
   options,
   config,
-  pick = process.stdin.isTTY ? pickWithFzf : null
+  pick = process.stdin.isTTY ? pickWithFzf : null,
+  confirm = confirmPrompt,
+  running = () => runningRuns(runsDirectory(config))
 }) => {
+  // before the database is opened: opening it migrates the database being replaced
+  if (options.switches.restore) {
+    try {
+      return await restore({
+        config,
+        name: _.first(options.terms),
+        yes: Boolean(options.switches.yes),
+        confirm,
+        running
+      });
+    } catch (err) {
+      logger.error(err.message);
+      process.exitCode = 1;
+      return false;
+    }
+  }
   let db;
   try {
     db = openLibrary(config);
@@ -222,9 +301,10 @@ const defaultTarget = baseDirectory => baseDirectory;
 module.exports = {
   name: 'db',
   description:
-    'Show library database stats, update it from the files, back it up, or list and readmit excluded songs',
-  usage: 'musicman db [--update [target]] [--backup] [--excluded] [--readmit [path]]',
-  switches: ['update', 'backup', 'excluded', 'readmit'],
+    'Show library database stats, update it from the files, back it up or restore a backup, or list and readmit excluded songs',
+  usage:
+    'musicman db [--update [target]] [--backup] [--excluded] [--readmit [path]] [--restore [name] [--yes]]',
+  switches: ['update', 'backup', 'excluded', 'readmit', 'restore', 'yes'],
   completes: ['paths'],
   func: dbCommand,
   archive: ({ update, backup, readmit: readmitting }) => Boolean(update || backup || readmitting),

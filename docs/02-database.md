@@ -71,3 +71,17 @@ fields (in my local config) to that table.
   - if --add switch, append to playlist
   - if --play switch, create a new playlist with the results and play the new playlist right away
 - Add appropriate tests and error handling for the database commands, including the `--update` switch.
+
+### Backups and restore
+
+- Commands that change the library back the database up first, once per `db.backupInterval`
+  (`db.autoBackup`), to `db.backupDirectory` as `musicman-<time>.sqlite`, keeping the last `db.backupCount`;
+  `musicman db --backup` makes one now.
+- `musicman db --restore` lists the copies there (the automatic ones and any `musicman-*.sqlite` named by hand)
+  with their schema version; `db --restore <name>` (a part of the name will do) replaces the library database
+  with one after a confirmation (`--yes`: without). The current database is saved first as
+  `musicman-before-restore-<time>.sqlite`, so a restore can be taken back the same way, and the old `-wal` and
+  `-shm` files are removed. It refuses while another musicman run is going (`musicman ui` included) and copies
+  with a newer schema than the build; an older one is migrated the next time the database is opened.
+- Undo history recorded after the copy is lost with it (the run reports in `musicman logs` stay), and files
+  changed since are not in it: run `musicman db --update` afterwards.
