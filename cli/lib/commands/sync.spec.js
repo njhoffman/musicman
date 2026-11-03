@@ -4,10 +4,45 @@ const path = require('path');
 const sinon = require('sinon');
 const { expect } = require('chai');
 
-const { func: syncFunc } = require('./sync.js');
+const { func: syncFunc, withoutIdsMessage } = require('./sync.js');
 const { writeTokens } = require('../spotify/auth.js');
 
 describe('Sync Command', () => {
+  describe('withoutIdsMessage', () => {
+    const target = noId => ({ noId });
+
+    it('should count a song in several targets once, by its match status', () => {
+      const plan = [
+        target([
+          { file: 'a', match: 'missing' },
+          { file: 'b', match: 'review' }
+        ]),
+        target([
+          { file: 'a', match: 'missing' },
+          { file: 'c', match: 'missing' }
+        ])
+      ];
+      expect(withoutIdsMessage(plan)).to.deep.equal({
+        unchecked: 0,
+        message:
+          '3 songs in the targets have no Spotify id: 2 not found on Spotify, 1 in review (sync --review)'
+      });
+    });
+
+    it('should warn about the manifest only for songs never looked up', () => {
+      const result = withoutIdsMessage([target([{ file: 'a', match: null }])]);
+      expect(result.unchecked).to.equal(1);
+      expect(result.message).to.equal(
+        '1 songs in the targets have no Spotify id: 1 not looked up yet (sync --match); ' +
+          'the manifest may list the ones not looked up though you have them'
+      );
+    });
+
+    it('should be null when every song has an id', () => {
+      expect(withoutIdsMessage([target([])])).to.be.null;
+    });
+  });
+
   let directory;
   let file;
   const env = {

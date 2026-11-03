@@ -6,6 +6,18 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- The contract lets sleeve replace the plain lyrics beets writes on import with synced ones; synced lyrics already in a
+  file still stay unless sleeve is told to replace them.
+
+### Fixed
+
+- `sync --pull` counted a song without a Spotify id once for every target it belongs in (4542 for 913 songs),
+  and always told to run `sync --match` first. It now counts each song once and says what they are: not
+  looked up yet, not found on Spotify, in review, or rejected; only songs never looked up still warn that the
+  manifest may list songs you have. The plan's total counts each song once too.
+
 ## [1.56.0] - 2026-11-02
 
 ### Changed

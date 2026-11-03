@@ -183,6 +183,16 @@ describe('Sync Cache and Plan', () => {
       expect(liked.inSync).to.deep.equal(['ta']);
     });
 
+    it('should give each song without an id its match status, null when never looked up', () => {
+      expect(syncPlan(db, config, songs)[0].noId.map(song => song.match)).to.deep.equal([null]);
+      db.prepare(
+        "INSERT INTO spotify_matches (song_id, status) SELECT id, 'missing' FROM songs WHERE path = 'd.mp3'"
+      ).run();
+      expect(syncPlan(db, config, songs)[0].noId.map(song => song.match)).to.deep.equal([
+        'missing'
+      ]);
+    });
+
     it('should treat tracks only on Spotify as added there when they were never in sync', () => {
       const [liked] = syncPlan(db, config, songs);
       expect(liked.prune).to.be.empty;

@@ -278,16 +278,42 @@ const pullMembership = async ({ config, plan, dryRun, confirm }) => {
   return { assignments, decide, tagged: files.length };
 };
 
+// songs in the targets without a Spotify id, each once though it belongs in several targets
+const songsWithoutIds = plan => _.uniqBy(_.flatMap(plan, 'noId'), 'file');
+
+// what the songs without a Spotify id are, by match status: { message, unchecked } or null. Only songs
+// never looked up can be on Spotify already, and so be listed in the manifest though you have them
+const withoutIdsMessage = plan => {
+  const songs = songsWithoutIds(plan);
+  if (songs.length === 0) {
+    return null;
+  }
+  const counts = _.countBy(songs, song => song.match || 'unchecked');
+  const parts = _.compact([
+    counts.unchecked && `${counts.unchecked} not looked up yet (sync --match)`,
+    counts.missing && `${counts.missing} not found on Spotify`,
+    counts.review && `${counts.review} in review (sync --review)`,
+    counts.rejected && `${counts.rejected} rejected in review`
+  ]);
+  const unchecked = counts.unchecked || 0;
+  return {
+    unchecked,
+    message:
+      `${songs.length} songs in the targets have no Spotify id: ${parts.join(', ')}` +
+      (unchecked > 0
+        ? '; the manifest may list the ones not looked up though you have them'
+        : '')
+  };
+};
+
 // write the download manifest for tracks that are only on Spotify, and pull the playlist changes made
 // on Spotify into tags
 const runPull = async ({ config, plan, dryRun, confirm }) => {
   const membership = await pullMembership({ config, plan, dryRun, confirm });
   const manifest = buildManifest(plan, config);
-  const withoutIds = _.sumBy(plan, target => target.noId.length);
-  if (withoutIds > 0) {
-    logger.warn(
-      `${withoutIds} songs have no Spotify id yet, so the manifest may list songs you already have (run sync --match first)`
-    );
+  const withoutIds = withoutIdsMessage(plan);
+  if (withoutIds) {
+    logger[withoutIds.unchecked > 0 ? 'warn' : 'info'](withoutIds.message);
   }
   if (dryRun) {
     logger.info(`Dry run: would write ${manifest.tracks.length} tracks to the download manifest`);
@@ -336,7 +362,9 @@ const outputPlan = (plan, { config, switches, highlighted = [] }) => {
     logger.info(`Sync plan\n${indented(formatPlan(plan, planColumns, highlighted))}`);
   }
   const total = key => {
-    const count = _.sumBy(plan, target => target[key].length);
+    // a song without an id counts once, though it belongs in several targets
+    const count =
+      key === 'noId' ? songsWithoutIds(plan).length : _.sumBy(plan, target => target[key].length);
     return highlighted.includes(key) ? highlight(count) : count;
   };
   const scope = _.get(config, 'sync.scope');
@@ -344,7 +372,7 @@ const outputPlan = (plan, { config, switches, highlighted = [] }) => {
     logger.info(`Only songs matching sync.scope (${scope}) are synced`);
   }
   logger.info(
-    `To add: ${total('add')}, without a Spotify id: ${total('noId')} (sync --match), ` +
+    `To add: ${total('add')}, songs without a Spotify id: ${total('noId')}, ` +
       `to prune: ${total('prune')}, changed on Spotify: +${total('spotifyAdded')} -${total(
         'spotifyRemoved'
       )} (sync --pull), to pull: ${total('pull')}`
@@ -1183,6 +1211,7 @@ module.exports = {
     'fzf'
   ],
   func: syncCommand,
+  withoutIdsMessage,
   // reviewing only lists, accepting or rejecting changes tags
   archive: ({ review, accept, reject }) => !review || Boolean(accept || reject),
   defaultTarget,

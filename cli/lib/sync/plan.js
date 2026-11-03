@@ -68,7 +68,7 @@ const syncedTracks = db =>
  *   inSync: track ids in the target that belong there
  *   conflict: would be add, but the copies of the song linked to the track belong in different
  *     playlists of an exclusive group (conflictingTargets), so it is added to none of them
- * and noId (songs that belong without a Spotify id), reject (tracks rejected in review for a song, which
+ * and noId (songs that belong without a Spotify id, with match: their match status or null), reject (tracks rejected in review for a song, which
  * push removes), and pull (tracks in the target not in the library, nor in sync.ignorePlaylist).
  * Songs marked outOfScope (outside sync.scope) are in none of these.
  *
@@ -118,6 +118,12 @@ const syncPlan = (db, config, songs) => {
      WHERE playlist_id = ?`
   );
   const releases = isrcTracks(db, config);
+  // the match status of songs without a Spotify id: missing, review, rejected, or none (never looked up)
+  const matchOf = db.prepare(
+    'SELECT m.status FROM spotify_matches m JOIN songs s ON s.id = m.song_id WHERE s.path = ?'
+  );
+  const matchStatus = file =>
+    _.get(matchOf.get(path.relative(baseDirectory, file)), 'status') || null;
   // the library track a remote track stands for: itself, or the song it is another release of
   const libraryId = ({ track_id: trackId, isrc }) =>
     !trackId ||
@@ -168,7 +174,10 @@ const syncPlan = (db, config, songs) => {
       local: members.length,
       add,
       conflict: _.uniqBy(conflict, 'trackId'),
-      noId: _.filter(members, ({ file }) => !ids.has(file)),
+      noId: _.map(
+        _.filter(members, ({ file }) => !ids.has(file)),
+        member => ({ ...member, match: matchStatus(member.file) })
+      ),
       prune,
       spotifyAdded,
       spotifyRemoved,
