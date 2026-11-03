@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- Several commits in a row left the notify daemon stopped: each publish restarted it, which tripped systemd's
+  start limit. A publish now waits a few seconds and restarts the daemon only if its build is still the
+  current one, clearing a failed state first.
+
 ## [1.71.0] - 2026-11-03
 
 ### Added
