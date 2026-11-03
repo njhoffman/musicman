@@ -75,28 +75,23 @@ class DownloadError extends Error {
   }
 }
 
+// the cli, run by the page for sync --import
+const cliScript = path.join(__dirname, '..', 'cli.js');
+
+// whether a run report is an import (musicman sync --import)
+const isImportRun = run => run.command === 'sync' && _.includes(run.args, '--import');
+
 /**
- * Downloads run from musicman ui: the download script started as a detached process group, so it
- * keeps going when the page or the server closes, and Cancel can stop spotDL and its conversions
- * with it. A download running in a terminal shows as running and blocks a start, but only one the page
- * started can be cancelled here. Its output goes to download.log in sync.downloadDirectory.
- * Dependencies: running() the running runs (runningRuns), spawnProcess, kill (process.kill), script.
+ * A command the page starts as a detached process group, so it keeps going when the page or the
+ * server closes, its output in logFile. isRun(report) picks its runs among the running runs, so a run
+ * started in a terminal counts too; one the page started leads its own process group (fromPage).
  */
-const downloadJobs = ({
-  config,
-  running,
-  spawnProcess = spawn,
-  kill = process.kill,
-  script = downloadScript,
-  nodePath = process.execPath
-}) => {
-  const directory = _.get(config, 'sync.downloadDirectory');
-  const logFile = directory ? path.join(directory, 'download.log') : null;
-  // a download just started, before its run report is written
+const detachedJob = ({ isRun, logFile, running, spawnProcess, kill, nodePath }) => {
+  // a run just started, before its run report is written
   let started = null;
 
   const current = () => {
-    const run = _.find(running(), { command: downloadCommand });
+    const run = _.find(running(), isRun);
     if (run) {
       return { pid: run.pid, startedAt: run.startedAt, id: run.id };
     }
@@ -107,33 +102,14 @@ const downloadJobs = ({
     return null;
   };
 
-  // the download going on (null when none), the manifest tracks by state, and the page's output
-  const status = () => {
-    const counts = _.countBy([...downloadStatus(config).values()]);
-    const run = current();
-    const fromPage = Boolean(run && run.pid && leadsGroup(run.pid, kill));
-    return {
-      running: run ? { ...run, fromPage } : null,
-      queued: counts.queued || 0,
-      downloaded: counts.downloaded || 0,
-      imported: counts.imported || 0,
-      log: logFile && (fromPage || !run) ? logTail(logFile) : []
-    };
-  };
+  const fromPage = run => Boolean(run && run.pid && leadsGroup(run.pid, kill));
 
-  const start = () => {
-    if (!directory || !readManifest(config)) {
-      throw new DownloadError(400, 'No download manifest yet: add tracks to downloads first');
-    }
-    const run = current();
-    if (run) {
-      throw new DownloadError(409, `A download is running already (pid ${run.pid})`);
-    }
-    fs.mkdirSync(directory, { recursive: true });
+  const launch = (script, args) => {
+    fs.mkdirSync(path.dirname(logFile), { recursive: true });
     const fd = fs.openSync(logFile, 'w');
     let child;
     try {
-      child = spawnProcess(nodePath, [script], {
+      child = spawnProcess(nodePath, [script, ...args], {
         cwd: path.dirname(path.dirname(script)),
         detached: true,
         stdio: ['ignore', fd, fd]
@@ -146,13 +122,80 @@ const downloadJobs = ({
     return { started: true, pid: child.pid };
   };
 
+  // the run going on (null when none) and the page's output (none for a run in a terminal)
+  const describe = () => {
+    const run = current();
+    const page = fromPage(run);
+    return {
+      running: run ? { ...run, fromPage: page } : null,
+      log: page || !run ? logTail(logFile) : []
+    };
+  };
+
+  return { current, fromPage, launch, describe };
+};
+
+/**
+ * Downloads run from musicman ui: the download script, detached (detachedJob), so Cancel can stop
+ * spotDL and its conversions with it. A download running in a terminal shows as running and blocks a
+ * start, but only one the page started can be cancelled here. Its output goes to download.log in
+ * sync.downloadDirectory. A download never starts beside an import, which would take its files.
+ * Dependencies: running() the running runs (runningRuns), spawnProcess, kill (process.kill), script.
+ */
+const downloadJobs = ({
+  config,
+  running,
+  spawnProcess = spawn,
+  kill = process.kill,
+  script = downloadScript,
+  nodePath = process.execPath
+}) => {
+  const directory = _.get(config, 'sync.downloadDirectory');
+  const job = detachedJob({
+    isRun: { command: downloadCommand },
+    logFile: directory ? path.join(directory, 'download.log') : null,
+    running,
+    spawnProcess,
+    kill,
+    nodePath
+  });
+
+  // the download going on (null when none), the manifest tracks by state, and the page's output
+  const status = () => {
+    const counts = _.countBy([...downloadStatus(config).values()]);
+    return {
+      ...job.describe(),
+      queued: counts.queued || 0,
+      downloaded: counts.downloaded || 0,
+      imported: counts.imported || 0
+    };
+  };
+
+  // limit: download only the first limit queued tracks (a trial), all without it
+  const start = ({ limit = null } = {}) => {
+    if (!directory || !readManifest(config)) {
+      throw new DownloadError(400, 'No download manifest yet: add tracks to downloads first');
+    }
+    if (limit !== null && !(Number.isInteger(limit) && limit > 0)) {
+      throw new DownloadError(400, 'limit must be a positive whole number');
+    }
+    const run = job.current();
+    if (run) {
+      throw new DownloadError(409, `A download is running already (pid ${run.pid})`);
+    }
+    if (_.find(running(), isImportRun)) {
+      throw new DownloadError(409, 'An import is running: download when it is done');
+    }
+    return job.launch(script, limit ? ['--limit', `${limit}`] : []);
+  };
+
   // stops the download the page started: the script stops spotDL and removes the unfinished file
   const cancel = () => {
-    const run = current();
+    const run = job.current();
     if (!run) {
       throw new DownloadError(409, 'No download is running');
     }
-    if (!leadsGroup(run.pid, kill)) {
+    if (!job.fromPage(run)) {
       throw new DownloadError(
         409,
         'The download was started in a terminal: stop it there with ctrl-c'
@@ -165,4 +208,55 @@ const downloadJobs = ({
   return { status, start, cancel };
 };
 
-module.exports = { DownloadError, downloadCommand, downloadJobs, downloadScript, logTail };
+/**
+ * Imports run from musicman ui: musicman sync --import --yes, detached (detachedJob), its output in
+ * import.log in sync.downloadDirectory. It writes the library, so the page asks before accepting while it
+ * runs (it is a sync run); there is no cancel, a stop in the middle of a beets import leaves files to
+ * recover. It never starts beside a download, whose unfinished files it would take.
+ */
+const importJobs = ({
+  config,
+  running,
+  spawnProcess = spawn,
+  kill = process.kill,
+  cli = cliScript,
+  nodePath = process.execPath
+}) => {
+  const directory = _.get(config, 'sync.downloadDirectory');
+  const job = detachedJob({
+    isRun: isImportRun,
+    logFile: directory ? path.join(directory, 'import.log') : null,
+    running,
+    spawnProcess,
+    kill,
+    nodePath
+  });
+
+  const status = () => job.describe();
+
+  const start = () => {
+    if (!directory || !readManifest(config)) {
+      throw new DownloadError(400, 'No download manifest yet: nothing to import');
+    }
+    const run = job.current();
+    if (run) {
+      throw new DownloadError(409, `An import is running already (pid ${run.pid})`);
+    }
+    if (_.find(running(), { command: downloadCommand })) {
+      throw new DownloadError(409, 'A download is running: import when it is done');
+    }
+    return job.launch(cli, ['sync', '--import', '--yes']);
+  };
+
+  return { status, start };
+};
+
+module.exports = {
+  DownloadError,
+  downloadCommand,
+  downloadJobs,
+  downloadScript,
+  importJobs,
+  isImportRun,
+  logTail
+};

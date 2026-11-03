@@ -124,9 +124,19 @@ const main = async ({
   }
   const directory = runsDirectory(config);
   if (!dryRun) {
-    const other = _.find(runningRuns(directory), { command: runCommand });
+    const runs = runningRuns(directory);
+    const other = _.find(runs, { command: runCommand });
     if (other) {
       console.error(`A download is running already (pid ${other.pid}, since ${other.startedAt})`);
+      return 1;
+    }
+    // an import takes every downloaded file, and would take one being written cut short
+    const importing = _.find(
+      runs,
+      run => run.command === 'sync' && _.includes(run.args, '--import')
+    );
+    if (importing) {
+      console.error(`An import is running (pid ${importing.pid}): download when it is done`);
       return 1;
     }
     const removed = removePartialDownloads(config, { isComplete });

@@ -230,6 +230,19 @@ describe('Spotify Downloads', () => {
       expect(await main({ args: [], config, spawn: spy })).to.equal(1);
       expect(spy).to.not.have.been.called;
       expect(error.args.flat().join('\n')).to.include('A download is running already');
+      // nor beside an import, which takes the downloaded files
+      fs.writeFileSync(
+        path.join(directory, 'runs', '29990101-000000-download.json'),
+        JSON.stringify({
+          command: 'sync',
+          args: ['sync', '--import'],
+          status: 'running',
+          pid: process.pid
+        })
+      );
+      expect(await main({ args: [], config, spawn: spy })).to.equal(1);
+      expect(spy).to.not.have.been.called;
+      expect(error.args.flat().join('\n')).to.include('An import is running');
     });
 
     it('should stop spotDL on a signal, delete the unfinished file, and archive the run as interrupted', async () => {

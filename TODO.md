@@ -284,10 +284,12 @@ Reviewed: 2026-11-01
 - [x] **Menu: control Spotify on other devices.** (p3) [feature] `spotifyConnectPlayer` (Web API) when neither the
       desktop app nor MPD plays. With the desktop app open, it mirrors the phone over MPRIS and playerctl
       controls it (tested 2026-11-03), so the Web API player covers the app being closed.
-- [ ] **Keep playing past the first 1000 shuffled tracks.** (p3) [feature] `musicman shuffle` starts at most 1000
+- [x] **Keep playing past the first 1000 shuffled tracks.** (p3) [feature] `musicman shuffle` starts at most 1000
       tracks as a list (a rewritten playlist plays its previous order for a minute or more), so playback stops after
       them although the playlist holds the rest. Options: start the playlist at track 1001 once the list ends
-      (needs a watcher), or queue the next tracks from the notify daemon.
+      (needs a watcher), or queue the next tracks from the notify daemon. Done: the daemon queues the next
+      track as the last listed one starts, then moves playback to the playlist there (`notify/shuffleHandoff.js`).
+      It follows Spotify through MPRIS, so only while the desktop app runs (also when it mirrors the phone).
 - [x] **Menu: unbound letters filter the main menu unseen.** (p3) [bug] Cannot reproduce, 2026-11-02: on rofi
       2.0.0 a theme whose `inputbar` has no `entry` drops typed text, so `f`, `z`, ... filter nothing on the main
       menu (tested with xdotool). Binding the free keys is not possible anyway: the main menu fills all 19
@@ -447,9 +449,9 @@ database backups (`db.autoBackup`) have no restore command.
 - [x] **Transfer actions.** (p2) [feature] Spotify to local shows each track's download state, adds picked
       tracks to the download manifest, and refreshes the cached playlists. The upload export waits for `sync --push`
       export (section 7), tracked there.
-- [ ] **Import from the page.** (p3) [feature] after a download, `sync --import` still runs in a terminal; an
+- [x] **Import from the page.** (p3) [feature] after a download, `sync --import` still runs in a terminal; an
       Import button could run it the way Download runs the download script (a detached run, its output shown).
-- [ ] **Trial downloads from the page.** (p3) [feature] Download fetches every queued track; `pnpm download
+- [x] **Trial downloads from the page.** (p3) [feature] Download fetches every queued track; `pnpm download
       --limit N` has no counterpart there.
 - [x] **Run downloads from the page.** (p3) [feature] Download and Cancel in the Spotify to local tab run the
       download script detached (`lib/ui/download.js`); each download is a `download` run, so the page and a

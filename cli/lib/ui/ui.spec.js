@@ -573,12 +573,16 @@ describe('musicman ui', () => {
       const review = await (await fetch(`${base}/api/review`)).json();
       expect(review.marker).to.equal(body.markers.review);
       expect(body.download).to.include({ running: null, queued: 0 });
+      expect(body.import).to.deep.equal({ running: null, log: [] });
     });
 
     it('should refuse to start or cancel a download with nothing to download or running', async () => {
       const start = await post('/api/downloads/run', {});
       expect(start.status).to.equal(400);
       expect((await start.json()).error).to.match(/No download manifest yet/);
+      const importing = await post('/api/imports/run', {});
+      expect(importing.status).to.equal(400);
+      expect((await importing.json()).error).to.match(/nothing to import/);
       const cancel = await post('/api/downloads/cancel', {});
       expect(cancel.status).to.equal(409);
       expect((await cancel.json()).error).to.equal('No download is running');

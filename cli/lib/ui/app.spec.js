@@ -1019,6 +1019,48 @@ describe('musicman ui page', () => {
       expect(headButton('Download ')).to.equal(undefined);
     });
 
+    it('should download only the first N queued tracks from the box next to Download', async () => {
+      routes['GET /api/status'] = downloadStatus({ running: null });
+      await app.poll();
+      routes['POST /api/downloads/run'] = { started: true, pid: 7 };
+      const box = all('#list-head input.download-limit')[0];
+      box.value = '1';
+      box.dispatchEvent(new dom.window.Event('change'));
+      click(headButton('Download 1 of 2 queued'));
+      await settle();
+      expect(requests.filter(r => r.method === 'POST')).to.deep.equal([
+        { method: 'POST', url: '/api/downloads/run', body: { limit: 1 } }
+      ]);
+      expect($('message').textContent).to.include('Download of the first 1 started');
+    });
+
+    it('should import the downloads after asking, and show the import going on', async () => {
+      routes['GET /api/status'] = downloadStatus({ running: null });
+      await app.poll();
+      routes['POST /api/imports/run'] = { started: true, pid: 8 };
+      let answer = false;
+      dom.window.confirm = () => answer;
+      click(headButton('Import 1 downloaded'));
+      await settle();
+      expect(requests.filter(r => r.method === 'POST')).to.be.empty;
+      answer = true;
+      routes['GET /api/status'] = {
+        ...downloadStatus({ running: null }),
+        running: [{ id: 'i', command: 'sync', args: ['sync', '--import', '--yes'] }],
+        import: { running: { pid: 8, fromPage: true }, log: ['Importing 1 download'] }
+      };
+      click(headButton('Import 1 downloaded'));
+      await settle();
+      expect(requests.filter(r => r.method === 'POST').map(r => r.url)).to.deep.equal([
+        '/api/imports/run'
+      ]);
+      expect($('list-head').textContent).to.include('Importing...');
+      expect(headButton('Download 2 queued').disabled).to.equal(true);
+      expect(all('#list-head pre').map(pre => pre.textContent)).to.include('Importing 1 download');
+      // an import writes the library: the page asks before accepting while it runs
+      expect($('runs').textContent).to.include('asks before');
+    });
+
     it('should refresh the playlists and then load the transfer lists again', async () => {
       routes['POST /api/spotify/refresh'] = { ok: true, refreshed: 3, unchanged: 2 };
       click(headButton('Refresh playlists'));

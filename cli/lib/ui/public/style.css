@@ -443,3 +443,7 @@ pre.download-log {
   white-space: pre-wrap;
   opacity: 0.8;
 }
+
+input.download-limit {
+  width: 4.5em;
+}

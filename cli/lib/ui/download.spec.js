@@ -3,7 +3,7 @@ const os = require('os');
 const path = require('path');
 const { expect } = require('chai');
 
-const { downloadJobs, logTail } = require('./download.js');
+const { downloadJobs, importJobs, logTail } = require('./download.js');
 
 describe('UI downloads', () => {
   const idA = 'AAAAAAAAAAAAAAAAAAAAAA';
@@ -132,5 +132,48 @@ describe('UI downloads', () => {
     expect(logTail(file, 2)).to.deep.equal(['  55%', 'missing: B - Two']);
     expect(logTail(path.join(directory, 'none.log'))).to.deep.equal([]);
     expect(jobs().status().log).to.deep.equal(logTail(file));
+  });
+
+  it('should download only the first N queued tracks when given a limit, refusing a bad one', () => {
+    const downloads = jobs();
+    expect(() => downloads.start({ limit: 0 })).to.throw('limit must be a positive whole number');
+    expect(() => downloads.start({ limit: 2.5 })).to.throw('limit must be a positive whole number');
+    downloads.start({ limit: 3 });
+    expect(spawned[0].args).to.deep.equal(['/repo/cli/scripts/spotdl-download.js', '--limit', '3']);
+  });
+
+  describe('imports', () => {
+    const imports = () =>
+      importJobs({
+        config,
+        running: () => runs,
+        spawnProcess,
+        kill,
+        cli: '/repo/cli/lib/cli.js',
+        nodePath: '/usr/bin/node'
+      });
+
+    it('should run sync --import --yes detached, with its output in import.log', () => {
+      expect(imports().start()).to.deep.equal({ started: true, pid: 4242 });
+      expect(spawned[0]).to.deep.include({
+        command: '/usr/bin/node',
+        args: ['/repo/cli/lib/cli.js', 'sync', '--import', '--yes']
+      });
+      expect(spawned[0].options).to.include({ cwd: '/repo/cli', detached: true });
+      expect(fs.existsSync(path.join(directory, 'import.log'))).to.equal(true);
+    });
+
+    it('should see an import from a terminal, and never start one beside a download or another import', () => {
+      runs = [{ command: 'sync', args: ['sync', '--import'], pid: 600, startedAt: 't' }];
+      expect(imports().status().running).to.include({ pid: 600, fromPage: false });
+      expect(() => imports().start()).to.throw('An import is running already (pid 600)');
+      // a download does not start beside it either: the import takes its files
+      expect(() => jobs().start()).to.throw('An import is running: download when it is done');
+      runs = [{ command: 'download', pid: 700, startedAt: 't' }];
+      expect(() => imports().start()).to.throw('A download is running: import when it is done');
+      runs = [{ command: 'sync', args: ['sync', '--match'], pid: 800, startedAt: 't' }];
+      expect(imports().status().running).to.equal(null);
+      expect(spawned).to.deep.equal([]);
+    });
   });
 });

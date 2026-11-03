@@ -657,11 +657,23 @@ const notQueued = () =>
 // imported, log }
 const downloadState = () => (state.status && state.status.download) || null;
 
-// starts downloading the manifest, as pnpm download does
+// the import in /api/status, shaped like the download: { running, log }
+const importState = () => (state.status && state.status.import) || null;
+
+// the first N box of the Download button: a whole number above 0, else null (every queued track)
+const downloadLimit = () => {
+  const value = Number(state.downloadLimit);
+  return Number.isInteger(value) && value > 0 ? value : null;
+};
+
+// starts downloading the manifest, as pnpm download does; with a limit only the first queued tracks
 const startDownload = async () => {
+  const limit = downloadLimit();
   try {
-    await api('/api/downloads/run', {});
-    showMessage('Download started; it goes on if the page closes');
+    await api('/api/downloads/run', limit ? { limit } : {});
+    showMessage(
+      `Download${limit ? ` of the first ${limit}` : ''} started; it goes on if the page closes`
+    );
   } catch (err) {
     showMessage(`Starting the download failed: ${err.message}`, true);
   }
@@ -684,14 +696,67 @@ const cancelDownload = async () => {
   await poll();
 };
 
-// the download controls of the Spotify to local tab: start, progress, cancel, and the last output
+// imports the downloads with beets, as musicman sync --import does; it cannot be stopped from here
+const startImport = async () => {
+  const { downloaded } = downloadState() || {};
+  if (
+    !window.confirm(
+      `Tag and import ${downloaded} downloads with beets? The import cannot be stopped from the page.`
+    )
+  ) {
+    return;
+  }
+  try {
+    await api('/api/imports/run', {});
+    showMessage('Import started; it goes on if the page closes');
+  } catch (err) {
+    showMessage(`Starting the import failed: ${err.message}`, true);
+  }
+  await poll();
+};
+
+// the import controls: Import N downloaded, or the import going on, and its last output
+const importControls = (download, imported) => {
+  const running = imported && imported.running;
+  if (running) {
+    return [
+      ' ',
+      h(
+        'span',
+        { className: 'download-count' },
+        `Importing${running.fromPage ? '' : ' (running in a terminal)'}... `
+      )
+    ];
+  }
+  return [
+    ' ',
+    h(
+      'button',
+      {
+        className: 'reload',
+        disabled: download.downloaded === 0 || Boolean(download.running),
+        title: download.running
+          ? 'Import when the download is done'
+          : 'Tag the downloads and import them with beets, as musicman sync --import does',
+        onClick: () => startImport()
+      },
+      `Import ${download.downloaded} downloaded`
+    )
+  ];
+};
+
+// the download controls of the Spotify to local tab: start (all, or the first N), progress, cancel,
+// import, and the last output of each
 const downloadControls = () => {
   const download = downloadState();
   if (state.tab !== 'toLocal' || !download) {
     return null;
   }
+  const imported = importState();
+  const importing = Boolean(imported && imported.running);
   const { running, queued, downloaded } = download;
   const total = queued + downloaded;
+  const limit = downloadLimit();
   const controls = running
     ? [
         ' ',
@@ -711,18 +776,35 @@ const downloadControls = () => {
           'button',
           {
             className: 'reload',
-            disabled: queued === 0,
-            title: 'Download the queued tracks with spotDL, as pnpm download does',
+            disabled: queued === 0 || importing,
+            title: importing
+              ? 'Download when the import is done'
+              : 'Download the queued tracks with spotDL, as pnpm download does',
             onClick: () => startDownload()
           },
-          `Download ${queued} queued`
-        )
+          limit && limit < queued
+            ? `Download ${limit} of ${queued} queued`
+            : `Download ${queued} queued`
+        ),
+        ' first ',
+        h('input', {
+          type: 'number',
+          min: 1,
+          className: 'download-limit',
+          value: state.downloadLimit || null,
+          placeholder: 'all',
+          'aria-label': 'Download only the first N queued tracks',
+          onChange: event => {
+            state.downloadLimit = event.target.value;
+            renderHead();
+          }
+        })
       ];
+  const logs = [download.log, imported && imported.log].filter(log => log && log.length > 0);
   return [
     controls,
-    download.log && download.log.length > 0
-      ? h('pre', { className: 'download-log' }, download.log.join('\n'))
-      : null
+    importControls(download, imported),
+    logs.map(log => h('pre', { className: 'download-log' }, log.join('\n')))
   ];
 };
 
@@ -1959,9 +2041,12 @@ const poll = async () => {
       isStale('history'),
       isStale('duplicates'),
       state.status && state.status.running,
-      state.status && state.status.download
+      state.status && state.status.download,
+      state.status && state.status.import
     ]);
-    const wasDownloading = Boolean(downloadState() && downloadState().running);
+    const wasRunning = Boolean(
+      (downloadState() && downloadState().running) || (importState() && importState().running)
+    );
     state.status = status;
     const after = JSON.stringify([
       isStale('review'),
@@ -1969,15 +2054,19 @@ const poll = async () => {
       isStale('history'),
       isStale('duplicates'),
       status.running,
-      status.download
+      status.download,
+      status.import
     ]);
     if (before !== after) {
       renderTabs();
       renderHead();
       renderRuns();
     }
-    // the tracks' download states change when a download ends
-    if (wasDownloading && !(status.download && status.download.running) && state.transfers) {
+    // the tracks' download states change when a download or an import ends
+    const nowRunning = Boolean(
+      (status.download && status.download.running) || (status.import && status.import.running)
+    );
+    if (wasRunning && !nowRunning && state.transfers) {
       await load('transfers');
     }
   } catch {
@@ -1992,7 +2081,9 @@ const startPolling = () => {
   let last = 0;
   pollTimer = setInterval(() => {
     const download = downloadState();
-    const every = download && download.running ? downloadPollMs : pollMs;
+    const imported = importState();
+    const busy = (download && download.running) || (imported && imported.running);
+    const every = busy ? downloadPollMs : pollMs;
     if (!document.hidden && Date.now() - last >= every) {
       last = Date.now();
       poll();

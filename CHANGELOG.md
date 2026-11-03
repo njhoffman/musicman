@@ -6,6 +6,24 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- A `musicman shuffle` longer than the tracks it starts (at most 1000) keeps playing: the notify daemon
+  queues the next track as the last listed one starts, then moves playback to the shuffle playlist at that
+  track. It needs the daemon's Spotify credentials: run `pnpm daemon:install` again from a shell that has
+  them, then restart the daemon.
+- `musicman ui` imports the downloads: Import N downloaded runs `musicman sync --import --yes` in the
+  background, its output in the page. `sync --import --yes` (`-Q`) imports without asking.
+- A first N box next to Download in `musicman ui` downloads only the first N queued tracks, for a trial.
+
+### Changed
+
+- The notify daemon's service runs the installed build (`~/.local/share/musicman/current`), not the repo:
+  run `pnpm daemon:install` again. The install writes the Spotify credentials of its shell to
+  `~/.config/musicman/spotify.env` (mode 600), which the service loads.
+- A download and an import never run at the same time, from the page or a terminal: the import would take a
+  file still being written.
+
 ## [1.69.0] - 2026-11-03
 
 ### Changed

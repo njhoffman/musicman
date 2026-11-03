@@ -7,7 +7,7 @@ const { candidateOf, looseQuery, matchSimilarity, searchQuery } = require('../sp
 const { addToManifest, downloadStatus } = require('../sync/pull.js');
 const { searchTracks, songFields } = require('../sync/match.js');
 const { runningRuns, runsDirectory } = require('../utils/runs.js');
-const { downloadJobs } = require('./download.js');
+const { downloadJobs, importJobs } = require('./download.js');
 const {
   acceptedList,
   changeMarkers,
@@ -173,7 +173,7 @@ const trackIdOf = body => {
  *   GET  /api/transfers[?fresh]          tracks to bring from Spotify, songs missing on Spotify, marker
  *                                        (kept until the database changes, fresh computes them again)
  *   GET  /api/status                     change markers of the lists, the runs going on now, and the
- *                                        download (downloadJobs status)
+ *                                        download and the import (downloadJobs, importJobs status)
  *   GET  /api/spotify/search?song=<id>&q= Spotify tracks for a song: q, or the queries sync --match uses
  *   GET  /api/songs/<id>/audio           the song's file, with byte ranges
  *   POST /api/songs/<id>/accept          { trackId } accept the track for the song
@@ -181,7 +181,9 @@ const trackIdOf = body => {
  *   POST /api/spotify/open               { trackId } play the track in the Spotify desktop app
  *   GET  /api/spotify/token              the user's access token for the Web Playback SDK in the page
  *   POST /api/downloads                  { trackIds } add Spotify to local tracks to the download manifest
- *   POST /api/downloads/run              start downloading the manifest (the download script, detached)
+ *   POST /api/downloads/run              { limit } start downloading the manifest (the download script,
+ *                                        detached), the first limit queued tracks only when given
+ *   POST /api/imports/run                start sync --import (detached)
  *   POST /api/downloads/cancel           stop the download the page started
  *   POST /api/spotify/refresh            refresh the cached Spotify playlists, as sync does first
  *   GET  /api/history                    the runs of the page with what undoing each would do
@@ -190,7 +192,7 @@ const trackIdOf = body => {
  * the access token nor act. getUserToken() resolves to { accessToken, scope } of the logged in user.
  * Dependencies: db, config, actions (reviewActions), getClient() a Spotify app client or null without
  * credentials, librarySongs() the songs with their targets (songTargets), plan(songs) syncPlan,
- * player (spotifyPlayer), running() the runs going on, and downloads (downloadJobs).
+ * player (spotifyPlayer), running() the runs going on, downloads (downloadJobs), and imports (importJobs).
  */
 const createHandler = ({
   db,
@@ -207,7 +209,8 @@ const createHandler = ({
     throw new Error('Not logged in to Spotify, run: musicman sync --login');
   },
   running = () => runningRuns(runsDirectory(config)),
-  downloads = downloadJobs({ config, running })
+  downloads = downloadJobs({ config, running }),
+  imports = importJobs({ config, running })
 }) => {
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
 
@@ -475,10 +478,19 @@ const createHandler = ({
       async () => ({
         markers: changeMarkers(db),
         running: otherRuns(),
-        download: downloads.status()
+        download: downloads.status(),
+        import: imports.status()
       })
     ],
-    ['POST', /^\/api\/downloads\/run$/, async () => downloads.start()],
+    [
+      'POST',
+      /^\/api\/downloads\/run$/,
+      async req => {
+        const { limit = null } = await readBody(req);
+        return downloads.start({ limit });
+      }
+    ],
+    ['POST', /^\/api\/imports\/run$/, async () => imports.start()],
     ['POST', /^\/api\/downloads\/cancel$/, async () => downloads.cancel()],
     [
       'GET',

@@ -4,7 +4,7 @@ const path = require('path');
 const sinon = require('sinon');
 const { expect } = require('chai');
 
-const { func: syncFunc, withoutIdsMessage } = require('./sync.js');
+const { func: syncFunc, importConfirm, withoutIdsMessage } = require('./sync.js');
 const { writeTokens } = require('../spotify/auth.js');
 
 describe('Sync Command', () => {
@@ -66,6 +66,66 @@ describe('Sync Command', () => {
   it('should stop with an error when credentials are missing', async () => {
     expect(await syncFunc({ options: { switches: {} }, config: {}, env: {}, file })).to.be.false;
     expect(process.exitCode).to.equal(1);
+  });
+
+  describe('--import', () => {
+    // a manifest, a beets config, and runs in the test directory
+    const importConfig = () => {
+      const downloads = path.join(directory, 'download');
+      fs.mkdirSync(downloads);
+      fs.writeFileSync(path.join(downloads, 'manifest.json'), JSON.stringify({ tracks: [] }));
+      const beetsConfig = path.join(directory, 'beets.yaml');
+      fs.writeFileSync(
+        beetsConfig,
+        `directory: ${directory}/music\nlibrary: ${directory}/beets.db\n`
+      );
+      return {
+        mpd: { baseDirectory: path.join(directory, 'music') },
+        sync: { downloadDirectory: downloads, beetsConfig },
+        logger: { archive: { directory: path.join(directory, 'runs') } }
+      };
+    };
+
+    it('should refuse to import while a download runs, which writes the files it would take', async () => {
+      const config = importConfig();
+      fs.mkdirSync(path.join(directory, 'runs'));
+      fs.writeFileSync(
+        path.join(directory, 'runs', '20261103-000000-download.json'),
+        JSON.stringify({ command: 'download', status: 'running', pid: process.pid })
+      );
+      const confirm = sinon.stub().resolves(true);
+      expect(await run({ import: true }, { config, confirm })).to.be.false;
+      expect(process.exitCode).to.equal(1);
+      expect(confirm).to.not.have.been.called;
+    });
+
+    it('should ask before importing, and stop when the answer is no', async () => {
+      const config = {
+        ...importConfig(),
+        db: {
+          path: path.join(directory, 'musicman.sqlite'),
+          backupDirectory: path.join(directory, 'b')
+        },
+        library: { tags: [] },
+        tags: []
+      };
+      fs.mkdirSync(config.mpd.baseDirectory);
+      require('../db/index.js').openLibrary(config).close();
+      fs.writeFileSync(
+        path.join(config.sync.downloadDirectory, 'X [AAAAAAAAAAAAAAAAAAAAAA].mp3'),
+        ''
+      );
+      const confirm = sinon.stub().resolves(false);
+      expect(await run({ import: true }, { config, confirm })).to.deep.equal({ import: null });
+      expect(confirm).to.have.been.calledOnce;
+    });
+
+    it('should answer the question itself with --yes', async () => {
+      const asked = sinon.stub().resolves(false);
+      expect(await importConfirm({ yes: true }, asked)('Import?')).to.equal(true);
+      expect(asked).to.not.have.been.called;
+      expect(importConfirm({}, asked)).to.equal(asked);
+    });
   });
 
   it('should refuse --confirm without --export', async () => {

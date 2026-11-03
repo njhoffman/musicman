@@ -158,6 +158,12 @@ module.exports = {
     alias: '-e',
     func: () => ({ export: true })
   },
+  yes: {
+    description:
+      'With --import, import without asking first (musicman ui runs the import, without a terminal)',
+    alias: '-Q',
+    func: () => ({ yes: true })
+  },
   confirm: {
     description:
       'With --export, record the songs staged for Liked Songs as added once dragged in (the Web API does not list local files in Liked Songs)',

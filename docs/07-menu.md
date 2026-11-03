@@ -144,8 +144,12 @@ takes back one press at a time: the tag change and what it pushed.
 
 ### Song change notifications
 
-The `musicman-notify` user service (`pnpm daemon:install`, then
-`systemctl --user enable --now musicman-notify`) shows a notification when a new track starts in MPD or
+The `musicman-notify` user service (`pnpm daemon:install` in `cli/`, then
+`systemctl --user enable --now musicman-notify`) runs the installed build (`~/.local/share/musicman/current`,
+published by every commit), never the repo, since it opens the library database; restart it after a release.
+`pnpm daemon:install` also writes the Spotify app credentials of its shell (`SPOTIFY_CLIENT_ID`,
+`SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI`) to `~/.config/musicman/spotify.env` (mode 600), which the
+service loads, for continuing a `musicman shuffle` past the tracks it started. It shows a notification when a new track starts in MPD or
 the Spotify desktop app; pausing, seeking, or the volume never notify, and each notification replaces the
 last. The summary is the rating as stars and the title; the body the artist and album, then the song's
 `daemon.fields` (context, mood, picks by default) as tags colored like the menu's, or `not in library`

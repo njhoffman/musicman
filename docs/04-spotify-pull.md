@@ -55,8 +55,13 @@ against YouTube's terms of service.
   process (it goes on when the page or the server closes, output in `download.log` in the download
   directory), with progress and the last output lines; Cancel stops it. A download started in a terminal
   shows as running there, but only ctrl-c stops it.
+- The box next to Download takes N for a trial: only the first N queued tracks (`--limit N`).
 - Each run is archived as a `download` run (`musicman logs`); a second download refuses to start while one
-  runs, from the page or a terminal.
+  runs, from the page or a terminal, and so does a download beside an import (and an import beside a
+  download): the import takes every downloaded file, one being written too.
+- Import N downloaded in the page runs `musicman sync --import --yes` (`--yes`, `-Q`: without asking) the
+  same way, its output in `import.log`; it cannot be stopped from the page, as a beets import stopped
+  halfway leaves files to recover.
 - Stopped (ctrl-c, Cancel), a download leaves the file of the track being converted cut short under its
   final name, which `--overwrite skip` and the import would take as done. spotDL tags a file (WOAS among
   the frames) only once it is whole, so the script deletes untagged `.mp3` files after a stop and before

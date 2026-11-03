@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { confirm: confirmPrompt } = require('../utils/confirm.js');
+const { runningRuns, runsDirectory } = require('../utils/runs.js');
 const { createClient } = require('../spotify/api.js');
 const { appTokenGetter, readTokens, userAccessToken } = require('../spotify/auth.js');
 const { getCredentials, missingCredentials, tokenPath } = require('../spotify/credentials.js');
@@ -842,6 +843,10 @@ const recoverInterrupted = async ({ config, manifest, beets }) => {
 };
 
 // tag downloads from the manifest with their Spotify fields and playlist tags, then import with beets
+// the import's question: answered by --yes (musicman ui runs the import, without a terminal), else asked
+const importConfirm = (switches, confirm) =>
+  switches.yes ? async () => true : confirm || confirmPrompt;
+
 const runImport = async ({ credentials, fetchImpl, config, dryRun, confirm }) => {
   const manifest = readManifest(config);
   if (!manifest) {
@@ -850,6 +855,13 @@ const runImport = async ({ credentials, fetchImpl, config, dryRun, confirm }) =>
   const beets = readBeetsConfig(config.sync.beetsConfig);
   if (!beets) {
     throw new Error(`No beets config at ${config.sync.beetsConfig} (sync.beetsConfig)`);
+  }
+  // a download writes into the directory the import reads: a file being written would be imported cut short
+  const download = _.find(runningRuns(runsDirectory(config)), { command: 'download' });
+  if (download && !dryRun) {
+    throw new Error(
+      `A download is running (pid ${download.pid}): import when it is done, or stop it first`
+    );
   }
   if (!dryRun) {
     await recoverInterrupted({ config, manifest, beets });
@@ -1312,7 +1324,7 @@ const syncCommand = async ({
         fetchImpl,
         config,
         dryRun: Boolean(switches.dryRun),
-        confirm: confirm || confirmPrompt
+        confirm: importConfirm(switches, confirm)
       });
     }
     if (switches.review) {
@@ -1349,10 +1361,11 @@ const syncCommand = async ({
 const defaultTarget = baseDirectory => baseDirectory;
 
 module.exports = {
+  importConfirm,
   name: 'sync',
   description: 'Sync Liked Songs and playlists with Spotify; without switches, show the plan',
   usage:
-    'musicman sync [--login | --match [--refresh] [--recheck] [--verbose] | --review [--accept | --reject] | --push [--prune] | --pull | --export [--confirm] | --import | --backup [--force]] [--dry-run]',
+    'musicman sync [--login | --match [--refresh] [--recheck] [--verbose] | --review [--accept | --reject] | --push [--prune] | --pull | --export [--confirm] | --import [--yes] | --backup [--force]] [--dry-run]',
   switches: [
     'login',
     'match',
@@ -1368,6 +1381,7 @@ module.exports = {
     'export',
     'confirm',
     'import',
+    'yes',
     'backup',
     'force',
     'dry-run',
