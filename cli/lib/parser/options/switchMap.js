@@ -141,6 +141,11 @@ module.exports = {
     alias: '-d',
     func: () => ({ pull: true })
   },
+  export: {
+    description:
+      'Link the songs Spotify has no track for into sync.uploadDirectory: files/ for the phone, stage/ with the next playlist to drag them into in the desktop app',
+    func: () => ({ export: true })
+  },
   import: {
     description:
       'Tag the downloads of the sync --pull manifest with their Spotify fields and playlist tags, then import them with beets',

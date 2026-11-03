@@ -3,6 +3,7 @@ const path = require('path');
 
 const { transaction } = require('../db/database.js');
 const { excludedTracks } = require('../db/exclusions.js');
+const { exportable, localTracks } = require('./localFiles.js');
 const { rejectedTracks, spotifyIdFrame } = require('./match.js');
 const {
   conflictingTargets,
@@ -68,8 +69,9 @@ const syncedTracks = db =>
  *   inSync: track ids in the target that belong there
  *   conflict: would be add, but the copies of the song linked to the track belong in different
  *     playlists of an exclusive group (conflictingTargets), so it is added to none of them
- * and noId (songs that belong without a Spotify id, with match: their match status or null), reject (tracks rejected in review for a song, which
- * push removes), and pull (tracks in the target not in the library, nor in sync.ignorePlaylist).
+ * and noId (songs that belong without a Spotify id, with match: their match status or null, and tags:
+ * { artist, title, album, duration }), localFiles (localTracks of the noId songs Spotify has no track
+ * for: added, pending, stray), reject (tracks rejected in review for a song, which push removes), and pull (tracks in the target not in the library, nor in sync.ignorePlaylist).
  * Songs marked outOfScope (outside sync.scope) are in none of these.
  *
  * A track in a target that is another release of a library song (the same ISRC, e.g. the single and
@@ -119,11 +121,24 @@ const syncPlan = (db, config, songs) => {
   );
   const releases = isrcTracks(db, config);
   // the match status of songs without a Spotify id: missing, review, rejected, or none (never looked up)
-  const matchOf = db.prepare(
-    'SELECT m.status FROM spotify_matches m JOIN songs s ON s.id = m.song_id WHERE s.path = ?'
+  // songs without a Spotify id: their match status (missing, review, rejected, or null when never
+  // looked up) and the tags Spotify names a local file by
+  const songOf = db.prepare(
+    `SELECT s.id, s.duration, m.status FROM songs s LEFT JOIN spotify_matches m ON m.song_id = s.id
+     WHERE s.path = ?`
   );
-  const matchStatus = file =>
-    _.get(matchOf.get(path.relative(baseDirectory, file)), 'status') || null;
+  const frameOf = db.prepare('SELECT value FROM song_tags WHERE song_id = ? AND frame_id = ?');
+  const withoutId = _.memoize(file => {
+    const row = songOf.get(path.relative(baseDirectory, file));
+    if (!row) {
+      return { match: null, tags: {} };
+    }
+    const frame = id => _.get(frameOf.get(row.id, id), 'value') || null;
+    return {
+      match: row.status || null,
+      tags: { artist: frame('TPE1'), title: frame('TIT2'), album: frame('TALB'), duration: row.duration }
+    };
+  });
   // the library track a remote track stands for: itself, or the song it is another release of
   const libraryId = ({ track_id: trackId, isrc }) =>
     !trackId ||
@@ -143,6 +158,10 @@ const syncPlan = (db, config, songs) => {
     // songs outside sync.scope are left alone wherever they are on Spotify
     const ignored = new Set(_.map(_.filter(songs, 'outOfScope'), 'file'));
     const memberFiles = new Set(_.map(members, 'file'));
+    const noId = _.map(
+      _.filter(members, ({ file }) => !ids.has(file)),
+      member => ({ ...member, ...withoutId(member.file) })
+    );
 
     const withId = _.map(
       _.filter(members, ({ file }) => ids.has(file)),
@@ -174,10 +193,8 @@ const syncPlan = (db, config, songs) => {
       local: members.length,
       add,
       conflict: _.uniqBy(conflict, 'trackId'),
-      noId: _.map(
-        _.filter(members, ({ file }) => !ids.has(file)),
-        member => ({ ...member, match: matchStatus(member.file) })
-      ),
+      noId,
+      localFiles: localTracks(_.filter(noId, exportable), remote),
       prune,
       spotifyAdded,
       spotifyRemoved,

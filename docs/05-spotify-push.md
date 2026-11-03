@@ -109,5 +109,5 @@ one press.
 
 ## Not built yet
 
-- Exporting songs that are not on Spotify (Local Files) to `sync.uploadDirectory` for the desktop app, and
-  checking which of them made it (TODO.md section 7).
+- Removing local tracks from playlists: the Web API does not take local files, so a stale local entry
+  (`README.md` of `sync --export` lists them) is removed by hand.

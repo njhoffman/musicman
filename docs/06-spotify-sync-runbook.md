@@ -165,21 +165,44 @@ musicman sync --pull              # applies the tag changes after a confirmation
   Spotify you do not want before running `sync --pull`.
 - Songs that get a Spotify id later (`sync --match`) join the comparison from the next sync.
 
-## Planned: local songs that are not on Spotify
+## Local songs that are not on Spotify
 
-The Web API cannot upload audio or add local files to playlists, so these go through the desktop app's Local
-Files (from `03-spotify-id.md`; TODO items `sync --push export` and `Verify pushed local files`):
+The Web API cannot upload audio or add local files to playlists, so songs Spotify has no track for (`sync
+--match` found none, or every candidate was rejected in review) reach their playlists as Local Files, added by
+hand in the desktop app. Spotify names a local file by its ID3 tags: a playlist entry is
+`spotify:local:<artist>:<album>:<title>:<seconds>`, and any device with a file carrying those tags plays it.
 
-1. `sync --push` exports the songs counted under `No id` to `sync.uploadDirectory`
-   (`.musicman/upload` by default), one subfolder per target playlist including Liked Songs, as hardlinks
-   when on the same filesystem and copies otherwise, with a `README.md` checklist per playlist.
-2. In the desktop app, add the folders as Local Files sources and drag the songs into their playlists.
-3. The next `sync` reads the local tracks in each playlist (the Web API returns them with `is_local`), reports
-   what is still missing, and removes completed songs from the export.
+```sh
+musicman sync --export --dry-run   # what would be exported and staged
+musicman sync --export
+```
 
-Open question to check first: whether every subfolder must be added as its own Local Files source and can be
-toggled on its own. Local files only play on other devices on the same network that have the playlist
-downloaded.
+`sync --export` refreshes the playlists, finds which of these songs each playlist already holds as a local
+track (artist and title agree, lengths within 2 seconds), and keeps `sync.uploadDirectory`
+(`.musicman/upload` by default) in line:
+
+- `files/`: every such song once, as a hard link to the library file (a copy on another filesystem), named
+  `Artist - Title.mp3`. Spotify plays them from here: add it as a Local Files source in the desktop app, and
+  keep it synced to the phone (e.g. Syncthing), where "Show audio files from this device" is on. Songs that
+  get a Spotify id or leave every playlist are removed; a library file replaced by a write through a
+  temporary file is linked again.
+- `stage/`: the songs still missing from one playlist, in plan order with Liked Songs last. Add it as a
+  second source, then for each run: turn the `files` source off (the desktop app shows a file in two sources
+  once, so Local Files then lists only `stage/`), select all in Local Files, drag them into the playlist, turn
+  `files` back on, and run `sync --export` again for the next playlist.
+- `README.md`: a checklist per playlist (added and still missing), with local tracks in a playlist that are
+  none of the songs, e.g. after a title or artist was changed in the library: drag the song in again and
+  remove the old entry by hand.
+- `export.json`: the names given, so a song keeps its file name; only files listed there are ever removed.
+
+The plan's `Local files` column shows, per playlist, the songs added as local tracks of those that need one.
+
+Notes:
+
+- The Linux desktop client plays local files only with the ffmpeg libraries it was built for: the apt
+  `spotify-client` 1.2.63 loads `libavcodec.so.54` to `.58` (ffmpeg 4.x and older), so on a system with a
+  newer ffmpeg it lists local files but shows them as unplayable. The phone plays its own copies regardless.
+- A song with an unresolved duplicate copy is exported twice (`Song (2).mp3`); pick one first (`check --pick`).
 
 ## Backing up the library files
 

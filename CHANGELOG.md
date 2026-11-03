@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `sync --export` brings the songs Spotify has no track for to their playlists as Local Files: `files/` in
+  `sync.uploadDirectory` holds each once (hard links, synced to the phone, where Spotify plays them), and
+  `stage/` the songs still missing from one playlist at a time, to drag into it in the desktop app. Each run
+  checks the playlists' local tracks (by artist, title, and length), stages the next playlist, and writes a
+  `README.md` checklist. The plan shows a `Local files` column (added of needed per playlist). The workflow is
+  in `docs/06-spotify-sync-runbook.md`.
+
 ## [1.56.1] - 2026-11-02
 
 ### Changed

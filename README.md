@@ -12,6 +12,7 @@ musicman rating:4.5 grouping:Dubstep        # view songs rated 4.5 and up in a g
 musicman edit some/dir mood=+Upbeat         # add a value to a multi value field
 musicman search artist "Mazzy Star" --play  # replace the MPD queue with the results
 musicman sync --push                        # push Liked Songs and mapped playlists to Spotify
+musicman sync --export                      # songs Spotify lacks, as Local Files to add (runbook)
 musicman shuffle "Nick's Picks"             # play a playlist in a real random order (below)
 musicman player next                        # skip in whichever player is active
 musicman player play context:Study rating:5 # play search results (MPD, or the active Spotify)

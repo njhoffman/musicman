@@ -162,11 +162,17 @@ Reviewed: 2026-11-01
 - [x] **Prefer the original album over compilations.** (p2) [feature] `releaseRank` among same-recording candidates
       (own album by name, album, single, compilation, various artists); `sync --match --recheck` looks compilation
       matches up again. Probable album versions are only reported (a review reject would unlink the song).
-- [ ] **`sync --push` export.** (p2) [feature] (also the action of the `musicman ui` local to Spotify list) export songs missing from Spotify to `sync.uploadDirectory`, one
-      subfolder per target playlist (hardlinks when possible), with a `README.md` checklist and printed summary.
-      Verify first how Spotify desktop Local Files sources handle subfolders.
-- [ ] **Verify pushed local files.** (p2) [feature] on `sync`, read local tracks in the mapped playlists, report
-      songs still missing, and remove completed ones from the export directory.
+- [x] **`sync --push` export.** (p2) [feature] `sync --export` (1.57.0): `files/` with every song Spotify lacks
+      (for the phone and the desktop app), `stage/` with one playlist's songs to drag at a time, and a
+      `README.md` checklist. Tried 2026-11-02: the desktop app lists all sources as one Local Files list and
+      a local entry plays from any file with the same tags, so one subfolder per playlist was dropped.
+- [x] **Verify pushed local files.** (p2) [feature] each `sync` matches the playlists' local tracks to the
+      exported songs (artist, title, length within 2 s): the `Local files` column, the checklist, and the local
+      tracks that are none of the songs. Completed songs stay in `files/`, which is what plays them.
+- [ ] **Desktop playback of local files.** (p2) [chore] the apt `spotify-client` 1.2.63 only loads ffmpeg 4.x
+      (`libavcodec.so.54`-`.58`); the system has `.61`, so local files list but do not play on the desktop.
+      Options: the Flatpak client (own ffmpeg; check the rofi menu's MPRIS control still finds it), or
+      ffmpeg 4.4 libraries unpacked privately behind an `LD_LIBRARY_PATH` launcher.
 - [ ] **Try the review listen keys in a real session.** (p3) [test] ctrl-l (mpv), ctrl-s (Spotify), and ctrl-x in the
       `sync --review` list have only run in tests; MPD is not paused while they play.
 - [ ] **Spotify artist metadata for every credited artist.** (p3) [feature] `fetchDetails` only fetches

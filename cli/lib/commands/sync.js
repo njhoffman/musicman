@@ -20,6 +20,7 @@ const { autoAcceptItems, confirmAutoAccept } = require('../sync/accept.js');
 const { ignorePlaylistId, playlistTargets, songTargets } = require('../sync/targets.js');
 const { refreshCache } = require('../sync/cache.js');
 const { recordSynced, syncPlan } = require('../sync/plan.js');
+const { applyExport, planExport, readExportState } = require('../sync/localFiles.js');
 const { membershipChanges } = require('../sync/membership.js');
 const { pushPlan } = require('../sync/push.js');
 const { buildManifest, writeManifest } = require('../sync/pull.js');
@@ -334,6 +335,16 @@ const planColumns = [
   ['add', 'Add', target => target.add.length],
   ['conflict', 'Conflict', target => (target.conflict || []).length],
   ['noId', 'No id', target => target.noId.length],
+  [
+    'localFiles',
+    'Local files',
+    target =>
+      target.localFiles
+        ? `${target.localFiles.added.length}/${
+            target.localFiles.added.length + target.localFiles.pending.length
+          }`
+        : '0/0'
+  ],
   ['prune', 'Prune', target => target.prune.length],
   ['reject', 'Rejected', target => (target.reject || []).length],
   ['spotifyAdded', '+Spotify', target => target.spotifyAdded.length],
@@ -386,12 +397,57 @@ const outputPlan = (plan, { config, switches, highlighted = [] }) => {
   }
 };
 
+// the export of songs Spotify has no track for to sync.uploadDirectory (sync --export)
+const runExport = ({ config, plan, dryRun }) => {
+  const uploadDirectory = config.sync.uploadDirectory;
+  const previous = readExportState(uploadDirectory);
+  const exported = planExport(plan, {
+    baseDirectory: path.resolve(config.mpd.baseDirectory),
+    previous
+  });
+  const { staged } = exported;
+  const pending = _.sumBy(exported.targets, target => target.pending.length);
+  logger.info(
+    `Local files: ${exported.songs.length} songs Spotify has no track for, ${pending} still to add to ` +
+      `their playlists (${uploadDirectory})`
+  );
+  const stray = _.sumBy(exported.targets, target => target.stray.length);
+  if (stray > 0) {
+    logger.warn(
+      `${stray} local tracks in the playlists are none of these songs (tags changed since?), listed in README.md`
+    );
+  }
+  if (dryRun) {
+    logger.info(
+      staged
+        ? `Dry run: would stage ${staged.pending.length} songs for ${staged.name}`
+        : 'Dry run: every song is in its playlists, nothing to stage'
+    );
+    return { exported };
+  }
+  const counts = applyExport(exported, { uploadDirectory, previous });
+  logger.info(
+    `files/: ${counts.linked + counts.copied} added${
+      counts.copied ? ` (${counts.copied} copied, not linked)` : ''
+    }, ${counts.relinked} linked again, ${counts.removed} removed`
+  );
+  logger.info(
+    staged
+      ? `stage/: ${counts.staged} songs for ${chalk.bold(staged.name)}: in the desktop app, turn the files ` +
+          'source off, select all in Local Files, drag them into the playlist, turn files back on, then run ' +
+          'sync --export again (README.md has the checklist)'
+      : 'stage/: empty, every song is in its playlists'
+  );
+  return { exported, counts };
+};
+
 const runPlan = async ({
   client,
   config,
   push = false,
   pull = false,
   prune = false,
+  exportFiles = false,
   dryRun = false,
   confirm = confirmPrompt,
   switches = {}
@@ -427,11 +483,12 @@ const runPlan = async ({
         })
       : undefined;
     const pulled = pull ? await runPull({ config, plan, dryRun, confirm }) : undefined;
+    const exported = exportFiles ? runExport({ config, plan, dryRun }) : undefined;
     // what Spotify and the tags agree on now is the state the next sync compares with
     if (!dryRun) {
       recordSynced(db, syncPlan(db, config, songTargets(await librarySongs(config), config)));
     }
-    return { plan, pushed, pulled };
+    return { plan, pushed, pulled, exported };
   } finally {
     db.close();
   }
@@ -1165,17 +1222,18 @@ const syncCommand = async ({
     if (!status.loggedIn) {
       return status;
     }
-    const { plan, pushed, pulled } = await runPlan({
+    const { plan, pushed, pulled, exported } = await runPlan({
       client: status.client,
       config,
       push: Boolean(switches.push),
       pull: Boolean(switches.pull),
       prune: Boolean(switches.prune),
+      exportFiles: Boolean(switches.export),
       dryRun: Boolean(switches.dryRun),
       confirm,
       switches
     });
-    return { ..._.omit(status, 'client'), plan, pushed, pulled };
+    return { ..._.omit(status, 'client'), plan, pushed, pulled, exported };
   } catch (err) {
     logger.error(err.message);
     logger.logToFile('error', err.stack);
@@ -1190,7 +1248,7 @@ module.exports = {
   name: 'sync',
   description: 'Sync Liked Songs and playlists with Spotify; without switches, show the plan',
   usage:
-    'musicman sync [--login | --match [--refresh] [--recheck] [--verbose] | --review [--accept | --reject] | --push [--prune] | --pull | --import | --backup [--force]] [--dry-run]',
+    'musicman sync [--login | --match [--refresh] [--recheck] [--verbose] | --review [--accept | --reject] | --push [--prune] | --pull | --export | --import | --backup [--force]] [--dry-run]',
   switches: [
     'login',
     'match',
@@ -1203,6 +1261,7 @@ module.exports = {
     'push',
     'prune',
     'pull',
+    'export',
     'import',
     'backup',
     'force',

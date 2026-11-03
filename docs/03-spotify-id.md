@@ -33,14 +33,14 @@
   and `spotify.clientSecret` in the config; the environment takes precedence. OAuth tokens are stored outside
   the config file.
 - **Upload (push)**: the Spotify Web API cannot upload audio or add local files to playlists, so musicman
-  exports songs that are not on Spotify to `sync.uploadDirectory` for the desktop app's Local Files:
-  - one subfolder per target playlist (including Liked Songs); a song in several playlists is in each folder
-  - hardlinks when on the same filesystem as the library, copies otherwise
-  - `README.md` checklist in the export directory grouped by playlist, the same summary printed by `sync --push`
-  - the Web API can read local tracks in playlists, so the next `sync` verifies what was added, reports what is
-    still missing, and removes completed items from the export directory
-  - verify first: whether each subfolder must be added as its own Local Files source and can be toggled
-  - local files only play on other devices on the same network with the playlist downloaded
+  exports songs that are not on Spotify to `sync.uploadDirectory` for the desktop app's Local Files
+  (`sync --export`, built in 1.57.0, see `06-spotify-sync-runbook.md`). Tried 2026-11-02, which changed the
+  design from one subfolder per playlist:
+  - the desktop app lists every source's files in one Local Files list (no folders), shows a file in two
+    folders (the same inode) once, and can turn each source off
+  - a local entry is `spotify:local:<artist>:<album>:<title>:<seconds>` from the ID3 tags, so any copy with
+    the same tags plays it: the phone plays its own copies, without the desktop
+  - so `files/` holds every song (synced to the phone) and `stage/` one playlist's songs to drag at a time
 - **Download (pull)**: a separate spotDL script, not run inline:
   - `sync --pull` writes a manifest (track URL, target playlist, tags to apply) to `sync.downloadDirectory`
   - the script downloads the manifest with spotDL (installed: 4.5.2) into `sync.downloadDirectory`, using
