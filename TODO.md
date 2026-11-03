@@ -144,9 +144,16 @@ Reviewed: 2026-11-03
 - [x] **Spotify artist metadata for every credited artist.** (p3) [feature] `fetchDetails` only fetches
       `artists[0]`, so genres, popularity, and photos of featured or second artists are never stored. Decide whether
       the extra artist requests are worth it and how multi value fields would hold them.
-- [ ] **Spotify audio features.** (p3) [feature] populate acousticness, danceability, energy, instrumentalness,
+- [x] **Spotify audio features.** (p3) [feature] populate acousticness, danceability, energy, instrumentalness,
       key, liveness, loudness, mode, speechiness, tempo, time_signature, valence. Blocked: `/audio-features`
       and `/audio-analysis` return 403 for this app (checked 2026-10-20); needs another source (see section 11).
+      Done 2026-11-03: `sync --features` from ReccoBeats by Spotify track id (`lib/sync/features.js`), tempo to
+      TBPM, key to TKEY, the rest to `rb_*`; still 403 from Spotify that day.
+- [ ] **Audio features for the songs ReccoBeats lacks.** (p3) [feature] about 17% of sampled tracks are unknown to
+      it, and ~1600 songs have no Spotify id. Analyse the files themselves with Essentia (its music extractor, e.g.
+      through the beets xtractor plugin), which also gives mood probabilities (happy, sad, party, relaxed,
+      aggressive) for the mood analysis item. Needs the standalone extractor binary and models (beets runs on
+      Python 3.14, which Essentia does not support yet), and hours for a first pass.
 - [x] **Spotify credentials.** (p1) [feature] from the environment or `spotify.*`; `sync --login` saves OAuth tokens
       to `$XDG_STATE_HOME/musicman/spotify-token.json` (mode 0600).
 - [x] **Sync config.** (p1) [feature] `sync.likedRating`, `sync.playlists`, `sync.uploadDirectory`,

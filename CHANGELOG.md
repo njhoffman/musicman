@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman sync --features` writes audio features from ReccoBeats, looked up by Spotify track id, since
+  Spotify's own answer 403: tempo to `TBPM` (`bpm`), key to `TKEY` (`key`, e.g. `C#m`), and acousticness,
+  danceability, energy, instrumentalness, liveness, loudness, speechiness, and valence to `rb_<field>` tags,
+  after a confirmation (`--yes`: without). `features.fields` picks which; songs already fetched are skipped
+  (`--refresh` fetches all again). The new tags are library tags, so filters and views can use them.
+
 ## [1.72.0] - 2026-11-03
 
 ### Added
