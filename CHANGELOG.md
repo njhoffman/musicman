@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman menu` details (`i`): Enter on a line copies its value (the file path, the Spotify link, a tag's
+  values) to the clipboard with `wl-copy` under Wayland, else `xclip`, and goes back to the main menu.
+
 ## [1.62.1] - 2026-11-02
 
 ### Fixed

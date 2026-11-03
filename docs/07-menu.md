@@ -62,6 +62,8 @@ markup, has no filter). Escape goes back to the main menu.
 `i` lists everything about the song, one line each: for a song in the library its file (path, size,
 modified) and every tag with a value, Spotify fields included; for a Spotify song not in the library the
 track as Spotify plays it. Then its Spotify link and URI and the cached Spotify playlists it is in.
+Enter on a line copies its value (the path, the link; not the field name) to the clipboard, with
+`wl-copy` under Wayland, else `xclip`, and goes back to the main menu.
 
 ### Genre
 

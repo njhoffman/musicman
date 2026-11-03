@@ -178,7 +178,7 @@ Reviewed: 2026-11-01
       `/usr/share/spotify` (the client's RUNPATH is `$ORIGIN`); `spotify.update` keeps it across upgrades.
 - [ ] **Try the review listen keys in a real session.** (p3) [test] ctrl-l (mpv), ctrl-s (Spotify), and ctrl-x in the
       `sync --review` list have only run in tests; MPD is not paused while they play.
-- [ ] **Spotify artist metadata for every credited artist.** (p3) [feature] `fetchDetails` only fetches
+- [x] **Spotify artist metadata for every credited artist.** (p3) [feature] `fetchDetails` only fetches
       `artists[0]`, so genres, popularity, and photos of featured or second artists are never stored. Decide whether
       the extra artist requests are worth it and how multi value fields would hold them.
 - [ ] **Spotify audio features.** (p3) [feature] populate acousticness, danceability, energy, instrumentalness,
@@ -273,11 +273,12 @@ Reviewed: 2026-11-01
       tracks as a list (a rewritten playlist plays its previous order for a minute or more), so playback stops after
       them although the playlist holds the rest. Options: start the playlist at track 1001 once the list ends
       (needs a watcher), or queue the next tracks from the notify daemon.
-- [ ] **Menu: unbound letters filter the main menu unseen.** (p3) [bug] the main menu has no filter box, but rofi
-      still filters on keys no button takes (`f`, `z`, ...), so a stray press can hide buttons until Backspace.
-      Bind the free letters to nothing (`-kb-custom-N` to a no-op key) or show the filter there too.
-- [ ] **Menu details: copy a line.** (p3) [feature] Enter on a line of the details screen (`i`) could copy its value
-      (the Spotify link, the file path) with `xclip`/`wl-copy` instead of going back.
+- [x] **Menu: unbound letters filter the main menu unseen.** (p3) [bug] Cannot reproduce, 2026-11-02: on rofi
+      2.0.0 a theme whose `inputbar` has no `entry` drops typed text, so `f`, `z`, ... filter nothing on the main
+      menu (tested with xdotool). Binding the free keys is not possible anyway: the main menu fills all 19
+      `kb-custom` slots; rebinding them to a no-op action (`kb-toggle-case-sensitivity`) would work if needed.
+- [x] **Menu details: copy a line.** (p3) [feature] Enter on a line of the details screen (`i`) copies its value
+      (the Spotify link, the file path) with `wl-copy` or `xclip`, then goes back.
 - [x] **Playback controls for MPD and Spotify.** (p2) [feature] one set of mpc style commands (play, pause, next,
       previous, seek, volume, queue) that acts on whichever player is active, plus musicman features such as playing
       a search result or a filter. `musicman spotify` covers shuffle and repeat; the Web API player scopes are

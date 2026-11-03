@@ -8,6 +8,7 @@ const { libraryFileForTrack } = require('../player/library.js');
 const { filterTag } = require('../sync/membership.js');
 const { refreshPlaylist } = require('../sync/cache.js');
 const { cachedIn, changeTrack, pushSong } = require('../sync/song.js');
+const { copyText } = require('../utils/clipboard.js');
 const { ignorePlaylistId, likedId, playlistTargets } = require('../sync/targets.js');
 
 // keys of the main menu's song buttons, besides the playback controls, shuffle (u), repeat (r),
@@ -228,8 +229,13 @@ const songDetails = (meta, fields) => {
   ]);
 };
 
-// a line of the details: the field name, padded so the values line up, and its value
-const detailRow = (field, value) => ({ label: `${field.padEnd(detailsFieldWidth)}${value}` });
+// a line of the details: the field name, padded so the values line up, and its value (what Enter
+// on the line copies)
+const detailRow = (field, value) => ({
+  label: `${field.padEnd(detailsFieldWidth)}${value}`,
+  field,
+  value: String(value)
+});
 
 const fileSize = bytes => `${(bytes / 1048576).toFixed(1)} MB`;
 
@@ -305,8 +311,9 @@ const playlistNames = (db, trackId) =>
  * press at a time.
  * Dependencies: openDb() opens the library database, client() the Spotify user client, readSongs(files)
  * and writeSong(file, assignments) read and write tags as [file, metadata], withRun(label, fn), and
- * stat(file) (fs.statSync) for the details, and currentFile(file) the path of a song beets may have
- * moved since it was read (writeSong sorts songs a change makes ready).
+ * stat(file) (fs.statSync) for the details, currentFile(file) the path of a song beets may have
+ * moved since it was read (writeSong sorts songs a change makes ready), and copy(text) puts a line of
+ * the details on the clipboard.
  */
 const songActions = ({
   config,
@@ -316,7 +323,8 @@ const songActions = ({
   writeSong,
   withRun,
   stat = fs.statSync,
-  currentFile = file => file
+  currentFile = file => file,
+  copy = copyText
 }) => {
   const buttons = menuButtons(config);
   const fields = tagFields(config);
@@ -597,16 +605,26 @@ const songActions = ({
       tone: tones.song,
       disabled: !track,
       ...detailsLayout,
+      // Enter on a line copies its value and goes back to the main menu
       choices: async () =>
-        songInfo({
-          track,
-          file: local ? current.file : null,
-          meta: local ? current.meta : null,
-          playlists: await withDb(db =>
-            playlistNames(db, track.trackId || _.get(current, 'meta.sp_track_id'))
-          ),
-          stat
-        })
+        _.map(
+          songInfo({
+            track,
+            file: local ? current.file : null,
+            meta: local ? current.meta : null,
+            playlists: await withDb(db =>
+              playlistNames(db, track.trackId || _.get(current, 'meta.sp_track_id'))
+            ),
+            stat
+          }),
+          row => ({
+            ...row,
+            run: async () => {
+              await copy(row.value);
+              return { notice: `copied ${row.field}: ${row.value}` };
+            }
+          })
+        )
     };
 
     const ratingEntries = _.map(buttons.ratings, button => {

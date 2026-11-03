@@ -147,6 +147,7 @@ describe('Menu song actions', () => {
     let db;
     let writes;
     let runs;
+    let copies;
     let requests;
 
     const cache = (playlistId, trackIds) => {
@@ -206,6 +207,9 @@ describe('Menu song actions', () => {
         withRun: async (label, action) => {
           runs.push(label);
           return action();
+        },
+        copy: async text => {
+          copies.push(text);
         }
       });
     const press = async (context, key) => {
@@ -227,6 +231,7 @@ describe('Menu song actions', () => {
       db = openDatabase(':memory:');
       writes = [];
       runs = [];
+      copies = [];
       requests = [];
       const { lastInsertRowid } = db
         .prepare("INSERT INTO songs (path, mtime, size) VALUES ('a.mp3', 1, 1)")
@@ -555,6 +560,19 @@ describe('Menu song actions', () => {
         'uri spotify:track:ta',
         `playlists ${study}`
       ]);
+    });
+
+    it('should copy the value of a details line, not its field name, and go back', async () => {
+      const { entry } = await press(linked, 'i');
+      expect(entry.stay).to.not.equal(true);
+      const rows = await entry.choices();
+      const link = rows.find(({ field }) => field === 'spotify');
+      expect(await link.run()).to.deep.equal({
+        notice: 'copied spotify: https://open.spotify.com/track/ta'
+      });
+      await rows.find(({ field }) => field === 'context').run();
+      expect(copies).to.deep.equal(['https://open.spotify.com/track/ta', 'Run, Study']);
+      expect(writes).to.deep.equal([]);
     });
   });
 
