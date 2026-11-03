@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman spotify queue` shows the track Spotify plays and the next few, on whichever device plays (Web API,
+  with the `sync --login` token). `--format json` prints them for other programs, as `docs/09-contract.md`
+  describes: sleeve uses it to fetch the lyrics of the next Spotify track ahead of time.
+
 ## [1.74.0] - 2026-11-03
 
 ### Added

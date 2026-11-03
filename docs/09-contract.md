@@ -71,6 +71,50 @@ editor before writing them with `musicman edit`.
 - Each list is most used first, then by value. Comma-joined values count as their parts, once per song.
 - An unknown field is an error (exit status 1, nothing on stdout).
 
+### musicman spotify queue
+
+`musicman spotify queue --format json` prints the track Spotify plays and the next few, on whichever device
+plays (`GET /me/player/queue`, with the user token from `musicman sync --login`; musicman refreshes and keeps
+it, so other programs never hold one). sleeve runs it when a Spotify track starts and looks up the lyrics for
+the next track ahead, as it does for MPD's queue.
+
+```json
+{
+  "version": 1,
+  "playing": {
+    "id": "68Ipi52o5m2zBeQVn9Tezf",
+    "title": "California",
+    "artists": ["The Lagoons"],
+    "album": "California",
+    "durationMs": 258004,
+    "isrc": "USA2P1912345"
+  },
+  "queue": [
+    {
+      "id": "08OTqB3xjsLa5EZb9Fu2Lw",
+      "title": "Next",
+      "artists": ["A", "B"],
+      "album": null,
+      "durationMs": 201000,
+      "isrc": null
+    }
+  ]
+}
+```
+
+| Field                         | Meaning                                                               |
+| ----------------------------- | --------------------------------------------------------------------- |
+| `version`                     | 1; raised only when a field is removed or changes meaning             |
+| `playing`                     | the track playing (or paused), `null` when nothing does               |
+| `queue`                       | what plays after it, next first, at most 5; tracks only (no episodes) |
+| `id`                          | the Spotify track id                                                  |
+| `artists`                     | the track's artists, in Spotify's order                               |
+| `album`, `durationMs`, `isrc` | as Spotify gives them, `null` when it does not                        |
+
+- Without Spotify credentials or a login, or when the Web API refuses, it is an error (exit status 1, nothing
+  on stdout).
+- Without `--format json` it prints the same as lines, for people.
+
 ### Lyrics in the library's tags
 
 sleeve writes synced lyrics into the library's mp3 files; musicman writes the other frames of the same tags.
