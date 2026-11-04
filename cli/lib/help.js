@@ -9,11 +9,11 @@ const { completionCommand } = require('./completion/index.js');
 const helpArgs = ['--help', '-h'];
 const versionArgs = ['--version', '-V'];
 
-// the colors the other commands use; chalk drops them when the output is not a terminal
+// chalk drops the colors when the output is not a terminal
 const heading = text => chalk.hex('#8888FF').bold(text);
 const commandName = text => chalk.hex('#55BBDD')(text);
-const switchName = text => chalk.hex('#55CC55')(text);
-const placeholder = text => chalk.hex('#DDCC44')(text);
+const switchName = text => chalk.hex('#7FB8A8')(text);
+const placeholder = text => chalk.hex('#A0A8C8')(text);
 
 const switchLabel = text => switchName(text.replace(/<[^>]+>/g, placeholder));
 
