@@ -75,7 +75,8 @@ module.exports = {
     func: () => ({ match: true })
   },
   refresh: {
-    description: 'With --match, fetch the Spotify fields of every matched song again',
+    description:
+      'sync --match or --features: fetch again for every song; analyze: analyse every song again',
     alias: '-F',
     func: () => ({ refresh: true })
   },
@@ -183,7 +184,7 @@ module.exports = {
   },
   yes: {
     description:
-      'Answer yes to the question: sync --import (musicman ui runs it, without a terminal), sync --features, db --restore',
+      'Answer yes to the question: sync --import (musicman ui runs it, without a terminal), sync --features, db --restore, analyze',
     alias: '-Q',
     func: () => ({ yes: true })
   },

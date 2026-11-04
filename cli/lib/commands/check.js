@@ -391,6 +391,10 @@ module.exports = {
     'Report library problems: drift, unreadable files, field names, duplicates, ratings, encoding',
   usage: `musicman check [target] [--only=${checkNames.join(',')}] [--format=json] [--fix [--dry-run]] [--pick]`,
   switches: ['only', 'format', 'fix', 'dry-run', 'pick'],
+  switchHelp: {
+    format: 'Output format: default, or json',
+    'dry-run': 'With --fix or --pick, show the plan without changing anything'
+  },
   // a repair that can write is a run musicman undo can take back
   archive: ({ fix, pick, dryRun }) => Boolean((fix || pick) && !dryRun),
   completes: ['paths'],

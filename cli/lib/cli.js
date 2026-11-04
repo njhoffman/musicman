@@ -32,7 +32,7 @@ const sharePaths = config => {
 const run = async givenArgs => {
   let args = givenArgs;
   // help and version work before (and without) a config
-  const help = helpOutput(args, version);
+  const help = helpOutput(args, version, { width: process.stdout.columns });
   if (help !== null) {
     process.stdout.write(`${help}\n`);
     return;

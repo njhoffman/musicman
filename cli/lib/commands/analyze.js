@@ -145,6 +145,11 @@ module.exports = {
     'Analyse the library files with Essentia: tempo and key where missing, danceability, and mood probabilities',
   usage: 'musicman analyze [--refresh] [--limit N] [--dry-run] [--yes]',
   switches: ['refresh', 'limit', 'dry-run', 'yes'],
+  switchHelp: {
+    refresh: 'Analyse every song again, not only the ones not analysed yet',
+    'dry-run': 'Show how many songs would be analysed and the time estimate, without analysing',
+    yes: 'Start without asking first'
+  },
   func: analyzeCommand,
   archive: ({ dryRun }) => !dryRun,
   defaultTarget,

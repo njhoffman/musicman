@@ -183,6 +183,7 @@ module.exports = {
     'Show the song playing in MPD or Spotify: tags, progress, playlists, and where it plays from',
   usage: 'musicman status [--watch] [--format json]',
   switches: ['watch', 'format'],
+  switchHelp: { format: 'Output format: default, or json' },
   completes: [],
   func: reportErrors(statusCommand),
   run: statusCommand,

@@ -1505,6 +1505,16 @@ module.exports = {
     'format',
     'fzf'
   ],
+  switchHelp: {
+    refresh:
+      'With --match, fetch the Spotify fields of every matched song again; with --features, fetch the audio features of every song with a Spotify id',
+    yes: 'Answer yes to the question of --import (musicman ui runs it, without a terminal) or --features',
+    backup: 'Mirror the library files to backup.directory after confirming',
+    force:
+      'With --backup, also update backup files held back because their copy has frames the library copy lacks',
+    'dry-run':
+      'Show what would change without writing files or Spotify (--match still caches its lookups)'
+  },
   func: syncCommand,
   withoutIdsMessage,
   // reviewing only lists, accepting or rejecting changes tags

@@ -224,6 +224,10 @@ module.exports = {
     'Undo the tag and Spotify changes of a recent run, or list the runs that can be undone',
   usage: 'musicman undo [--list | <run id | latest> [--dry-run] [--force]]',
   switches: ['list', 'dry-run', 'force'],
+  switchHelp: {
+    force: 'Also restore files changed since the run',
+    'dry-run': 'Show what would be undone without changing anything'
+  },
   completes: ['runs'],
   words: ['latest'],
   func: undoCommand,

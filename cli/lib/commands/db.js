@@ -307,6 +307,10 @@ module.exports = {
   usage:
     'musicman db [--update [target]] [--backup] [--excluded] [--readmit [path]] [--restore [name] [--yes]]',
   switches: ['update', 'backup', 'excluded', 'readmit', 'restore', 'yes'],
+  switchHelp: {
+    backup: 'Back up the library database now',
+    yes: 'With --restore, replace the database without asking'
+  },
   completes: ['paths'],
   func: dbCommand,
   archive: ({ update, backup, readmit: readmitting }) => Boolean(update || backup || readmitting),

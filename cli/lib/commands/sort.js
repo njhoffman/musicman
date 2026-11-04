@@ -103,6 +103,7 @@ module.exports = {
   description: 'Move rated songs with a sorted grouping out of Unrated with beets',
   usage: 'musicman sort [--dry-run] [--all]',
   switches: ['dry-run', 'all'],
+  switchHelp: { 'dry-run': 'Show what would be sorted without moving anything' },
   func: sortCommand,
   archive: true,
   defaultTarget,

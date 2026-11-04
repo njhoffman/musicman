@@ -6,6 +6,17 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- `--help` is in color: headings, command names, switches, and the values they take. Piped output has no color.
+- Help wraps to the terminal's width, with long descriptions continuing in their own column.
+
+### Fixed
+
+- `<command> --help` describes a switch for that command: `analyze --help` no longer says `--refresh` fetches
+  Spotify fields, and `db`, `sync`, `undo`, `check`, and the other commands sharing a switch say what it does for
+  them.
+
 ## [1.78.0] - 2026-11-03
 
 ### Added

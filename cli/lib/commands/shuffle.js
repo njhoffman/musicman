@@ -271,6 +271,9 @@ module.exports = {
     'Write a Spotify source in random order to your shuffle playlist and play it with shuffle off',
   usage: 'musicman shuffle [liked | playlist name or URL | field:value ...]',
   switches: ['dry-run'],
+  switchHelp: {
+    'dry-run': 'Show what would be written without writing the playlist or playing it'
+  },
   completes: ['playlists', 'filters'],
   words: ['liked'],
   func: reportErrors(shuffleCommand),

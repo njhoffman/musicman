@@ -101,6 +101,7 @@ module.exports = {
     'Show or set shuffle and repeat in the Spotify desktop app (the same as musicman player spotify shuffle|repeat), or show the queue',
   usage,
   switches: ['format'],
+  switchHelp: { format: 'With queue, the output format: default, or json' },
   completes: [],
   // each setting word is followed by one of its modes
   pairs: { shuffle: shuffleModes, repeat: repeatModes },
