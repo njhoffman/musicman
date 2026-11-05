@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.79.0] - 2026-11-05
+
 ### Added
 
 - The notify daemon publishes a now playing line for status bars in `$XDG_RUNTIME_DIR/musicman/now-playing`: an icon
@@ -1489,7 +1491,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.78.2...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.79.0...HEAD
+[1.79.0]: https://github.com/njhoffman/musicman/compare/v1.78.2...v1.79.0
 [1.78.2]: https://github.com/njhoffman/musicman/compare/v1.78.1...v1.78.2
 [1.78.1]: https://github.com/njhoffman/musicman/compare/v1.78.0...v1.78.1
 [1.78.0]: https://github.com/njhoffman/musicman/compare/v1.77.0...v1.78.0
