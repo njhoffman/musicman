@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- The status bar line ends with the heart and the star, after the time left. The heart is now a Nerd Font glyph the
+  size of the other icons, colored by `bar.colors.heart`.
+
 ## [1.79.0] - 2026-11-05
 
 ### Added

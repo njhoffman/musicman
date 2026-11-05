@@ -32,8 +32,8 @@ same data for status bars; `--watch` (`-W`) redraws it every second until `q`, l
 again when the track changes. `status.icons: false` leaves out the Nerd Font icons.
 
 The notify daemon (`musicman-notify`) also keeps a line for status bars in
-`$XDG_RUNTIME_DIR/musicman/now-playing`, Polybar's color tags included: the player's icon, a heart when the song is
-in Liked Songs, one star when its file is in the library, a pause glyph, the title and artist, and the time left.
+`$XDG_RUNTIME_DIR/musicman/now-playing`, Polybar's color tags included: the player's icon, a pause glyph, the title
+and artist, the time left, a heart when the song is in Liked Songs, and one star when its file is in the library.
 The star is gray when unrated, a dim outline below 4.0, a bright outline at 4.0, filled at 4.5, and gold at 5.0.
 `bar.colors` and `bar.maxLength` adjust it and `bar.enabled: false` turns it off; see
 [the contract](docs/09-contract.md#now-playing) for the file.

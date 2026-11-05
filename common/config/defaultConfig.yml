@@ -278,6 +278,7 @@ bar:
     text: "#9aa5ce"
     paused: "#666666"
     time: "#777777"
+    heart: "#ff8fc7"
     # the star: in the library but unrated, rated below 4.0, 4.0 and 4.5, and 5.0
     unrated: "#555555"
     low: "#666666"

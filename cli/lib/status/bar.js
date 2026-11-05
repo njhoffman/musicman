@@ -1,10 +1,10 @@
 const _ = require('lodash');
 
-// Nerd Font glyphs; the heart stays the color emoji the bar has always shown, colors do not apply to it
+// Nerd Font glyphs
 const glyphs = {
   spotify: '',
   mpd: '',
-  heart: '\u{1FA77}',
+  heart: '\uf004',
   starFilled: '',
   starOutline: '',
   pause: ''
@@ -20,6 +20,7 @@ const barDefaults = {
     text: '#9aa5ce',
     paused: '#666666',
     time: '#777777',
+    heart: '#ff8fc7',
     unrated: '#555555',
     low: '#666666',
     star: '#c0caf5',
@@ -76,8 +77,8 @@ const barText = (text, length) =>
   );
 
 /**
- * The polybar line of a track: its player, the heart when in Liked Songs, the library star, a pause
- * glyph when paused, the title and artist, and the time left.
+ * The polybar line of a track: its player, a pause glyph when paused, the title and artist, the time
+ * left, the heart when in Liked Songs, and the library star.
  * view: { source, state, title, artist, remaining, liked, inLibrary, rating }; null renders nothing.
  */
 const renderBar = (view, config) => {
@@ -90,11 +91,11 @@ const renderBar = (view, config) => {
   const time = formatRemaining(view.remaining);
   return _.compact([
     paint(colors[view.source], glyphs[view.source]),
-    view.liked ? glyphs.heart : '',
-    starOf(view, colors),
     paused ? paint(colors.paused, glyphs.pause) : '',
     paint(paused ? colors.paused : colors.text, barText(name, maxLength)),
-    time ? paint(colors.time, time) : ''
+    time ? paint(colors.time, time) : '',
+    view.liked ? paint(colors.heart, glyphs.heart) : '',
+    starOf(view, colors)
   ]).join(' ');
 };
 

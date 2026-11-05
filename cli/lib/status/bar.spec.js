@@ -98,13 +98,16 @@ describe('Bar line', () => {
       );
     });
 
-    it('should show the heart then the star, for MPD as for Spotify', () => {
+    it('should end with the time left, the heart, then the star, for MPD as for Spotify', () => {
       const line = renderBar(
         { ...view, source: 'mpd', liked: true, inLibrary: true, rating: '5.0' },
         {}
       );
+      expect(line.startsWith(`${icon('mpd')} %{F${colors.text}}Fade`)).to.be.true;
       expect(
-        line.startsWith(`${icon('mpd')} ${glyphs.heart} ${star(colors.gold, glyphs.starFilled)} `)
+        line.endsWith(
+          `%{F${colors.time}}-2:17%{F-} ${star(colors.heart, glyphs.heart)} ${star(colors.gold, glyphs.starFilled)}`
+        )
       ).to.be.true;
     });
 
