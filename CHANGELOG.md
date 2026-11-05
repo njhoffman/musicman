@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.81.0] - 2026-11-05
+
 ### Changed
 
 - With `sync.likedPlaylistId` set, all of musicman sees local files in Liked Songs, not only the status bar heart. Sync
@@ -1520,7 +1522,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.80.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.81.0...HEAD
+[1.81.0]: https://github.com/njhoffman/musicman/compare/v1.80.0...v1.81.0
 [1.80.0]: https://github.com/njhoffman/musicman/compare/v1.79.1...v1.80.0
 [1.79.1]: https://github.com/njhoffman/musicman/compare/v1.79.0...v1.79.1
 [1.79.0]: https://github.com/njhoffman/musicman/compare/v1.78.2...v1.79.0
