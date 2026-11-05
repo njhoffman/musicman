@@ -6,6 +6,7 @@ const path = require('path');
 const { barSettings, renderBar } = require('../status/bar.js');
 const { choosePlayer } = require('../player/players.js');
 const { libraryFileForPlaying, trackForLibraryFile } = require('../player/library.js');
+const { confirmedFiles, isLocalTrackOf } = require('../sync/localFiles.js');
 const { cachedIn } = require('../sync/song.js');
 const { likedId } = require('../sync/targets.js');
 const logger = require('../utils/logger.js');
@@ -43,6 +44,56 @@ const likedOnSpotify = client => async trackId => {
   return _.isBoolean(liked) ? liked : null;
 };
 
+/**
+ * The local files in Liked Songs, which /me/tracks never lists, from the playlist the player reports as
+ * its context while playing Liked Songs (sync.likedPlaylistId; undocumented, so it may go away).
+ * refresh() fetches them only when the playlist's snapshot changed, resolving to whether it did. has(tags)
+ * is whether a track ({ artist, title, duration }) is among them, or null while they are unknown. A
+ * playlist Spotify refuses forgets the list; other failures (offline) keep the last one.
+ */
+const localLikes = (client, playlistId) => {
+  const playlist = `/playlists/${encodeURIComponent(playlistId)}`;
+  let snapshot = null;
+  let rows = null;
+  let warned = false;
+  return {
+    refresh: async () => {
+      try {
+        const { snapshot_id: current } = await client().get(`${playlist}?fields=snapshot_id`);
+        if (rows && current === snapshot) {
+          return false;
+        }
+        const items = await client().paginate(
+          `${playlist}/tracks?limit=100&fields=next,total,items(track(name,is_local,duration_ms,artists(name)))`
+        );
+        rows = _.map(
+          _.filter(items, item => item.track && item.track.is_local),
+          ({ track }) => ({
+            name: track.name,
+            artists: _.map(track.artists, 'name').join(', '),
+            duration_ms: track.duration_ms
+          })
+        );
+        snapshot = current;
+        warned = false;
+        return true;
+      } catch (err) {
+        if (!warned) {
+          logger.warn(`Bar: could not read sync.likedPlaylistId: ${err.message}`);
+        }
+        warned = true;
+        if ([403, 404].includes(err.status) && rows) {
+          rows = null;
+          snapshot = null;
+          return true;
+        }
+        return false;
+      }
+    },
+    has: tags => (rows ? _.some(rows, row => isLocalTrackOf(tags, row)) : null)
+  };
+};
+
 // the modification time of a file, or null when it is gone
 const fileMtime = file => {
   try {
@@ -55,9 +106,12 @@ const fileMtime = file => {
 /**
  * Keeps the bar file on what plays: refresh() reads the players (and the song on a new track or changed
  * file), tick() redraws the time left. The heart starts from the cached Liked Songs and follows Spotify
- * while a track plays; when Spotify cannot be asked the last answer stays.
+ * while a track plays; when Spotify cannot be asked the last answer stays. A track without its own Spotify
+ * id (a local file, or MPD's) also has the heart when it is among the local likes (localLikes), or while
+ * those are unknown, when its file was confirmed in Liked Songs (sync --export --confirm).
  * Dependencies: players { mpd, spotify }, openDb() the library database or null, readSong(file) its tags,
- * liked(trackId) Spotify's answer, writer { write, remove }, now() and mtime(file) for tests.
+ * liked(trackId) Spotify's answer, likes (optional) localLikes, writer { write, remove }, and for tests
+ * confirmedLiked(file), now(), and mtime(file).
  */
 const createBarPublisher = ({
   config,
@@ -65,7 +119,9 @@ const createBarPublisher = ({
   openDb,
   readSong,
   liked,
+  likes = null,
   writer,
+  confirmedLiked = file => confirmedFiles(config)(likedId).has(path.resolve(file)),
   now = Date.now,
   mtime = fileMtime
 }) => {
@@ -79,6 +135,18 @@ const createBarPublisher = ({
   let queue = Promise.resolve();
   let queued = false;
 
+  // the heart: Spotify's answer for the track's id, or for a track without its own id the local likes
+  const hearted = () => {
+    if (song.catalogLiked) {
+      return true;
+    }
+    if (!song.tags) {
+      return false;
+    }
+    const known = likes ? likes.has(song.tags) : null;
+    return known === null ? song.confirmed : known;
+  };
+
   const publish = () => {
     const position = current
       ? current.position + (current.state === 'playing' ? (now() - current.sampledAt) / 1000 : 0)
@@ -87,7 +155,9 @@ const createBarPublisher = ({
       current && song
         ? {
             ...current,
-            ...song,
+            inLibrary: song.inLibrary,
+            rating: song.rating,
+            liked: hearted(),
             remaining: current.duration ? current.duration - position : null
           }
         : null;
@@ -135,35 +205,54 @@ const createBarPublisher = ({
         return null;
       });
     }
+    const confirmed = file ? confirmedLiked(file) : false;
     return {
       file,
       mtime: file ? mtime(file) : null,
       trackId,
-      liked: cached,
+      confirmed,
+      catalogLiked: cached,
+      tags: track.trackId
+        ? null
+        : { artist: track.artist, title: track.title, duration: track.duration },
       inLibrary: Boolean(meta),
       rating: meta ? meta.rating : null
     };
   };
 
-  // asks Spotify about the heart, at most one question at a time; the answer of an old track is dropped
+  // asks Spotify about the heart, at most once at a time; the answer of an old track is dropped
   const askLiked = key => {
-    if (asking || !song || !song.trackId || now() - likedAt < likedMs) {
+    if (asking || !song || now() - likedAt < likedMs) {
+      return;
+    }
+    const { trackId, tags } = song;
+    const checkLikes = likes && tags;
+    if (!trackId && !checkLikes) {
       return;
     }
     asking = true;
     likedAt = now();
-    Promise.resolve()
-      .then(() => liked(song.trackId))
-      .then(answer => {
-        if (_.isBoolean(answer) && current && current.key === key) {
-          song = { ...song, liked: answer };
-          publish();
-        }
-      })
-      .catch(err => logger.debug(`Bar: no Liked Songs answer: ${err.message}`))
-      .finally(() => {
-        asking = false;
-      });
+    const askCatalog = trackId
+      ? Promise.resolve()
+          .then(() => liked(trackId))
+          .then(answer => {
+            if (_.isBoolean(answer) && current && current.key === key) {
+              song = { ...song, catalogLiked: answer };
+              publish();
+            }
+          })
+          .catch(err => logger.debug(`Bar: no Liked Songs answer: ${err.message}`))
+      : null;
+    const askLikes = checkLikes
+      ? likes.refresh().then(changed => {
+          if (changed && current) {
+            publish();
+          }
+        })
+      : null;
+    Promise.all([askCatalog, askLikes]).finally(() => {
+      asking = false;
+    });
   };
 
   const read = async () => {
@@ -183,7 +272,7 @@ const createBarPublisher = ({
       // rated, or moved by beets; a file not found yet keeps what it showed until the track ends
       const fresh = await loadSong(active);
       if (fresh.inLibrary) {
-        song = { ...fresh, liked: song.liked };
+        song = { ...fresh, catalogLiked: song.catalogLiked };
       }
     }
     current = {
@@ -234,12 +323,14 @@ const startBar = (config, { players, openDb, readSong, client, file = barFile() 
     return null;
   }
   const writer = barWriter(file);
+  const likedPlaylistId = _.get(config, 'sync.likedPlaylistId');
   const publisher = createBarPublisher({
     config,
     players,
     openDb,
     readSong,
     liked: likedOnSpotify(client),
+    likes: likedPlaylistId ? localLikes(client, likedPlaylistId) : null,
     writer
   });
   const timers = [setInterval(publisher.tick, tickMs), setInterval(publisher.refresh, resyncMs)];
@@ -257,4 +348,4 @@ const startBar = (config, { players, openDb, readSong, client, file = barFile() 
   };
 };
 
-module.exports = { barFile, barWriter, createBarPublisher, likedOnSpotify, startBar };
+module.exports = { barFile, barWriter, createBarPublisher, likedOnSpotify, localLikes, startBar };

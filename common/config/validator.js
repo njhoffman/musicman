@@ -51,6 +51,7 @@ const configSchema = {
       scope: { type: 'string', required: false },
       playlists: { type: 'array', required: false },
       uploadDirectory: { type: 'string', required: false },
+      likedPlaylistId: { type: 'string', required: false },
       phone: {
         type: 'object',
         required: false,

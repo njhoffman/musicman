@@ -141,6 +141,10 @@ Reviewed: 2026-11-03
 
 ## 7. Spotify sync (`docs/03-spotify-id.md`, `docs/05-spotify-push.md`)
 
+- [ ] **Use the Liked Songs playlist view in sync.** (p2) [feature] `sync.likedPlaylistId` (the playlist the player
+      reports while playing Liked Songs) lists local files and follows the app in both directions, tested 2026-11-05. The
+      status bar heart reads it (`localLikes` in `cli/lib/notify/barPublisher.js`). `sync --export` could read it too,
+      making `--confirm` and the "cannot be checked" note in `docs/06-spotify-sync-runbook.md` unnecessary.
 - [x] **Prefer the original album over compilations.** (p2) [feature] `releaseRank` among same-recording candidates
       (own album by name, album, single, compilation, various artists); `sync --match --recheck` looks compilation
       matches up again. Probable album versions are only reported (a review reject would unlink the song).

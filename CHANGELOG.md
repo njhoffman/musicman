@@ -6,6 +6,17 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `sync.likedPlaylistId`: the playlist the player reports while playing Liked Songs. Unlike `/me/tracks` it lists local
+  files, so the status bar heart follows likes and unlikes of local files within 30 seconds. It is undocumented and
+  could stop working.
+
+### Fixed
+
+- The status bar heart shows for local files in Liked Songs, read from `sync.likedPlaylistId`, or without it from the
+  songs `sync --export --confirm` recorded. Spotify's `/me/tracks` never lists them, so they had no heart.
+
 ## [1.79.1] - 2026-11-05
 
 ### Changed

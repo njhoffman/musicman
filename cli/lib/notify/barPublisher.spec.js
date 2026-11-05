@@ -6,7 +6,13 @@ const path = require('path');
 const { openDatabase } = require('../db/database.js');
 const { glyphs } = require('../status/bar.js');
 const { spotifyIdFrame } = require('../sync/match.js');
-const { barFile, barWriter, createBarPublisher, likedOnSpotify } = require('./barPublisher.js');
+const {
+  barFile,
+  barWriter,
+  createBarPublisher,
+  likedOnSpotify,
+  localLikes
+} = require('./barPublisher.js');
 
 const base = path.resolve('/music');
 const config = { mpd: { baseDirectory: base } };
@@ -200,6 +206,95 @@ describe('Bar publisher', () => {
     expect(context.last().text).to.contain(glyphs.heart);
   });
 
+  describe('local files confirmed in Liked Songs', () => {
+    const localTrack = {
+      trackId: null,
+      local: true,
+      title: 'Song',
+      artist: 'Band',
+      album: '',
+      position: 0,
+      duration: 100
+    };
+    let dir;
+    beforeEach(() => {
+      dir = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-bar-'));
+    });
+    afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+    // a publisher reading the export state in dir, over a library with Rated/a.mp3 without a Spotify id
+    const publisherFor = (players, { liked = async () => null } = {}) => {
+      const written = [];
+      const publisher = createBarPublisher({
+        config: { ...config, sync: { uploadDirectory: dir } },
+        players,
+        openDb: () => {
+          const db = openDatabase(':memory:');
+          db.prepare(
+            'INSERT INTO songs (id, path, mtime, size, duration) VALUES (1, ?, 0, 0, 100)'
+          ).run('Rated/a.mp3');
+          const tag = db.prepare(
+            'INSERT INTO song_tags (song_id, frame_id, value) VALUES (1, ?, ?)'
+          );
+          tag.run('TIT2', 'Song');
+          tag.run('TPE1', 'Band');
+          return db;
+        },
+        readSong: async () => ({ rating: '5.0' }),
+        liked,
+        writer: { write: (source, text) => written.push(text), remove: () => {} },
+        mtime: () => 1
+      });
+      return { publisher, last: () => written[written.length - 1] };
+    };
+    const confirm = list =>
+      fs.writeFileSync(
+        path.join(dir, 'export.json'),
+        JSON.stringify({ confirmed: { liked: list } })
+      );
+
+    it('should show the heart for a Spotify local file in the export state', async () => {
+      confirm(['Rated/a.mp3']);
+      const { publisher, last } = publisherFor({
+        mpd: fakePlayer('mpd'),
+        spotify: fakePlayer('spotify', playing(localTrack))
+      });
+      await publisher.refresh();
+      expect(last()).to.contain(glyphs.heart);
+    });
+
+    it('should show no heart for a local file that was not confirmed', async () => {
+      confirm(['Rated/other.mp3']);
+      const { publisher, last } = publisherFor({
+        mpd: fakePlayer('mpd'),
+        spotify: fakePlayer('spotify', playing(localTrack))
+      });
+      await publisher.refresh();
+      expect(last()).to.contain('Song - Band');
+      expect(last()).to.not.contain(glyphs.heart);
+    });
+
+    it('should show no heart for a local file without an export state', async () => {
+      const { publisher, last } = publisherFor({
+        mpd: fakePlayer('mpd'),
+        spotify: fakePlayer('spotify', playing(localTrack))
+      });
+      await publisher.refresh();
+      expect(last()).to.not.contain(glyphs.heart);
+    });
+
+    it('should show the heart for the same file in MPD, and keep it when Spotify says no', async () => {
+      confirm(['Rated/a.mp3']);
+      const { publisher, last } = publisherFor(
+        { mpd: fakePlayer('mpd', playing(mpdTrack)), spotify: fakePlayer('spotify') },
+        { liked: async () => false }
+      );
+      await publisher.refresh();
+      await settle();
+      expect(last()).to.contain(glyphs.heart);
+    });
+  });
+
   it('should not ask about a paused song, nor a track without a Spotify id', async () => {
     const context = setup();
     context.players.mpd.current = playing(mpdTrack, 'paused');
@@ -314,6 +409,169 @@ describe('Bar publisher', () => {
     failing = false;
     await publisher.refresh();
     expect(written).to.have.length(1);
+  });
+
+  describe('local likes from the Liked Songs playlist', () => {
+    const staxx = {
+      track: {
+        name: 'STAXX',
+        is_local: true,
+        duration_ms: 245000,
+        artists: [{ name: 'Kelsey Bulkin' }]
+      }
+    };
+    const catalog = {
+      track: { name: 'Other', is_local: false, duration_ms: 1000, artists: [{ name: 'Band' }] }
+    };
+    const tags = { artist: 'kelsey bulkin', title: 'staxx', duration: 245.4 };
+    // a client serving a playlist the test changes, counting full fetches
+    const fakeClient = () => {
+      const remote = { snapshot: 'one', items: [staxx, catalog], fetches: 0, error: null };
+      const api = {
+        get: async url => {
+          if (remote.error) {
+            throw remote.error;
+          }
+          expect(url).to.equal('/playlists/pl1?fields=snapshot_id');
+          return { snapshot_id: remote.snapshot };
+        },
+        paginate: async url => {
+          expect(url.startsWith('/playlists/pl1/tracks?limit=100&fields=next,')).to.be.true;
+          remote.fetches += 1;
+          return remote.items;
+        }
+      };
+      return { remote, client: () => api };
+    };
+    const refused = status => Object.assign(new Error('refused'), { status });
+
+    it('should know nothing before the first read, then match by artist, title and length', async () => {
+      const { client } = fakeClient();
+      const likes = localLikes(client, 'pl1');
+      expect(likes.has(tags)).to.equal(null);
+      expect(await likes.refresh()).to.equal(true);
+      expect(likes.has(tags)).to.equal(true);
+      expect(likes.has({ ...tags, duration: 300 })).to.equal(false);
+      expect(likes.has({ artist: 'Band', title: 'Other', duration: 1 })).to.equal(false);
+    });
+
+    it('should fetch the tracks only when the snapshot changes', async () => {
+      const { client, remote } = fakeClient();
+      const likes = localLikes(client, 'pl1');
+      await likes.refresh();
+      expect(await likes.refresh()).to.equal(false);
+      expect(remote.fetches).to.equal(1);
+      remote.snapshot = 'two';
+      remote.items = [catalog];
+      expect(await likes.refresh()).to.equal(true);
+      expect(remote.fetches).to.equal(2);
+      expect(likes.has(tags)).to.equal(false);
+    });
+
+    it('should keep the list when offline, and forget it when the playlist is refused', async () => {
+      const { client, remote } = fakeClient();
+      const likes = localLikes(client, 'pl1');
+      await likes.refresh();
+      remote.error = new Error('offline');
+      expect(await likes.refresh()).to.equal(false);
+      expect(likes.has(tags)).to.equal(true);
+      remote.error = refused(404);
+      expect(await likes.refresh()).to.equal(true);
+      expect(likes.has(tags)).to.equal(null);
+    });
+
+    // a publisher playing a local file, confirmed in the export state when confirmed
+    const localSetup = async ({ likes, confirmed = false }) => {
+      const written = [];
+      const clock = { now: 1000000 };
+      const players = {
+        mpd: fakePlayer('mpd'),
+        spotify: fakePlayer(
+          'spotify',
+          playing({
+            trackId: null,
+            local: true,
+            title: 'STAXX',
+            artist: 'Kelsey Bulkin',
+            position: 0,
+            duration: 245
+          })
+        )
+      };
+      const publisher = createBarPublisher({
+        config,
+        players,
+        openDb: () => null,
+        readSong: async () => null,
+        liked: async () => null,
+        likes,
+        writer: { write: (source, text) => written.push(text), remove: () => {} },
+        confirmedLiked: () => confirmed,
+        now: () => clock.now,
+        mtime: () => 1
+      });
+      return { publisher, clock, players, last: () => written[written.length - 1] };
+    };
+
+    it('should show the heart once the playlist lists the file, over a missing confirmation', async () => {
+      const { client } = fakeClient();
+      const { publisher, last } = await localSetup({ likes: localLikes(client, 'pl1') });
+      await publisher.refresh();
+      await settle();
+      await settle();
+      expect(last()).to.contain(glyphs.heart);
+    });
+
+    it('should clear the heart of an unliked file within a check, even when confirmed', async () => {
+      const { client, remote } = fakeClient();
+      const { publisher, clock, last } = await localSetup({
+        likes: localLikes(client, 'pl1'),
+        confirmed: true
+      });
+      await publisher.refresh();
+      await settle();
+      expect(last()).to.contain(glyphs.heart);
+      remote.snapshot = 'two';
+      remote.items = [catalog];
+      clock.now += 30000;
+      await publisher.refresh();
+      await settle();
+      await settle();
+      expect(last()).to.not.contain(glyphs.heart);
+    });
+
+    it('should fall back to the confirmed file when the playlist cannot be read', async () => {
+      const { client, remote } = fakeClient();
+      remote.error = refused(404);
+      const { publisher, players, last } = await localSetup({
+        likes: localLikes(client, 'pl1'),
+        confirmed: true
+      });
+      // MPD names its file without a library to look it up in
+      players.spotify.current = { state: null };
+      players.mpd.current = playing(mpdTrack);
+      await publisher.refresh();
+      await settle();
+      await settle();
+      expect(last()).to.contain(glyphs.heart);
+    });
+
+    it('should not give a catalog track the heart of a liked local copy', async () => {
+      const { client } = fakeClient();
+      const likes = localLikes(client, 'pl1');
+      await likes.refresh();
+      const { publisher, players, last } = await localSetup({ likes });
+      players.spotify.current = playing({
+        trackId: 'catalog',
+        title: 'STAXX',
+        artist: 'Kelsey Bulkin',
+        position: 0,
+        duration: 245
+      });
+      await publisher.refresh();
+      await settle();
+      expect(last()).to.not.contain(glyphs.heart);
+    });
   });
 
   describe('likedOnSpotify', () => {
