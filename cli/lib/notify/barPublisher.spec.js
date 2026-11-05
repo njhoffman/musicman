@@ -413,15 +413,16 @@ describe('Bar publisher', () => {
 
   describe('local likes from the Liked Songs playlist', () => {
     const staxx = {
+      is_local: true,
       track: {
         name: 'STAXX',
-        is_local: true,
         duration_ms: 245000,
         artists: [{ name: 'Kelsey Bulkin' }]
       }
     };
     const catalog = {
-      track: { name: 'Other', is_local: false, duration_ms: 1000, artists: [{ name: 'Band' }] }
+      is_local: false,
+      track: { id: 'c1', name: 'Other', duration_ms: 1000, artists: [{ name: 'Band' }] }
     };
     const tags = { artist: 'kelsey bulkin', title: 'staxx', duration: 245.4 };
     // a client serving a playlist the test changes, counting full fetches
@@ -436,7 +437,7 @@ describe('Bar publisher', () => {
           return { snapshot_id: remote.snapshot };
         },
         paginate: async url => {
-          expect(url.startsWith('/playlists/pl1/tracks?limit=100&fields=next,')).to.be.true;
+          expect(url.startsWith('/playlists/pl1/items?limit=100&fields=')).to.be.true;
           remote.fetches += 1;
           return remote.items;
         }

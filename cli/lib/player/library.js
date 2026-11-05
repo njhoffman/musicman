@@ -3,6 +3,7 @@ const path = require('path');
 
 const { isLocalTrackOf } = require('../sync/localFiles.js');
 const { spotifyIdFrame } = require('../sync/match.js');
+const { likedId } = require('../sync/targets.js');
 
 /**
  * The library file (absolute) linked to a Spotify track id by its TXXX.sp_track_id tag, the first one when
@@ -105,7 +106,44 @@ const cachedPlaylists = (db, trackId) =>
       )
     : [];
 
+/**
+ * The cached playlists (Liked Songs first, then by name) holding a local file like a track without its own
+ * Spotify id ({ title, artist, duration }), as { id, name }. Liked Songs lists local files only when
+ * sync.likedPlaylistId is set.
+ */
+const cachedLocalPlaylists = (db, { title, artist, duration }) =>
+  title
+    ? _.map(
+        _.uniqBy(
+          _.filter(
+            db
+              .prepare(
+                `SELECT p.id, p.name AS playlist, t.name, t.artists, t.duration_ms
+                 FROM spotify_playlist_tracks t JOIN spotify_playlists p ON p.id = t.playlist_id
+                 WHERE t.is_local = 1 AND t.name = ? COLLATE NOCASE
+                 ORDER BY p.id = 'liked' DESC, p.name COLLATE NOCASE`
+              )
+              .all(`${title}`.trim()),
+            row => isLocalTrackOf({ artist, title, duration }, row)
+          ),
+          'id'
+        ),
+        ({ id, playlist }) => ({ id, name: playlist })
+      )
+    : [];
+
+/**
+ * Whether the cached Liked Songs holds a local file like a track without its own Spotify id, or null when
+ * the cache does not list local files there (no sync.likedPlaylistId, or a sync before it was set).
+ */
+const cachedLocalLiked = (db, track) => {
+  const row = db.prepare('SELECT snapshot_id FROM spotify_playlists WHERE id = ?').get(likedId);
+  return row && row.snapshot_id ? _.some(cachedLocalPlaylists(db, track), { id: likedId }) : null;
+};
+
 module.exports = {
+  cachedLocalLiked,
+  cachedLocalPlaylists,
   cachedPlaylists,
   libraryFileForLocalTrack,
   libraryFileForPlaying,

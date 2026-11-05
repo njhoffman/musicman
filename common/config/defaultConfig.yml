@@ -136,8 +136,9 @@ sync:
   # Songs to add to Spotify through the desktop app, defaults to .musicman/upload in mpd.baseDirectory
   uploadDirectory:
   # The playlist the player reports while playing Liked Songs (GET /me/player, context.uri), which unlike
-  # /me/tracks also lists local files: the status bar heart follows it for local files. Undocumented and per
-  # user; without it, or when it cannot be read, the heart uses the songs sync --export --confirm recorded.
+  # /me/tracks also lists local files: sync, sync --export, status, the menu, and the status bar heart read
+  # Liked Songs from it. Undocumented and per user; without it, or when Spotify refuses it, they use /me/tracks
+  # and the songs sync --export --confirm recorded.
   likedPlaylistId:
   # Phone that sync --export mirrors the exported songs to (files/ of uploadDirectory), through KDE Connect's
   # SFTP plugin: device is its KDE Connect name or id, directory a folder in its shared storage that musicman

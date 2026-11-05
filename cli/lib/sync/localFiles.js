@@ -26,9 +26,9 @@ const isLocalTrackOf = (tags, track) =>
 /**
  * The songs of a playlist that only a local file can bring there (songs: [{ file, tags }]) against its
  * local tracks (remote rows with is_local): { added, pending, stray, confirmed }, stray being local tracks
- * that are none of the songs (a song whose tags changed since, or one that is not exported). The Web API
- * never lists local files in Liked Songs, so songs whose file is in confirmed (sync --export --confirm)
- * count as added; confirmed is how many did.
+ * that are none of the songs (a song whose tags changed since, or one that is not exported). Without
+ * sync.likedPlaylistId local files in Liked Songs are not listed, so songs whose file is in confirmed
+ * (sync --export --confirm) count as added; confirmed is how many did.
  */
 const localTracks = (songs, remote, confirmed = new Set()) => {
   const local = _.filter(remote, 'is_local');
@@ -166,8 +166,8 @@ const planExport = (plan, { baseDirectory, previous = {}, readable = () => true 
 
 /**
  * The export state with the songs the last export staged recorded as added to Liked Songs (sync --export
- * --confirm), for after dragging them in: the Web API never lists local files in Liked Songs, so the
- * export cannot see them there. Only Liked Songs is confirmed this way; a staged playlist is checked
+ * --confirm), for after dragging them in: without sync.likedPlaylistId the export cannot see local files in
+ * Liked Songs. Only Liked Songs is confirmed this way; a staged playlist is checked
  * through the Web API. Returns { state, count }.
  */
 const confirmStaged = (previous = {}) => {

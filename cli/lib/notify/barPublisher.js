@@ -6,6 +6,7 @@ const path = require('path');
 const { barSettings, renderBar } = require('../status/bar.js');
 const { choosePlayer } = require('../player/players.js');
 const { libraryFileForPlaying, trackForLibraryFile } = require('../player/library.js');
+const { itemFields, toRow } = require('../sync/cache.js');
 const { confirmedFiles, isLocalTrackOf } = require('../sync/localFiles.js');
 const { cachedIn } = require('../sync/song.js');
 const { likedId } = require('../sync/targets.js');
@@ -64,16 +65,9 @@ const localLikes = (client, playlistId) => {
           return false;
         }
         const items = await client().paginate(
-          `${playlist}/tracks?limit=100&fields=next,total,items(track(name,is_local,duration_ms,artists(name)))`
+          `${playlist}/items?limit=100&fields=${encodeURIComponent(itemFields)}`
         );
-        rows = _.map(
-          _.filter(items, item => item.track && item.track.is_local),
-          ({ track }) => ({
-            name: track.name,
-            artists: _.map(track.artists, 'name').join(', '),
-            duration_ms: track.duration_ms
-          })
-        );
+        rows = _.filter(_.map(items, toRow), 'is_local');
         snapshot = current;
         warned = false;
         return true;

@@ -1,6 +1,7 @@
 const _ = require('lodash');
 
 const { transaction } = require('../db/database.js');
+const logger = require('../utils/logger.js');
 const { likedId } = require('./targets.js');
 
 // fields kept from playlist items, the track is under item (current API) or track (older responses)
@@ -73,6 +74,37 @@ const refreshPlaylist = async (db, client, id, { onPage = _.noop } = {}) => {
 };
 
 /**
+ * Liked Songs as rows, with its snapshot id. /me/tracks never lists local files, so with
+ * sync.likedPlaylistId it comes from the playlist the player reports while playing Liked Songs, which holds
+ * the same tracks and the local files (undocumented, so a playlist Spotify refuses falls back to
+ * /me/tracks, snapshotId null: a non-null one says local files are listed).
+ */
+const fetchLiked = async (client, config, { onPage = _.noop } = {}) => {
+  const playlistId = _.get(config, 'sync.likedPlaylistId');
+  if (playlistId) {
+    try {
+      const { snapshot_id: snapshotId } = await client.get(
+        `/playlists/${playlistId}?fields=snapshot_id`
+      );
+      const items = await client.paginate(
+        `/playlists/${playlistId}/items?limit=100&fields=${encodeURIComponent(itemFields)}`,
+        { onPage }
+      );
+      return { rows: _.map(items, toRow), snapshotId: snapshotId || null };
+    } catch (err) {
+      if (![403, 404].includes(err.status)) {
+        throw err;
+      }
+      logger.warn(
+        `Could not read sync.likedPlaylistId, local files in Liked Songs are not listed: ${err.message}`
+      );
+    }
+  }
+  const liked = await client.paginate('/me/tracks?limit=50', { onPage });
+  return { rows: _.map(liked, toRow), snapshotId: null };
+};
+
+/**
  * Refreshes the local cache of Liked Songs and the playlists in playlistIds. Playlists whose
  * snapshot_id did not change since the last refresh are not fetched again. onTarget(id, status,
  * count) is called after each target; onProgress({ done, total, name, fetched, tracks }) while it
@@ -82,7 +114,7 @@ const refreshCache = async (
   db,
   client,
   playlistIds,
-  { onTarget = _.noop, onProgress = _.noop } = {}
+  { config = null, onTarget = _.noop, onProgress = _.noop } = {}
 ) => {
   const summary = { refreshed: [], unchanged: [] };
   const ids = _.uniq(playlistIds);
@@ -92,19 +124,25 @@ const refreshCache = async (
     onProgress({ done, total, name, fetched, tracks });
   pageProgress('Liked Songs', 0, null);
 
-  const liked = await client.paginate('/me/tracks?limit=50', {
+  const liked = await fetchLiked(client, config, {
     onPage: (fetched, tracks) => pageProgress('Liked Songs', fetched, tracks)
   });
   storePlaylist(db, {
     id: likedId,
     name: 'Liked Songs',
-    snapshotId: null,
-    rows: _.map(liked, toRow)
+    snapshotId: liked.snapshotId,
+    rows: liked.rows
   });
   summary.refreshed.push(likedId);
   done += 1;
-  onTarget(likedId, 'refreshed', liked.length);
-  onProgress({ done, total, name: 'Liked Songs', fetched: liked.length, tracks: liked.length });
+  onTarget(likedId, 'refreshed', liked.rows.length);
+  onProgress({
+    done,
+    total,
+    name: 'Liked Songs',
+    fetched: liked.rows.length,
+    tracks: liked.rows.length
+  });
 
   for (const id of ids) {
     const { status, count, name } = await refreshPlaylist(db, client, id, { onPage: pageProgress });
@@ -116,4 +154,4 @@ const refreshCache = async (
   return summary;
 };
 
-module.exports = { itemFields, refreshCache, refreshPlaylist, toRow };
+module.exports = { fetchLiked, itemFields, refreshCache, refreshPlaylist, toRow };

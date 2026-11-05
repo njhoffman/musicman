@@ -2,7 +2,7 @@ const _ = require('lodash');
 const fs = require('fs');
 const path = require('path');
 
-const { toRow } = require('./cache.js');
+const { fetchLiked, toRow } = require('./cache.js');
 const { likedId, playlistTargets } = require('./targets.js');
 
 // fields kept from playlist items, the track is under item (current API) or track (older responses)
@@ -26,9 +26,14 @@ const stamp = now =>
  */
 const saveSnapshot = async (client, config, { now = new Date(), onTarget = _.noop } = {}) => {
   const targets = [];
-  const liked = await client.paginate('/me/tracks?limit=50');
-  targets.push({ id: likedId, name: 'Liked Songs', snapshotId: null, tracks: _.map(liked, toRow) });
-  onTarget(likedId, liked.length);
+  const liked = await fetchLiked(client, config);
+  targets.push({
+    id: likedId,
+    name: 'Liked Songs',
+    snapshotId: liked.snapshotId,
+    tracks: liked.rows
+  });
+  onTarget(likedId, liked.rows.length);
 
   for (const id of _.uniq(_.map(playlistTargets(config), 'id'))) {
     const playlist = await client.get(`/playlists/${id}?fields=name,snapshot_id`);

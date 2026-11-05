@@ -4,7 +4,11 @@ const fs = require('fs');
 const { chipColors, clock, defaultChip, icons, stars, tones } = require('./menu.js');
 const { escapeMarkup } = require('./rofi.js');
 const parseFilters = require('../parser/options/filters.js');
-const { libraryFileForPlaying } = require('../player/library.js');
+const {
+  cachedLocalLiked,
+  cachedLocalPlaylists,
+  libraryFileForPlaying
+} = require('../player/library.js');
 const { filterTag } = require('../sync/membership.js');
 const { refreshPlaylist } = require('../sync/cache.js');
 const { cachedIn, changeTrack, pushSong } = require('../sync/song.js');
@@ -500,6 +504,11 @@ const songActions = ({
         : new Set();
     });
     const likedLive = remote ? await withDb(db => likedNow(db, track.trackId)) : null;
+    // a library song without a Spotify id can only be in Liked Songs as a local file, whatever its rating
+    const likedLocal =
+      local && !(track && track.trackId) && !_.get(current, 'meta.sp_track_id')
+        ? await withDb(db => cachedLocalLiked(db, track))
+        : null;
 
     // a tag of a library song, or the playlist of the tag a Spotify-only song is in; pressing it adds
     // or removes the tag (or the track)
@@ -618,7 +627,10 @@ const songActions = ({
             file: local ? current.file : null,
             meta: local ? current.meta : null,
             playlists: await withDb(db =>
-              playlistNames(db, track.trackId || _.get(current, 'meta.sp_track_id'))
+              _.uniq([
+                ...playlistNames(db, track.trackId || _.get(current, 'meta.sp_track_id')),
+                ..._.map(track.trackId ? [] : cachedLocalPlaylists(db, track), 'name')
+              ])
             ),
             stat
           }),
@@ -663,7 +675,9 @@ const songActions = ({
     });
 
     const liked = local
-      ? Number(_.get(current, 'meta.rating')) >= likedRating
+      ? likedLocal === null
+        ? Number(_.get(current, 'meta.rating')) >= likedRating
+        : likedLocal
       : likedLive === null
         ? inTarget.has(likedId)
         : likedLive;
@@ -680,7 +694,7 @@ const songActions = ({
         key: likeKey,
         tone: tones.like,
         active: liked,
-        // songs in the library are in Liked Songs by their rating
+        // songs in the library are in Liked Songs by their rating, or as local files in the app
         disabled: !remote,
         run: () => toggleRemote(track, likedId, !liked, liked ? 'unlike' : 'like')
       },

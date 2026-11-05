@@ -85,7 +85,7 @@ const syncPlan = (db, config, songs) => {
   const filesByTrack = _.groupBy([...ids.keys()], file => ids.get(file));
   const songByTrack = new Map(_.map(filesByTrack, (files, id) => [id, files[0]]));
   const synced = syncedTracks(db);
-  // songs confirmed as added to Liked Songs, which the Web API never lists as local tracks
+  // songs confirmed as added to Liked Songs, for when the cache could not list its local tracks
   const confirmedIn = confirmedFiles(config);
   // per track, the group playlists its copies disagree on (in sync.scope; outOfScope songs have none)
   const groups = exclusiveGroups(config);
@@ -114,9 +114,12 @@ const syncPlan = (db, config, songs) => {
   // sync.ignorePlaylist is cached like a target but is none, its tracks are never pulled
   const ignoreId = ignorePlaylistId(config);
   const ignoredIds = ignoredTracks(db, config);
-  const playlists = _.reject(db.prepare('SELECT id, name FROM spotify_playlists').all(), {
-    id: ignoreId
-  });
+  const playlists = _.reject(
+    db.prepare('SELECT id, name, snapshot_id FROM spotify_playlists').all(),
+    {
+      id: ignoreId
+    }
+  );
   const tracksOf = db.prepare(
     `SELECT track_id, is_local, name, artists, album, isrc FROM spotify_playlist_tracks
      WHERE playlist_id = ?`
@@ -157,7 +160,9 @@ const syncPlan = (db, config, songs) => {
       ? trackId
       : releases.get(isrc);
 
-  return _.map(playlists, ({ id, name }) => {
+  return _.map(playlists, ({ id, name, snapshot_id: snapshotId }) => {
+    // Liked Songs lists local tracks only when read through sync.likedPlaylistId, which gives a snapshot
+    const listsLocal = id !== likedId || Boolean(snapshotId);
     const remote = _.map(tracksOf.all(id), track => ({ ...track, libraryId: libraryId(track) }));
     const remoteIds = new Set(_.compact(_.map(remote, 'libraryId')));
     const before = synced[id] || new Set();
@@ -201,7 +206,12 @@ const syncPlan = (db, config, songs) => {
       add,
       conflict: _.uniqBy(conflict, 'trackId'),
       noId,
-      localFiles: localTracks(_.filter(noId, exportable), remote, confirmedIn(id)),
+      listsLocal,
+      localFiles: localTracks(
+        _.filter(noId, exportable),
+        remote,
+        listsLocal ? new Set() : confirmedIn(id)
+      ),
       prune,
       spotifyAdded,
       spotifyRemoved,

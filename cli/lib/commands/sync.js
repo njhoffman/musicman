@@ -230,6 +230,7 @@ const runPush = async ({ db, client, config, plan, prune, dryRun, confirm, verbo
     'id'
   );
   await refreshCache(db, client, _.without(changed, 'liked'), {
+    config,
     onProgress: refreshProgress('Refreshing the changed playlists')
   });
   logger.progressDone();
@@ -486,7 +487,12 @@ const runPhone = async ({ config, exported, dryRun, connect }) => {
 const runExport = async ({ config, plan, dryRun, connect, confirmLiked = false }) => {
   const uploadDirectory = config.sync.uploadDirectory;
   let previous = readExportState(uploadDirectory);
-  if (confirmLiked) {
+  const likedListed = _.get(_.find(plan, { id: likedId }), 'listsLocal', false);
+  if (confirmLiked && likedListed) {
+    logger.info(
+      'Nothing to confirm: sync.likedPlaylistId lists the local files in Liked Songs, they are counted as they are'
+    );
+  } else if (confirmLiked) {
     const { state, count } = confirmStaged(previous);
     previous = state;
     if (!dryRun) {
@@ -534,15 +540,16 @@ const runExport = async ({ config, plan, dryRun, connect, confirmLiked = false }
     }, ${counts.relinked} linked again, ${counts.removed} removed`
   );
   const liked = staged && staged.id === likedId;
+  const unlisted = liked && !likedListed;
   logger.info(
     staged
       ? `stage/: ${counts.staged} songs for ${chalk.bold(staged.name)}: in the desktop app, turn the files ` +
           `source off, select all in Local Files, drag them into the ${
             liked ? 'Liked Songs (or like them all)' : 'playlist'
           }, turn files back on, then run ${
-            liked
-              ? 'sync --export --confirm (the Web API does not list local files in Liked Songs, so the ' +
-                'export cannot see them there)'
+            unlisted
+              ? 'sync --export --confirm (without sync.likedPlaylistId the export cannot see local files ' +
+                'in Liked Songs)'
               : 'sync --export again'
           } (README.md has the checklist)`
       : 'stage/: empty, every song is in its playlists'
@@ -570,6 +577,7 @@ const runPlan = async ({
       ignorePlaylistId(config)
     ]);
     await refreshCache(db, client, playlistIds, {
+      config,
       onProgress: refreshProgress('Refreshing Spotify playlists')
     });
     logger.progressDone();

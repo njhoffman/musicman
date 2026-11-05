@@ -3,6 +3,8 @@ const { expect } = require('chai');
 const { openDatabase } = require('../db/database.js');
 const { spotifyIdFrame } = require('../sync/match.js');
 const {
+  cachedLocalLiked,
+  cachedLocalPlaylists,
   cachedPlaylists,
   libraryFileForLocalTrack,
   libraryFileForPlaying,
@@ -135,6 +137,49 @@ describe('Player library lookups', () => {
       );
       expect(libraryFileForPlaying(null, config, { source: 'spotify' }, local)).to.equal(null);
       expect(libraryFileForPlaying(db, config, { source: 'spotify' }, null)).to.equal(null);
+    });
+  });
+
+  describe('local files in cached playlists', () => {
+    const staxx = { title: 'STAXX', artist: 'Kelsey Bulkin', duration: 245 };
+    const addLocal = playlistId =>
+      db
+        .prepare(
+          `INSERT INTO spotify_playlist_tracks (playlist_id, is_local, name, artists, duration_ms)
+           VALUES (?, 1, 'staxx', 'kelsey bulkin', 245000)`
+        )
+        .run(playlistId);
+    const addPlaylist = (id, name, snapshot = null) =>
+      db
+        .prepare(
+          'INSERT OR REPLACE INTO spotify_playlists (id, name, snapshot_id) VALUES (?, ?, ?)'
+        )
+        .run(id, name, snapshot);
+
+    it('should find the playlists holding the file, Liked Songs first, each once', () => {
+      addPlaylist('zzz', 'Another');
+      addPlaylist('liked', 'Liked Songs', 'snap');
+      ['zzz', 'zzz', 'liked'].forEach(addLocal);
+      expect(cachedLocalPlaylists(db, staxx)).to.deep.equal([
+        { id: 'liked', name: 'Liked Songs' },
+        { id: 'zzz', name: 'Another' }
+      ]);
+    });
+
+    it('should not match another length, or a track without a title', () => {
+      addPlaylist('liked', 'Liked Songs', 'snap');
+      addLocal('liked');
+      expect(cachedLocalPlaylists(db, { ...staxx, duration: 300 })).to.deep.equal([]);
+      expect(cachedLocalPlaylists(db, {})).to.deep.equal([]);
+    });
+
+    it('should say whether Liked Songs holds it only when the cache lists local files', () => {
+      addPlaylist('liked', 'Liked Songs');
+      expect(cachedLocalLiked(db, staxx)).to.equal(null);
+      addPlaylist('liked', 'Liked Songs', 'snap');
+      expect(cachedLocalLiked(db, staxx)).to.equal(false);
+      addLocal('liked');
+      expect(cachedLocalLiked(db, staxx)).to.equal(true);
     });
   });
 });

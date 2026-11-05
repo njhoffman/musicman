@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- With `sync.likedPlaylistId` set, all of musicman sees local files in Liked Songs, not only the status bar heart. Sync
+  caches them, and snapshots save them. `sync --export` and the plan's `Local files` column count what is really
+  there, so `--confirm` is no longer needed, a song unliked in the app is staged again, and only songs liked since are
+  staged. `status` and the menu details list Liked Songs for a local file, and the menu's like button shows its real
+  state for a library song without a Spotify id. When Spotify refuses the playlist, musicman warns and uses
+  `/me/tracks` and the confirmed songs as before.
+
 ## [1.80.0] - 2026-11-05
 
 ### Added

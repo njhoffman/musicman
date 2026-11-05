@@ -318,6 +318,35 @@ describe('Menu song actions', () => {
       expect(rows.some(row => row.startsWith('uri '))).to.equal(false);
     });
 
+    describe('like button of a library song without a Spotify id', () => {
+      const likeOf = async () => (await press(localFile, 'y')).entry;
+      const lists = snapshot =>
+        db.prepare("UPDATE spotify_playlists SET snapshot_id = ? WHERE id = 'liked'").run(snapshot);
+      const addLocalLike = () =>
+        db
+          .prepare(
+            `INSERT INTO spotify_playlist_tracks (playlist_id, is_local, name, artists, duration_ms)
+             VALUES ('liked', 1, 'bee', 'Y', 200000)`
+          )
+          .run();
+
+      it('should go by its rating while the cache does not list local files', async () => {
+        addLocalSong();
+        metas['/music/b.mp3'].rating = '5.0';
+        lists(null);
+        expect((await likeOf()).active).to.equal(true);
+      });
+
+      it('should go by the listing when the cache has it, whatever the rating', async () => {
+        addLocalSong();
+        metas['/music/b.mp3'].rating = '5.0';
+        lists('snap');
+        expect((await likeOf()).active).to.equal(false);
+        addLocalLike();
+        expect((await likeOf()).active).to.equal(true);
+      });
+    });
+
     it('should show a Spotify local file without a library song as not in the library, acting on nothing', async () => {
       addLocalSong();
       const { entries } = await press(strayLocal, 'y');

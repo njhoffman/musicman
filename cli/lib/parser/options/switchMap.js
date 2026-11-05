@@ -190,7 +190,7 @@ module.exports = {
   },
   confirm: {
     description:
-      'With --export, record the songs staged for Liked Songs as added once dragged in (the Web API does not list local files in Liked Songs)',
+      'With --export, record the songs staged for Liked Songs as added once dragged in; only needed without sync.likedPlaylistId, which lists them',
     alias: '-y',
     func: () => ({ confirm: true })
   },

@@ -1,9 +1,12 @@
 const _ = require('lodash');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const sinon = require('sinon');
 const { expect } = require('chai');
 
 const { openDatabase } = require('../db/database.js');
-const { refreshCache, toRow } = require('./cache.js');
+const { fetchLiked, refreshCache, toRow } = require('./cache.js');
 const { recordSynced, syncPlan, syncedTracks } = require('./plan.js');
 
 describe('Sync Cache and Plan', () => {
@@ -28,6 +31,79 @@ describe('Sync Cache and Plan', () => {
 
   afterEach(() => {
     db.close();
+  });
+
+  describe('fetchLiked', () => {
+    const local = {
+      added_at: 'x',
+      is_local: true,
+      track: { id: null, name: 'Local', duration_ms: 2000, artists: [{ name: 'A' }] }
+    };
+    const fake = ({ error = null } = {}) => ({
+      get: sinon.stub().callsFake(async () => {
+        if (error) {
+          throw error;
+        }
+        return { snapshot_id: 'snap' };
+      }),
+      paginate: sinon
+        .stub()
+        .callsFake(async url =>
+          url.startsWith('/me/tracks') ? [entry('catalog')] : [entry('catalog'), local]
+        )
+    });
+    const withPlaylist = { sync: { likedPlaylistId: 'view1' } };
+
+    it('should read /me/tracks without sync.likedPlaylistId', async () => {
+      const client = fake();
+      const { rows, snapshotId } = await fetchLiked(client, config);
+      expect(client.get).to.not.have.been.called;
+      expect(_.map(rows, 'track_id')).to.deep.equal(['catalog']);
+      expect(snapshotId).to.equal(null);
+    });
+
+    it('should read the local files from the playlist with its snapshot', async () => {
+      const client = fake();
+      const { rows, snapshotId } = await fetchLiked(client, withPlaylist);
+      expect(client.get).to.have.been.calledWith('/playlists/view1?fields=snapshot_id');
+      expect(client.paginate.firstCall.args[0].startsWith('/playlists/view1/items?limit=100')).to.be
+        .true;
+      expect(_.map(rows, 'is_local')).to.deep.equal([0, 1]);
+      expect(snapshotId).to.equal('snap');
+    });
+
+    it('should go back to /me/tracks when Spotify refuses the playlist', async () => {
+      for (const status of [403, 404]) {
+        const client = fake({ error: Object.assign(new Error('refused'), { status }) });
+        const { rows, snapshotId } = await fetchLiked(client, withPlaylist);
+        expect(_.map(rows, 'track_id')).to.deep.equal(['catalog']);
+        expect(snapshotId).to.equal(null);
+      }
+    });
+
+    it('should let other failures through instead of caching a partial answer', async () => {
+      const client = fake({ error: Object.assign(new Error('down'), { status: 500 }) });
+      let failure = null;
+      await fetchLiked(client, withPlaylist).catch(err => {
+        failure = err;
+      });
+      expect(failure).to.have.property('status', 500);
+      expect(client.paginate).to.not.have.been.called;
+    });
+
+    it('should cache the local rows and snapshot of Liked Songs through refreshCache', async () => {
+      await refreshCache(db, fake(), [], { config: withPlaylist });
+      expect(
+        db.prepare("SELECT snapshot_id FROM spotify_playlists WHERE id = 'liked'").get().snapshot_id
+      ).to.equal('snap');
+      expect(
+        db
+          .prepare(
+            "SELECT name FROM spotify_playlist_tracks WHERE playlist_id = 'liked' AND is_local = 1"
+          )
+          .all()
+      ).to.deep.equal([{ name: 'Local' }]);
+    });
   });
 
   describe('refreshCache', () => {
@@ -207,6 +283,49 @@ describe('Sync Cache and Plan', () => {
       expect(liked.localFiles.pending).to.be.empty;
       // the nameless local track of the fixture is none of the songs either
       expect(liked.localFiles.stray.map(track => track.name)).to.have.members([null, 'Gone']);
+    });
+
+    describe('songs confirmed in Liked Songs', () => {
+      let directory;
+      const confirmedConfig = () => ({
+        ...config,
+        sync: { uploadDirectory: directory }
+      });
+      const setSnapshot = snapshot =>
+        db.prepare("UPDATE spotify_playlists SET snapshot_id = ? WHERE id = 'liked'").run(snapshot);
+
+      beforeEach(() => {
+        const id = db.prepare("SELECT id FROM songs WHERE path = 'd.mp3'").get().id;
+        db.prepare("INSERT INTO spotify_matches (song_id, status) VALUES (?, 'missing')").run(id);
+        const frame = db.prepare(
+          'INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, ?, ?)'
+        );
+        frame.run(id, 'TPE1', 'Artist');
+        frame.run(id, 'TIT2', 'Title');
+        directory = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-plan-'));
+        fs.writeFileSync(
+          path.join(directory, 'export.json'),
+          JSON.stringify({ confirmed: { liked: ['d.mp3'] } })
+        );
+      });
+
+      afterEach(() => fs.rmSync(directory, { recursive: true, force: true }));
+
+      it('should count them as added when the cache does not list local files', () => {
+        setSnapshot(null);
+        const [liked] = syncPlan(db, confirmedConfig(), songs);
+        expect(liked.listsLocal).to.equal(false);
+        expect(liked.localFiles.confirmed).to.equal(1);
+        expect(_.map(liked.localFiles.added, 'file')).to.deep.equal(['/music/d.mp3']);
+      });
+
+      it('should go by the listing when the cache has it, so an unliked song is pending again', () => {
+        setSnapshot('snap');
+        const [liked] = syncPlan(db, confirmedConfig(), songs);
+        expect(liked.listsLocal).to.equal(true);
+        expect(liked.localFiles.confirmed).to.equal(0);
+        expect(_.map(liked.localFiles.pending, 'file')).to.deep.equal(['/music/d.mp3']);
+      });
     });
 
     it('should give each song without an id its match status, null when never looked up', () => {

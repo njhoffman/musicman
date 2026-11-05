@@ -422,7 +422,7 @@ const undoSpotify = async ({ db, config, client, plan }) => {
     result.removed.push(..._.map(removeIds, trackId => ({ targetName: target.name, trackId })));
     result.added.push(..._.map(addIds, trackId => ({ targetName: target.name, trackId })));
   }
-  await refreshCache(db, client, _.without(_.keys(byTarget), likedId));
+  await refreshCache(db, client, _.without(_.keys(byTarget), likedId), { config });
   return result;
 };
 

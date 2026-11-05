@@ -87,7 +87,8 @@ const uiCommand = async ({
       refreshCache(
         db,
         userClient(),
-        _.compact([..._.map(playlistTargets(config), 'id'), ignorePlaylistId(config)])
+        _.compact([..._.map(playlistTargets(config), 'id'), ignorePlaylistId(config)]),
+        { config }
       ),
     // the logged in user's token (musicman sync --login) for playing full tracks in the page
     getUserToken: async () => {

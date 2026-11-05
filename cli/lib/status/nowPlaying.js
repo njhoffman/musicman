@@ -2,6 +2,7 @@ const _ = require('lodash');
 
 const { choosePlayer } = require('../player/players.js');
 const {
+  cachedLocalPlaylists,
   cachedPlaylists,
   libraryFileForPlaying,
   trackForLibraryFile
@@ -49,7 +50,13 @@ const librarySong = async ({ config, db, readSong, player, track }) => {
     inLibrary: Boolean(meta),
     trackId: trackId || null,
     fields,
-    playlists: db && trackId ? _.map(cachedPlaylists(db, trackId), 'name') : []
+    playlists: db
+      ? _.uniq([
+          ..._.map(cachedPlaylists(db, trackId), 'name'),
+          // a track without its own id may also be a local file in a playlist
+          ..._.map(track.trackId ? [] : cachedLocalPlaylists(db, track), 'name')
+        ])
+      : []
   };
 };
 

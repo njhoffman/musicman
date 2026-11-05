@@ -126,6 +126,21 @@ describe('Now playing', () => {
     expect(status.others).to.deep.equal([{ source: 'mpd', name: 'MPD', state: 'paused' }]);
   });
 
+  it('should list the playlists holding a Spotify local file, which has no id to look up', async () => {
+    db.prepare(
+      `INSERT INTO spotify_playlist_tracks (playlist_id, is_local, name, artists, duration_ms)
+       VALUES ('liked', 1, 'Local One', 'Band', 100000)`
+    ).run();
+    const track = { trackId: null, local: true, title: 'Local One', artist: 'Band', duration: 100 };
+    const status = await nowPlaying({
+      config,
+      db,
+      readSong: async () => null,
+      players: [player('spotify', { state: 'playing', track })]
+    });
+    expect(status.song.playlists).to.deep.equal(['Liked Songs']);
+  });
+
   it('should show a Spotify track that is not in the library, and survive a failing context', async () => {
     const spotify = player('spotify', {
       state: 'playing',
