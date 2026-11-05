@@ -52,6 +52,9 @@ Reviewed: 2026-11-03
 
 ## 4. Command line and output
 
+- [ ] **CLI startup costs over a second before any work.** (p3) [perf] `musicman --version` took 1.1s of CPU and 1.6-2.4s
+      of wall time on the installed build (measured under heavy system load, so measure again idle first), so every one-shot use (`player toggle` from a key or bar click, `status`) lags by
+      that much. Profile with `node --cpu-prof` and lazy-load the heavy requires in `cli/lib/cli.js`.
 - [x] **`check --fix` for duplicates.** (p2) [feature] rules (other recordings cleared, Rated over
       Unrated, file over numbered copies, album > EP > single > compilation), merged multi values and newer
       rating, fzf picks and confirmation, trash with beets removal, undo (file_changes, migration 8), and
@@ -262,6 +265,10 @@ Reviewed: 2026-11-03
 
 ## 9. Playback, menu, and shuffle (`docs/07-menu.md`, README "Spotify shuffle")
 
+- [x] **Now playing line for status bars.** (p2) [feature] the notify daemon publishes a Polybar line (player icon,
+      Liked Songs heart, library star, time left) to `$XDG_RUNTIME_DIR/musicman/now-playing`
+      (`cli/lib/notify/barPublisher.js`, `cli/lib/status/bar.js`); the `now-playing` Polybar module replaces the separate
+      MPD and Spotify segments.
 - [x] **Menu: Spotify local files are not recognized.** (p2) [feature] a local file playing in Spotify (desktop
       app or phone) has no track id (`https://open.spotify.com/local/<artist>/<album>/<title>/<seconds>` over MPRIS,
       `is_local` without an id in the Web API), so the menu shows nothing playing and no song buttons. Match the

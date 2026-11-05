@@ -319,7 +319,7 @@ describe('Notify Daemon', () => {
         '--follow',
         'metadata',
         '--format',
-        '{{xesam:url}}'
+        '{{status}} {{xesam:url}}'
       ]);
       const write = text => children[children.length - 1].stdout.emit('data', Buffer.from(text));
       write('https://open.spotify.com/track/a\nhttps://open.spotify.com/track/a\n\n');
@@ -392,6 +392,7 @@ describe('Notify Daemon', () => {
       let spotifyChange;
       let mpdChange;
       let stops = 0;
+      let events = 0;
       const stop = await watchSongs(
         { mpd: { host: 'h', port: 1 }, daemon },
         {
@@ -399,6 +400,9 @@ describe('Notify Daemon', () => {
           openDb: () => null,
           readSong: async () => null,
           send: async () => null,
+          onEvent: () => {
+            events += 1;
+          },
           spotifyWatcher: onChange => {
             spotifyChange = onChange;
             return () => {
@@ -418,6 +422,7 @@ describe('Notify Daemon', () => {
       await tick();
       await tick();
       expect(checked).to.deep.equal(['spotify', 'spotify', 'mpd']);
+      expect(events).to.equal(2);
       await stop();
       expect(stops).to.equal(2);
     });

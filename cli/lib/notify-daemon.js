@@ -4,6 +4,7 @@ const { loadConfig } = require('musicman-common/config');
 const logger = require('./utils/logger.js');
 const { getFilteredFiles } = require('./commands/common.js');
 const { openLibrary } = require('./db/index.js');
+const { startBar } = require('./notify/barPublisher.js');
 const { libraryDb, watchSongs } = require('./notify/notification.js');
 const { mpdPlayer, spotifyConnectPlayer, spotifyPlayer } = require('./player/players.js');
 const { pollHandoff, shuffleHandoff } = require('./notify/shuffleHandoff.js');
@@ -52,25 +53,46 @@ const handoff = openDb => {
   return onTrack;
 };
 
-// notifies about each new track in MPD or the Spotify desktop app until stopped
+// the bar publisher, stopped on the way out so bars do not keep showing a song
+let bar = null;
+
+// notifies about each new track in MPD or the Spotify desktop app, and keeps the bar file current, until stopped
 const run = () => {
   const openDb = libraryDb(config, openLibrary);
-  return watchSongs(config, {
-    players: { mpd: mpdPlayer(config), spotify: spotifyPlayer() },
+  const players = { mpd: mpdPlayer(config), spotify: spotifyPlayer() };
+  bar = startBar(config, {
+    players,
     openDb,
     readSong,
-    onTrack: handoff(openDb)
+    client: lazyUserClient(config, process.env)
   });
+  return watchSongs(config, {
+    players,
+    openDb,
+    readSong,
+    onTrack: handoff(openDb),
+    onEvent: () => bar && bar.refresh()
+  });
+};
+
+const exit = code => {
+  if (bar) {
+    bar.stop();
+  }
+  process.exit(code);
 };
 
 run();
 
 process.on('unhandledRejection', err => {
   logger.error(`Unhandled Rejection ${err.name}: ${err.message}\n`, pe.render(err));
-  process.exit(1);
+  exit(1);
 });
 
 process.on('uncaughtException', err => {
   logger.error(`Unhandled Exception ${err.name}: ${err.message}\n`, pe.render(err));
-  process.exit(1);
+  exit(1);
 });
+
+process.on('SIGTERM', () => exit(0));
+process.on('SIGINT', () => exit(0));

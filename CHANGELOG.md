@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- The notify daemon publishes a now playing line for status bars in `$XDG_RUNTIME_DIR/musicman/now-playing`: an icon
+  for MPD or Spotify, a heart when the song is in Liked Songs (MPD songs too, through the file's Spotify id), one star
+  for a song in the library (gray when unrated, a dim outline below 4.0, an outline at 4.0, filled at 4.5, gold at
+  5.0), a pause glyph, the title and artist, and the time left. Ratings show within 5 seconds and likes within 30.
+  `bar.enabled`, `bar.maxLength`, and `bar.colors` configure it.
+
 ## [1.78.2] - 2026-11-03
 
 ### Changed

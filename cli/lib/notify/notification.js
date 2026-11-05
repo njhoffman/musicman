@@ -217,8 +217,8 @@ const watchMpd = async (
 };
 
 /**
- * Calls onChange each time the Spotify desktop app reports new metadata (MPRIS PropertiesChanged, through
- * playerctl --follow), after a short wait for the rest of it. playerctl keeps running while Spotify is
+ * Calls onChange each time the Spotify desktop app reports new metadata or a play state (MPRIS
+ * PropertiesChanged, through playerctl --follow), after a short wait for the rest of it. playerctl keeps running while Spotify is
  * closed and reopened; it is started again if it exits. Returns stop().
  */
 const watchSpotify = (
@@ -231,7 +231,7 @@ const watchSpotify = (
   const start = () => {
     child = spawn(
       'playerctl',
-      ['-p', 'spotify', '--follow', 'metadata', '--format', '{{xesam:url}}'],
+      ['-p', 'spotify', '--follow', 'metadata', '--format', '{{status}} {{xesam:url}}'],
       {
         stdio: ['ignore', 'pipe', 'ignore']
       }
@@ -269,7 +269,7 @@ const watchSpotify = (
 /**
  * Notifies about each new track MPD or the Spotify desktop app plays, starting with the ones playing now.
  * Dependencies: players { mpd, spotify } (player objects with state()), openDb, readSong, and the
- * watchers, notify-send runner and cover lookup for tests.
+ * watchers, notify-send runner and cover lookup for tests. onEvent (optional) is told of each player event.
  */
 const watchSongs = async (
   config,
@@ -280,6 +280,7 @@ const watchSongs = async (
     send = (notice, replaceId) => sendNotification(notice, config.daemon, replaceId),
     cover,
     onTrack = null,
+    onEvent = _.noop,
     mpdWatcher = watchMpd,
     spotifyWatcher = watchSpotify
   }
@@ -289,9 +290,15 @@ const watchSongs = async (
     send,
     onTrack
   });
-  const stopSpotify = spotifyWatcher(() => notifier.check(players.spotify));
+  const stopSpotify = spotifyWatcher(() => {
+    onEvent();
+    notifier.check(players.spotify);
+  });
   notifier.check(players.spotify);
-  const stopMpd = await mpdWatcher(config.mpd, () => notifier.check(players.mpd));
+  const stopMpd = await mpdWatcher(config.mpd, () => {
+    onEvent();
+    notifier.check(players.mpd);
+  });
   return async () => {
     stopSpotify();
     await stopMpd();

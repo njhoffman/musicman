@@ -266,6 +266,24 @@ daemon:
   - mood
   - picks
 
+# The now playing line the daemon publishes for status bars ($XDG_RUNTIME_DIR/musicman/now-playing)
+bar:
+  enabled: true
+  # Longest title and artist text
+  maxLength: 60
+  # Polybar colors of each part
+  colors:
+    spotify: "#1db954"
+    mpd: "#7aa2f7"
+    text: "#9aa5ce"
+    paused: "#666666"
+    time: "#777777"
+    # the star: in the library but unrated, rated below 4.0, 4.0 and 4.5, and 5.0
+    unrated: "#555555"
+    low: "#666666"
+    star: "#c0caf5"
+    gold: "#ffd700"
+
 # Rating system configuration
 rating:
   # ID3 tag used for storing ratings (POPM = Popularimeter)

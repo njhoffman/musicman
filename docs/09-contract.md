@@ -7,6 +7,14 @@ library file for the track Spotify plays so it can use the file's own lyrics and
 Changing anything below is a breaking change for those programs: add fields and columns freely, but remove
 or change one only with a new `version` (paths.json) or a new view name, and say so in the CHANGELOG.
 
+### now-playing
+
+`$XDG_RUNTIME_DIR/musicman/now-playing` (`/run/user/<uid>/musicman/now-playing` without `XDG_RUNTIME_DIR`), written
+by the notify daemon while it runs and replaced atomically (`cli/lib/notify/barPublisher.js`), so read it after a
+`moved_to` event, not `modify`. The daemon removes it when it stops. Line 1 is the active player, `spotify` or `mpd`;
+line 2 is the text to show, with Polybar `%{F...}` color tags and any `%{` from a song name defused. Both lines are
+empty when nothing plays or is paused.
+
 ### paths.json
 
 `$XDG_STATE_HOME/musicman/paths.json` (`~/.local/state/musicman/paths.json` without `XDG_STATE_HOME`),

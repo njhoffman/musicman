@@ -31,6 +31,13 @@ while a player plays or is paused, and views the current directory otherwise. `-
 same data for status bars; `--watch` (`-W`) redraws it every second until `q`, looking a song's tags up
 again when the track changes. `status.icons: false` leaves out the Nerd Font icons.
 
+The notify daemon (`musicman-notify`) also keeps a line for status bars in
+`$XDG_RUNTIME_DIR/musicman/now-playing`, Polybar's color tags included: the player's icon, a heart when the song is
+in Liked Songs, one star when its file is in the library, a pause glyph, the title and artist, and the time left.
+The star is gray when unrated, a dim outline below 4.0, a bright outline at 4.0, filled at 4.5, and gold at 5.0.
+`bar.colors` and `bar.maxLength` adjust it and `bar.enabled: false` turns it off; see
+[the contract](docs/09-contract.md#now-playing) for the file.
+
 `musicman player` controls whichever of MPD and the Spotify desktop app is active (the one playing,
 Spotify when both play, else a paused one, else a stopped MPD), or the one named first
 (`musicman player mpd next`). Without an action it prints the player's state in one line.

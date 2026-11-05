@@ -150,6 +150,14 @@ const configSchema = {
       fields: { type: 'array', required: false }
     }
   },
+  bar: {
+    type: 'object',
+    properties: {
+      enabled: { type: 'boolean', required: false },
+      maxLength: { type: 'number', min: 1, required: false },
+      colors: { type: 'object', required: false }
+    }
+  },
   rating: {
     type: 'object',
     properties: {
