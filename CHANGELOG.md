@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.82.0] - 2026-11-09
+
 ### Fixed
 
 - Song notifications show the album cover as their image. It was sent as the app icon, which notification servers
@@ -1532,7 +1534,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.81.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.82.0...HEAD
+[1.82.0]: https://github.com/njhoffman/musicman/compare/v1.81.0...v1.82.0
 [1.81.0]: https://github.com/njhoffman/musicman/compare/v1.80.0...v1.81.0
 [1.80.0]: https://github.com/njhoffman/musicman/compare/v1.79.1...v1.80.0
 [1.79.1]: https://github.com/njhoffman/musicman/compare/v1.79.0...v1.79.1
