@@ -5,7 +5,7 @@ const { execFile: nodeExecFile, spawn: nodeSpawn } = require('child_process');
 
 const { connectMpd } = require('../clients/mpd.js');
 const { coverFor } = require('../menu/cover.js');
-const { chipColors, defaultChip, stars, tones } = require('../menu/menu.js');
+const { chipColors, defaultChip, tones } = require('../menu/menu.js');
 const { escapeMarkup } = require('../menu/rofi.js');
 const { libraryFileForPlaying } = require('../player/library.js');
 const logger = require('../utils/logger.js');
@@ -32,13 +32,24 @@ const trackKey = (source, track) =>
   track ? `${source}:${track.trackId || track.file || `${track.artist}-${track.title}`}` : null;
 
 /**
- * The command and arguments that show a song notification: the rating as stars and the title as the
- * summary, the artist and album, then each of daemon.fields as colored tags, as the body (Pango markup).
- * The app name is the player; the icon the cover when daemon.icon is on. replaceId replaces the last
- * notification, and --print-id reports the id of this one.
+ * The rating before the title, as the bar's star (status/bar.js starOf) in plain Unicode, since the
+ * summary takes no markup and notification daemons may lack Nerd Font glyphs: a filled star from 4.5, an
+ * outline below, then the number. Unrated songs get none (the body says so).
+ */
+const ratingPrefix = rating => {
+  const value = Number(rating);
+  return value ? `${value >= 4.5 ? '★' : '☆'} ${value.toFixed(1)}  ` : '';
+};
+
+/**
+ * The command and arguments that show a song notification: the rating (ratingPrefix) and the title as
+ * the summary, the artist and album, then each of daemon.fields as colored tags, as the body (Pango
+ * markup). The app name is the player; the cover, when daemon.icon is on, goes in the image-path hint,
+ * which daemons show as the notification's image (--icon is only the small app icon). replaceId replaces
+ * the last notification, and --print-id reports the id of this one.
  */
 const buildNotification = (notice, { bin, icon = true, duration, urgency, fields }, replaceId) => {
-  const rating = notice.rating ? `${stars(notice.rating)}  ` : '';
+  const rating = ratingPrefix(notice.rating);
   const shown = fields || defaultFields;
   const tags = _.flatMap(shown, field =>
     _.map(valuesOf(notice.meta && notice.meta[field]), value => {
@@ -66,7 +77,7 @@ const buildNotification = (notice, { bin, icon = true, duration, urgency, fields
     `--app-name=${notice.source}`,
     '--print-id',
     ...(replaceId ? [`--replace-id=${replaceId}`] : []),
-    ...(icon && notice.cover ? [`--icon=${notice.cover}`] : []),
+    ...(icon && notice.cover ? [`--hint=string:image-path:file://${notice.cover}`] : []),
     `${rating}${notice.title || ''}`,
     body
   ];
@@ -312,6 +323,7 @@ const libraryDb = (config, openLibrary) => () =>
 module.exports = {
   buildNotification,
   createNotifier,
+  ratingPrefix,
   defaultFields,
   libraryDb,
   sendNotification,

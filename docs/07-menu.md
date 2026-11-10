@@ -153,11 +153,13 @@ when it runs, so it follows each commit.
 `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI`) to `~/.config/musicman/spotify.env` (mode 600), which the
 service loads, for continuing a `musicman shuffle` past the tracks it started. It shows a notification when a new track starts in MPD or
 the Spotify desktop app; pausing, seeking, or the volume never notify, and each notification replaces the
-last. The summary is the rating as stars and the title; the body the artist and album, then the song's
+last. The summary is the rating and the title: the bar's star in plain Unicode (`★` from 4.5, `☆` below)
+and the number, as in `★ 4.5  Title`, nothing for an unrated song; the body the artist and album, then the song's
 `daemon.fields` (context, mood, picks by default) as tags colored like the menu's, or `not in library`
-for a Spotify song without a library match (by its Spotify id). The icon is the cover (`daemon.icon`), the
+for a Spotify song without a library match (by its Spotify id). The image is the cover (`daemon.icon`, sent as the `image-path` hint), the
 same one the menu shows, and the app name is the player (`MPD` or `Spotify`), for notification server
-rules per player.
+rules per player. The Spotify desktop app sends its own song notifications too; turn them off in its
+settings (Display, "Show desktop notifications when the song changes").
 
 MPD is watched over its idle connection, reconnecting when MPD restarts; Spotify through MPRIS
 (`playerctl -p spotify --follow`), which keeps waiting while Spotify is closed.

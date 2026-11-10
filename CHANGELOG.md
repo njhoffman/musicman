@@ -6,6 +6,16 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- Song notifications show the album cover as their image. It was sent as the app icon, which notification servers
+  such as deadd show tiny or not at all.
+
+### Changed
+
+- The notification title shows the rating like the status bar star, with the number: `★ 4.5  Title` from 4.5 up,
+  `☆ 4.0  Title` below, and no star for an unrated song.
+
 ## [1.81.0] - 2026-11-05
 
 ### Changed

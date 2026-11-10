@@ -5,6 +5,7 @@ const { openDatabase } = require('../db/database.js');
 const {
   buildNotification,
   createNotifier,
+  ratingPrefix,
   sendNotification,
   songNotice,
   trackKey,
@@ -44,9 +45,9 @@ describe('Notify Daemon', () => {
         '--expire-time=5000',
         '--app-name=Spotify',
         '--print-id',
-        '--icon=/covers/a.jpg'
+        '--hint=string:image-path:file:///covers/a.jpg'
       ]);
-      expect(args[5]).to.equal('★★★★½  Fade Into You');
+      expect(args[5]).to.equal('★ 4.5  Fade Into You');
       const [artist, tags] = args[6].split('\n');
       expect(artist).to.equal('<b>Mazzy Star</b>  ·  So Tonight');
       expect(tags.match(/> (\w+) </g)).to.deep.equal(['> Study <', '> Drive <', '> Mellow <']);
@@ -57,7 +58,12 @@ describe('Notify Daemon', () => {
     it('should replace the last notification and leave out the cover when icon is off', () => {
       const { args } = buildNotification(notice, { ...daemon, icon: false }, '42');
       expect(args).to.include('--replace-id=42');
-      expect(args.some(arg => arg.startsWith('--icon'))).to.equal(false);
+      expect(args.some(arg => /^--(icon|hint)/.test(arg))).to.equal(false);
+    });
+
+    it('should leave out the cover when there is none', () => {
+      const { args } = buildNotification({ ...notice, cover: null }, daemon);
+      expect(args.some(arg => /^--(icon|hint)/.test(arg))).to.equal(false);
     });
 
     it('should mark unrated songs and songs not in the library, escaping markup', () => {
@@ -79,6 +85,21 @@ describe('Notify Daemon', () => {
     it('should show context, mood and picks without daemon.fields', () => {
       const { args } = buildNotification(notice, { ...daemon, fields: undefined });
       expect(args[args.length - 1]).to.include(' Nick </span>');
+    });
+  });
+
+  describe('ratingPrefix', () => {
+    it("should mirror the bar's star: filled from 4.5, outline below, with the number", () => {
+      expect(ratingPrefix('5.0')).to.equal('★ 5.0  ');
+      expect(ratingPrefix('4.5')).to.equal('★ 4.5  ');
+      expect(ratingPrefix('4')).to.equal('☆ 4.0  ');
+      expect(ratingPrefix(3.5)).to.equal('☆ 3.5  ');
+    });
+
+    it('should show nothing for unrated songs or ratings that are not numbers', () => {
+      expect(ratingPrefix(null)).to.equal('');
+      expect(ratingPrefix('0')).to.equal('');
+      expect(ratingPrefix('abc')).to.equal('');
     });
   });
 

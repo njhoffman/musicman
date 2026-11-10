@@ -263,7 +263,7 @@ daemon:
   bin: "/usr/bin/notify-send"
   # Notification urgency level (LOW, NORMAL, CRITICAL)
   urgency: LOW
-  # Whether to show the song's cover as the notification icon (the file's, else Spotify's)
+  # Whether to show the song's cover as the notification image (the file's, else Spotify's)
   icon: true
   # Tags shown under the artist and album, colored per field
   fields:
