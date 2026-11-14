@@ -6,6 +6,16 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.83.0] - 2026-11-14
+
+### Added
+
+- `just install`: workspace dependencies (`pnpm install --frozen-lockfile`), a build of HEAD
+  published as `~/.local/share/musicman/current` (`scripts/publish-local.sh`), and the
+  `musicman-notify` user unit written, enabled and restarted. `just install-check` exits 1 when the
+  current build or the enabled unit is missing. `~/.shell`'s `deploy --with repos` runs them on each
+  host; the `musicman` command stays `~/.shell`'s wrapper around `current`.
+
 ## [1.82.0] - 2026-11-09
 
 ### Fixed
