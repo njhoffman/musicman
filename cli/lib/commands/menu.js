@@ -8,7 +8,9 @@ const { mpdPlayer, spotifyConnectPlayer, spotifyPlayer } = require('../player/pl
 const { panelTheme, panelView } = require('../menu/rofi.js');
 const { lazyUserClient } = require('../spotify/userClient.js');
 const { autoBackup, getMeta, openLibrary } = require('../db/index.js');
+const playerCommand = require('./player.js');
 const shuffleCommand = require('./shuffle.js');
+const { readBack } = require('../player/back.js');
 const { spotifyContextOf } = require('../status/context.js');
 const { beginJournal, endJournal } = require('../history/journal.js');
 const { finishRun, startRun } = require('../utils/runs.js');
@@ -119,6 +121,28 @@ const reshuffle = (config, env) => {
   };
 };
 
+/**
+ * The menu's back button: point() names what musicman player back returns to (artist - title of the
+ * back point), null when there is none; run() goes back (the player command's back, on its player).
+ */
+const backButton = (config, env, { player = playerCommand.run } = {}) => ({
+  point: async () => {
+    if (!fs.existsSync(config.db.path)) {
+      return null;
+    }
+    const db = openLibrary(config);
+    try {
+      const point = readBack(db);
+      return point
+        ? _.compact([point.track.artist, point.track.title]).join(' - ') || 'the last playback'
+        : null;
+    } finally {
+      db.close();
+    }
+  },
+  run: () => player({ options: { terms: ['back'], switches: {} }, config, env })
+});
+
 // menu: a rofi menu with playback controls and tag buttons for the song playing in MPD or Spotify
 const menuCommand = async ({
   config,
@@ -146,6 +170,7 @@ const createMenu = ({ config, players, view, songActions, env }) => {
   const client = lazyUserClient(config, env);
   return new Menu({
     reshuffle: reshuffle(config, env),
+    back: backButton(config, env),
     players: players || [spotifyPlayer(), mpdPlayer(config), spotifyConnectPlayer({ client })],
     view:
       view ||
@@ -170,6 +195,7 @@ const createMenu = ({ config, players, view, songActions, env }) => {
 const defaultTarget = baseDirectory => baseDirectory;
 
 module.exports = {
+  backButton,
   name: 'menu',
   description:
     'Open a rofi menu for the song playing in MPD or Spotify: playback controls, tag and rating buttons',

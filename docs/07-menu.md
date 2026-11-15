@@ -15,8 +15,8 @@ binds it to `$mod+Shift+m`.
 │          │ ★★★★★  5.0      FolkRock.Artists      1996   │  in library │
 │          │  Study    Drive    Mellow    Nick          │             │
 └──────────┴──────────────────────────────────────────────┴─────────────┘
- prev  pause  next  -30s  +30s  shuffle  repeat  reshuffle       p t n h l u r o
- details  genre  tags  4.0  4.5  5.0  like  ignore               i g e 1 2 3 y x
+ prev  pause  next  -30s  +30s  shuffle  repeat  reshuffle  back   p t n h l u r o b
+ details  genre  tags  4.0  4.5  5.0  like  ignore                 i g e 1 2 3 y x
 ```
 
 The song's tags are shown as chips colored per field (context blue, mood purple, picks red); icons are
@@ -42,7 +42,7 @@ pushed (the next `sync --export` stages it for any playlist a change puts it in)
 not in the library, with like and ignore disabled. `musicman status` and the song notifications find it
 the same way.
 
-### Shuffle, repeat, and reshuffle
+### Shuffle, repeat, reshuffle, and back
 
 After the playback controls:
 
@@ -54,6 +54,9 @@ After the playback controls:
   and track lists fall back to it), writing a new random order and playing it with shuffle off. The
   caption names the source; disabled when there is neither. Why this beats Spotify's own shuffle: the
   README's "Spotify shuffle" section.
+- `b` back: `musicman player back`, back to what played before the last `musicman player play <terms>`
+  (a side trip, README "Side trips"), on the player it was saved from; the caption names the song it
+  returns to, disabled when there is nothing to go back to.
 
 Smart Shuffle cannot be controlled from here: neither MPRIS nor the Web API exposes it.
 

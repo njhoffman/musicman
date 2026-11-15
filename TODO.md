@@ -281,8 +281,14 @@ Reviewed: 2026-11-03
 - [x] **Side trips and `player back`.** (p2) [feature] `player play <terms>` remembers what played
       (`cli/lib/player/back.js`, meta `player.back`), `player back` restores it: MPD queue, modes,
       song and time; Spotify context or shuffle playlist at the track; chained side trips return to the main list.
-- [ ] **Menu key for `player back`.** (p2) [feature] the rofi menu has no way back from a side trip; add a
+- [x] **Menu key for `player back`.** (p2) [feature] the rofi menu has no way back from a side trip; add a
       button (`b`, next to reshuffle in `cli/lib/menu/menu.js` modes), disabled without a back point.
+- [ ] **Menu: queue tag presses, redraw at once.** (p3) [perf] after the playlist snapshot fix (2026-11-15)
+      a press still waits for the tag write, the Spotify push (two requests) and a beets move, about 0.5 to 1
+      second. Draw the change from memory at once and run each press (still its own undo run) from a queue
+      kept in `~/.local/state/musicman/menu-queue.jsonl` until done, so a killed menu loses nothing (the next
+      menu or the notify daemon runs what is left); the menu process stays until the queue is empty, and
+      failures and notices come as notifications. Decide after using the snapshot fix for a while.
 - [ ] **Return from a side trip when it ends.** (p3) [feature] `player back` is manual; the notify daemon
       could restore the back point when the side trip's last song finishes (MPD stops at the end of the
       queue, a Spotify list runs out), like `shuffleHandoff` continues a shuffle. Opt-in, `player.backWhenDone`.

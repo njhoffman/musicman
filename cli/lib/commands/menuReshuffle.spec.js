@@ -1,6 +1,13 @@
 const { expect } = require('chai');
 
-const { reshuffleSource } = require('./menu.js');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+const { backButton, reshuffleSource } = require('./menu.js');
+const { openLibrary } = require('../db/index.js');
+const { setMeta } = require('../db/database.js');
+const { backKey } = require('../player/back.js');
 
 describe('Menu reshuffle source', () => {
   const track = { trackId: 't1' };
@@ -49,5 +56,39 @@ describe('Menu reshuffle source', () => {
 
   it('should offer nothing without a context or a last source', async () => {
     expect(await pick(null, { lastSource: null })).to.equal(null);
+  });
+});
+
+describe('Menu back button', () => {
+  let dir;
+  let config;
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-menu-back-'));
+    config = {
+      mpd: { baseDirectory: dir },
+      db: { path: path.join(dir, 'musicman.sqlite'), backupDirectory: dir },
+      library: { tags: [] },
+      tags: []
+    };
+  });
+  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  it('should name the song of the back point, nothing without one or a database', async () => {
+    expect(await backButton(config).point()).to.equal(null);
+    const db = openLibrary(config);
+    expect(await backButton(config).point()).to.equal(null);
+    setMeta(db, backKey, { source: 'mpd', track: { artist: 'Band', title: 'Main' } });
+    expect(await backButton(config).point()).to.equal('Band - Main');
+    setMeta(db, backKey, { source: 'mpd', track: {} });
+    expect(await backButton(config).point()).to.equal('the last playback');
+    db.close();
+  });
+
+  it('should go back through the player command', async () => {
+    const calls = [];
+    await backButton(config, { X: 1 }, { player: async args => calls.push(args) }).run();
+    expect(calls).to.deep.equal([
+      { options: { terms: ['back'], switches: {} }, config, env: { X: 1 } }
+    ]);
   });
 });

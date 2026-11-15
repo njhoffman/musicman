@@ -27,11 +27,13 @@ const icons = {
   shuffle: '\uf074',
   repeat: '\uf01e',
   reshuffle: '\uf021',
+  // player back (the undo arrow); back above is the seek backwards button
+  sideTripBack: '\uf0e2',
   grouping: '\uf07b'
 };
 
-// keys of the shuffle, repeat, and reshuffle buttons
-const modeKeys = { shuffle: 'u', repeat: 'r', reshuffle: 'o' };
+// keys of the shuffle, repeat, reshuffle, and back buttons
+const modeKeys = { shuffle: 'u', repeat: 'r', reshuffle: 'o', back: 'b' };
 
 // accent colors per source, so which player the menu controls shows at a glance
 const accents = { spotify: '#1db954', mpd: '#e5c07b' };
@@ -133,6 +135,7 @@ class Menu {
     view,
     songActions = null,
     reshuffle = null,
+    back = null,
     cover = coverFor,
     notify = notifyError,
     notice = notifyNotice,
@@ -143,6 +146,7 @@ class Menu {
     this.view = view;
     this.songActions = songActions;
     this.reshuffle = reshuffle;
+    this.back = back;
     this.cover = cover;
     this.notify = notify;
     this.notice = notice;
@@ -258,8 +262,8 @@ class Menu {
     ];
   }
 
-  // shuffle, repeat, and reshuffle; drawn for every player so the layout stays the same, disabled
-  // where the player has no such mode (MPD)
+  // shuffle, repeat, reshuffle, and back; drawn for every player so the layout stays the same, disabled
+  // where the player has no such mode (MPD) or there is nothing to go back to
   async modes({ player, status }) {
     const canShuffle = Boolean(player.shuffle) && _.isBoolean(status.shuffle);
     const canRepeat = Boolean(player.repeat) && Boolean(status.repeat);
@@ -267,6 +271,8 @@ class Menu {
       this.reshuffle && player.source === 'spotify' && status.track
         ? await this.reshuffle.source(status.track)
         : null;
+    // what player back returns to (the song before the last player play <terms>), or null
+    const backTo = this.back ? await this.back.point() : null;
     return [
       {
         icon: icons.shuffle,
@@ -295,6 +301,18 @@ class Menu {
         disabled: !source,
         run: async () => {
           await this.reshuffle.run();
+          await wait(this.settle);
+        }
+      },
+      {
+        icon: icons.sideTripBack,
+        label: 'back',
+        caption: backTo ? `back to ${backTo}` : 'back',
+        key: modeKeys.back,
+        tone: tones.mode,
+        disabled: !backTo,
+        run: async () => {
+          await this.back.run();
           await wait(this.settle);
         }
       }

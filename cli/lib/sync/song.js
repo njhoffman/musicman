@@ -1,7 +1,7 @@
 const _ = require('lodash');
 const path = require('path');
 
-const { refreshPlaylist } = require('./cache.js');
+const { noteSnapshot, refreshPlaylist } = require('./cache.js');
 const { localSpotifyIds } = require('./plan.js');
 const { playlistRequest, uri } = require('./push.js');
 const { conflictingTargets, exclusiveGroups, likedId, songTargets } = require('./targets.js');
@@ -71,7 +71,11 @@ const changeTrack = async ({ db, client, targetId, trackId, action, meta, synced
   if (targetId === likedId) {
     await client.request(action === 'add' ? 'PUT' : 'DELETE', '/me/tracks', { ids: [trackId] });
   } else {
-    await playlistRequest(client, action === 'add' ? 'POST' : 'DELETE', targetId, [uri(trackId)]);
+    const response = await playlistRequest(client, action === 'add' ? 'POST' : 'DELETE', targetId, [
+      uri(trackId)
+    ]);
+    // the cached snapshot follows, so the next push to this playlist needs no full refresh
+    noteSnapshot(db, targetId, _.get(response, 'snapshot_id'));
   }
   recordSpotify({
     target: { id: targetId, name: targetName(db, targetId) },

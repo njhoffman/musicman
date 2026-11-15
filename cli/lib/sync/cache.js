@@ -51,6 +51,21 @@ const storePlaylist = (db, { id, name, snapshotId, rows }) =>
   });
 
 /**
+ * Keeps a cached playlist's snapshot_id current after a change musicman just made to it (the response
+ * of the add or remove; recordChange keeps its rows), so the next refreshPlaylist finds it unchanged
+ * instead of fetching all of it again: for the menu, every tag press on a playlist did, up to 30 pages.
+ * A playlist never fetched (no snapshot_id) keeps none, so its first refresh still fetches it whole.
+ * A change made elsewhere at the same moment (the app, a phone) is not seen until a sync refreshes it.
+ */
+const noteSnapshot = (db, id, snapshotId) =>
+  Boolean(snapshotId) &&
+  db
+    .prepare(
+      'UPDATE spotify_playlists SET snapshot_id = ? WHERE id = ? AND snapshot_id IS NOT NULL'
+    )
+    .run(snapshotId, id).changes > 0;
+
+/**
  * Refreshes the cached tracks of one playlist, unless its snapshot_id did not change since the last
  * refresh. Resolves to 'refreshed' with the track count, or 'unchanged'.
  */
@@ -154,4 +169,11 @@ const refreshCache = async (
   return summary;
 };
 
-module.exports = { fetchLiked, itemFields, refreshCache, refreshPlaylist, toRow };
+module.exports = {
+  noteSnapshot,
+  fetchLiked,
+  itemFields,
+  refreshCache,
+  refreshPlaylist,
+  toRow
+};

@@ -94,6 +94,40 @@ describe('Sync One Song', () => {
     expect(synced(study)).to.deep.equal(['ta']);
   });
 
+  it('should keep the cached snapshot current, so the next push to the playlist fetches it no more', async () => {
+    // Spotify's playlist gets a new snapshot with each change, which the add answers with
+    let snapshot = 's1';
+    let fetched = 0;
+    const spotify = {
+      requests: [],
+      get: async () => ({ name: 'x', snapshot_id: snapshot }),
+      paginate: async () => {
+        fetched += 1;
+        return [];
+      },
+      request: async (method, url, body) => {
+        spotify.requests.push([method, url, body]);
+        snapshot = `s${Number(snapshot.slice(1)) + 1}`;
+        return { snapshot_id: snapshot };
+      }
+    };
+    await push(spotify, { context: 'Run' }, { context: 'Run,Study' });
+    expect(
+      db.prepare('SELECT snapshot_id FROM spotify_playlists WHERE id = ?').get(study)
+    ).to.deep.equal({
+      snapshot_id: 's2'
+    });
+    // the next press on that playlist: removed again, no full refresh before it
+    await push(spotify, { context: 'Run,Study' }, { context: 'Run' });
+    expect(fetched).to.equal(0);
+    expect(spotify.requests.map(([method]) => method)).to.deep.equal(['POST', 'DELETE']);
+    expect(tracksIn(study)).to.be.empty;
+    // a playlist never fetched keeps no snapshot, so its first refresh fetches it whole
+    db.prepare('UPDATE spotify_playlists SET snapshot_id = NULL WHERE id = ?').run(study);
+    await push(spotify, { context: 'Run' }, { context: 'Run,Study' });
+    expect(fetched).to.equal(1);
+  });
+
   it('should remove the track from the playlist of a tag that was removed', async () => {
     db.prepare('INSERT INTO spotify_synced (playlist_id, track_id) VALUES (?, ?)').run(run, 'ta');
     const spotify = client();

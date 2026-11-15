@@ -6,6 +6,17 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- The rofi menu's `b` (back) button: `musicman player back`, back to what played before the last side
+  trip, its caption naming the song; disabled when there is nothing to go back to.
+
+### Fixed
+
+- Rofi menu presses on a tag with a Spotify playlist (Study, Drive, Nick's Picks, ...) took up to 18
+  seconds: each add or remove left the cached playlist's snapshot behind, so the next one fetched the
+  whole playlist again first (up to 30 pages). The cache now keeps the snapshot Spotify answers with.
+
 ## [1.88.0] - 2026-11-15
 
 ### Added

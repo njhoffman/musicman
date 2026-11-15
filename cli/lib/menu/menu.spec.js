@@ -63,14 +63,24 @@ describe('Menu', () => {
       layouts.push(menu.entries.map(({ key, label }) => [key, label]));
     }
     expect(layouts[0]).to.deep.equal(layouts[1]);
-    expect(layouts[0].map(([key]) => key)).to.deep.equal(['p', 't', 'n', 'h', 'l', 'u', 'r', 'o']);
+    expect(layouts[0].map(([key]) => key)).to.deep.equal([
+      'p',
+      't',
+      'n',
+      'h',
+      'l',
+      'u',
+      'r',
+      'o',
+      'b'
+    ]);
   });
 
   it('should open with next selected and the buttons in two rows', async () => {
     const { menus, view } = fakeView([]);
     await menuWith({ players: [fakePlayer('spotify', 'playing')], view }).open();
     expect(menus[0].selected).to.equal(2);
-    expect(menus[0].columns).to.equal(4);
+    expect(menus[0].columns).to.equal(5);
   });
 
   it('should draw the progress bar in accent, the played part filled', () => {
@@ -78,6 +88,35 @@ describe('Menu', () => {
       '<span foreground="#fff">━━━━━●</span><span alpha="35%">─────</span>'
     );
     expect(progressBar(0, 0, '#fff', 3)).to.include('●</span><span alpha="35%">──</span>');
+  });
+
+  it('should offer back to the song of the back point, disabled without one', async () => {
+    const ran = [];
+    const back = point => ({
+      point: async () => point,
+      run: async () => ran.push('back')
+    });
+    const none = fakeView([]);
+    await menuWith({
+      players: [fakePlayer('mpd', 'playing')],
+      view: none.view,
+      back: back(null)
+    }).open();
+    expect(none.menus[0].entries.find(({ key }) => key === 'b')).to.include({
+      caption: 'back',
+      disabled: true
+    });
+    const some = fakeView([{ key: 'b' }, { key: 'q' }]);
+    await menuWith({
+      players: [fakePlayer('spotify', 'playing')],
+      view: some.view,
+      back: back('Band - Main')
+    }).open();
+    expect(some.menus[0].entries.find(({ key }) => key === 'b')).to.include({
+      caption: 'back to Band - Main',
+      disabled: false
+    });
+    expect(ran).to.deep.equal(['back']);
   });
 
   describe('shuffle, repeat, and reshuffle', () => {
@@ -240,7 +279,7 @@ describe('Menu', () => {
     await menuWith({ players: [fakePlayer('spotify', 'playing')], view, songActions }).open();
     expect(menus[0].message).to.include('★★★★  4.0');
     expect(menus[0].status).to.include('in library');
-    expect(menus[0].entries[8]).to.include({ label: 'tag /m/a.mp3' });
+    expect(menus[0].entries[9]).to.include({ label: 'tag /m/a.mp3' });
     expect(ran).to.deep.equal(['a']);
   });
 
