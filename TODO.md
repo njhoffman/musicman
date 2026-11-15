@@ -6,7 +6,7 @@ open/done counts and pick items. Every item has a priority, `(p1)` high, `(p2)` 
 category: bug, feature, refactor, docs, test, chore, or perf. `(due YYYY-MM-DD)` adds a date and an OVERDUE
 flag. Feature specs live in `docs/`.
 
-Reviewed: 2026-11-03
+Reviewed: 2026-11-15
 
 ## 3. Library data
 
@@ -122,22 +122,6 @@ Reviewed: 2026-11-03
 - [ ] **Generate artwork when none can be found.** (p3) [feature] for singles still without a cover, generate one
       (e.g. artist and title over a color derived from the grouping), clearly marked as generated so a real cover
       can replace it later.
-
-## 6. Database (`docs/02-database.md`)
-
-- [x] **Back up before a schema migration.** (p2) [feature] opening the database migrates it, and the interval of
-      the automatic backups can skip right over a migration: on 2026-11-03 the newest copy (2026-11-02 01:12) is
-      schema 5 while the database is schema 11, so restoring it loses every change since. Done: `openDatabase`
-      writes `musicman-before-schema-<n>.sqlite` next to the backups first, and does not migrate without it.
-- [x] **Backups.** (p2) [feature] the database is backed up to `db.backupDirectory` every `db.backupInterval`
-      (before writes, `db --backup` on demand, `db.backupCount` kept).
-- [x] **`search` command.** (p2) [feature] field syntax (`rating:5.0 title:"some title"`) and mpc style
-      (`rating 5.0 title "some title"`); free text searches title and artist; exact matches on multi-value fields.
-- [x] **`search --add` and `--play`.** (p2) [feature] append results to the MPD queue, or replace it and play.
-- [x] **Faster `search`.** (p2) [perf] a SQL prefilter narrows candidates, about 200-500ms instead of 1-2s.
-- [x] **Log file.** (p2) [feature] `logger.file.name` at `logger.file.level`; per-file `db --update` actions go to
-      the log only.
-- [x] **Database tests and error handling.** (p2) [test] for backups, `search`, and the database-backed commands.
 
 ## 7. Spotify sync (`docs/03-spotify-id.md`, `docs/05-spotify-push.md`)
 
@@ -289,6 +273,11 @@ Reviewed: 2026-11-03
       kept in `~/.local/state/musicman/menu-queue.jsonl` until done, so a killed menu loses nothing (the next
       menu or the notify daemon runs what is left); the menu process stays until the queue is empty, and
       failures and notices come as notifications. Decide after using the snapshot fix for a while.
+- [ ] **Try side trips, `player back` and smart playlists live.** (p2) [test] side trips, `back` (CLI and
+      the menu's `b`), `--main`/`--shuffle`, `--files -` and `musicman smart` have run only against fakes, and
+      fzx 0.116.0 builds on them: one side trip and back on MPD, one on Spotify (with someone listening, see
+      the Connect drop-outs), `smart save` and `smart NAME --shuffle`, a menu tag press on a playlist tag
+      (should be about a second now, `~/.local/state/musicman/logs/*-menu.json`).
 - [ ] **Return from a side trip when it ends.** (p3) [feature] `player back` is manual; the notify daemon
       could restore the back point when the side trip's last song finishes (MPD stops at the end of the
       queue, a Spotify list runs out), like `shuffleHandoff` continues a shuffle. Opt-in, `player.backWhenDone`.
@@ -427,7 +416,23 @@ Reviewed: 2026-11-03
 - [ ] **Other music services.** (p3) [feature] support services besides Spotify (e.g. YouTube Music, SoundCloud) for
       matching, playlist sync, and playback, starting with which ones have a usable API.
 
-## 12. Host sync (`docs/10-host-sync.md`)
+## 12. Tooling
+
+- [ ] **`pnpm release` commits every change in the work tree.** (p2) [chore] `.versionrc.json` has
+      `"commitAll": true`, so a release takes in what another session is still editing (on 2026-11-15 the
+      Soloist work, its CHANGELOG entry included; 1.88.0 and 1.89.0 were released by hand to keep it out).
+      Set `commitAll` to false and have `scripts/release-changelog.js` (postbump) `git add CHANGELOG.md`, so a
+      release commits package.json, CHANGELOG.md, and what was staged.
+- [ ] **Test the systemd units `just install` writes.** (p3) [test] the `musicman-notify` service and the
+      `musicman-analyze` service and timer are printf lines in the Justfile with no test; a typo shows only
+      when systemd refuses them. Run `systemd-analyze --user verify` on them in `install-check`, or write them
+      from a script with a spec.
+- [ ] **Drop the `profile` script.** (p3) [chore] `cli/package.json`'s `profile` runs `ndb`, which is not
+      installed; `node --cpu-prof lib/cli.js` (or `--prof`) does the same without it.
+- [ ] **Remove `common/config/musicrater.service`.** (p3) [chore] a leftover systemd template from the old
+      name (`ExecStart=/var/www/myapp/app.js`, user nobody); nothing uses it, the units come from `just install`.
+
+## 15. Host sync (`docs/10-host-sync.md`)
 
 Charon and minerva both keep the full library; a change log in S3 keeps them the same. In build order.
 
@@ -454,6 +459,10 @@ Charon and minerva both keep the full library; a change log in S3 keeps them the
       first and refuses when it fails (`--force`), so a host never pushes playlists without the other's ratings.
 - [ ] **Daemon runs host sync.** (p3) [feature] the notify daemon runs `sync --hosts` at start and every
       `hostSync.interval`, and `musicman db` shows unpushed entries and the last pull.
+- [ ] **Compact the change log once every host has an entry.** (p3) [perf] `changes` is never pruned; the
+      background analyze alone adds about 10 entries per song (some 70,000 for the library). Once push and
+      pull exist, entries every host has applied (by `hosts/<host>.json` positions) can be dropped or folded
+      into the latest value per song and field, keeping a recent window for history.
 - [ ] **Set up minerva.** (p2) [chore] rsync the library over the LAN, copy charon's database once on the same
       build (matches and history come along), `sync --hosts --init` on both; then rate a song on each and
       check both hosts end up with both ratings.
@@ -509,6 +518,22 @@ Charon and minerva both keep the full library; a change log in S3 keeps them the
 - [x] **Move TODO comments out of the code.** (p3) [chore] moved into this file.
 - [x] **`library.tagId` is not used.** (p3) [chore] removed; musicman stays on ID3v2.3 (beets `id3v23: true`,
       node-id3). Revisit v2.4 only together with beets `id3v23: false` and a v2.4-capable writer.
+
+### 6. Database (`docs/02-database.md`) (completed 2026-11-15)
+
+- [x] **Back up before a schema migration.** (p2) [feature] opening the database migrates it, and the interval of
+      the automatic backups can skip right over a migration: on 2026-11-03 the newest copy (2026-11-02 01:12) is
+      schema 5 while the database is schema 11, so restoring it loses every change since. Done: `openDatabase`
+      writes `musicman-before-schema-<n>.sqlite` next to the backups first, and does not migrate without it.
+- [x] **Backups.** (p2) [feature] the database is backed up to `db.backupDirectory` every `db.backupInterval`
+      (before writes, `db --backup` on demand, `db.backupCount` kept).
+- [x] **`search` command.** (p2) [feature] field syntax (`rating:5.0 title:"some title"`) and mpc style
+      (`rating 5.0 title "some title"`); free text searches title and artist; exact matches on multi-value fields.
+- [x] **`search --add` and `--play`.** (p2) [feature] append results to the MPD queue, or replace it and play.
+- [x] **Faster `search`.** (p2) [perf] a SQL prefilter narrows candidates, about 200-500ms instead of 1-2s.
+- [x] **Log file.** (p2) [feature] `logger.file.name` at `logger.file.level`; per-file `db --update` actions go to
+      the log only.
+- [x] **Database tests and error handling.** (p2) [test] for backups, `search`, and the database-backed commands.
 
 ### 10. Undo, history, and backups (completed 2026-11-03)
 

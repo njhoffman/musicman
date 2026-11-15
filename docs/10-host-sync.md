@@ -1,6 +1,6 @@
 # Host sync
 
-Status: written 2026-11-14; being built (TODO.md section 12). Built so far (2026-11-15): the audio hash
+Status: written 2026-11-14; being built (TODO.md section 15). Built so far (2026-11-15): the audio hash
 (`songs.audio_hash`, step 1) and the change log (the `changes` table, step 2). Not yet: S3, push, pull,
 apply, imports through S3.
 

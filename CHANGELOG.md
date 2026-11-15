@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- The database doc covers `songs.audio_hash` and the change log table, the README lists `player back` and
+  `musicman smart`, and TODO.md is reviewed (host sync is now section 15).
+
 ## [1.89.0] - 2026-11-15
 
 ### Added

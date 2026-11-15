@@ -41,6 +41,7 @@ A single spec: `NODE_ENV=test npx mocha --no-config --require ./test/setup.js li
 | `commands/`   | one module per command (`view`, `edit`, `sync`, `menu`, `player`, `ui`, ...)            |
 | `metadata/`   | ID3 read and write (node-id3), tag definitions, filters                                 |
 | `db/`         | the library database (`node:sqlite`): migrations, update, search, backups               |
+| `analyze/`    | Essentia analysis (`analyze`), the background run (`idle.js`)                           |
 | `sync/`       | Spotify sync: plan, push, pull, match, import, local files export, phone mirror         |
 | `spotify/`    | Web API client, auth, matching, track fields                                            |
 | `beets/`      | the beets layout and sorting of rated songs                                             |
@@ -48,6 +49,7 @@ A single spec: `NODE_ENV=test npx mocha --no-config --require ./test/setup.js li
 | `history/`    | run journal and `musicman undo`                                                         |
 | `menu/`       | the rofi menu (`musicman menu`)                                                         |
 | `player/`     | MPD, Spotify MPRIS, and Spotify Connect (Web API) players                               |
+| `smart/`      | smart playlist presets (`smart.yml`)                                                    |
 | `status/`     | now playing and its Spotify context                                                     |
 | `notify/`     | song change notifications (the `musicman-notify` daemon, `notify-daemon.js`)            |
 | `ui/`         | `musicman ui`: the local management page (`server.js`, `public/`)                       |
@@ -55,6 +57,7 @@ A single spec: `NODE_ENV=test npx mocha --no-config --require ./test/setup.js li
 | `completion/` | zsh completion                                                                          |
 | `clients/`    | the MPD connection                                                                      |
 | `utils/`      | logger, runs directory, files, paths, clipboard, prompts                                |
+| `config/`     | the spec of the config validator (the validator is in `common/`)                        |
 
 `common/` holds the config (`config/`: defaults, validation, `tags.json`) and the MPD protocol helpers.
 

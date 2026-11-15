@@ -25,15 +25,22 @@
 
 - `songs`: `id`, `path` (unique, relative), `mb_track_id`, `mtime`, `size`, `duration`, `rating`,
   `rated_at` (when `db --update` last saw the rating change, UTC; empty for ratings older than schema 11),
-  `added_at`, `updated_at`.
+  `audio_hash` (SHA-256 of the audio without its tags, `cli/lib/metadata/audioHash.js`: the same after tag
+  writes, moves, and on another computer; filled by `db --update`, once for older songs), `added_at`,
+  `updated_at`.
 - `song_tags`: `song_id`, `frame_id`, `value`. One row per populated frame, including every custom TXXX
   field (`TXXX.<description>`), not just `library.tags`, so `stats` accounting and `search` work on any
   field. Multi value fields (`multi: true`, e.g. context, mood) get one row per value so `search mood:Happy`
   is an exact match instead of a substring match.
 - `tags`: tag definitions (`frame_id`, `name`, `multi`, `source` = `tags.json` or `config`). Imported from
   tags.json and the user config on startup without overwriting existing rows; a changed definition of an
-  existing custom field is a fatal error (see `scratch.md`).
+  existing custom field is a fatal error.
 - `meta`: key/value for last update, last backup, and scan totals shown by `db`.
+- `changes`: the change log (schema 13, `cli/lib/history/changes.js`): every change of a library field (by
+  field name: `set`, or `add` / `remove` for one value of a multi value field) and of a Spotify match
+  decision (`match`), with the song's audio hash, MusicBrainz and Spotify ids and path, the computer
+  (`host`), the time, and the run. Never pruned with the undo history; `origin` and `pushed_at` are for host
+  sync (`docs/10-host-sync.md`).
 
 ### Prerequisites
 

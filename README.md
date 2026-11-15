@@ -17,6 +17,8 @@ musicman sync --export                      # songs Spotify lacks, as Local File
 musicman shuffle "Nick's Picks"             # play a playlist in a real random order (below)
 musicman player next                        # skip in whichever player is active
 musicman player play context:Study rating:5 # play search results (MPD, or the active Spotify)
+musicman player back                        # back to what played before that side trip (below)
+musicman smart study --shuffle              # play a saved smart playlist (named search terms, below)
 musicman spotify repeat next                # step Spotify's repeat mode
 musicman check                              # report library problems (below), changes nothing
 musicman ui                                 # the management page at http://127.0.0.1:6660/ (below)
