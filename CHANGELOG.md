@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.86.2] - 2026-11-15
+
 ### Changed
 
 - `docs/09-contract.md` now pins what the fzx music module uses: the `smart --list` and `smart show` JSON
@@ -1599,7 +1601,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.86.1...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.86.2...HEAD
+[1.86.2]: https://github.com/njhoffman/musicman/compare/v1.86.1...v1.86.2
 [1.86.1]: https://github.com/njhoffman/musicman/compare/v1.86.0...v1.86.1
 [1.86.0]: https://github.com/njhoffman/musicman/compare/v1.85.0...v1.86.0
 [1.85.0]: https://github.com/njhoffman/musicman/compare/v1.82.0...v1.85.0
