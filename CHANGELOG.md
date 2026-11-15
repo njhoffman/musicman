@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.84.0] - 2026-11-14
+
+### Added
+
+- spotifyd counts as Spotify on this computer: the MPRIS player reads the desktop app and spotifyd
+  (`playerctl -a -p spotify,spotifyd`), takes whichever plays (else the one paused), and sends commands to
+  it; the song watcher follows both. Line 1 of the bar file names that MPRIS player (`spotify` or
+  `spotifyd`), so the polybar module's clicks reach it.
+
 ## [1.83.0] - 2026-11-14
 
 ### Added

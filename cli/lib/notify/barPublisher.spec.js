@@ -117,6 +117,14 @@ describe('Bar publisher', () => {
     expect(context.last().text).to.contain('Song - Band');
   });
 
+  it('should name the MPRIS player on line 1, spotifyd when it plays', async () => {
+    const context = setup();
+    context.players.spotify.current = { ...playing(spotifyTrack), mpris: 'spotifyd' };
+    await context.publisher.refresh();
+    expect(context.last().source).to.equal('spotifyd');
+    expect(context.last().text).to.contain('Song - Band');
+  });
+
   it('should show no star for a Spotify track outside the library', async () => {
     const context = setup();
     context.players.spotify.current = playing({ ...spotifyTrack, trackId: 'other' });

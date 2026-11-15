@@ -199,10 +199,11 @@ describe('Menu players', () => {
 
     it('should read the track, its cover, position, volume, shuffle and repeat from playerctl', async () => {
       const { run } = fakeRun(
-        'Playing\thttps://open.spotify.com/track/65iXgVBjiF7oOORNWo0hRV\tFull Moon Rising\tNeil Halstead\tPalindrome Hunches\thttps://i.scdn.co/image/abc\t354440000\t216739029\t0.5\ttrue\tPlaylist\n'
+        'spotify\tPlaying\thttps://open.spotify.com/track/65iXgVBjiF7oOORNWo0hRV\tFull Moon Rising\tNeil Halstead\tPalindrome Hunches\thttps://i.scdn.co/image/abc\t354440000\t216739029\t0.5\ttrue\tPlaylist\n'
       );
       expect(await spotifyPlayer({ run }).state()).to.deep.equal({
         state: 'playing',
+        mpris: 'spotify',
         volume: 50,
         shuffle: true,
         repeat: 'playlist',
@@ -220,7 +221,7 @@ describe('Menu players', () => {
 
     it('should report a Spotify local file as a local track without an id', async () => {
       const { run } = fakeRun(
-        'Playing\thttps://open.spotify.com/local/Boards+of+Canada/The+Campfire+Headphase/Macquarie+Ridge/297\tMacquarie Ridge\tBoards of Canada\tThe Campfire Headphase\t\t297000000\t5000000\t1.0\tfalse\tNone\n'
+        'spotify\tPlaying\thttps://open.spotify.com/local/Boards+of+Canada/The+Campfire+Headphase/Macquarie+Ridge/297\tMacquarie Ridge\tBoards of Canada\tThe Campfire Headphase\t\t297000000\t5000000\t1.0\tfalse\tNone\n'
       );
       expect((await spotifyPlayer({ run }).state()).track).to.deep.equal({
         trackId: null,
@@ -237,11 +238,11 @@ describe('Menu players', () => {
     });
 
     it('should report shuffle and repeat as null when playerctl leaves them out', async () => {
-      const { run } = fakeRun('Paused\t\t\t\t\t\t\t\t\t\t\n');
+      const { run } = fakeRun('spotify\tPaused\t\t\t\t\t\t\t\t\t\t\n');
       const state = await spotifyPlayer({ run }).state();
       expect(state).to.include({ shuffle: null, repeat: null });
       const off = await spotifyPlayer({
-        run: fakeRun('Paused\t\t\t\t\t\t\t\t\tfalse\tNone\n').run
+        run: fakeRun('spotify\tPaused\t\t\t\t\t\t\t\t\tfalse\tNone\n').run
       }).state();
       expect(off).to.include({ shuffle: false, repeat: 'off' });
     });
@@ -261,6 +262,28 @@ describe('Menu players', () => {
         ['playerctl', '-p', 'spotify', 'loop', 'None'],
         ['playerctl', '-p', 'spotify', 'open', 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M']
       ]);
+    });
+
+    it('should read the playing one of the desktop app and spotifyd, and send commands to it', async () => {
+      const { calls, run } = fakeRun(
+        'spotify\tPaused\thttps://open.spotify.com/track/65iXgVBjiF7oOORNWo0hRV\tA\tB\tC\t\t1000000\t0\t1.0\tfalse\tNone\n' +
+          'spotifyd\tPlaying\thttps://open.spotify.com/track/7yLQM59wfhOlyzxxAU9hmd\tHigh Times\tArtist\tAlbum\t\t2000000\t0\t0.5\tfalse\tNone\n'
+      );
+      const player = spotifyPlayer({ run });
+      const state = await player.state();
+      expect(state).to.include({ state: 'playing', mpris: 'spotifyd' });
+      expect(state.track).to.include({ trackId: '7yLQM59wfhOlyzxxAU9hmd', title: 'High Times' });
+      await player.next();
+      expect(calls[0].slice(0, 4)).to.deep.equal(['playerctl', '-a', '-p', 'spotify,spotifyd']);
+      expect(calls[1]).to.deep.equal(['playerctl', '-p', 'spotifyd', 'next']);
+    });
+
+    it('should prefer a paused player to one with no track, and report null when none runs', async () => {
+      const { run } = fakeRun(
+        'spotify\t\t\t\t\t\t\t\t\t\t\t\nspotifyd\tPaused\t\t\t\t\t\t\t\t\t\t\n'
+      );
+      expect((await spotifyPlayer({ run }).state()).mpris).to.equal('spotifyd');
+      expect((await spotifyPlayer({ run: fakeRun('').run }).state()).state).to.equal(null);
     });
 
     it('should refuse unknown shuffle and repeat modes', () => {

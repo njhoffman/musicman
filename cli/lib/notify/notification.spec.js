@@ -335,12 +335,13 @@ describe('Notify Daemon', () => {
       );
       expect(children[0].args).to.deep.equal([
         'playerctl',
+        '-a',
         '-p',
-        'spotify',
+        'spotify,spotifyd',
         '--follow',
         'metadata',
         '--format',
-        '{{status}} {{xesam:url}}'
+        '{{playerName}} {{status}} {{xesam:url}}'
       ]);
       const write = text => children[children.length - 1].stdout.emit('data', Buffer.from(text));
       write('https://open.spotify.com/track/a\nhttps://open.spotify.com/track/a\n\n');

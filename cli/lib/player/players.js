@@ -210,33 +210,59 @@ const spotifyTrackId = text => {
   return match ? match[1] : null;
 };
 
+// the MPRIS names Spotify plays under on this computer: the desktop app, and spotifyd (a Spotify
+// Connect speaker, controlled from a phone or the web player)
+const spotifyMprisNames = ['spotify', 'spotifyd'];
+
+// one row per Spotify player playerctl -a reports: its MPRIS name and its fields
+const parseSpotifyRows = output =>
+  _.map(_.compact(output.split('\n')), line => {
+    const [mpris, ...values] = line.split('\t');
+    return { mpris, values: _.zipObject(spotifyFields, values) };
+  });
+
 /**
- * The Spotify desktop app through MPRIS (playerctl). state() resolves to { state, track, volume } with
- * the track's Spotify id and cover URL, or to { state: null } when Spotify is not running.
+ * Spotify on this computer through MPRIS (playerctl): the desktop app or spotifyd, whichever plays
+ * (else the one paused, else the first running). state() resolves to { state, track, volume, mpris }
+ * with the track's Spotify id and cover URL and the MPRIS name of the player read, or to
+ * { state: null } when neither runs. Commands go to the player state() last read, the desktop app
+ * before any.
  */
-const spotifyPlayer = ({ run = runFile } = {}) => {
-  const playerctl = (...args) => run('playerctl', ['-p', 'spotify', ...args]);
+const spotifyPlayer = ({ run = runFile, names = spotifyMprisNames } = {}) => {
+  let target = names[0];
+  const playerctl = (...args) => run('playerctl', ['-p', target, ...args]);
   return {
     source: 'spotify',
     name: 'Spotify',
     state: async () => {
       let output;
       try {
-        output = await playerctl(
+        output = await run('playerctl', [
+          '-a',
+          '-p',
+          names.join(','),
           'metadata',
           '--format',
-          _.map(spotifyFields, field => `{{${field}}}`).join('\t')
-        );
+          _.map(['playerName', ...spotifyFields], field => `{{${field}}}`).join('\t')
+        ]);
       } catch (err) {
         return { state: null, error: err.message };
       }
-      const values = _.zipObject(spotifyFields, output.replace(/\n$/, '').split('\t'));
+      const rows = parseSpotifyRows(output);
+      const withStatus = status => _.find(rows, row => row.values.status === status);
+      const row = withStatus('Playing') || withStatus('Paused') || rows[0];
+      if (!row) {
+        return { state: null };
+      }
+      target = row.mpris;
+      const { values } = row;
       const trackId = spotifyTrackId(values['xesam:url']);
       // a local file has no track id: https://open.spotify.com/local/<artist>/<album>/<title>/<seconds>
       const local = !trackId && localTrackPattern.test(values['xesam:url'] || '');
       const volume = parseFloat(values.volume);
       return {
         state: _.toLower(values.status) || null,
+        mpris: row.mpris,
         volume: _.isNaN(volume) ? null : Math.round(volume * 100),
         shuffle: parseShuffle(values.shuffle),
         repeat: repeatModes[values.loop] || null,
@@ -427,6 +453,7 @@ module.exports = {
   repeatCycle,
   seekStep,
   spotifyConnectPlayer,
+  spotifyMprisNames,
   spotifyPlayer,
   spotifyTrackId,
   volumeStep

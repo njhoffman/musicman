@@ -8,6 +8,7 @@ const { coverFor } = require('../menu/cover.js');
 const { chipColors, defaultChip, tones } = require('../menu/menu.js');
 const { escapeMarkup } = require('../menu/rofi.js');
 const { libraryFileForPlaying } = require('../player/library.js');
+const { spotifyMprisNames } = require('../player/players.js');
 const logger = require('../utils/logger.js');
 
 // fields shown as tags when daemon.fields is not set
@@ -228,9 +229,10 @@ const watchMpd = async (
 };
 
 /**
- * Calls onChange each time the Spotify desktop app reports new metadata or a play state (MPRIS
- * PropertiesChanged, through playerctl --follow), after a short wait for the rest of it. playerctl keeps running while Spotify is
- * closed and reopened; it is started again if it exits. Returns stop().
+ * Calls onChange each time Spotify on this computer (the desktop app or spotifyd) reports new metadata or
+ * a play state (MPRIS PropertiesChanged, through playerctl -a --follow), after a short wait for the rest
+ * of it. playerctl keeps running while they are closed and reopened; it is started again if it exits.
+ * Returns stop().
  */
 const watchSpotify = (
   onChange,
@@ -242,7 +244,15 @@ const watchSpotify = (
   const start = () => {
     child = spawn(
       'playerctl',
-      ['-p', 'spotify', '--follow', 'metadata', '--format', '{{status}} {{xesam:url}}'],
+      [
+        '-a',
+        '-p',
+        spotifyMprisNames.join(','),
+        '--follow',
+        'metadata',
+        '--format',
+        '{{playerName}} {{status}} {{xesam:url}}'
+      ],
       {
         stdio: ['ignore', 'pipe', 'ignore']
       }
