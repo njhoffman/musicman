@@ -222,6 +222,8 @@ module.exports = {
     main: 'Play it as a new main list: player back forgets what played before'
   },
   completes: ['smart', 'filters'],
+  // printed besides the common formats, so the cli lets --format tsv through to smart
+  formats: ['tsv'],
   words: ['list', 'show', 'save', 'rm'],
   func: reportErrors(smartCommand),
   run: smartCommand,

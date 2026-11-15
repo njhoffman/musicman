@@ -2,7 +2,7 @@ const _ = require('lodash');
 const { execFile } = require('child_process');
 
 const { coverFor } = require('./cover.js');
-const { choosePlayer, nextRepeat, seekStep, volumeStep } = require('../player/players.js');
+const { choosePlayer, nextRepeat, seekStep } = require('../player/players.js');
 const { escapeMarkup } = require('./rofi.js');
 
 // Nerd Font glyphs (Font Awesome code points); the star is the plain Unicode one
@@ -15,8 +15,6 @@ const icons = {
   next: '',
   back: '',
   forward: '',
-  volumeDown: '',
-  volumeUp: '',
   tag: '',
   tags: '\uf02c',
   details: '\uf05a',
@@ -219,9 +217,6 @@ class Menu {
       status: [
         `<b>${escapeMarkup(player.name)}</b>`,
         escapeMarkup(status.state),
-        ...(status.volume === null || status.volume === undefined
-          ? []
-          : [`vol  <b>${status.volume}%</b>`]),
         ...(song.status || [])
       ],
       accent,
@@ -259,12 +254,6 @@ class Menu {
       }),
       control(icons.forward, `+${seekStep}s`, 'l', () => player.seek(seekStep), {
         disabled: !status.track
-      }),
-      control(icons.volumeDown, 'vol -', 'minus', () => player.volume(-volumeStep), {
-        disabled: status.volume === null
-      }),
-      control(icons.volumeUp, 'vol +', 'equal', () => player.volume(volumeStep), {
-        disabled: status.volume === null
       })
     ];
   }

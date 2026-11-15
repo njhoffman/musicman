@@ -11,12 +11,12 @@ binds it to `$mod+Shift+m`.
 ┌──────────┬──────────────────────────────────────────────┬─────────────┐
 │          │ Look on Down From the Bridge                 │     Spotify │
 │  cover   │ Mazzy Star  ·  Among My Swan                 │     playing │
-│          │ ▶  1:23  ━━━━━━━━━●──────────────────  3:00  │    vol 100% │
+│          │ ▶  1:23  ━━━━━━━━━●──────────────────  3:00  │             │
 │          │ ★★★★★  5.0      FolkRock.Artists      1996   │  in library │
 │          │  Study    Drive    Mellow    Nick          │             │
 └──────────┴──────────────────────────────────────────────┴─────────────┘
- prev  pause  next  -30s  +30s  vol -  vol +  shuffle  repeat       p t n h l - = u r
- reshuffle  details  genre  tags  4.0  4.5  5.0  like  ignore       o i g e 1 2 3 y x
+ prev  pause  next  -30s  +30s  shuffle  repeat  reshuffle       p t n h l u r o
+ details  genre  tags  4.0  4.5  5.0  like  ignore               i g e 1 2 3 y x
 ```
 
 The song's tags are shown as chips colored per field (context blue, mood purple, picks red); icons are
@@ -32,7 +32,7 @@ playing on another device (a phone, a speaker) is controlled through the Web API
 (Premium, the playback scopes of `sync --login`), and the title names the device (` Spotify · Pixel 7`).
 The Web API is asked only when neither the desktop app nor MPD is playing, so the menu makes no Web API
 calls while following local playback; another device playing comes before a paused local player, and
-paused after one. Devices without remote volume have the volume buttons disabled. MPD through its
+paused after one. MPD through its
 protocol (`mpd.host`, `mpd.port`). Seek moves 30 seconds. `musicman player` picks players the same way.
 
 A Spotify local file (a song added with `sync --export`) has no Spotify id, so the menu finds its library

@@ -1,5 +1,11 @@
 const { expect } = require('chai');
-const { formatRecords, formatSections, outputFormat, toCsv } = require('./formats.js');
+const {
+  commandFormats,
+  formatRecords,
+  formatSections,
+  outputFormat,
+  toCsv
+} = require('./formats.js');
 
 describe('Output Formats', () => {
   const records = [
@@ -19,6 +25,19 @@ describe('Output Formats', () => {
       expect(() => outputFormat({ format: 'xml' })).to.throw(
         "Unknown format 'xml', use one of: default, oneline, csv, json, html"
       );
+    });
+
+    it("should let through the formats commands declare, as the cli's check before a command runs", () => {
+      // the registry the cli checks against: smart prints tsv (fzx reads it), nothing prints xml
+      const extra = commandFormats(require('../commands/index.js'));
+      expect(extra).to.include('tsv');
+      expect(outputFormat({ format: 'tsv' }, extra)).to.equal('tsv');
+      expect(() => outputFormat({ format: 'xml' }, extra)).to.throw(/use one of: .*, tsv$/);
+      // a command that does not declare it still refuses it when it checks with the common list
+      expect(() => outputFormat({ format: 'tsv' })).to.throw("Unknown format 'tsv'");
+      expect(
+        commandFormats([{ formats: ['tsv'] }, {}, { formats: ['tsv', 'yaml'] }])
+      ).to.deep.equal(['tsv', 'yaml']);
     });
   });
 

@@ -6,6 +6,16 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- `musicman smart --format tsv` (and `smart show NAME --format tsv`) failed before smart ran ("Unknown
+  format 'tsv'"): the cli's check of `--format` now takes the formats a command declares.
+
+### Removed
+
+- The rofi menu's volume buttons (`-` and `=`) and its `vol` line: they showed and changed the player's
+  own volume, not the audio output's. `musicman player vol` still sets it.
+
 ## [1.86.0] - 2026-11-14
 
 ### Added

@@ -303,6 +303,13 @@ Reviewed: 2026-11-03
       `--main`/`musicman shuffle` forgets it, as the notify daemon publishes `now-playing`. fzx reads the
       file directly (absent: no back point) and falls back to `--peek` only when the file's directory is
       missing; `player back --peek --path` prints the path so fzx does not hardcode it.
+- [x] **fzx: `smart --format tsv` is refused before smart runs.** (p1) [bug] `musicman smart --format tsv`
+      (and `smart show NAME --format tsv`) fails with "Unknown format 'tsv', use one of: default, oneline,
+      csv, json, html": `cli/lib/cli.js:70` calls `outputFormat()` (`cli/lib/output/formats.js`, no `tsv`) on
+      every command's switches to decide whether logs go to stderr, so the global list rejects a format only
+      `smart` knows. smart.spec.js calls the command directly and misses it; an integration test through
+      `cli.js` would catch it. Fix: let the stderr check accept any non-default `--format` (or add `tsv` to
+      the list and refuse it in the commands that do not print it). The fzx music:smart mode reads tsv.
 - [x] **Now playing line for status bars.** (p2) [feature] the notify daemon publishes a Polybar line (player icon,
       Liked Songs heart, library star, time left) to `$XDG_RUNTIME_DIR/musicman/now-playing`
       (`cli/lib/notify/barPublisher.js`, `cli/lib/status/bar.js`); the `now-playing` Polybar module replaces the separate

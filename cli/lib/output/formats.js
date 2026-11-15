@@ -4,15 +4,21 @@ const formats = ['default', 'oneline', 'csv', 'json', 'html'];
 
 /**
  * Output format from the switches: oneline for --fzf, otherwise --format (default when not given).
- * Throws for an unknown format.
+ * Throws for a format that is neither one of formats nor one of extra (formats only some commands
+ * print, e.g. smart's tsv; see commandFormats).
  */
-const outputFormat = (switches = {}) => {
+const outputFormat = (switches = {}, extra = []) => {
+  const known = _.union(formats, extra);
   const format = switches.fzf ? 'oneline' : switches.format || 'default';
-  if (!formats.includes(format)) {
-    throw new Error(`Unknown format '${format}', use one of: ${formats.join(', ')}`);
+  if (!known.includes(format)) {
+    throw new Error(`Unknown format '${format}', use one of: ${known.join(', ')}`);
   }
   return format;
 };
+
+// the formats commands print beyond formats (a command's formats list), for the cli's check before
+// the command runs
+const commandFormats = commands => _.uniq(_.compact(_.flatMap(commands, 'formats')));
 
 const cellText = value => {
   if (_.isNil(value)) {
@@ -140,6 +146,7 @@ const formatSections = ({ format, title, sections, oneline, delimiter }) => {
 };
 
 module.exports = {
+  commandFormats,
   formatRecords,
   formatSections,
   formats,

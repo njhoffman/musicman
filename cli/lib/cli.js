@@ -10,7 +10,7 @@ const { getAvailableSong } = require('./clients/mpd.js');
 const { helpOutput } = require('./help.js');
 const { completionOutput } = require('./completion/index.js');
 const parseSwitches = require('./parser/options/switches.js');
-const { outputFormat } = require('./output/formats.js');
+const { commandFormats, outputFormat } = require('./output/formats.js');
 const logger = require('./utils/logger.js');
 const { archives, finishRun, runsDirectory, startRun } = require('./utils/runs.js');
 const { beginJournal, endJournal } = require('./history/journal.js');
@@ -67,7 +67,7 @@ const run = async givenArgs => {
   const config = loadConfig({ create: true });
   logger.configure(config.output);
   // data formats own stdout, so log messages (including the parser's) go to stderr
-  if (outputFormat(parseSwitches(args, config).switches) !== 'default') {
+  if (outputFormat(parseSwitches(args, config).switches, commandFormats(commands)) !== 'default') {
     logger.configure({ stream: 'stderr' });
   }
   logger.configureLogFile(config.logger.file);

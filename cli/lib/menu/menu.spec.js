@@ -54,34 +54,23 @@ describe('Menu', () => {
       expect(title).to.equal('<span font_size="large"><b>Song</b></span>');
       expect(artist).to.equal('<b>Artist</b>  ·  <span alpha="65%">Album</span>');
       expect(progress).to.match(/^▶ {2}1:01 {2}<span.*<\/span> {2}3:20$/);
-      expect(menu.status.slice(0, 3)).to.deep.equal([
+      // the player's own volume is not shown: the audio output's is what matters
+      expect(menu.status).to.deep.equal([
         `<b>${source === 'mpd' ? 'MPD' : 'Spotify'}</b>`,
-        'playing',
-        'vol  <b>50%</b>'
+        'playing'
       ]);
       expect(menu.cover).to.equal('/cover.jpg');
       layouts.push(menu.entries.map(({ key, label }) => [key, label]));
     }
     expect(layouts[0]).to.deep.equal(layouts[1]);
-    expect(layouts[0].map(([key]) => key)).to.deep.equal([
-      'p',
-      't',
-      'n',
-      'h',
-      'l',
-      'minus',
-      'equal',
-      'u',
-      'r',
-      'o'
-    ]);
+    expect(layouts[0].map(([key]) => key)).to.deep.equal(['p', 't', 'n', 'h', 'l', 'u', 'r', 'o']);
   });
 
   it('should open with next selected and the buttons in two rows', async () => {
     const { menus, view } = fakeView([]);
     await menuWith({ players: [fakePlayer('spotify', 'playing')], view }).open();
     expect(menus[0].selected).to.equal(2);
-    expect(menus[0].columns).to.equal(5);
+    expect(menus[0].columns).to.equal(4);
   });
 
   it('should draw the progress bar in accent, the played part filled', () => {
@@ -158,9 +147,9 @@ describe('Menu', () => {
 
   it('should run the control picked by index or key and stay open until q', async () => {
     const player = fakePlayer('spotify', 'playing');
-    const { menus, view } = fakeView([2, { key: 'h' }, { key: 'equal' }, { key: 'q' }]);
+    const { menus, view } = fakeView([2, { key: 'h' }, { key: 'l' }, { key: 'q' }]);
     await menuWith({ players: [player], view }).open();
-    expect(player.calls).to.deep.equal([['next'], ['seek', -30], ['volume', 5]]);
+    expect(player.calls).to.deep.equal([['next'], ['seek', -30], ['seek', 30]]);
     expect(menus).to.have.length(4);
   });
 
@@ -182,18 +171,18 @@ describe('Menu', () => {
   });
 
   it('should do nothing for a disabled button, and announce a failed action without closing', async () => {
-    const player = fakePlayer('mpd', 'playing', { volume: null });
+    const player = fakePlayer('mpd', 'playing', { track: null });
     player.next = async () => {
       throw new Error('MPD went away');
     };
     const notes = [];
-    const { menus, view } = fakeView([{ key: 'minus' }, { key: 'n' }]);
+    const { menus, view } = fakeView([{ key: 'h' }, { key: 'n' }]);
     await menuWith({
       players: [player],
       view,
       notify: async message => notes.push(message)
     }).open();
-    expect(menus[0].entries.find(({ key }) => key === 'minus').disabled).to.equal(true);
+    expect(menus[0].entries.find(({ key }) => key === 'h').disabled).to.equal(true);
     expect(player.calls).to.be.empty;
     expect(notes).to.deep.equal(['MPD went away']);
     expect(menus).to.have.length(3);
@@ -251,7 +240,7 @@ describe('Menu', () => {
     await menuWith({ players: [fakePlayer('spotify', 'playing')], view, songActions }).open();
     expect(menus[0].message).to.include('★★★★  4.0');
     expect(menus[0].status).to.include('in library');
-    expect(menus[0].entries[10]).to.include({ label: 'tag /m/a.mp3' });
+    expect(menus[0].entries[8]).to.include({ label: 'tag /m/a.mp3' });
     expect(ran).to.deep.equal(['a']);
   });
 
