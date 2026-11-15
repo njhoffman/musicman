@@ -54,7 +54,7 @@ const pairsFunction = ({ name, pairs }) => [
 
 // functions completing values from the library database (through the sqlite3 command), the rating
 // steps, run ids, and playlist names
-const valueFunctions = ({ db, frames, ratings, runsDirectory }) => [
+const valueFunctions = ({ db, frames, ratings, runsDirectory, smartFile }) => [
   '# a query of the library database, nothing without the database or the sqlite3 command',
   '_musicman_sql() {',
   `  local db=${quote(db || '')}`,
@@ -90,6 +90,15 @@ const valueFunctions = ({ db, frames, ratings, runsDirectory }) => [
   '_musicman_playlists() {',
   "  local sql='SELECT name FROM spotify_playlists WHERE name IS NOT NULL ORDER BY name'",
   '  local -a names=(${(f)"$(_musicman_sql $sql)"})',
+  '  (( $#names )) || return 1',
+  '  compadd "$@" -a names',
+  '}',
+  '',
+  '# names of the smart playlists (the top level keys of smart.yml)',
+  '_musicman_smart() {',
+  `  local file=${quote(smartFile || '')}`,
+  '  [[ -r $file ]] || return 1',
+  '  local -a names=(${(f)"$(sed -n \'s/^\\([A-Za-z0-9][A-Za-z0-9_.-]*\\):.*/\\1/p\' $file)"})',
   '  (( $#names )) || return 1',
   '  compadd "$@" -a names',
   '}'
@@ -183,6 +192,7 @@ const renderZsh = (model, { version }) => {
     "      filters) filters=('filters:filter:_musicman_fields filter') ;;",
     "      runs) alts+=('runs:run id:_musicman_runs') ;;",
     "      playlists) alts+=('playlists:playlist:_musicman_playlists') ;;",
+    "      smart) alts+=('smart:smart playlist:_musicman_smart') ;;",
     '      pairs:*) alts+=("settings:setting:_musicman_pairs_${kind#pairs:}") ;;',
     '      word:*) words+=(${kind#word:}) ;;',
     '    esac',

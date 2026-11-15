@@ -55,7 +55,8 @@ module.exports = {
     func: () => ({ fzf: true })
   },
   files: {
-    description: 'Read tags from the files instead of the library database',
+    description:
+      'Read tags from the files instead of the library database; with player play or add, play the files on stdin (paths under the MPD music directory, one per line)',
     alias: '-f',
     func: () => ({ files: true })
   },
@@ -68,6 +69,28 @@ module.exports = {
     description: 'Replace the MPD queue with search results and play them',
     alias: '-p',
     func: () => ({ play: true })
+  },
+  shuffle: {
+    description: 'With player play or add, play the songs in random order',
+    alias: '-s',
+    func: () => ({ shuffle: true })
+  },
+  main: {
+    description:
+      'With player play, play the songs as a new main list: player back forgets what played before',
+    alias: '-j',
+    func: () => ({ main: true })
+  },
+  peek: {
+    description:
+      'With player back, print the back point (player, artist, title, saved at) without going back',
+    alias: '-q',
+    func: () => ({ peek: true })
+  },
+  path: {
+    description: 'With player back --peek, print the file other programs read the back point from',
+    alias: '-Z',
+    func: () => ({ path: true })
   },
   match: {
     description: 'Find Spotify track ids for songs that belong in Liked Songs or a mapped playlist',

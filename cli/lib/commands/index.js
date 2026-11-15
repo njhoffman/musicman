@@ -17,6 +17,7 @@ const statusCommand = require('./status.js');
 const uiCommand = require('./ui.js');
 const valuesCommand = require('./values.js');
 const analyzeCommand = require('./analyze.js');
+const smartCommand = require('./smart.js');
 
 module.exports = [
   viewCommand,
@@ -34,6 +35,7 @@ module.exports = [
   shuffleCommand,
   spotifyCommand,
   playerCommand,
+  smartCommand,
   checkCommand,
   statusCommand,
   uiCommand,

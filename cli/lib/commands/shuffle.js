@@ -15,6 +15,7 @@ const {
 } = require('../spotify/shuffle.js');
 const { lazyUserClient } = require('../spotify/userClient.js');
 const { localSpotifyIds } = require('../sync/plan.js');
+const { publishBack } = require('../player/backFile.js');
 const logger = require('../utils/logger.js');
 
 // database meta keys: the last source shuffled (reshuffled by musicman shuffle without one, and the
@@ -235,6 +236,7 @@ const shuffleCommand = async ({
   setMeta(db, lastSourceKey, { terms, name: source.name });
   setMeta(db, orderKey, order);
   setMeta(db, backKey, null);
+  publishBack(null, env);
   logger.info(
     `Wrote ${order.length} tracks of ${source.name} in random order to '${playlistName}'`
   );

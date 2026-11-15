@@ -82,6 +82,33 @@ musicman player back                                    # the main list, at the 
   `play` remembers that instead.
 - `musicman shuffle` starts a new main list and forgets the point; `player back` forgets it once it
   returns. `player add` never touches it. The point lives in the library database (`player.back`).
+- `player play --main <terms>` plays the songs as a new main list: nothing is remembered, and a back point
+  is forgotten. `--shuffle` (play and add) plays them in random order, on MPD and Spotify alike.
+- `player mpd play --files -` (and `add --files -`) plays the paths on stdin, under the MPD music
+  directory, one per line, in that order; paths that are not there are left out. MPD only.
+- `player back --peek` prints the back point (player, artist, title, saved at; `--format json`) without
+  going back, and exits 1 without one. The same four lines are in `$XDG_RUNTIME_DIR/musicman/back` while
+  there is a back point (`player back --peek --path` prints the path), see
+  [the contract](docs/09-contract.md#back).
+
+### Smart playlists
+
+Named search terms that play the library's songs matching them now, kept in
+`~/.config/musicman/smart.yml` (`$XDG_CONFIG_HOME`), one `name: terms` per line:
+
+```sh
+musicman smart save study context:Study mood:Upbeat rating:4.5
+musicman smart save mazzy 'artist:Mazzy Star' ~mood:Sad
+musicman smart                        # the list, with song counts (--format tsv|json)
+musicman smart show study --limit 20  # its songs (--format tsv|json)
+musicman smart study --main --shuffle # play it as the main list, in random order
+musicman smart mazzy                  # play it as a side trip: player back returns
+musicman smart rm mazzy
+```
+
+Names are letters, digits, `_ . -`, and not `list`, `show`, `save`, or `rm`. `save` checks the fields of
+`field:value` terms and replaces a playlist of that name in place; `save` and `rm` rewrite the file, so
+comments in it are not kept. Playing one is `player play` with its terms, on the active player.
 
 `musicman check` reports library problems without changing anything: database drift, unreadable files,
 frames a rewrite would lose, custom field names that differ by case or duplicate standard frames, leftover

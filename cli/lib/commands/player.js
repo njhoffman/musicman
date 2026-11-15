@@ -7,7 +7,9 @@ const { findSongs } = require('./search.js');
 const { playTracks } = require('./shuffle.js');
 const { queueSongs } = require('../clients/mpd.js');
 const { openLibrary } = require('../db/index.js');
-const { captureBack, commitBack, goBack } = require('../player/back.js');
+const { captureBack, commitBack, forgetBack, goBack, readBack } = require('../player/back.js');
+const { backFile, peekData, peekText, publishBack } = require('../player/backFile.js');
+const { shuffleOrder } = require('../spotify/shuffle.js');
 const { clock } = require('../menu/menu.js');
 const {
   choosePlayer,
@@ -26,7 +28,9 @@ const usage = [
   '  seek -30 | +30 | 90 | 1:30     vol -5 | +5 | 40',
   '  shuffle on|off|toggle          repeat off|playlist|track|next',
   '  queue [count]                  play <terms>   add <terms>   (search terms: field:value, text)',
-  '  back                           return to what played before the last play <terms>'
+  '  back                           return to what played before the last play <terms>',
+  '  play and add: --shuffle (random order), --files (paths on stdin, MPD); play: --main (forget back)',
+  '  back --peek [--format json]    print the back point; --peek --path: the file it is published to'
 ].join('\n');
 
 const sources = ['mpd', 'spotify'];
@@ -71,7 +75,7 @@ const parseVolume = value => {
  * The player named first (mpd or spotify, optional), the action, and its arguments. Throws for an
  * unknown action or a value it does not take, so a typo never sends a command.
  */
-const parseArgs = terms => {
+const parseArgs = (terms, switches = {}) => {
   const words = [...terms];
   const source = sources.includes(_.toLower(words[0])) ? _.toLower(words.shift()) : null;
   const action = _.toLower(words.shift() || 'status');
@@ -86,7 +90,7 @@ const parseArgs = terms => {
     play: () => null,
     back: () => null,
     add: () => {
-      if (args.length === 0) {
+      if (args.length === 0 && !switches.files) {
         throw new Error('add needs search terms, e.g. musicman player add context:Study');
       }
     },
@@ -185,22 +189,64 @@ const spotifyIds = songs => {
 
 const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
 
+// all of a stream (stdin) as text
+const readAll = input =>
+  new Promise((resolve, reject) => {
+    let text = '';
+    input.setEncoding('utf8');
+    input.on('data', chunk => {
+      text += chunk;
+    });
+    input.on('end', () => resolve(text));
+    input.on('error', reject);
+  });
+
 /**
- * Plays (replace) or queues the songs of search terms: on MPD by their files, on Spotify by their
- * Spotify ids through the Web API (Premium and a Connect device; songs without an id are left out).
+ * The songs of --files: paths under the MPD music directory (or absolute paths inside it), one per line,
+ * in the order given, as [absolute file, {}] like search results. Paths that are not there are left out
+ * with a warning; throws when none is left.
+ */
+const songsOfFiles = (text, config, exists = fs.existsSync) => {
+  const baseDirectory = path.resolve(config.mpd.baseDirectory);
+  const lines = _.compact(_.map(`${text || ''}`.split('\n'), line => line.trim()));
+  if (lines.length === 0) {
+    throw new Error('--files reads the paths to play on stdin, one per line, and got none');
+  }
+  const resolved = _.map(lines, line => {
+    const file = path.resolve(baseDirectory, line);
+    const inside = file.startsWith(`${baseDirectory}${path.sep}`);
+    return { line, file, known: inside && exists(file) };
+  });
+  const unknown = _.reject(resolved, 'known');
+  if (unknown.length === resolved.length) {
+    throw new Error(`None of the ${plural(lines.length, 'path')} on stdin is in ${baseDirectory}`);
+  }
+  if (unknown.length > 0) {
+    logger.warn(
+      `${plural(unknown.length, 'path')} not in ${baseDirectory} left out: ${_.map(
+        _.take(unknown, 3),
+        'line'
+      ).join(', ')}${unknown.length > 3 ? ', ...' : ''}`
+    );
+  }
+  return _.map(_.filter(resolved, 'known'), ({ file }) => [file, {}]);
+};
+
+/**
+ * Plays (replace) or queues songs (search results or --files, [file, meta] pairs): on MPD by their
+ * files, on Spotify by their Spotify ids through the Web API (Premium and a Connect device; songs
+ * without an id are left out).
  */
 const loadSongs = async ({
   player,
-  terms,
+  songs,
   replace,
   config,
   client,
-  find,
   queue,
   play,
   onLoaded = () => {}
 }) => {
-  const songs = await songsFor(terms, config, find);
   if (player.source === 'mpd') {
     const baseDirectory = path.resolve(config.mpd.baseDirectory);
     const count = await queue(
@@ -277,11 +323,11 @@ const openBackDb = config => () =>
  * Plays search results as a side trip: what the player played before is remembered first (see
  * lib/player/back.js), and stored once the songs play, so player back returns there.
  */
-const playSideTrip = async ({ player, status, openDb, client, load }) => {
+const playSideTrip = async ({ player, status, openDb, client, load, main = false, env }) => {
   const db = openDb();
   try {
     let captured = null;
-    if (db) {
+    if (db && !main) {
       try {
         captured = await captureBack({ db, player, status, client });
       } catch (err) {
@@ -294,8 +340,10 @@ const playSideTrip = async ({ player, status, openDb, client, load }) => {
     const result = await load(ids => {
       side = { source: player.source, ids };
     });
-    if (db && side) {
-      commitBack(db, captured, side);
+    if (db && main) {
+      forgetBack(db, env);
+    } else if (db && side) {
+      commitBack(db, captured, side, env);
     }
     return result;
   } finally {
@@ -306,7 +354,7 @@ const playSideTrip = async ({ player, status, openDb, client, load }) => {
 };
 
 // player back: restores the back point, on the player it was saved from
-const returnBack = async ({ players, openDb, client, hostname }) => {
+const returnBack = async ({ players, openDb, client, hostname, env }) => {
   const db = openDb();
   if (!db) {
     throw new Error('No library database, player back has nothing to return to');
@@ -316,7 +364,8 @@ const returnBack = async ({ players, openDb, client, hostname }) => {
       db,
       mpd: _.find(players, { source: 'mpd' }),
       client,
-      hostname
+      hostname,
+      env
     });
     const where = result.source === 'mpd' ? 'MPD' : result.device;
     const song = _.compact([result.track.artist, result.track.title]).join(' - ');
@@ -329,13 +378,60 @@ const returnBack = async ({ players, openDb, client, hostname }) => {
 };
 
 /**
+ * player back --peek: prints the back point (peekText, or JSON with --format json) and publishes it again
+ * (the runtime file is gone after a reboot); throws when there is none. --path prints the file instead.
+ */
+const peekBack = ({ switches, openDb, env, out }) => {
+  if (switches.path) {
+    out.write(`${backFile(env)}\n`);
+    return { path: backFile(env) };
+  }
+  const db = openDb();
+  const point = db ? readBack(db) : null;
+  if (db) {
+    db.close();
+  }
+  if (!point) {
+    throw new Error('No back point: musicman player play <terms> remembers what played before it');
+  }
+  publishBack(point, env);
+  out.write(switches.format === 'json' ? `${JSON.stringify(peekData(point))}\n` : peekText(point));
+  return peekData(point);
+};
+
+/**
+ * The switches player takes, checked against the action: --shuffle and --files go with play and add,
+ * --main with play, --peek and --path with back. Throws for any other mix, so a typo never plays.
+ */
+const checkSwitches = (action, args, switches) => {
+  const loads = ['play', 'add'].includes(action);
+  const misplaced = [
+    switches.shuffle && !loads && '--shuffle goes with play or add',
+    switches.files && !loads && '--files goes with play or add',
+    switches.main && action !== 'play' && '--main goes with play',
+    switches.peek && action !== 'back' && '--peek goes with back',
+    switches.path && !switches.peek && '--path goes with back --peek',
+    switches.files &&
+      _.without(args, '-').length > 0 &&
+      '--files reads paths on stdin, not search terms'
+  ];
+  const [problem] = _.compact(misplaced);
+  if (problem) {
+    throw new Error(problem);
+  }
+};
+
+/**
  * player: controls whichever of MPD and the Spotify desktop app is active (or the one named first): play,
  * pause, skip, seek, volume, shuffle, repeat, the queue, and playing or queueing search results. Spotify
  * is controlled through MPRIS, except playing and queueing songs and listing its queue (Web API), and
  * Spotify playing on another device (a phone, a speaker) through the Web API player endpoints.
  * play <terms> remembers what played before it, and back returns there (lib/player/back.js).
+ * --shuffle plays them in random order, --main as a new main list (no back point), --files the paths on
+ * stdin instead of search results (MPD only).
  * Dependencies (tests): players, client (lazy Spotify user client), find (findSongs), queue
- * (queueSongs), play (playTracks), openDb (the library database or null), hostname, settle.
+ * (queueSongs), play (playTracks), openDb (the library database or null), readInput (stdin as text),
+ * exists (fs.existsSync), random, out (stdout), hostname, settle.
  */
 const playerCommand = async ({
   options = {},
@@ -347,40 +443,69 @@ const playerCommand = async ({
   queue = queueSongs,
   play = playTracks,
   openDb = openBackDb(config),
+  readInput = () => readAll(process.stdin),
+  exists = fs.existsSync,
+  random = Math.random,
+  out = process.stdout,
   hostname,
   settle = settleMs
 }) => {
-  const { source, action, args } = parseArgs(options.terms || []);
+  const switches = options.switches || {};
+  const { source, action, args } = parseArgs(options.terms || [], switches);
+  checkSwitches(action, args, switches);
+  if (action === 'back' && switches.peek) {
+    return peekBack({ switches, openDb, env, out });
+  }
   if (action === 'back') {
-    const result = await returnBack({ players, openDb, client, hostname });
+    const result = await returnBack({ players, openDb, client, hostname, env });
     await wait(settle);
     const { player } = await pickPlayer(players, result.source);
     const after = await player.state();
     logger.info(describeState(player, after));
     return { source: player.source, action, state: after.state, track: after.track, result };
   }
-  const loading = ['play', 'add'].includes(action) && args.length > 0;
+  const loading = ['play', 'add'].includes(action) && (args.length > 0 || Boolean(switches.files));
+  if (switches.files && source === 'spotify') {
+    throw new Error('--files plays library files, on MPD only: musicman player mpd play --files -');
+  }
   // playing search results with no player named or active goes to MPD
+  const active = loading && !source ? (await choosePlayer(players)).active : null;
+  if (switches.files && active && active.player.source === 'spotify') {
+    throw new Error(
+      'Spotify is playing and --files plays library files on MPD only: musicman player mpd play --files -'
+    );
+  }
   const { player, status } = await pickPlayer(
     players,
-    source || (loading && !(await choosePlayer(players)).active ? 'mpd' : null)
+    source || (loading && (switches.files || !active) ? 'mpd' : null)
   );
   let result = null;
   if (loading) {
+    const found = switches.files
+      ? songsOfFiles(await readInput(), config, exists)
+      : await songsFor(args, config, find);
+    const songs = switches.shuffle ? shuffleOrder(found, random) : found;
     const load = onLoaded =>
       loadSongs({
         player,
-        terms: args,
+        songs,
         replace: action === 'play',
         config,
         client,
-        find,
         queue,
         play,
         onLoaded
       });
     if (action === 'play') {
-      result = await playSideTrip({ player, status, openDb, client, load });
+      result = await playSideTrip({
+        player,
+        status,
+        openDb,
+        client,
+        load,
+        main: Boolean(switches.main),
+        env
+      });
       await wait(settle);
     } else {
       result = await load();
@@ -418,15 +543,21 @@ module.exports = {
   description:
     'Control MPD or the Spotify desktop app: play, pause, skip, seek, volume, queue, play search results and go back',
   usage,
-  switches: [],
+  switches: ['shuffle', 'main', 'files', 'peek', 'path', 'format'],
+  switchHelp: {
+    files: 'With play or add: the files on stdin (paths under the MPD music directory), MPD only',
+    format: 'With back --peek: json'
+  },
   completes: ['filters'],
   func: reportErrors(playerCommand),
   run: playerCommand,
   defaultTarget,
   targetArgs: false,
   describeState,
+  checkSwitches,
   parseArgs,
   parseSeek,
+  songsOfFiles,
   parseVolume,
   pickPlayer
 };

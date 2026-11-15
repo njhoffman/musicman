@@ -70,6 +70,7 @@ describe('Completion', () => {
         ],
         db: '/music/musicman.sqlite',
         runsDirectory: '/state/logs',
+        smartFile: '/config/musicman/smart.yml',
         ratingMax: 2,
         shells,
         completionCommand
@@ -79,7 +80,8 @@ describe('Completion', () => {
         db: '/music/musicman.sqlite',
         frames: { mood: 'TXXX.Mood' },
         ratings: ['0.5', '1', '1.5', '2'],
-        runsDirectory: '/state/logs'
+        runsDirectory: '/state/logs',
+        smartFile: '/config/musicman/smart.yml'
       });
     });
 
@@ -211,6 +213,8 @@ describe('Completion', () => {
           ['20261101-010101-sync', '20261102-020202-db'].forEach(id =>
             fs.writeFileSync(path.join(runs, `${id}.json`), '{}')
           );
+          const smartFile = path.join(dir, 'smart.yml');
+          fs.writeFileSync(smartFile, 'study: context:Study\nnight-drive.2: rating:5\n');
           const functions = path.join(dir, 'functions');
           fs.mkdirSync(functions);
           fs.writeFileSync(
@@ -223,6 +227,7 @@ describe('Completion', () => {
                 ],
                 db: dbPath,
                 runsDirectory: runs,
+                smartFile,
                 shells,
                 completionCommand
               }),
@@ -240,7 +245,8 @@ describe('Completion', () => {
             'musicman undo ',
             'musicman shuffle ',
             'musicman spotify ',
-            'musicman spotify repeat '
+            'musicman spotify repeat ',
+            'musicman smart '
           ];
           const output = execFileSync(
             'zsh',
@@ -275,6 +281,8 @@ describe('Completion', () => {
           expect(hits['musicman shuffle ']).to.deep.include(['liked']);
           expect(hits['musicman shuffle ']).to.deep.include(['\\[Rock\\]\\ Folk-Rock']);
           expect(hits['musicman spotify ']).to.deep.equal([['shuffle', 'repeat']]);
+          expect(hits['musicman smart ']).to.deep.include(['list', 'show', 'save', 'rm']);
+          expect(hits['musicman smart ']).to.deep.include(['study', 'night-drive.2']);
           expect(hits['musicman spotify repeat ']).to.deep.equal([
             ['off', 'playlist', 'track', 'next']
           ]);

@@ -15,6 +15,29 @@ by the notify daemon while it runs and replaced atomically (`cli/lib/notify/barP
 line 2 is the text to show, with Polybar `%{F...}` color tags and any `%{` from a song name defused. Both lines are
 empty when nothing plays or is paused.
 
+### back
+
+`$XDG_RUNTIME_DIR/musicman/back` (`/run/user/<uid>/musicman/back` without `XDG_RUNTIME_DIR`), present while
+`musicman player back` has somewhere to return to (`cli/lib/player/backFile.js`): written when `player play`
+saves a back point, removed when `player back` restores it or `player play --main` or `musicman shuffle`
+forgets it, replaced atomically. Four lines: the player (`mpd` or `spotify`), the artist, the title, and
+when it was saved (ISO 8601). `musicman player back --peek` prints the same lines (or, with `--format json`,
+`{ "source", "artist", "title", "savedAt" }`) and writes the file again, which a reboot clears; it exits 1
+without a back point. `musicman player back --peek --path` prints the path.
+
+### musicman smart
+
+`~/.config/musicman/smart.yml` (`$XDG_CONFIG_HOME/musicman/smart.yml`) maps names to search terms (a string
+of terms, values with spaces quoted, or a list of terms). Machine output, one row per line, tab separated,
+no header, tabs and line breaks in values turned into spaces:
+
+- `musicman smart --list --format tsv`: NAME, TERMS (as one string), SONGS (how many songs match), SPOTIFY
+  (how many of them have a Spotify id), in the file's order.
+- `musicman smart show NAME --format tsv [--limit N]`: ARTIST, TITLE, RATING (empty when unrated), FILE
+  (relative to the MPD music directory), in library order.
+
+`--format json` prints the same as one JSON value. A name that is not there exits 1.
+
 ### paths.json
 
 `$XDG_STATE_HOME/musicman/paths.json` (`~/.local/state/musicman/paths.json` without `XDG_STATE_HOME`),

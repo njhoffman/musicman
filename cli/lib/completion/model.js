@@ -28,6 +28,7 @@ const completionModel = ({
   tags = [],
   db = null,
   runsDirectory = null,
+  smartFile = null,
   ratingMax = 5,
   shells = [],
   completionCommand
@@ -88,7 +89,8 @@ const completionModel = ({
         )
       ),
       ratings: _.range(1, Math.round(ratingMax * 2) + 1).map(step => String(step / 2)),
-      runsDirectory
+      runsDirectory,
+      smartFile
     }
   };
 };

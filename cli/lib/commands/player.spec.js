@@ -2,7 +2,12 @@ const { expect } = require('chai');
 
 const { describeState, parseArgs, parseSeek, parseVolume, run } = require('./player.js');
 const { getMeta, openDatabase, setMeta } = require('../db/database.js');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
 const { backKey } = require('../player/back.js');
+const { backFile } = require('../player/backFile.js');
 
 describe('Player command', () => {
   const config = { mpd: { baseDirectory: '/music' } };
@@ -347,6 +352,182 @@ describe('Player command', () => {
         [mpdWith('playing', 'main.mp3')]
       );
       expect(queued).to.have.length(1);
+    });
+  });
+
+  describe('switches', () => {
+    // runs with switches, the terms after the action as given
+    const runSwitches = (terms, switches, players, extra = {}) =>
+      runWith(terms, players, { options: { terms, switches }, ...extra });
+
+    it('should refuse switches that do not go with the action', () => {
+      const { checkSwitches } = require('./player.js');
+      expect(() => checkSwitches('next', [], { shuffle: true })).to.throw(
+        '--shuffle goes with play or add'
+      );
+      expect(() => checkSwitches('add', ['x'], { main: true })).to.throw('--main goes with play');
+      expect(() => checkSwitches('play', [], { peek: true })).to.throw('--peek goes with back');
+      expect(() => checkSwitches('back', [], { path: true })).to.throw(
+        '--path goes with back --peek'
+      );
+      expect(() => checkSwitches('play', ['rating:5'], { files: true })).to.throw(
+        /not search terms/
+      );
+      expect(() =>
+        checkSwitches('play', ['-'], { files: true, shuffle: true, main: true })
+      ).to.not.throw();
+    });
+
+    it('should play search results in random order with --shuffle', async () => {
+      const { queued } = await runSwitches(
+        ['play', 'rating:5'],
+        { shuffle: true },
+        [fakePlayer('mpd', 'stopped')],
+        { random: () => 0 }
+      );
+      expect(queued[0][0]).to.deep.equal(['b.mp3', 'c.mp3', 'a.mp3']);
+    });
+
+    it('should play the files on stdin in order on MPD, leaving out unknown ones', async () => {
+      const { queued, result } = await runSwitches(
+        ['play', '-'],
+        { files: true },
+        [fakePlayer('mpd', 'playing'), fakePlayer('spotify', null)],
+        {
+          readInput: async () => 'z.mp3\n\n/music/y.mp3\nmissing.mp3\n../outside.mp3\n',
+          exists: file => file !== '/music/missing.mp3'
+        }
+      );
+      expect(queued).to.deep.equal([[['z.mp3', 'y.mp3'], { replace: true }]]);
+      expect(result.result).to.deep.equal({ source: 'mpd', count: 2 });
+    });
+
+    it('should refuse --files on Spotify, and with nothing usable on stdin', async () => {
+      const reject = async (promise, message) =>
+        promise.then(
+          () => expect.fail('should reject'),
+          err => expect(err.message).to.match(message)
+        );
+      await reject(
+        runSwitches(['spotify', 'play', '-'], { files: true }, [fakePlayer('spotify', 'playing')]),
+        /on MPD only/
+      );
+      await reject(
+        runSwitches(['play'], { files: true }, [
+          fakePlayer('spotify', 'playing'),
+          fakePlayer('mpd', 'stopped')
+        ]),
+        /^Spotify is playing/
+      );
+      await reject(
+        runSwitches(['play'], { files: true }, [fakePlayer('mpd', 'stopped')], {
+          readInput: async () => '\n'
+        }),
+        /got none/
+      );
+      await reject(
+        runSwitches(['add'], { files: true }, [fakePlayer('mpd', 'stopped')], {
+          readInput: async () => 'gone.mp3',
+          exists: () => false
+        }),
+        /^None of the 1 path/
+      );
+    });
+  });
+
+  describe('back point published and peeked', () => {
+    let db;
+    let runtime;
+    let env;
+    beforeEach(() => {
+      db = openDatabase(':memory:');
+      runtime = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-back-'));
+      env = { XDG_RUNTIME_DIR: runtime };
+    });
+    afterEach(() => {
+      db.close();
+      fs.rmSync(runtime, { recursive: true, force: true });
+    });
+    const openDb = () => ({ prepare: sql => db.prepare(sql), close: () => {} });
+    const mpd = file => {
+      const player = fakePlayer('mpd', 'playing', { track: { ...track, file: `/music/${file}` } });
+      player.snapshot = async () => ({ files: [file], position: 0, elapsed: 1, modes: {} });
+      player.restore = async () => ({ count: 1, skipped: 0, position: 0 });
+      return player;
+    };
+    const output = () => {
+      const chunks = [];
+      return { chunks, write: text => chunks.push(text) };
+    };
+
+    it('should publish the back point when play saves it and remove it on back', async () => {
+      await runWith(['play', 'artist:Radiohead'], [mpd('main.mp3')], { openDb, env });
+      const lines = fs.readFileSync(backFile(env), 'utf8').split('\n');
+      expect(lines.slice(0, 3)).to.deep.equal(['mpd', 'Artist', 'Song']);
+      expect(lines[3]).to.match(/^\d{4}-\d\d-\d\dT/);
+      await runWith(['back'], [mpd('a.mp3')], { openDb, env });
+      expect(fs.existsSync(backFile(env))).to.equal(false);
+    });
+
+    it('should forget the back point with --main, saving nothing', async () => {
+      await runWith(['play', 'artist:Radiohead'], [mpd('main.mp3')], { openDb, env });
+      await runWith(['play', 'context:Study'], [mpd('a.mp3')], {
+        options: { terms: ['play', 'context:Study'], switches: { main: true } },
+        openDb,
+        env
+      });
+      expect(getMeta(db, backKey)).to.equal(null);
+      expect(fs.existsSync(backFile(env))).to.equal(false);
+    });
+
+    it('should print the back point with --peek, as text or JSON, and publish it again', async () => {
+      setMeta(db, backKey, {
+        source: 'spotify',
+        savedAt: '2026-11-14T10:00:00.000Z',
+        track: { artist: 'Band', title: 'Main' }
+      });
+      const text = output();
+      await runWith(['back'], [], {
+        options: { terms: ['back'], switches: { peek: true } },
+        openDb,
+        env,
+        out: text
+      });
+      expect(text.chunks.join('')).to.equal('spotify\nBand\nMain\n2026-11-14T10:00:00.000Z\n');
+      expect(fs.readFileSync(backFile(env), 'utf8')).to.equal(text.chunks.join(''));
+      const json = output();
+      const { result } = await runWith(['back'], [], {
+        options: { terms: ['back'], switches: { peek: true, format: 'json' } },
+        openDb,
+        env,
+        out: json
+      });
+      expect(JSON.parse(json.chunks.join(''))).to.deep.equal({
+        source: 'spotify',
+        artist: 'Band',
+        title: 'Main',
+        savedAt: '2026-11-14T10:00:00.000Z'
+      });
+      expect(result).to.deep.equal(JSON.parse(json.chunks.join('')));
+    });
+
+    it('should fail --peek without a back point, and print the path with --path', async () => {
+      await runWith(['back'], [], {
+        options: { terms: ['back'], switches: { peek: true } },
+        openDb,
+        env,
+        out: output()
+      }).then(
+        () => expect.fail('should reject'),
+        err => expect(err.message).to.match(/^No back point/)
+      );
+      const out = output();
+      await runWith(['back'], [], {
+        options: { terms: ['back'], switches: { peek: true, path: true } },
+        env,
+        out
+      });
+      expect(out.chunks.join('')).to.equal(`${path.join(runtime, 'musicman', 'back')}\n`);
     });
   });
 });

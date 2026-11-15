@@ -277,17 +277,32 @@ Reviewed: 2026-11-03
 - [ ] **Return from a side trip when it ends.** (p3) [feature] `player back` is manual; the notify daemon
       could restore the back point when the side trip's last song finishes (MPD stops at the end of the
       queue, a Spotify list runs out), like `shuffleHandoff` continues a shuffle. Opt-in, `player.backWhenDone`.
-- [ ] **fzx: `player play --shuffle` and `--main`.** (p2) [feature] `player play` plays search results in
+- [x] **fzx: `player play --shuffle` and `--main`.** (p2) [feature] `player play` plays search results in
       library order; `--shuffle` randomizes them (MPD and Spotify alike, without `musicman shuffle`, which is
       Spotify only), and `--main` plays them as a new main list: no back point saved, the old one forgotten.
       The fzx music:smart mode plays presets with both (`~/git/fzx/TODO.md`, "music: smart playlists").
-- [ ] **fzx: smart playlist presets (`musicman smart`).** (p2) [feature] named filter sets in
+- [x] **fzx: smart playlist presets (`musicman smart`).** (p2) [feature] named filter sets in
       `~/.config/musicman/smart.yml` (name: terms), written by musicman and editable by hand: `smart --list`
       (NAME TERMS SONGS SPOTIFY, `--format tsv|json`), `smart show NAME [--limit N]` (the songs),
       `smart save NAME TERMS...` (validated as filters), `smart rm NAME`, and `smart NAME` plays it
       (`player play` rules). zsh completion of the names; the rofi menu could list them too.
-- [ ] **fzx: `player back --peek`.** (p3) [feature] prints the back point (source, artist, title, saved at;
+- [x] **fzx: `player back --peek`.** (p3) [feature] prints the back point (source, artist, title, saved at;
       `--format json`) without restoring it, exit 1 when there is none, for the fzx header and status bars.
+- [x] **fzx: `player play --files -` and `add --files -`.** (p2) [feature] play (or add) exact files instead
+      of search terms: paths relative to the MPD music dir, one per line on stdin, in the given order, with the
+      same back-point rules as `play <terms>` (`--main`, `--shuffle` apply too). fzx's library modes (artists,
+      albums, stored playlists, picked songs) hold exact values, and `field:value` matches substrings
+      (`albumartist:Yes` also takes "Yesterday's"; stored playlists and picked songs have no term form), so
+      their side trips need files. MPD only (`player mpd play --files -`); with `spotify`, or when the
+      current player is Spotify without `mpd`, refuse with a message rather than look the files up on Spotify.
+      Unknown paths: skip them with a warning, exit 1 only when none are left.
+- [x] **fzx: back point published to a runtime file.** (p2) [feature] the fzx header shows the back point in
+      every music mode and redraws on each reload; starting the CLI (over a second, "CLI startup") for each
+      is too slow. Write the back point to `$XDG_RUNTIME_DIR/musicman/back` (the `--peek` fields, one per
+      line or JSON) whenever `player play` saves one, and remove the file when `player back` restores it or
+      `--main`/`musicman shuffle` forgets it, as the notify daemon publishes `now-playing`. fzx reads the
+      file directly (absent: no back point) and falls back to `--peek` only when the file's directory is
+      missing; `player back --peek --path` prints the path so fzx does not hardcode it.
 - [x] **Now playing line for status bars.** (p2) [feature] the notify daemon publishes a Polybar line (player icon,
       Liked Songs heart, library star, time left) to `$XDG_RUNTIME_DIR/musicman/now-playing`
       (`cli/lib/notify/barPublisher.js`, `cli/lib/status/bar.js`); the `now-playing` Polybar module replaces the separate
@@ -345,6 +360,15 @@ Reviewed: 2026-11-03
       notification server) only keeps `<b> <i> <u> <a>` markup, so the `daemon.fields` chips in
       `cli/lib/notify/notification.js` render as plain words with spaces. Either separate them some other way
       (a `·` or `|` between values) or style them through a deadd `class-name` rule; colors still work in dunst.
+      notifyd (`~/ghq/github.com/njhoffman/notifyd`, the planned replacement for deadd) renders the spans as they are,
+      and also takes `<span class="tag">`, colored by its active preset.
+- [ ] **Song notifications use the player as app-name.** (p2) [bug] `buildNotification`
+      (`cli/lib/notify/notification.js`) sends `--app-name=${notice.source}`, the player name (`MPD` or
+      `Spotify`, `cli/lib/player/players.js`), so the deadd rule for `musicman` never matches and deadd's
+      `Spotify` rule (timeout 3000) shortens song notifications. Send `--app-name=musicman` and put the
+      player in a hint (`--hint=string:x-musicman-player:mpd`) or the category (`x-musicman.song`), so
+      notification daemon rules (deadd today, notifyd next) can match songs. Also drop or relax the explicit
+      `--expire-time` (`daemon.duration`) so the daemon's per-app timeout decides.
 - [x] **Menu: grouping buttons.** (p3) [feature] `menu.buttons` only takes one value of a multi value field
       (context, mood, picks); grouping is single valued, so setting it would need a picker submenu.
 - [x] **Menu: redraw when the song changes.** (p3) [feature] the menu shows the song as it was when drawn; a song that
@@ -380,6 +404,35 @@ Reviewed: 2026-11-03
       Several are websites without an API, so check what can be automated.
 - [ ] **Other music services.** (p3) [feature] support services besides Spotify (e.g. YouTube Music, SoundCloud) for
       matching, playlist sync, and playback, starting with which ones have a usable API.
+
+## 12. Host sync (`docs/10-host-sync.md`)
+
+Charon and minerva both keep the full library; a change log in S3 keeps them the same. In build order.
+
+- [ ] **Audio hash per song.** (p2) [feature] `songs.audio_hash` (migration), SHA-256 of the audio without
+      the ID3v2 and ID3v1 tags, filled by `db --update` for new and changed files; a hash index. The identity
+      every entry uses (paths change on moves); also lets `check` find true duplicates.
+- [ ] **Change log written by every change.** (p2) [feature] a `changes` table (id, at, song hash and hints,
+      kind, field, value, previous, pushed) filled from `journaledWrite`, `journaledMatch`, `recordFileMove`
+      and import (`cli/lib/history/journal.js`), so nothing that edits can skip it; undo writes the entries
+      that restore old values. Useful with one host too: a full history of every tag change.
+- [ ] **S3 bucket and credentials.** (p2) [chore] check the AWS plan (`aws freetier get-account-plan-state`;
+      the free plan's S3 tier is 5 GB), a private versioned bucket in the selected Region, an IAM policy
+      scoped to it, a `musicman-sync` profile on both hosts.
+- [ ] **`sync --hosts`: pull, apply, push.** (p2) [feature] the `log/<host>/` batches and `hosts/<host>.json`
+      position (doc "S3 layout"), applying entries through the edit path as a `sync --hosts` run, conflicts as
+      in the doc (newest wins per field, multi value adds and removes merge, pending entries for unknown
+      songs), `--status`, `--dry-run`, `--init`; the `hostSync` config block.
+- [ ] **Imports travel through S3.** (p2) [feature] import uploads each new song's audio as
+      `audio/<hash>.mp3` and writes an `add` entry; applying one downloads and imports it like `sync --import`.
+      `hostSync.audio: lan` instead leaves it to `--fetch <host>` over the LAN.
+- [ ] **`sync --push` pulls first.** (p2) [feature] with `hostSync` set, a Spotify push runs a host pull
+      first and refuses when it fails (`--force`), so a host never pushes playlists without the other's ratings.
+- [ ] **Daemon runs host sync.** (p3) [feature] the notify daemon runs `sync --hosts` at start and every
+      `hostSync.interval`, and `musicman db` shows unpushed entries and the last pull.
+- [ ] **Set up minerva.** (p2) [chore] rsync the library over the LAN, copy charon's database once on the same
+      build (matches and history come along), `sync --hosts --init` on both; then rate a song on each and
+      check both hosts end up with both ratings.
 
 ## Completed
 

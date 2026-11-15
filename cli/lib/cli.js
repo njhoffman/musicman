@@ -16,6 +16,7 @@ const { archives, finishRun, runsDirectory, startRun } = require('./utils/runs.j
 const { beginJournal, endJournal } = require('./history/journal.js');
 const { autoBackup } = require('./db/index.js');
 const { publishPaths } = require('./utils/paths.js');
+const { smartFile } = require('./smart/presets.js');
 const { version } = require('../../package.json');
 
 const pe = new PrettyError();
@@ -48,6 +49,7 @@ const run = async givenArgs => {
           tags: config.library.tags,
           db: config.db.path,
           runsDirectory: runsDirectory(config),
+          smartFile: smartFile(),
           ratingMax: config.rating.max
         };
       }

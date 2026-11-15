@@ -2,6 +2,7 @@ const _ = require('lodash');
 const os = require('os');
 
 const { getMeta, setMeta } = require('../db/database.js');
+const { publishBack } = require('./backFile.js');
 const {
   backKey,
   orderKey,
@@ -21,6 +22,18 @@ const {
  */
 
 const playingStates = ['playing', 'paused'];
+
+// stores the back point (null forgets it) and publishes it for other programs (backFile.js)
+const storeBack = (db, point, env = process.env) => {
+  setMeta(db, backKey, point);
+  publishBack(point, env);
+};
+
+// the back point stored, or null
+const readBack = db => getMeta(db, backKey);
+
+// forgets the back point: a new main list (player play --main)
+const forgetBack = (db, env = process.env) => storeBack(db, null, env);
 
 // what identifies the song a player plays among the ids of a side trip
 const songId = (source, track) => (source === 'mpd' ? track.file : track.trackId) || null;
@@ -143,7 +156,7 @@ const captureBack = async ({ db, player, status, client }) => {
  * After the side trip started: stores the captured point (or keeps the saved one) with the songs the
  * side trip plays; a kept point adds them to its side trip. Returns the point stored, or null.
  */
-const commitBack = (db, captured, side) => {
+const commitBack = (db, captured, side, env = process.env) => {
   const point = captured && captured.point ? captured.point : getMeta(db, backKey);
   if (!point) {
     return null;
@@ -154,7 +167,7 @@ const commitBack = (db, captured, side) => {
     ...point,
     side: { source: side.source, ids: _.uniq([...(sameSide ? point.side.ids : []), ...side.ids]) }
   };
-  setMeta(db, backKey, stored);
+  storeBack(db, stored, env);
   return stored;
 };
 
@@ -163,7 +176,7 @@ const commitBack = (db, captured, side) => {
  * context or list, track, progress, shuffle, and repeat. Throws when there is none. Resolves to
  * { source, track, ... } with what the restore reports. Dependencies: mpd (mpdPlayer), client().
  */
-const goBack = async ({ db, mpd, client, hostname }) => {
+const goBack = async ({ db, mpd, client, hostname, env = process.env }) => {
   const point = getMeta(db, backKey);
   if (!point) {
     throw new Error(
@@ -183,12 +196,15 @@ const goBack = async ({ db, mpd, client, hostname }) => {
       setMeta(db, startedKey, null);
     }
   }
-  setMeta(db, backKey, null);
+  storeBack(db, null, env);
   return { source: point.source, track: point.track, ...restored };
 };
 
 module.exports = {
   backKey,
+  forgetBack,
+  readBack,
+  storeBack,
   captureBack,
   captureSpotify,
   commitBack,

@@ -6,6 +6,23 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- Smart playlists: `musicman smart` keeps named search terms in `~/.config/musicman/smart.yml` and lists
+  them with song counts, shows their songs, saves and removes them, and plays one (`smart NAME
+  [--shuffle] [--main]`). `--format tsv|json` for other programs; zsh completes the names.
+- `player play --main` plays songs as a new main list (no back point), and `--shuffle` (play and add)
+  plays them in random order on MPD and Spotify.
+- `player play --files -` and `add --files -` play the paths on stdin on MPD, in order, leaving out the
+  ones that are not there.
+- `player back --peek [--format json]` prints the back point without going back; it is also published
+  to `$XDG_RUNTIME_DIR/musicman/back` while there is one (`--peek --path` prints the path).
+
+### Changed
+
+- The test suite writes runtime files (now-playing, the back point) to a temporary directory, never the
+  session's `$XDG_RUNTIME_DIR`.
+
 ## [1.85.0] - 2026-11-14
 
 ### Added
