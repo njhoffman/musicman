@@ -1,6 +1,8 @@
 const { expect } = require('chai');
 
 const { describeState, parseArgs, parseSeek, parseVolume, run } = require('./player.js');
+const { getMeta, openDatabase, setMeta } = require('../db/database.js');
+const { backKey } = require('../player/back.js');
 
 describe('Player command', () => {
   const config = { mpd: { baseDirectory: '/music' } };
@@ -260,6 +262,91 @@ describe('Player command', () => {
         source: 'spotify',
         tracks: [{ title: 'Up', artist: 'X, Y', duration: 125 }]
       });
+    });
+  });
+
+  describe('back', () => {
+    let db;
+    beforeEach(() => {
+      db = openDatabase(':memory:');
+    });
+    afterEach(() => db.close());
+    // the in-memory database, kept open when the command closes it
+    const openDb = () => ({ prepare: sql => db.prepare(sql), close: () => {} });
+    const snapshot = { files: ['main.mp3'], position: 0, elapsed: 61, modes: { random: '1' } };
+    const mpdWith = (state, file, extra = {}) => {
+      const player = fakePlayer('mpd', state, {
+        track: { ...track, file: `/music/${file}` }
+      });
+      player.snapshot = async () => snapshot;
+      player.restore = async point => {
+        player.calls.push(['restore', point]);
+        return { count: point.files.length, skipped: 0, position: point.position };
+      };
+      return Object.assign(player, extra);
+    };
+
+    it('should remember the MPD queue before play replaces it, and go back to it', async () => {
+      const mpd = mpdWith('playing', 'main.mp3');
+      await runWith(['play', 'artist:Radiohead'], [mpd], { openDb });
+      expect(getMeta(db, backKey)).to.include({ source: 'mpd' });
+      expect(getMeta(db, backKey).side).to.deep.equal({
+        source: 'mpd',
+        ids: ['/music/a.mp3', '/music/b.mp3', '/music/c.mp3']
+      });
+      const { result } = await runWith(['back'], [mpd], { openDb });
+      expect(mpd.calls).to.deep.include(['restore', snapshot]);
+      expect(result).to.include({ source: 'mpd', action: 'back' });
+      expect(result.result).to.include({ count: 1, position: 0 });
+      expect(getMeta(db, backKey)).to.equal(null);
+    });
+
+    it('should return to the main list after several side trips in a row', async () => {
+      await runWith(['play', 'artist:Radiohead'], [mpdWith('playing', 'main.mp3')], { openDb });
+      const onSide = mpdWith('playing', 'b.mp3', {
+        snapshot: async () => ({ files: ['a.mp3', 'b.mp3', 'c.mp3'], position: 1 })
+      });
+      await runWith(['play', 'artist:Portishead'], [onSide], { openDb });
+      expect(getMeta(db, backKey).mpd).to.deep.equal(snapshot);
+    });
+
+    it('should not remember anything for add, or when the songs fail to play', async () => {
+      await runWith(['add', 'artist:Radiohead'], [mpdWith('playing', 'main.mp3')], { openDb });
+      await runWith(['play', 'none'], [mpdWith('playing', 'main.mp3')], { openDb }).catch(
+        () => null
+      );
+      expect(getMeta(db, backKey)).to.equal(null);
+    });
+
+    it('should play the side trip even when what played cannot be read', async () => {
+      const mpd = mpdWith('playing', 'main.mp3', {
+        snapshot: async () => {
+          throw new Error('MPD went away');
+        }
+      });
+      const { queued } = await runWith(['play', 'artist:Radiohead'], [mpd], { openDb });
+      expect(queued).to.have.length(1);
+      expect(getMeta(db, backKey)).to.equal(null);
+    });
+
+    it('should fail with nothing to go back to, and without a database', async () => {
+      await runWith(['back'], [mpdWith('playing', 'main.mp3')], { openDb }).then(
+        () => expect.fail('should reject'),
+        err => expect(err.message).to.match(/^Nothing to go back to/)
+      );
+      await runWith(['back'], [mpdWith('playing', 'main.mp3')]).then(
+        () => expect.fail('should reject'),
+        err => expect(err.message).to.match(/^No library database/)
+      );
+    });
+
+    it('should leave the back point alone without a database', async () => {
+      setMeta(db, backKey, null);
+      const { queued } = await runWith(
+        ['play', 'artist:Radiohead'],
+        [mpdWith('playing', 'main.mp3')]
+      );
+      expect(queued).to.have.length(1);
     });
   });
 });

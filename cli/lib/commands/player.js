@@ -1,10 +1,13 @@
 const _ = require('lodash');
+const fs = require('fs');
 const path = require('path');
 
 const { reportErrors } = require('./common.js');
 const { findSongs } = require('./search.js');
 const { playTracks } = require('./shuffle.js');
 const { queueSongs } = require('../clients/mpd.js');
+const { openLibrary } = require('../db/index.js');
+const { captureBack, commitBack, goBack } = require('../player/back.js');
 const { clock } = require('../menu/menu.js');
 const {
   choosePlayer,
@@ -22,7 +25,8 @@ const usage = [
   '  status (default) | toggle | play | pause | stop | next | prev',
   '  seek -30 | +30 | 90 | 1:30     vol -5 | +5 | 40',
   '  shuffle on|off|toggle          repeat off|playlist|track|next',
-  '  queue [count]                  play <terms>   add <terms>   (search terms: field:value, text)'
+  '  queue [count]                  play <terms>   add <terms>   (search terms: field:value, text)',
+  '  back                           return to what played before the last play <terms>'
 ].join('\n');
 
 const sources = ['mpd', 'spotify'];
@@ -80,6 +84,7 @@ const parseArgs = terms => {
     next: () => null,
     prev: () => null,
     play: () => null,
+    back: () => null,
     add: () => {
       if (args.length === 0) {
         throw new Error('add needs search terms, e.g. musicman player add context:Study');
@@ -184,7 +189,17 @@ const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
  * Plays (replace) or queues the songs of search terms: on MPD by their files, on Spotify by their
  * Spotify ids through the Web API (Premium and a Connect device; songs without an id are left out).
  */
-const loadSongs = async ({ player, terms, replace, config, client, find, queue, play }) => {
+const loadSongs = async ({
+  player,
+  terms,
+  replace,
+  config,
+  client,
+  find,
+  queue,
+  play,
+  onLoaded = () => {}
+}) => {
   const songs = await songsFor(terms, config, find);
   if (player.source === 'mpd') {
     const baseDirectory = path.resolve(config.mpd.baseDirectory);
@@ -193,6 +208,7 @@ const loadSongs = async ({ player, terms, replace, config, client, find, queue, 
       _.map(songs, ([file]) => path.relative(baseDirectory, file)),
       { replace }
     );
+    onLoaded(_.map(songs, ([file]) => file));
     logger.info(`${replace ? 'Playing' : 'Added'} ${plural(count, 'song')} in MPD`);
     return { source: 'mpd', count };
   }
@@ -203,6 +219,7 @@ const loadSongs = async ({ player, terms, replace, config, client, find, queue, 
   const skipped = missing ? ` (${plural(missing, 'song')} without a Spotify id left out)` : '';
   if (replace) {
     const { device, count } = await play(client(), ids);
+    onLoaded(ids.slice(0, count));
     logger.info(`Playing ${plural(count, 'song')} on ${device}${skipped}`);
     return { source: 'spotify', count, device };
   }
@@ -252,13 +269,73 @@ const listQueue = async ({ player, count, client }) => {
   return { source: 'spotify', tracks };
 };
 
+// the library database for the back point, or null without one (tests, a first run)
+const openBackDb = config => () =>
+  config.db && config.db.path && fs.existsSync(config.db.path) ? openLibrary(config) : null;
+
+/**
+ * Plays search results as a side trip: what the player played before is remembered first (see
+ * lib/player/back.js), and stored once the songs play, so player back returns there.
+ */
+const playSideTrip = async ({ player, status, openDb, client, load }) => {
+  const db = openDb();
+  try {
+    let captured = null;
+    if (db) {
+      try {
+        captured = await captureBack({ db, player, status, client });
+      } catch (err) {
+        logger.warn(
+          `Could not remember what was playing (${err.message}), player back will not return there`
+        );
+      }
+    }
+    let side = null;
+    const result = await load(ids => {
+      side = { source: player.source, ids };
+    });
+    if (db && side) {
+      commitBack(db, captured, side);
+    }
+    return result;
+  } finally {
+    if (db) {
+      db.close();
+    }
+  }
+};
+
+// player back: restores the back point, on the player it was saved from
+const returnBack = async ({ players, openDb, client, hostname }) => {
+  const db = openDb();
+  if (!db) {
+    throw new Error('No library database, player back has nothing to return to');
+  }
+  try {
+    const result = await goBack({
+      db,
+      mpd: _.find(players, { source: 'mpd' }),
+      client,
+      hostname
+    });
+    const where = result.source === 'mpd' ? 'MPD' : result.device;
+    const song = _.compact([result.track.artist, result.track.title]).join(' - ');
+    const skipped = result.skipped ? ` (${plural(result.skipped, 'missing song')} left out)` : '';
+    logger.info(`Back to ${song || 'the last playback'} on ${where}${skipped}`);
+    return result;
+  } finally {
+    db.close();
+  }
+};
+
 /**
  * player: controls whichever of MPD and the Spotify desktop app is active (or the one named first): play,
  * pause, skip, seek, volume, shuffle, repeat, the queue, and playing or queueing search results. Spotify
  * is controlled through MPRIS, except playing and queueing songs and listing its queue (Web API), and
  * Spotify playing on another device (a phone, a speaker) through the Web API player endpoints.
+ * play <terms> remembers what played before it, and back returns there (lib/player/back.js).
  * Dependencies (tests): players, client (lazy Spotify user client), find (findSongs), queue
- * (queueSongs), play (playTracks), settle.
+ * (queueSongs), play (playTracks), openDb (the library database or null), hostname, settle.
  */
 const playerCommand = async ({
   options = {},
@@ -269,9 +346,19 @@ const playerCommand = async ({
   find = findSongs,
   queue = queueSongs,
   play = playTracks,
+  openDb = openBackDb(config),
+  hostname,
   settle = settleMs
 }) => {
   const { source, action, args } = parseArgs(options.terms || []);
+  if (action === 'back') {
+    const result = await returnBack({ players, openDb, client, hostname });
+    await wait(settle);
+    const { player } = await pickPlayer(players, result.source);
+    const after = await player.state();
+    logger.info(describeState(player, after));
+    return { source: player.source, action, state: after.state, track: after.track, result };
+  }
   const loading = ['play', 'add'].includes(action) && args.length > 0;
   // playing search results with no player named or active goes to MPD
   const { player, status } = await pickPlayer(
@@ -280,18 +367,23 @@ const playerCommand = async ({
   );
   let result = null;
   if (loading) {
-    result = await loadSongs({
-      player,
-      terms: args,
-      replace: action === 'play',
-      config,
-      client,
-      find,
-      queue,
-      play
-    });
+    const load = onLoaded =>
+      loadSongs({
+        player,
+        terms: args,
+        replace: action === 'play',
+        config,
+        client,
+        find,
+        queue,
+        play,
+        onLoaded
+      });
     if (action === 'play') {
+      result = await playSideTrip({ player, status, openDb, client, load });
       await wait(settle);
+    } else {
+      result = await load();
     }
   } else if (action === 'queue') {
     return listQueue({ player, count: Number(args[0]) || defaultQueueCount, client });
@@ -324,7 +416,7 @@ module.exports = {
   // field:value with an unknown field is free text here, not a filter mistake
   ownTerms: true,
   description:
-    'Control MPD or the Spotify desktop app: play, pause, skip, seek, volume, queue, play search results',
+    'Control MPD or the Spotify desktop app: play, pause, skip, seek, volume, queue, play search results and go back',
   usage,
   switches: [],
   completes: ['filters'],

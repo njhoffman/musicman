@@ -124,6 +124,91 @@ describe('Menu players', () => {
       expect(off.repeat).to.equal('off');
     });
 
+    it('should snapshot the queue, the song, its time, and the modes', async () => {
+      const { connect } = fakeConnect({
+        status:
+          'state: play\nsong: 1\nelapsed: 42.5\nrandom: 0\nrepeat: 1\nsingle: oneshot\nconsume: 0\n',
+        playlistinfo: 'file: a.mp3\nPos: 0\nfile: b b.mp3\nPos: 1\n'
+      });
+      expect(await mpdPlayer(config, { connect }).snapshot()).to.deep.equal({
+        files: ['a.mp3', 'b b.mp3'],
+        position: 1,
+        elapsed: 42.5,
+        modes: { random: '0', repeat: '1', single: 'oneshot', consume: '0' }
+      });
+      const stopped = fakeConnect({ status: 'state: stop\n', playlistinfo: '' }).connect;
+      expect(await mpdPlayer(config, { connect: stopped }).snapshot()).to.deep.equal({
+        files: [],
+        position: null,
+        elapsed: 0,
+        modes: {}
+      });
+    });
+
+    describe('restore', () => {
+      // a connection running command lists, refusing add for missing files the way MPD does (ACK with
+      // the index of the failed command, the commands before it run)
+      const listConnect = (missing = []) => {
+        const lists = [];
+        const connect = async () => ({
+          socket: { destroy: () => {} },
+          sendCommand: (text, callback) => {
+            const commands = text.split('\n').slice(1, -1);
+            const index = commands.findIndex(line =>
+              missing.some(file => line === `add "${file}"`)
+            );
+            lists.push(index < 0 ? commands : commands.slice(0, index));
+            callback(index < 0 ? null : new Error(`[50@${index}] {add} No such directory`), '');
+          }
+        });
+        return { lists, connect };
+      };
+      const snapshot = {
+        files: ['a.mp3', 'b.mp3', 'c.mp3'],
+        position: 1,
+        elapsed: 42.5,
+        modes: { random: '0', repeat: '1', single: '0' }
+      };
+
+      it('should replace the queue, set the modes, and play the song from its time', async () => {
+        const { lists, connect } = listConnect();
+        expect(await mpdPlayer(config, { connect }).restore(snapshot)).to.deep.equal({
+          count: 3,
+          skipped: 0,
+          position: 1
+        });
+        expect(lists).to.deep.equal([
+          ['clear'],
+          ['add "a.mp3"', 'add "b.mp3"', 'add "c.mp3"'],
+          ['random "0"', 'repeat "1"', 'single "0"'],
+          ['seek "1" "42"']
+        ]);
+      });
+
+      it('should leave out files MPD no longer has, moving the song to its new place', async () => {
+        const { lists, connect } = listConnect(['a.mp3']);
+        const result = await mpdPlayer(config, { connect }).restore(snapshot);
+        expect(result).to.deep.equal({ count: 2, skipped: 1, position: 0 });
+        expect(lists[1]).to.deep.equal([]);
+        expect(lists[2]).to.deep.equal(['add "b.mp3"', 'add "c.mp3"']);
+        expect(lists[lists.length - 1]).to.deep.equal(['seek "0" "42"']);
+      });
+
+      it('should play the next song from its start when the song itself is gone', async () => {
+        const { lists, connect } = listConnect(['b.mp3']);
+        const result = await mpdPlayer(config, { connect }).restore(snapshot);
+        expect(result).to.deep.equal({ count: 2, skipped: 1, position: 1 });
+        expect(lists[lists.length - 1]).to.deep.equal(['play "1"']);
+      });
+
+      it('should play nothing when every file is gone', async () => {
+        const { lists, connect } = listConnect(['a.mp3', 'b.mp3', 'c.mp3']);
+        const result = await mpdPlayer(config, { connect }).restore({ ...snapshot, modes: {} });
+        expect(result).to.deep.equal({ count: 0, skipped: 3, position: null });
+        expect(lists.flat().filter(line => /^(play|seek)/.test(line))).to.be.empty;
+      });
+    });
+
     it('should set random and repeat, repeat track through single', async () => {
       const { sent, connect } = fakeConnect({ status: 'state: play\nrandom: 1\n' });
       const player = mpdPlayer(config, { connect });

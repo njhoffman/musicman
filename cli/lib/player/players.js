@@ -3,8 +3,13 @@ const os = require('os');
 const path = require('path');
 const { execFile } = require('child_process');
 
+const { cmd } = require('musicman-common/mpd/MpdClient.js');
 const { parseMpdReply } = require('musicman-common/mpd/utils.js');
 const { connectMpd } = require('../clients/mpd.js');
+
+// the playback modes an MPD snapshot keeps, and commands per command list when it is restored
+const mpdModes = ['random', 'repeat', 'single', 'consume'];
+const mpdCommandListSize = 500;
 
 // seconds seek moves and volume steps (percent), for both players
 const seekStep = 30;
@@ -155,6 +160,79 @@ const mpdPlayer = (config, { connect = connectMpd } = {}) => {
       }
       await send(`repeat ${settings[0]}`);
       return send(`single ${settings[1]}`);
+    },
+    /**
+     * The queue and where it plays, for restore: { files (relative to the music directory), position
+     * (0-based, null when stopped), elapsed (seconds), modes: { random, repeat, single, consume } } with
+     * MPD's own values ('0', '1', single also 'oneshot').
+     */
+    snapshot: async () => {
+      const status = await send('status');
+      const text = await mpdCommand(config.mpd, 'playlistinfo', connect, { raw: true });
+      const position = Number(status.song);
+      return {
+        files: _.map(parseMpdSongs(text), 'file'),
+        position: status.song === undefined || Number.isNaN(position) ? null : position,
+        elapsed: Number(status.elapsed) || 0,
+        modes: _.pickBy(_.pick(status, mpdModes), _.isString)
+      };
+    },
+    /**
+     * Replaces the queue with a snapshot's files, sets its modes back, and plays it from its song and
+     * time. Files MPD no longer knows (moved or deleted since) are left out; when the song itself is one
+     * of them, the song after it plays from the start. Resolves to { count, skipped, position }.
+     */
+    restore: async ({ files, position, elapsed, modes = {} }) => {
+      const client = await connect(config.mpd);
+      const list = commands =>
+        new Promise((resolve, reject) =>
+          client.sendCommand(
+            ['command_list_begin', ...commands.map(String), 'command_list_end'].join('\n'),
+            err => (err ? reject(err) : resolve())
+          )
+        );
+      try {
+        await list([cmd('clear', [])]);
+        // the files added, by their place in the snapshot; a failed add in a command list ends the
+        // list there (ACK [code@index]), so the rest is sent again without it
+        const added = [];
+        let start = 0;
+        while (start < files.length) {
+          const chunk = files.slice(start, start + mpdCommandListSize);
+          try {
+            await list(chunk.map(file => cmd('add', [file])));
+            chunk.forEach((file, i) => added.push(start + i));
+            start += chunk.length;
+          } catch (err) {
+            const failed = /\[\d+@(\d+)\]/.exec(err.message);
+            if (!failed) {
+              throw err;
+            }
+            const index = Number(failed[1]);
+            _.times(index, i => added.push(start + i));
+            start += index + 1;
+          }
+        }
+        const settings = _.map(_.pick(modes, mpdModes), (value, mode) => cmd(mode, [value]));
+        if (settings.length) {
+          await list(settings);
+        }
+        const at = _.isNil(position) ? 0 : position;
+        const newPosition = _.sortedIndex(added, at);
+        if (newPosition < added.length) {
+          const resumes = added[newPosition] === at && elapsed > 0;
+          await list([
+            resumes ? cmd('seek', [newPosition, Math.floor(elapsed)]) : cmd('play', [newPosition])
+          ]);
+        }
+        return {
+          count: added.length,
+          skipped: files.length - added.length,
+          position: newPosition < added.length ? newPosition : null
+        };
+      } finally {
+        client.socket.destroy();
+      }
     }
   };
   return player;

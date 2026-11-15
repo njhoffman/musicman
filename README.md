@@ -51,11 +51,37 @@ Spotify when both play, else a paused one, else a stopped MPD), or the one named
 | `shuffle on\|off\|toggle`, `repeat off\|playlist\|track\|next` | the player's modes (MPD: random, repeat, single) |
 | `queue [count]`                                 | the next tracks (10): MPD's queue, Spotify's (Web API)        |
 | `play <terms>`, `add <terms>`                   | play (replacing the queue) or queue the songs `search` finds  |
+| `back`                                          | return to what played before the last `play <terms>`          |
 
 `play` and `add` take `search` terms (`field:value`, `field value`, free text) and go to the active
 player, MPD when none is; on Spotify they use the songs' Spotify ids through the Web API (Premium and a
 Connect device), leaving out songs never matched to Spotify. Everything else controls Spotify through
 MPRIS, so only the desktop app on this machine.
+
+### Side trips: `player play` and `player back`
+
+`player play <terms>` remembers what the player played before it replaced it, and `player back` returns
+there:
+
+```sh
+musicman shuffle context:Study mood:Upbeat rating:4.5   # the main list
+musicman player play artist:Radiohead rating:4.5        # a side trip
+musicman player play artist:Portishead                  # another one; back still returns to the main list
+musicman player back                                    # the main list, at the song and time it left
+```
+
+- MPD gets its queue, random, repeat, single, and consume back, at the song and time it was at. Songs
+  whose files moved or went away since are left out, and when the song itself is one of them, the one
+  after it plays.
+- Spotify gets its playlist, album, artist, or Liked Songs back at the track and time (a local file
+  restarts its context from the top), with shuffle and repeat as they were. A `musicman shuffle` played
+  as a list returns as the shuffle playlist at its place in the order. Another list without a context
+  (an earlier `player play`) returns as the track and the next 20 or so Spotify queued.
+- A `play` while a side trip still plays keeps the point, so several side trips in a row return to
+  where the first one started. Once something else plays (you picked a playlist in the app), the next
+  `play` remembers that instead.
+- `musicman shuffle` starts a new main list and forgets the point; `player back` forgets it once it
+  returns. `player add` never touches it. The point lives in the library database (`player.back`).
 
 `musicman check` reports library problems without changing anything: database drift, unreadable files,
 frames a rewrite would lose, custom field names that differ by case or duplicate standard frames, leftover

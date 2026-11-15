@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- Side trips: `musicman player play <terms>` remembers what played before it, and `musicman player back`
+  returns there. MPD gets its queue, modes, song, and time back (songs whose files moved are left out);
+  Spotify its context (or the shuffle playlist for a `musicman shuffle` list) at the track and time,
+  with shuffle and repeat. Several side trips in a row return to where the first started;
+  `musicman shuffle` starts a new main list and forgets the point.
+
 ## [1.84.0] - 2026-11-14
 
 ### Added

@@ -135,6 +135,12 @@ describe('Shuffle Command', () => {
     expect(getMeta(db, shuffle.orderKey)).to.deep.equal(['b', 'c', 'd', 'e', 'a']);
   });
 
+  it('should clear the player back point, a shuffle being a new main list', async () => {
+    setMeta(db, shuffle.backKey, { source: 'mpd', mpd: { files: [] } });
+    await runShuffle(['liked'], { client: fakeClient(), player: fakePlayer() });
+    expect(getMeta(db, shuffle.backKey)).to.equal(null);
+  });
+
   it('should shuffle the last source again without one', async () => {
     setMeta(db, shuffle.lastSourceKey, { terms: ['liked'], name: 'Liked Songs' });
     const client = fakeClient();

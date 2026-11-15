@@ -26,6 +26,9 @@ const orderKey = 'shuffle.order';
 // the tracks of the order the last shuffle started as a list, when they were fewer than the order:
 // { playlistId, count, total, startedAt }, null otherwise; the notify daemon continues from there
 const startedKey = 'shuffle.started';
+// where musicman player back returns to (lib/player/back.js); a shuffle is a new main list, so it
+// clears it
+const backKey = 'player.back';
 
 const defaultPlaylistName = 'musicman shuffle';
 
@@ -231,6 +234,7 @@ const shuffleCommand = async ({
   setMeta(db, playlistIdKey, playlist.id);
   setMeta(db, lastSourceKey, { terms, name: source.name });
   setMeta(db, orderKey, order);
+  setMeta(db, backKey, null);
   logger.info(
     `Wrote ${order.length} tracks of ${source.name} in random order to '${playlistName}'`
   );
@@ -280,6 +284,7 @@ module.exports = {
   run: shuffleCommand,
   defaultTarget,
   targetArgs: false,
+  backKey,
   isFilterTerms,
   lastSource,
   lastSourceKey,

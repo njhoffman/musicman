@@ -269,6 +269,25 @@ Reviewed: 2026-11-03
 
 ## 9. Playback, menu, and shuffle (`docs/07-menu.md`, README "Spotify shuffle")
 
+- [x] **Side trips and `player back`.** (p2) [feature] `player play <terms>` remembers what played
+      (`cli/lib/player/back.js`, meta `player.back`), `player back` restores it: MPD queue, modes,
+      song and time; Spotify context or shuffle playlist at the track; chained side trips return to the main list.
+- [ ] **Menu key for `player back`.** (p2) [feature] the rofi menu has no way back from a side trip; add a
+      button (`b`, next to reshuffle in `cli/lib/menu/menu.js` modes), disabled without a back point.
+- [ ] **Return from a side trip when it ends.** (p3) [feature] `player back` is manual; the notify daemon
+      could restore the back point when the side trip's last song finishes (MPD stops at the end of the
+      queue, a Spotify list runs out), like `shuffleHandoff` continues a shuffle. Opt-in, `player.backWhenDone`.
+- [ ] **fzx: `player play --shuffle` and `--main`.** (p2) [feature] `player play` plays search results in
+      library order; `--shuffle` randomizes them (MPD and Spotify alike, without `musicman shuffle`, which is
+      Spotify only), and `--main` plays them as a new main list: no back point saved, the old one forgotten.
+      The fzx music:smart mode plays presets with both (`~/git/fzx/TODO.md`, "music: smart playlists").
+- [ ] **fzx: smart playlist presets (`musicman smart`).** (p2) [feature] named filter sets in
+      `~/.config/musicman/smart.yml` (name: terms), written by musicman and editable by hand: `smart --list`
+      (NAME TERMS SONGS SPOTIFY, `--format tsv|json`), `smart show NAME [--limit N]` (the songs),
+      `smart save NAME TERMS...` (validated as filters), `smart rm NAME`, and `smart NAME` plays it
+      (`player play` rules). zsh completion of the names; the rofi menu could list them too.
+- [ ] **fzx: `player back --peek`.** (p3) [feature] prints the back point (source, artist, title, saved at;
+      `--format json`) without restoring it, exit 1 when there is none, for the fzx header and status bars.
 - [x] **Now playing line for status bars.** (p2) [feature] the notify daemon publishes a Polybar line (player icon,
       Liked Songs heart, library star, time left) to `$XDG_RUNTIME_DIR/musicman/now-playing`
       (`cli/lib/notify/barPublisher.js`, `cli/lib/status/bar.js`); the `now-playing` Polybar module replaces the separate
