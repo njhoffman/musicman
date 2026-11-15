@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.86.1] - 2026-11-15
+
 ### Fixed
 
 - `musicman smart --format tsv` (and `smart show NAME --format tsv`) failed before smart ran ("Unknown
@@ -1592,7 +1594,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.86.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.86.1...HEAD
+[1.86.1]: https://github.com/njhoffman/musicman/compare/v1.86.0...v1.86.1
 [1.86.0]: https://github.com/njhoffman/musicman/compare/v1.85.0...v1.86.0
 [1.85.0]: https://github.com/njhoffman/musicman/compare/v1.82.0...v1.85.0
 [1.82.0]: https://github.com/njhoffman/musicman/compare/v1.81.0...v1.82.0
