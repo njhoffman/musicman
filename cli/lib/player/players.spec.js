@@ -359,8 +359,33 @@ describe('Menu players', () => {
       expect(state).to.include({ state: 'playing', mpris: 'spotifyd' });
       expect(state.track).to.include({ trackId: '7yLQM59wfhOlyzxxAU9hmd', title: 'High Times' });
       await player.next();
-      expect(calls[0].slice(0, 4)).to.deep.equal(['playerctl', '-a', '-p', 'spotify,spotifyd']);
+      expect(calls[0].slice(0, 4)).to.deep.equal([
+        'playerctl',
+        '-a',
+        '-p',
+        'soloist,spotify,spotifyd'
+      ]);
       expect(calls[1]).to.deep.equal(['playerctl', '-p', 'spotifyd', 'next']);
+    });
+
+    it('should read Soloist when it plays, though the desktop app reports playing too, and send commands to it', async () => {
+      const { calls, run } = fakeRun(
+        'spotify\tPlaying\thttps://open.spotify.com/track/65iXgVBjiF7oOORNWo0hRV\tA\tB\tC\t\t1000000\t0\t1.0\tfalse\tNone\n' +
+          'soloist\tPlaying\thttps://open.spotify.com/track/5267gVdYWrLoz6ClOhlqmE\tBlue Monday\tOrgy\tCandyass\t' +
+          'https://i.scdn.co/image/ab67616d0000b273e7692be3f17e50f0c5f49116\t267000000\t158354116\t1.0\tfalse\tNone\n'
+      );
+      const player = spotifyPlayer({ run });
+      const state = await player.state();
+      expect(state).to.include({ state: 'playing', mpris: 'soloist', volume: 100 });
+      expect(state.track).to.include({ trackId: '5267gVdYWrLoz6ClOhlqmE', title: 'Blue Monday' });
+      await player.toggle();
+      expect(calls[1]).to.deep.equal(['playerctl', '-p', 'soloist', 'play-pause']);
+    });
+
+    it('should send a command before any read to the desktop app', async () => {
+      const { calls, run } = fakeRun('');
+      await spotifyPlayer({ run }).next();
+      expect(calls[0]).to.deep.equal(['playerctl', '-p', 'spotify', 'next']);
     });
 
     it('should prefer a paused player to one with no track, and report null when none runs', async () => {

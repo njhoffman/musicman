@@ -229,7 +229,7 @@ const watchMpd = async (
 };
 
 /**
- * Calls onChange each time Spotify on this computer (the desktop app or spotifyd) reports new metadata or
+ * Calls onChange each time Spotify on this computer (the desktop app, Soloist or spotifyd) reports new metadata or
  * a play state (MPRIS PropertiesChanged, through playerctl -a --follow), after a short wait for the rest
  * of it. playerctl keeps running while they are closed and reopened; it is started again if it exits.
  * Returns stop().

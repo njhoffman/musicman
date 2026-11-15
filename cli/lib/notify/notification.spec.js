@@ -337,7 +337,7 @@ describe('Notify Daemon', () => {
         'playerctl',
         '-a',
         '-p',
-        'spotify,spotifyd',
+        'soloist,spotify,spotifyd',
         '--follow',
         'metadata',
         '--format',

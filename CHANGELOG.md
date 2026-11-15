@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- Spotify Soloist counts as Spotify on this computer: the player, the notifications and the bar
+  read and control the MPRIS player `soloist` (published by `~/.shell`'s `soloist-mpris` while
+  Soloist is the active Connect device) alongside the desktop app and spotifyd.
+
 ## [1.89.1] - 2026-11-15
 
 ### Changed

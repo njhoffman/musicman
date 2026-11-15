@@ -155,7 +155,7 @@ const createBarPublisher = ({
             remaining: current.duration ? current.duration - position : null
           }
         : null;
-    // line 1 is the player bars send clicks to: the MPRIS name (spotify, spotifyd) or the source (mpd)
+    // line 1 is the player bars send clicks to: the MPRIS name (spotify, soloist, spotifyd) or the source (mpd)
     const output = `${view ? view.mpris || view.source : ''}\n${renderBar(view, config)}`;
     if (output === published) {
       return;

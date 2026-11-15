@@ -288,9 +288,11 @@ const spotifyTrackId = text => {
   return match ? match[1] : null;
 };
 
-// the MPRIS names Spotify plays under on this computer: the desktop app, and spotifyd (a Spotify
-// Connect speaker, controlled from a phone or the web player)
-const spotifyMprisNames = ['spotify', 'spotifyd'];
+// the MPRIS names Spotify plays under on this computer, the first that plays winning: Spotify
+// Soloist (Spotify's own Connect receiver; ~/.shell's soloist-mpris publishes it only while it is the
+// active device, so it is the one making the sound, while the desktop app, a remote control then,
+// reports the same track as playing too), the desktop app, and spotifyd (librespot's receiver)
+const spotifyMprisNames = ['soloist', 'spotify', 'spotifyd'];
 
 // one row per Spotify player playerctl -a reports: its MPRIS name and its fields
 const parseSpotifyRows = output =>
@@ -300,14 +302,14 @@ const parseSpotifyRows = output =>
   });
 
 /**
- * Spotify on this computer through MPRIS (playerctl): the desktop app or spotifyd, whichever plays
+ * Spotify on this computer through MPRIS (playerctl): Soloist, the desktop app or spotifyd, whichever plays
  * (else the one paused, else the first running). state() resolves to { state, track, volume, mpris }
  * with the track's Spotify id and cover URL and the MPRIS name of the player read, or to
- * { state: null } when neither runs. Commands go to the player state() last read, the desktop app
- * before any.
+ * { state: null } when none runs. Commands go to the player state() last read, the desktop app
+ * before any (Soloist is on the bus only while it is active).
  */
 const spotifyPlayer = ({ run = runFile, names = spotifyMprisNames } = {}) => {
-  let target = names[0];
+  let target = names.includes('spotify') ? 'spotify' : names[0];
   const playerctl = (...args) => run('playerctl', ['-p', target, ...args]);
   return {
     source: 'spotify',
@@ -326,7 +328,8 @@ const spotifyPlayer = ({ run = runFile, names = spotifyMprisNames } = {}) => {
       } catch (err) {
         return { state: null, error: err.message };
       }
-      const rows = parseSpotifyRows(output);
+      // in the order of names, not playerctl's: the first of them that plays wins
+      const rows = _.sortBy(parseSpotifyRows(output), row => _.indexOf(names, row.mpris));
       const withStatus = status => _.find(rows, row => row.values.status === status);
       const row = withStatus('Playing') || withStatus('Paused') || rows[0];
       if (!row) {
