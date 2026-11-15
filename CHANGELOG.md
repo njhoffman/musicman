@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- `docs/09-contract.md` now pins what the fzx music module uses: the `smart --list` and `smart show` JSON
+  shapes, `smart save` and `rm`, and the `player play`, `add`, `--files -`, and `back --peek` commands.
+
 ## [1.86.1] - 2026-11-15
 
 ### Fixed

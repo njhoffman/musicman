@@ -36,7 +36,26 @@ no header, tabs and line breaks in values turned into spaces:
 - `musicman smart show NAME --format tsv [--limit N]`: ARTIST, TITLE, RATING (empty when unrated), FILE
   (relative to the MPD music directory), in library order.
 
-`--format json` prints the same as one JSON value. A name that is not there exits 1.
+`--format json` prints one JSON value; terms come as an array, ready to pass on as arguments:
+
+- `musicman smart --list --format json`: `[{ "name", "terms": [...], "text", "songs", "spotify" }]`, `text`
+  being the terms as one string (the tsv TERMS).
+- `musicman smart show NAME --format json [--limit N]`: `{ "name", "terms": [...], "songs", "spotify",
+  "tracks": [{ "artist", "title", "rating", "file" }] }`, `rating` a string, empty when unrated.
+
+A name that is not there exits 1. `musicman smart save NAME TERMS...` adds or replaces one, `musicman smart
+rm NAME...` removes them (each exits 1 for a bad name, an unknown field, or an unknown playlist).
+
+### musicman player
+
+Used by the fzx music module; the arguments and their meaning stay as they are:
+
+- `musicman player [mpd|spotify] play [--main] [--shuffle] TERMS...` and `player [mpd|spotify] add
+  [--shuffle] TERMS...`: search terms as `musicman search` takes them.
+- `musicman player mpd play --files -` and `player mpd add --files -`: paths under the MPD music
+  directory on stdin, one per line (`--main` and `--shuffle` apply).
+- `musicman player back`, `player back --peek [--format json]`, and `player back --peek --path` (prints
+  the path of [back](#back)).
 
 ### paths.json
 
