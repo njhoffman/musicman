@@ -180,6 +180,11 @@ Reviewed: 2026-11-03
       `musicman-analyze.timer` (`just install`, every 15 minutes): starts when the 15 minute load is under 1 and
       on AC power, 2 workers at idle priority, finishes the files in progress and stops on battery or when
       other processes keep the load up (`cli/lib/analyze/idle.js`); a lock keeps manual and background runs apart.
+- [ ] **Warn when `analyze.idle.busyLoad` is not above `load`.** (p3) [bug] a background run starts while
+      the 15 minute load is under `load`, then stops once other processes keep the 1 minute load over
+      `busyLoad` for `busyMinutes`; with `busyLoad` at or below `load` (raising only `load`, as on charon
+      2026-11-15) a run can stop itself two minutes after it starts, every 15 minutes. `validateConfig`
+      (`common/config/validator.js`) should warn, or `idleSettings` raise `busyLoad` to `load + 1`.
 - [ ] **Suggest `mood` values from the Essentia moods.** (p3) [feature] once `analyze` has run, offer `mood` values
       for songs whose `es_mood_*` probabilities are high (e.g. relaxed above 0.8 and no mood yet), to accept in
       the page or a picker, never written on their own.
