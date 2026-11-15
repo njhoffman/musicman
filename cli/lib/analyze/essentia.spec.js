@@ -98,6 +98,29 @@ describe('Essentia analysis', () => {
     const one = runAnalysis({ files: ['x.mp3'], workers: 4, spawnProcess, onResult: () => {} });
     await one.done;
     expect(spawned).to.have.length(3);
+
+    // finish: the worker ends after the file it has, and active counts the workers still running; this
+    // worker answers on the next turn, as a real one does
+    const slowSpawn = () => {
+      const child = spawnProcess();
+      const { write } = child.stdout;
+      child.stdout.write = (...args) => setImmediate(() => write.apply(child.stdout, args));
+      return child;
+    };
+    const finished = [];
+    const run = runAnalysis({
+      files,
+      workers: 1,
+      spawnProcess: slowSpawn,
+      onResult: r => {
+        finished.push(r.file);
+        run.finish();
+      }
+    });
+    expect(run.active()).to.equal(1);
+    await run.done;
+    expect(finished).to.deep.equal(['1.mp3']);
+    expect(run.active()).to.equal(0);
   });
 
   describe('analyze', () => {
@@ -178,6 +201,121 @@ describe('Essentia analysis', () => {
         (await analyze({ options: { switches: { yes: true } }, config, run: fakeRun() })).analyze
       ).to.include({
         songs: 0
+      });
+    });
+
+    describe('--idle', () => {
+      // a run whose files arrive when told: release() reports them all, finish is recorded
+      const heldRun = () => {
+        const calls = { finish: 0, workers: null };
+        let release;
+        const run = ({ files, workers, onResult }) => {
+          calls.workers = workers;
+          return {
+            done: new Promise(resolve => {
+              release = () => {
+                files.forEach(file => onResult(result(file)));
+                resolve();
+              };
+            }),
+            finish: () => {
+              calls.finish += 1;
+            },
+            active: () => workers
+          };
+        };
+        return { run, calls, release: () => release() };
+      };
+      const ready = () => ({ ready: true, reason: '2 songs to analyse' });
+      const lock = () => () => {};
+
+      it('should do nothing when not idle, and say why', async () => {
+        const res = await analyze({
+          options: { switches: { idle: true } },
+          config,
+          check: () => ({ ready: false, reason: 'on battery' }),
+          run: () => expect.fail('should not analyse'),
+          lock: () => expect.fail('should not take the lock')
+        });
+        expect(res.analyze).to.deep.equal({ songs: 0, written: 0, idle: 'on battery' });
+      });
+
+      it('should analyse with analyze.idle.workers without asking, and finish when the watch stops it', async () => {
+        const held = heldRun();
+        let stop;
+        let unwatched = false;
+        const pending = analyze({
+          options: { switches: { idle: true } },
+          config: { ...config, analyze: { workers: 4, idle: { workers: 1 } } },
+          check: ready,
+          lock,
+          run: held.run,
+          confirm: () => expect.fail('should not ask'),
+          watch: ({ stop: stopRun, workers }) => {
+            expect(workers()).to.equal(1);
+            stop = stopRun;
+            return () => {
+              unwatched = true;
+            };
+          }
+        });
+        await new Promise(resolve => setImmediate(resolve));
+        stop('on battery');
+        expect(held.calls).to.deep.equal({ finish: 1, workers: 1 });
+        held.release();
+        const res = await pending;
+        expect(res.analyze).to.include({ songs: 2, written: 2, stopped: 'on battery' });
+        expect(unwatched).to.equal(true);
+      });
+
+      it('should leave a held lock alone in the background and refuse a manual run', async () => {
+        const held = () => {
+          const err = new Error('another musicman analyze is running (pid 7)');
+          err.holder = 7;
+          throw err;
+        };
+        const res = await analyze({
+          options: { switches: { idle: true } },
+          config,
+          check: ready,
+          lock: held
+        });
+        expect(res.analyze.idle).to.equal('another musicman analyze is running (pid 7)');
+        await analyze({ options: { switches: { yes: true } }, config, lock: held }).then(
+          () => expect.fail('should reject'),
+          err =>
+            expect(err.message).to.equal(
+              'another musicman analyze is running (pid 7), the background one stops with: systemctl --user stop musicman-analyze'
+            )
+        );
+        await analyze({ options: { switches: { idle: true, limit: '3' } }, config }).then(
+          () => expect.fail('should reject'),
+          err => expect(err.message).to.match(/--idle takes no other switches/)
+        );
+      });
+
+      it('should release the lock after a run, and archive only a run that will analyse', async () => {
+        let released = 0;
+        await analyze({
+          options: { switches: { yes: true } },
+          config,
+          run: fakeRun(),
+          lock: () => () => {
+            released += 1;
+          }
+        });
+        expect(released).to.equal(1);
+        const command = require('../commands/analyze.js');
+        const quiet = { one: 0, five: 0, fifteen: 0.2 };
+        const deps = { load: () => quiet, battery: () => false, holder: () => null };
+        // every song was analysed above
+        expect(command.idleCheck(config, deps)).to.deep.equal({
+          ready: false,
+          reason: 'every song is analysed'
+        });
+        expect(command.idleCheck(config, { ...deps, battery: () => true }).ready).to.equal(false);
+        expect(command.archive({ dryRun: true }, config)).to.equal(false);
+        expect(command.archive({}, config)).to.equal(true);
       });
     });
 

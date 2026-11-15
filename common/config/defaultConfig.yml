@@ -196,6 +196,15 @@ features:
 # 90 seconds in the middle of each track) go to TXXX.es_<field>. Each worker is a process of its own
 analyze:
   workers: 4
+  # musicman analyze --idle, run by the musicman-analyze timer every 15 minutes (just install): it starts
+  # when the 15 minute load average is under load and the computer is on AC power, and finishes the files
+  # in progress and stops on battery, or once other processes keep the 1 minute load over busyLoad for
+  # busyMinutes
+  idle:
+    load: 1
+    busyLoad: 2
+    busyMinutes: 2
+    workers: 2
   fields:
   - tempo
   - key

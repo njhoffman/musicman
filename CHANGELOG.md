@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `musicman analyze --idle` and the `musicman-analyze.timer` (set up by `just install`): every 15 minutes it
+  analyses the songs left when the 15 minute load average is under 1 and the computer is on AC power, with
+  2 workers at idle CPU and IO priority, and finishes the files in progress and stops on battery or once
+  other processes keep the load up (`analyze.idle`). Runs that do not start are not archived. A lock keeps
+  a manual `analyze` and the background one from running at once.
+
 ## [1.86.2] - 2026-11-15
 
 ### Changed

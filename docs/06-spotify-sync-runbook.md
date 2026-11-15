@@ -141,6 +141,16 @@ musicman analyze --limit 20     # a trial on the first 20
 musicman analyze                # all songs not analysed yet; ctrl-c stops, the next run goes on
 ```
 
+Or let it run on its own: `just install` sets up the `musicman-analyze.timer`, which runs `musicman analyze
+--idle` every 15 minutes. That starts only when the 15 minute load average is under 1 (`analyze.idle.load`)
+and the computer is on AC power, analyses with 2 workers (`analyze.idle.workers`) at idle CPU and IO
+priority, and once the computer goes on battery, or other processes keep the 1 minute load over 2
+(`busyLoad`, its own workers not counted) for 2 minutes (`busyMinutes`), finishes the files in progress and
+stops; the next idle stretch goes on from there. A run that does not start leaves nothing in `musicman logs`
+or undo, only a line in the journal (`journalctl --user -u musicman-analyze`). A manual `analyze` and the
+background one never run at once: the second refuses (`systemctl --user stop musicman-analyze` stops the
+background one), and the timer skips while a manual one runs.
+
 For the songs ReccoBeats does not know (or that have no Spotify id), and for moods, `analyze` analyses the
 library's own files with Essentia (`cli/scripts/essentia-analyze.py`, run through `uv`, which builds its
 environment on the first run; the models, about 21 MB, go to `~/.cache/musicman/essentia-models`).

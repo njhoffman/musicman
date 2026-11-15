@@ -81,6 +81,12 @@ module.exports = {
     alias: '-j',
     func: () => ({ main: true })
   },
+  idle: {
+    description:
+      'With analyze, the background run: only when the computer is idle and on AC power, stopping when busy',
+    alias: '-g',
+    func: () => ({ idle: true })
+  },
   peek: {
     description:
       'With player back, print the back point (player, artist, title, saved at) without going back',

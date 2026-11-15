@@ -9,6 +9,16 @@ const {
   runAnalysis,
   songsToAnalyze
 } = require('../analyze/essentia.js');
+const {
+  idleReady,
+  idleSettings,
+  loadAverages,
+  lockFile,
+  lockHolder,
+  onBattery,
+  takeLock,
+  watchIdle
+} = require('../analyze/idle.js');
 const { openLibrary, updateDatabase } = require('../db/index.js');
 const { readTagBuffer } = require('../metadata/tagBuffer.js');
 const { updateTags } = require('../metadata/write.js');
@@ -34,6 +44,38 @@ const currentKeyAndTempo = file => {
   }
 };
 
+/**
+ * Whether analyze --idle should work now (idleReady): the load, AC power, the lock, and songs left in
+ * the library database. Also decides whether the run is archived, so a timer run that does nothing
+ * leaves nothing in musicman logs and undo. Dependencies (tests): load, battery, holder, openDb.
+ */
+const idleCheck = (
+  config,
+  {
+    load = loadAverages,
+    battery = onBattery,
+    holder = () => lockHolder(lockFile()),
+    openDb = () => (fs.existsSync(_.get(config, 'db.path') || '') ? openLibrary(config) : null)
+  } = {}
+) =>
+  idleReady({
+    settings: idleSettings(config),
+    load: load(),
+    battery: battery(),
+    holder: holder(),
+    left: () => {
+      const db = openDb();
+      if (!db) {
+        return 0;
+      }
+      try {
+        return songsToAnalyze(db).length;
+      } finally {
+        db.close();
+      }
+    }
+  });
+
 const hours = seconds =>
   seconds >= 3600 ? `${(seconds / 3600).toFixed(1)} hours` : `${Math.ceil(seconds / 60)} minutes`;
 
@@ -42,7 +84,12 @@ const hours = seconds =>
  * not analysed yet (--refresh: all, --limit N: the first N), after a confirmation (--yes: without).
  * Each file's tags are written as its analysis arrives, so a run stopped with ctrl-c goes on from there
  * next time. Recorded for musicman undo; the database is updated every 25 files and at the end.
- * Dependencies (tests): confirm, run (runAnalysis), openDb, currentTags.
+ * --idle is the background run (the musicman-analyze timer): it starts only when idleCheck says so, with
+ * analyze.idle.workers and no question, and finishes the files in progress and stops once the computer
+ * goes on battery or other processes keep it busy (watchIdle). Manual and background runs hold one lock,
+ * so they never analyse at the same time.
+ * Dependencies (tests): confirm, run (runAnalysis), openDb, currentTags, check (idleCheck), lock
+ * (takeLock), watch (watchIdle).
  */
 const analyzeCommand = async ({
   options = {},
@@ -50,11 +97,69 @@ const analyzeCommand = async ({
   confirm = confirmPrompt,
   run = runAnalysis,
   openDb = () => openLibrary(config),
-  currentTags = currentKeyAndTempo
+  currentTags = currentKeyAndTempo,
+  check = () => idleCheck(config),
+  lock = () => takeLock(lockFile()),
+  watch = watchIdle
 }) => {
   const switches = _.get(options, 'switches', {});
+  const idle = Boolean(switches.idle);
+  if (idle && (switches.refresh || switches.limit || switches.dryRun)) {
+    throw new Error(
+      'analyze --idle takes no other switches: it analyses the songs left, in the background'
+    );
+  }
+  if (idle) {
+    const { ready, reason } = check();
+    if (!ready) {
+      logger.info(`Not analysing now: ${reason}`);
+      return { analyze: { songs: 0, written: 0, idle: reason } };
+    }
+  }
+  let release;
+  try {
+    release = lock();
+  } catch (err) {
+    if (idle) {
+      logger.info(`Not analysing now: ${err.message}`);
+      return { analyze: { songs: 0, written: 0, idle: err.message } };
+    }
+    throw new Error(
+      err.holder
+        ? `${err.message}, the background one stops with: systemctl --user stop musicman-analyze`
+        : err.message,
+      { cause: err }
+    );
+  }
+  try {
+    return await analyzeSongs({
+      switches,
+      idle,
+      config,
+      confirm,
+      run,
+      openDb,
+      currentTags,
+      watch
+    });
+  } finally {
+    release();
+  }
+};
+
+const analyzeSongs = async ({
+  switches,
+  idle,
+  config,
+  confirm,
+  run,
+  openDb,
+  currentTags,
+  watch
+}) => {
   const fields = _.get(config, 'analyze.fields') || analysisFields;
-  const workers = _.get(config, 'analyze.workers') || defaultWorkers;
+  const settings = idleSettings(config);
+  const workers = idle ? settings.workers : _.get(config, 'analyze.workers') || defaultWorkers;
   const limit = switches.limit ? Number(switches.limit) : null;
   if (switches.limit && !(Number.isInteger(limit) && limit > 0)) {
     throw new Error(`--limit needs a positive number, got '${switches.limit}'`);
@@ -71,7 +176,7 @@ const analyzeCommand = async ({
       return { analyze: { songs: songs.length, written: 0, dryRun: Boolean(switches.dryRun) } };
     }
     const question = `Analyse ${songs.length} songs (about ${estimate}) and write ${fields.join(', ')}?`;
-    if (!switches.yes && !(await confirm(question))) {
+    if (!idle && !switches.yes && !(await confirm(question))) {
       logger.info('Analysis cancelled');
       return { analyze: { songs: songs.length, written: 0 } };
     }
@@ -89,7 +194,12 @@ const analyzeCommand = async ({
     };
     const startedAt = new Date();
     let done = 0;
-    const { done: finished } = run({
+    let stoppedBy = null;
+    const {
+      done: finished,
+      finish = _.noop,
+      active = () => workers
+    } = run({
       files: _.map(songs, songPath => path.join(baseDirectory, songPath)),
       workers,
       onLog: line => logger.logToFile('debug', `essentia: ${line}`),
@@ -123,15 +233,35 @@ const analyzeCommand = async ({
         logger.progress(progressBar({ done, total: songs.length, startedAt, label: 'Analysing' }));
       }
     });
+    const unwatch = idle
+      ? watch({
+          settings,
+          workers: active,
+          stop: reason => {
+            stoppedBy = reason;
+            logger.info(`Stopping once the files in progress are done: ${reason}`);
+            finish();
+          }
+        })
+      : _.noop;
     await finished;
+    unwatch();
     await flush();
     logger.progressDone();
     failed.forEach(({ file, error }) => logger.warn(`FAILED  ${file}: ${error}`));
     logger.info(
       `Analysed ${written.length} songs${failed.length ? `, ${failed.length} failed` : ''}` +
-        `${written.length + failed.length < songs.length ? `; ${songs.length - written.length - failed.length} left for the next run` : ''}`
+        `${written.length + failed.length < songs.length ? `; ${songs.length - written.length - failed.length} left for the next run` : ''}` +
+        `${stoppedBy ? ` (stopped: ${stoppedBy})` : ''}`
     );
-    return { analyze: { songs: songs.length, written: written.length, failed } };
+    return {
+      analyze: {
+        songs: songs.length,
+        written: written.length,
+        failed,
+        ...(stoppedBy ? { stopped: stoppedBy } : {})
+      }
+    };
   } finally {
     db.close();
   }
@@ -143,15 +273,19 @@ module.exports = {
   name: 'analyze',
   description:
     'Analyse the library files with Essentia: tempo and key where missing, danceability, and mood probabilities',
-  usage: 'musicman analyze [--refresh] [--limit N] [--dry-run] [--yes]',
-  switches: ['refresh', 'limit', 'dry-run', 'yes'],
+  usage: 'musicman analyze [--refresh] [--limit N] [--dry-run] [--yes] | --idle',
+  switches: ['refresh', 'limit', 'dry-run', 'yes', 'idle'],
   switchHelp: {
+    idle: 'The background run (musicman-analyze timer): only when idle on AC power, stopping when busy',
     refresh: 'Analyse every song again, not only the ones not analysed yet',
     'dry-run': 'Show how many songs would be analysed and the time estimate, without analysing',
     yes: 'Start without asking first'
   },
   func: analyzeCommand,
-  archive: ({ dryRun }) => !dryRun,
+  run: analyzeCommand,
+  // a background run that will not analyse anything (busy, on battery, nothing left) is not archived
+  archive: (switches, config) => (switches.idle ? idleCheck(config).ready : !switches.dryRun),
+  idleCheck,
   defaultTarget,
   targetArgs: false,
   terms: false

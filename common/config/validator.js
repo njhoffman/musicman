@@ -132,7 +132,17 @@ const configSchema = {
     type: 'object',
     properties: {
       fields: { type: 'array', required: false },
-      workers: { type: 'number', min: 1, required: false }
+      workers: { type: 'number', min: 1, required: false },
+      idle: {
+        type: 'object',
+        required: false,
+        properties: {
+          load: { type: 'number', min: 0, required: false },
+          busyLoad: { type: 'number', min: 0, required: false },
+          busyMinutes: { type: 'number', min: 0, required: false },
+          workers: { type: 'number', min: 1, required: false }
+        }
+      }
     }
   },
   features: {

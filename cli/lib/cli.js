@@ -94,7 +94,7 @@ const run = async givenArgs => {
     throw new Error('No target specified, see musicman --help');
   }
 
-  const run = archives(command, options.switches)
+  const run = archives(command, options.switches, config)
     ? startRun({ command: command.name, args, config })
     : null;
   // commands that change something back up the database first, once per db.backupInterval, and record

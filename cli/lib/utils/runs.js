@@ -31,8 +31,10 @@ const runFiles = (directory, id) => ({
 });
 
 // whether a command archives this run: commands set archive to true or to a function of the switches
-const archives = (command, switches = {}) =>
-  _.isFunction(command.archive) ? Boolean(command.archive(switches)) : Boolean(command.archive);
+const archives = (command, switches = {}, config = {}) =>
+  _.isFunction(command.archive)
+    ? Boolean(command.archive(switches, config))
+    : Boolean(command.archive);
 
 /**
  * Starts archiving a run: everything logged until finishRun is also written to <id>.log in the runs

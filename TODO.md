@@ -176,6 +176,10 @@ Reviewed: 2026-11-03
       Python 3.14, which Essentia does not support yet), and hours for a first pass. Done 2026-11-03:
       `musicman analyze` (Essentia has Python 3.14 wheels after all, run through `uv`): tempo and key where
       empty, `es_danceability` and five `es_mood_*` probabilities, resumable, about 7 to 9 hours for the library.
+- [x] **Analyse in the background while idle.** (p2) [feature] `musicman analyze --idle` and the
+      `musicman-analyze.timer` (`just install`, every 15 minutes): starts when the 15 minute load is under 1 and
+      on AC power, 2 workers at idle priority, finishes the files in progress and stops on battery or when
+      other processes keep the load up (`cli/lib/analyze/idle.js`); a lock keeps manual and background runs apart.
 - [ ] **Suggest `mood` values from the Essentia moods.** (p3) [feature] once `analyze` has run, offer `mood` values
       for songs whose `es_mood_*` probabilities are high (e.g. relaxed above 0.8 and no mood yet), to accept in
       the page or a picker, never written on their own.

@@ -68,7 +68,8 @@ const analysisWrites = (
 /**
  * Analyses files with workers processes of the script, each taking files from a shared queue as it
  * finishes one, and calls onResult(result) for each JSON line ({ file, ... } or { file, error }).
- * Resolves when every worker exits; stop() ends them (their files in progress are left for next time).
+ * Resolves when every worker exits; stop() ends them (their files in progress are left for next time),
+ * finish() lets each worker finish the file it has and then exit, and active() counts the workers left.
  * Dependencies: spawnProcess, command (uv run --script <script>).
  */
 const runAnalysis = ({
@@ -81,9 +82,11 @@ const runAnalysis = ({
 }) => {
   const queue = [...files];
   const children = [];
+  let running = 0;
   const done = _.times(Math.min(workers, queue.length), () => {
     const child = spawnProcess(command[0], command[1], { stdio: ['pipe', 'pipe', 'pipe'] });
     children.push(child);
+    running += 1;
     // one file at a time, the next once its result arrives, so a fast worker takes more of them
     const feed = () => {
       const file = queue.shift();
@@ -105,12 +108,24 @@ const runAnalysis = ({
     });
     readline.createInterface({ input: child.stderr }).on('line', line => onLog(line));
     feed();
+    // a worker that fails to start may report error without close, or both: counted down once
+    let ended = false;
+    const end = () => {
+      if (!ended) {
+        ended = true;
+        running -= 1;
+      }
+    };
     return new Promise(resolve => {
       child.on('error', err => {
         onLog(`analysis worker: ${err.message}`);
+        end();
         resolve();
       });
-      child.on('close', () => resolve());
+      child.on('close', () => {
+        end();
+        resolve();
+      });
     });
   });
   return {
@@ -118,7 +133,11 @@ const runAnalysis = ({
     stop: () => {
       queue.length = 0;
       children.forEach(child => child.kill('SIGTERM'));
-    }
+    },
+    finish: () => {
+      queue.length = 0;
+    },
+    active: () => running
   };
 };
 
