@@ -28,12 +28,12 @@ const formatUpdateCounts = ({ target, added, updated, moved, removed }) =>
 const formatDuration = seconds => `${Math.round(seconds / 60)} min`;
 
 // progress bar line for db --update
-const formatProgress = ({ done, total, added, updated, moved }, startedAt) =>
+const formatProgress = ({ phase, done, total, added, updated, moved }, startedAt) =>
   progressBar({
     done,
     total,
     startedAt,
-    label: 'Updating',
+    label: phase === 'hashing' ? 'Hashing audio' : 'Updating',
     unit: 'files',
     detail: chalk.hex('#888899')(`${added + updated + moved} entries updated`)
   });
@@ -48,6 +48,7 @@ const outputUpdateSummary = summary =>
       ['moved', `${summary.moved}`],
       ['removed', `${summary.removed}`],
       ['failed', `${summary.failed}`],
+      ...(summary.hashed ? [['hashed', `${summary.hashed} (audio hash, once per song)`]] : []),
       ['time', `${summary.seconds.toFixed(1)}s`]
     ])
   );

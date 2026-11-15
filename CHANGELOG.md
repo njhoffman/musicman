@@ -6,6 +6,16 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- An audio hash per song (`songs.audio_hash`, SHA-256 of the audio without its tags): `db --update`
+  stores it for the files it reads, fills it in once for the songs already there (about 100 MB/s, so a
+  few minutes for a large library on the first full update), and follows a moved file by it.
+- A change log (`changes` table): every change of a library field (by field: `rating 4.5`, `mood +Calm`)
+  and of a Spotify match decision, with the song's audio hash, this computer's name (`hostSync.name`,
+  default the hostname), and the run. It is kept apart from the undo history and never pruned; host sync
+  (docs/10-host-sync.md) will push and pull it.
+
 ## [1.87.0] - 2026-11-15
 
 ### Added

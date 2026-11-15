@@ -4,6 +4,13 @@ const NodeId3 = require('node-id3');
 
 const { openDatabase } = require('../db/database.js');
 const logger = require('../utils/logger.js');
+const {
+  fieldChanges,
+  libraryPath,
+  matchDecision,
+  recordChanges,
+  songIdentity
+} = require('./changes.js');
 
 // runs whose changes are kept for undo, older ones are removed when a run finishes
 const defaultKeep = 50;
@@ -27,17 +34,20 @@ const parseValue = text =>
 const hashValue = value =>
   value === undefined ? null : crypto.createHash('sha1').update(serialize(value)).digest('hex');
 
-/**
- * A file's node-id3 frames keyed the way changes are recorded: one key per frame id, and one per TXXX
- * description (TXXX.sp_track_id), since each description is a field of its own. {} when unreadable.
- */
-const frameMap = file => {
-  let raw;
+// a file's raw node-id3 tags, {} when unreadable
+const readRaw = file => {
   try {
-    raw = _.get(NodeId3.read(file), 'raw', {}) || {};
+    return _.get(NodeId3.read(file), 'raw', {}) || {};
   } catch {
     return {};
   }
+};
+
+/**
+ * Raw tags keyed the way changes are recorded: one key per frame id, and one per TXXX description
+ * (TXXX.sp_track_id), since each description is a field of its own.
+ */
+const framesOf = raw => {
   const frames = {};
   _.each(raw, (value, id) => {
     if (id === 'TXXX') {
@@ -50,6 +60,9 @@ const frameMap = file => {
   });
   return frames;
 };
+
+// a file's frames as framesOf keys them, {} when unreadable
+const frameMap = file => framesOf(readRaw(file));
 
 // frames whose value differs between two frame maps
 const changedFrames = (before, after) =>
@@ -73,7 +86,9 @@ const beginJournal = ({ run, config, db }) => {
     db: db || null,
     ownDb: !db,
     created: false,
-    keep: _.get(config, 'history.keep', defaultKeep)
+    keep: _.get(config, 'history.keep', defaultKeep),
+    // the change log needs the library fields; a journal without them (some tests) records no changes
+    config: _.get(config, 'library.tags') ? config : null
   };
   return active;
 };
@@ -119,11 +134,13 @@ const journaledWrite = (file, write) => {
   if (!active) {
     return write();
   }
-  const before = frameMap(file);
+  const beforeRaw = readRaw(file);
+  const before = framesOf(beforeRaw);
   const result = write();
+  const afterRaw = readRaw(file);
   // also after a write that failed part way, whatever did change is recorded
   safely(`tag changes of ${file}`, () => {
-    const after = frameMap(file);
+    const after = framesOf(afterRaw);
     const frames = changedFrames(before, after);
     if (frames.length === 0) {
       return;
@@ -142,6 +159,21 @@ const journaledWrite = (file, write) => {
       )
     );
   });
+  // the change log, by library field (lib/history/changes.js)
+  if (active.config) {
+    safely(`the change log of ${file}`, () => {
+      const entries = fieldChanges(beforeRaw, afterRaw, active.config);
+      if (entries.length > 0) {
+        const db = journalDb();
+        recordChanges(db, {
+          config: active.config,
+          song: songIdentity(db, { relativePath: libraryPath(active.config, file) }),
+          entries,
+          runId: active.id
+        });
+      }
+    });
+  }
   return result;
 };
 
@@ -213,6 +245,14 @@ const journaledMatch = (db, songId, change) => {
         'INSERT INTO match_changes (run_id, song_id, path, before, after_hash) VALUES (?, ?, ?, ?, ?)'
       )
       .run(active.id, songId, song ? song.path : null, serialize(before), hashValue(after));
+    if (active.config && matchDecision(before) !== matchDecision(after)) {
+      recordChanges(journalDb(), {
+        config: active.config,
+        song: songIdentity(db, { songId }),
+        entries: [{ kind: 'match', value: matchDecision(after), previous: matchDecision(before) }],
+        runId: active.id
+      });
+    }
   });
   return result;
 };

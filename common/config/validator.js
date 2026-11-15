@@ -128,6 +128,12 @@ const configSchema = {
       keepRemovedDays: { type: 'number', min: 0, required: false }
     }
   },
+  hostSync: {
+    type: 'object',
+    properties: {
+      name: { type: 'string', required: false }
+    }
+  },
   analyze: {
     type: 'object',
     properties: {

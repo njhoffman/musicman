@@ -189,6 +189,51 @@ describe('Database Update', () => {
       expect(await update()).to.include({ moved: 0, added: 2, removed: 2 });
     });
 
+    it('should store the audio hash, follow a move by it, and hash unchanged songs once', async () => {
+      await update();
+      const file = 'dir1/testFile02.mp3';
+      const { id, audio_hash: hash } = db
+        .prepare('SELECT id, audio_hash FROM songs WHERE path = ?')
+        .get(file);
+      expect(hash).to.match(/^[0-9a-f]{64}$/);
+      // new tags and a new name, the same audio: the same song, by its hash
+      NodeId3.update({ title: 'Renamed', artist: 'Someone Else' }, path.join(library, file));
+      fs.renameSync(path.join(library, file), path.join(library, 'elsewhere.mp3'));
+      expect(await update()).to.include({ moved: 1, added: 0, removed: 0 });
+      expect(
+        db.prepare('SELECT id, audio_hash FROM songs WHERE path = ?').get('elsewhere.mp3')
+      ).to.deep.equal({ id, audio_hash: hash });
+      // songs stored before the hash existed get one from a full update, once
+      db.prepare('UPDATE songs SET audio_hash = NULL').run();
+      const first = await update();
+      expect(first.hashed).to.equal(first.unchanged);
+      expect(
+        db.prepare('SELECT COUNT(*) AS n FROM songs WHERE audio_hash IS NULL').get().n
+      ).to.equal(0);
+      expect((await update()).hashed).to.equal(0);
+    });
+
+    it('should write a song whose audio cannot be hashed, keeping the hash it had', async () => {
+      await update();
+      const file = path.join(library, 'dir1/testFile02.mp3');
+      const before = db
+        .prepare("SELECT audio_hash FROM songs WHERE path = 'dir1/testFile02.mp3'")
+        .get();
+      NodeId3.update({ title: 'Changed' }, file);
+      const unhashed = [];
+      const summary = await update(library, {
+        hash: async () => {
+          throw new Error('EIO');
+        },
+        onFile: (action, name, detail) => action === 'unhashed' && unhashed.push([name, detail])
+      });
+      expect(summary).to.include({ updated: 1, failed: 0 });
+      expect(unhashed).to.deep.equal([['dir1/testFile02.mp3', 'EIO']]);
+      expect(
+        db.prepare("SELECT audio_hash FROM songs WHERE path = 'dir1/testFile02.mp3'").get()
+      ).to.deep.equal(before);
+    });
+
     it('should point the undo history of a moved file at its new path', async () => {
       const file = path.join(library, 'dir1/testFile02.mp3');
       const moved = path.join(library, 'moved.mp3');

@@ -10,6 +10,11 @@
 // 9: excluded_songs (duplicate copies kept on disk but out of the library and Spotify)
 // 10: spotify_track_files, a view other programs (sleeve) read: the library files tagged with a Spotify
 //     track id. A contract, see docs/09-contract.md: keep its columns when the tables change.
+// 11: songs.rated_at
+// 12: songs.audio_hash (SHA-256 of the audio without its tags, lib/metadata/audioHash.js): names a song
+//     across moves, tag writes, and computers (docs/10-host-sync.md); filled by db --update
+// 13: changes, the change log of library fields and match decisions (lib/history/changes.js), kept apart
+//     from the undo history so pruning it never loses what another computer has not pulled yet
 module.exports = [
   `
   CREATE TABLE songs (
@@ -165,5 +170,29 @@ module.exports = [
   // existing songs have none (unknown), the duplicates merge falls back to the file time for them
   `
   ALTER TABLE songs ADD COLUMN rated_at TEXT;
+  `,
+  `
+  ALTER TABLE songs ADD COLUMN audio_hash TEXT;
+  CREATE INDEX songs_audio_hash ON songs (audio_hash);
+  `,
+  `
+  CREATE TABLE changes (
+    id INTEGER PRIMARY KEY,
+    at TEXT NOT NULL,
+    host TEXT NOT NULL,
+    song_hash TEXT,
+    song_mbid TEXT,
+    song_spotify TEXT,
+    song_path TEXT,
+    kind TEXT NOT NULL,
+    field TEXT,
+    value TEXT,
+    previous TEXT,
+    run_id TEXT,
+    origin TEXT,
+    pushed_at TEXT
+  );
+  CREATE INDEX changes_song_hash ON changes (song_hash);
+  CREATE INDEX changes_unpushed ON changes (pushed_at) WHERE origin IS NULL;
   `
 ];

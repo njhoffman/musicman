@@ -5,6 +5,7 @@ const { mapLimit } = require('../utils/promise.js');
 const { escape, globSync } = require('glob');
 const { excludedPaths } = require('./exclusions.js');
 
+const { audioHash: hashAudio } = require('../metadata/audioHash.js');
 const { readMetadataFull, parseMetadata } = require('../metadata/read.js');
 const { isPopulated } = require('../metadata/tags.js');
 const { relinkHistory } = require('../history/relink.js');
@@ -85,7 +86,8 @@ const updateDatabase = async (
     record = true,
     onProgress = _.noop,
     onFile = _.noop,
-    concurrency = 5
+    concurrency = 5,
+    hash = hashAudio
   }
 ) => {
   const startedAt = Date.now();
@@ -118,7 +120,7 @@ const updateDatabase = async (
     }
   );
 
-  const selectSongs = 'SELECT id, path, mtime, size FROM songs';
+  const selectSongs = 'SELECT id, path, mtime, size, audio_hash FROM songs';
   let scopeRows;
   if (fileList) {
     const selectPath = db.prepare(`${selectSongs} WHERE path = ?`);
@@ -144,14 +146,19 @@ const updateDatabase = async (
 
   const statements = {
     insertSong: db.prepare(
-      'INSERT INTO songs (path, mb_track_id, mtime, size, duration, rating) VALUES (?, ?, ?, ?, ?, ?)'
+      `INSERT INTO songs (path, mb_track_id, mtime, size, duration, rating, audio_hash)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     ),
-    // rated_at: when the stored rating last changed (the CASE sees the row as it was before the update)
+    // rated_at: when the stored rating last changed (the CASE sees the row as it was before the update);
+    // a hash that could not be computed keeps the one stored
     updateSong: db.prepare(
       `UPDATE songs SET path = ?, mb_track_id = ?, mtime = ?, size = ?, duration = ?, rating = ?,
+       audio_hash = COALESCE(?, audio_hash),
        rated_at = CASE WHEN rating IS ? THEN rated_at ELSE datetime('now') END,
        updated_at = datetime('now') WHERE id = ?`
     ),
+    movedByHash: db.prepare('SELECT id, path FROM songs WHERE audio_hash = ?'),
+    setHash: db.prepare('UPDATE songs SET audio_hash = ? WHERE id = ?'),
     movedSongs: db.prepare('SELECT id, path FROM songs WHERE mb_track_id = ?'),
     // the fallbacks for songs without a MusicBrainz id: the Spotify id, else artist, title and length
     movedBySpotifyId: db.prepare(
@@ -175,9 +182,20 @@ const updateDatabase = async (
     updated: 0,
     moved: 0,
     removed: 0,
-    failed: 0
+    failed: 0,
+    hashed: 0
   };
   const relinked = new Set();
+
+  // the audio hash of a file, or null when it cannot be read (logged; the song is still written)
+  const hashOf = async file => {
+    try {
+      return await hash(file);
+    } catch (err) {
+      onFile('unhashed', path.relative(baseDirectory, file), err.message);
+      return null;
+    }
+  };
 
   // songs of rows whose stored file no longer exists (and that no file took over in this update)
   const gone = rows =>
@@ -190,11 +208,18 @@ const updateDatabase = async (
     );
 
   /**
-   * The song a new file is, moved from a path that no longer exists: by MusicBrainz track id, else (for
-   * songs without one) by Spotify track id, else by artist, title, and length within a second. The
-   * fallbacks count only one song: two copies of a song gone at once are left as removed and added.
+   * The song a new file is, moved from a path that no longer exists: by its audio hash (the same audio),
+   * else by MusicBrainz track id, else (for songs without one) by Spotify track id, else by artist,
+   * title, and length within a second. The hash and the fallbacks count only one song: two copies of a
+   * song gone at once (same audio, maybe other tags and history) are left as removed and added.
    */
-  const findMoved = (mbTrackId, rows, duration) => {
+  const findMoved = (mbTrackId, rows, duration, hash) => {
+    if (hash) {
+      const sameAudio = gone(statements.movedByHash.all(hash));
+      if (sameAudio.length > 0) {
+        return sameAudio.length === 1 ? sameAudio[0] : null;
+      }
+    }
     if (mbTrackId) {
       return _.first(gone(statements.movedSongs.all(mbTrackId))) || null;
     }
@@ -225,7 +250,7 @@ const updateDatabase = async (
     );
   };
 
-  const writeSong = ({ file, rawTags }) => {
+  const writeSong = ({ file, rawTags, hash }) => {
     const rows = frameRows(rawTags, multiFrames);
     const mbTrackId = _.get(
       _.find(rows, ([frameId]) => frameId === mbTrackIdFrame),
@@ -239,11 +264,12 @@ const updateDatabase = async (
       file.mtime,
       file.size,
       rawTags.duration || null,
-      rating ? Number(rating) : null
+      rating ? Number(rating) : null,
+      hash || null
     ];
 
     const existing = rowsByPath[file.path];
-    const moved = existing ? null : findMoved(mbTrackId, rows, rawTags.duration);
+    const moved = existing ? null : findMoved(mbTrackId, rows, rawTags.duration, hash);
     let songId;
     let action;
     if (existing) {
@@ -273,7 +299,8 @@ const updateDatabase = async (
   // raw tags for a file, or null when it cannot be read
   const readFile = async file => {
     try {
-      return { file, rawTags: await readMetadataFull(file.file) };
+      const [rawTags, audio] = await Promise.all([readMetadataFull(file.file), hashOf(file.file)]);
+      return { file, rawTags, hash: audio };
     } catch (err) {
       counts.failed += 1;
       onFile('failed', file.path, err.message);
@@ -300,6 +327,33 @@ const updateDatabase = async (
       onFile('removed', row.path);
     })
   );
+
+  // unchanged songs without an audio hash yet (from before songs.audio_hash): hashed once, by a full
+  // update of the library or a directory, not when only some files are given
+  if (!fileList) {
+    const unhashed = _.filter(unchanged, file => !rowsByPath[file.path].audio_hash);
+    let hashedDone = 0;
+    for (const batch of _.chunk(unhashed, batchSize)) {
+      const hashes = await mapLimit(
+        batch,
+        async file => {
+          const audio = await hashOf(file.file);
+          hashedDone += 1;
+          onProgress({ phase: 'hashing', done: hashedDone, total: unhashed.length, ...counts });
+          return audio;
+        },
+        concurrency
+      );
+      transaction(db, () =>
+        batch.forEach((file, i) => {
+          if (hashes[i]) {
+            statements.setHash.run(hashes[i], rowsByPath[file.path].id);
+            counts.hashed += 1;
+          }
+        })
+      );
+    }
+  }
 
   const summary = {
     ...counts,

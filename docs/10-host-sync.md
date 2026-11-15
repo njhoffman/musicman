@@ -1,6 +1,8 @@
 # Host sync
 
-Status: design, not built (TODO.md section 12). Written 2026-11-14.
+Status: written 2026-11-14; being built (TODO.md section 12). Built so far (2026-11-15): the audio hash
+(`songs.audio_hash`, step 1) and the change log (the `changes` table, step 2). Not yet: S3, push, pull,
+apply, imports through S3.
 
 Two computers keep a full copy of the library and both play, rate, tag, review matches, and import:
 **charon** (laptop, leaves the house) and **minerva** (desktop, stays home). Host sync keeps them the same.
@@ -47,7 +49,9 @@ unknown song in `sync --hosts --status`, and `--relink HASH FILE` points the old
 ## Change log entries
 
 One JSON object per change, written by the paths every change already goes through (the undo journal's
-`journaledWrite`, `journaledMatch`, `recordFileMove`, and import), so nothing new can skip it:
+`journaledWrite` and `journaledMatch`, `cli/lib/history/changes.js`; imports and removed duplicates come with
+step 5), so nothing new can skip it. Locally they are rows of the `changes` table, which is never pruned with
+the undo history; `origin` marks a row that applied another computer's entry, so it is not pushed back:
 
 ```json
 {
@@ -55,16 +59,19 @@ One JSON object per change, written by the paths every change already goes throu
   "host": "charon",
   "at": "2026-11-14T22:31:05.120Z",
   "song": { "hash": "9f2c...", "mbid": "…", "spotify": "4uLU6hMCjMI75M1A2tKUQC" },
-  "kind": "tag",
+  "kind": "set",
   "field": "rating",
   "value": "4.5",
   "previous": "4"
 }
 ```
 
-- `kind`: `tag` (a single value field, `value` and `previous`), `tag-add` / `tag-remove` (one value of a
-  multi value field: context, mood, picks), `match` (the song's `spotify_matches` row: status, track id,
-  reviewed, rejected ids), `add` (an imported song, with `object`, the S3 key of its audio), `delete`.
+- Entries name library fields, not ID3 frames (`rating`, not POPM with its email and play counter), so
+  applying one is a `musicman edit` assignment (`rating=4.5`, `mood=+Calm`, `mood=-Sad`).
+- `kind`: `set` (a single value field, `value` and `previous`, null for none), `add` / `remove` (one value
+  of a multi value field: context, mood, picks), `match` (the song's `spotify_matches` decision: status,
+  track id, source, reviewed, rejected ids, as JSON), `add-song` (an imported song, with `object`, the S3
+  key of its audio; step 5), `delete` (step 5).
 - `id`: the host and a counter of its own, so entries never collide and a host knows how far it read.
 - An undo is not special: it writes the entries that put the old values back.
 

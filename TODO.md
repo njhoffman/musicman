@@ -425,13 +425,15 @@ Reviewed: 2026-11-03
 
 Charon and minerva both keep the full library; a change log in S3 keeps them the same. In build order.
 
-- [ ] **Audio hash per song.** (p2) [feature] `songs.audio_hash` (migration), SHA-256 of the audio without
+- [x] **Audio hash per song.** (p2) [feature] `songs.audio_hash` (migration), SHA-256 of the audio without
       the ID3v2 and ID3v1 tags, filled by `db --update` for new and changed files; a hash index. The identity
       every entry uses (paths change on moves); also lets `check` find true duplicates.
-- [ ] **Change log written by every change.** (p2) [feature] a `changes` table (id, at, song hash and hints,
+- [x] **Change log written by every change.** (p2) [feature] a `changes` table (id, at, song hash and hints,
       kind, field, value, previous, pushed) filled from `journaledWrite`, `journaledMatch`, `recordFileMove`
       and import (`cli/lib/history/journal.js`), so nothing that edits can skip it; undo writes the entries
       that restore old values. Useful with one host too: a full history of every tag change.
+      Done 2026-11-15 for tag edits (by library field) and match decisions; imports and removed
+      duplicates are logged with "Imports travel through S3".
 - [ ] **S3 bucket and credentials.** (p2) [chore] check the AWS plan (`aws freetier get-account-plan-state`;
       the free plan's S3 tier is 5 GB), a private versioned bucket in the selected Region, an IAM policy
       scoped to it, a `musicman-sync` profile on both hosts.
