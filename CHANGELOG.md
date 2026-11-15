@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.89.0] - 2026-11-15
+
 ### Added
 
 - The rofi menu's `b` (back) button: `musicman player back`, back to what played before the last side
@@ -1634,7 +1636,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.88.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.89.0...HEAD
+[1.89.0]: https://github.com/njhoffman/musicman/compare/v1.88.0...v1.89.0
 [1.88.0]: https://github.com/njhoffman/musicman/compare/v1.87.0...v1.88.0
 [1.87.0]: https://github.com/njhoffman/musicman/compare/v1.86.2...v1.87.0
 [1.86.2]: https://github.com/njhoffman/musicman/compare/v1.86.1...v1.86.2
