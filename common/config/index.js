@@ -144,6 +144,11 @@ const buildConfig = ({
     beetsConfig: expandHome(_.get(config, 'sync.beetsConfig'))
   };
 
+  const defaultCover = expandHome(_.get(config, 'library.defaultCover'));
+  if (defaultCover) {
+    config.library.defaultCover = defaultCover;
+  }
+
   const logFileName = expandHome(_.get(config, 'logger.file.name'));
   if (logFileName) {
     config.logger.file.name = path.isAbsolute(logFileName) ? logFileName : libraryFile(logFileName);

@@ -6,6 +6,16 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- Singles get their real cover once they are identified: `sync --match` and accepting a review match
+  replace the default image (`library.defaultCover`, by default `~/.config/musicman/default-cover.jpg`) or
+  a missing cover with the Spotify album cover, never artwork the file came with. Rejecting a linked single
+  puts the default image back. `musicman check --fix` replaces the default image of singles matched
+  already and gives unmatched singles without a cover the default image.
+- `musicman status`, the song notifications and the rofi menu show the Spotify album of a single played
+  from MPD; its album tag keeps grouping singles by genre.
+
 ## [1.90.1] - 2026-11-21
 
 ### Fixed

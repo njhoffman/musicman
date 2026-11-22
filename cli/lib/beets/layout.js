@@ -1,4 +1,5 @@
 const _ = require('lodash');
+const fs = require('fs');
 
 // $album or ${album} as a template variable, not $albumartist or $albumtype
 const albumVariable = /\$(?:\{album\}|album(?![A-Za-z0-9_]))/;
@@ -59,4 +60,30 @@ const songLayout = (layouts, songPath) => {
   return best.album ? 'album' : 'single';
 };
 
-module.exports = { pathLayouts, songLayout, templatePattern };
+// the path rules of the beets config sync.beetsConfig, which tell songs organized in albums from singles
+// (none without a beets config); read again only when the file changes
+const layoutCache = new Map();
+const beetsLayouts = config => {
+  const file = _.get(config, 'sync.beetsConfig');
+  let mtime;
+  try {
+    mtime = file ? fs.statSync(file).mtimeMs : null;
+  } catch {
+    mtime = null;
+  }
+  const cached = layoutCache.get(file);
+  if (cached && cached.mtime === mtime) {
+    return cached.layouts;
+  }
+  // required here, spotify/beets.js opens the beets database
+  const { readBeetsConfig } = require('../spotify/beets.js');
+  const layouts = pathLayouts(_.get(readBeetsConfig(file), 'paths'));
+  layoutCache.set(file, { mtime, layouts });
+  return layouts;
+};
+
+// whether a song (path relative to the music directory) is a single by the layouts: a beets path rule
+// without $album files it
+const isSingle = (layouts, songPath) => songLayout(layouts, songPath) === 'single';
+
+module.exports = { beetsLayouts, isSingle, pathLayouts, songLayout, templatePattern };

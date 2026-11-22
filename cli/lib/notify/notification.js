@@ -8,6 +8,7 @@ const { coverFor } = require('../menu/cover.js');
 const { chipColors, defaultChip, tones } = require('../menu/menu.js');
 const { escapeMarkup } = require('../menu/rofi.js');
 const { libraryFileForPlaying } = require('../player/library.js');
+const { shownAlbum } = require('../status/album.js');
 const { spotifyMprisNames } = require('../player/players.js');
 const logger = require('../utils/logger.js');
 
@@ -107,7 +108,7 @@ const songNotice = async ({ player, track }, { config, openDb, readSong, cover =
     source: player.name,
     title: track.title,
     artist: track.artist,
-    album: track.album,
+    album: shownAlbum(config, { source: player.source, file, meta, album: track.album }),
     rating: meta && meta.rating ? meta.rating : null,
     inLibrary: Boolean(meta),
     meta,

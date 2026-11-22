@@ -27,6 +27,13 @@ const { getMeta, setMeta, transaction } = require('../db/database.js');
 const { updateDatabase } = require('../db/update.js');
 const { journaledMatch } = require('../history/journal.js');
 const { rewriteTags, updateTags } = require('../metadata/write.js');
+const {
+  coverDownloader,
+  coverState,
+  defaultCoverFrame,
+  embeddedCover,
+  replaceable
+} = require('../metadata/cover.js');
 const logger = require('../utils/logger.js');
 
 const spotifyIdFrame = `TXXX.${trackIdName}`;
@@ -147,9 +154,12 @@ const singleTracks = results => {
   return new Set(_.reject(_.map(outside, 'candidate.id'), id => albumIds.has(id)));
 };
 
-const writeFields = (file, { custom, filled, removed = [] }) => {
+const writeFields = (file, { custom, filled, removed = [], cover = null }) => {
   const userDefinedText = _.map(custom, ({ name, value }) => ({ description: name, value }));
-  const standard = _.fromPairs(_.map(filled, ({ frame, value }) => [frame, value]));
+  const standard = {
+    ..._.fromPairs(_.map(filled, ({ frame, value }) => [frame, value])),
+    ...(cover ? { APIC: cover } : {})
+  };
   if (removed.length === 0) {
     return updateTags({ userDefinedText, ...standard }, file);
   }
@@ -173,6 +183,29 @@ const tryWrite = (file, writes) => {
     logger.logToFile('error', `writing ${file}: ${err.stack}`);
     return `could not write tags: ${err.message}`;
   }
+};
+
+// the album cover URL of a matched track's details (the full album's, else the track's album)
+const albumImage = objects =>
+  _.get(objects, 'album.images[0].url') || _.get(objects, 'track.album.images[0].url') || null;
+
+/**
+ * The Spotify album covers to embed, by file, for matches of singles (songs not organized in albums)
+ * whose cover is missing or the default image (library.defaultCover); artwork a file came with is
+ * kept. results are [{ file, album, objects }]; download(url) resolves to an APIC frame or null.
+ */
+const spotifyCovers = async ({ config, results, download }) => {
+  const wanted = _.filter(
+    results,
+    ({ file, album, objects }) =>
+      !album && albumImage(objects) && replaceable(coverState(embeddedCover(file), config))
+  );
+  const covers = await mapLimit(
+    wanted,
+    async ({ file, objects }) => [file, await download(albumImage(objects))],
+    3
+  );
+  return new Map(_.filter(covers, ([, cover]) => cover));
 };
 
 // releaseRank of a compilation; matches on compilations or various artists releases are rechecked
@@ -270,6 +303,7 @@ const matchSongs = async ({
   );
   const recheckBefore = daysAgo(now, recheckDays);
   const refreshBefore = daysAgo(now, refreshDays);
+  const download = coverDownloader(imageFetch);
 
   const counts = {
     targets: 0,
@@ -446,6 +480,20 @@ const matchSongs = async ({
       }
     }
 
+    // singles still on the default image get their Spotify album cover with their fields
+    const covers = dryRun
+      ? new Map()
+      : await spotifyCovers({
+          config,
+          results: _.compact(
+            _.map(withFields, ({ item, candidate }) => {
+              const objects = details.get(candidate.id);
+              return objects && { file: item.file, album: item.album, objects };
+            })
+          ),
+          download
+        });
+
     const written = [];
     const chunkFound = [];
     _.each(looked, result => {
@@ -490,8 +538,13 @@ const matchSongs = async ({
       _.each(assignment.unassigned, fieldPath => {
         unassigned[fieldPath] = (unassigned[fieldPath] || 0) + 1;
       });
-      const writes = plannedWrites(db, config, item.songId, assignment);
-      const writeError = dryRun ? null : tryWrite(item.file, writes);
+      const writes = {
+        ...plannedWrites(db, config, item.songId, assignment),
+        cover: covers.has(item.file)
+      };
+      const writeError = dryRun
+        ? null
+        : tryWrite(item.file, { ...writes, cover: covers.get(item.file) || null });
       if (writeError) {
         finish('failed', item, { ...result, track: objects.track, error: writeError });
         return;
@@ -680,7 +733,15 @@ const markReviewed = (db, songId, status, trackId) =>
  * similarity written like a match (album fields only for songs in albums by layouts, like matchSongs).
  * Returns { accepted, failed } items.
  */
-const acceptReview = async ({ db, config, client, items, layouts = [], now = new Date() }) => {
+const acceptReview = async ({
+  db,
+  config,
+  client,
+  items,
+  layouts = [],
+  now = new Date(),
+  imageFetch = fetch
+}) => {
   const unlinked = _.map(_.reject(items, 'linked'), item => ({
     item: { album: inAlbum(layouts, item.path) },
     candidate: item.candidate
@@ -697,6 +758,16 @@ const acceptReview = async ({ db, config, client, items, layouts = [], now = new
       detailsError = err.message;
     }
   }
+  const covers = await spotifyCovers({
+    config,
+    results: _.compact(
+      _.map(_.reject(items, 'linked'), item => {
+        const objects = details.get(item.candidate.id);
+        return objects && { file: item.file, album: inAlbum(layouts, item.path), objects };
+      })
+    ),
+    download: coverDownloader(imageFetch)
+  });
   const failed = [];
   const written = [];
   items.forEach(item => {
@@ -715,7 +786,7 @@ const acceptReview = async ({ db, config, client, items, layouts = [], now = new
     } else {
       writes = idOnlyWrites(item.song, item.candidate);
     }
-    const error = tryWrite(item.file, writes);
+    const error = tryWrite(item.file, { ...writes, cover: covers.get(item.file) || null });
     if (error) {
       failed.push({ ...item, error });
       return;
@@ -745,9 +816,10 @@ const acceptReview = async ({ db, config, client, items, layouts = [], now = new
 /**
  * Rejects review items: the candidate is remembered as rejected for the song, so it is never matched
  * again and, when it was pushed, removed from Spotify by the next push; a linked song also loses its
- * Spotify id and fields. The songs are looked up again by the next sync --match.
+ * Spotify id and fields, and a linked single (layouts) its Spotify album cover, which the default
+ * image (library.defaultCover) replaces. The songs are looked up again by the next sync --match.
  */
-const rejectReview = async ({ db, config, items }) => {
+const rejectReview = async ({ db, config, items, layouts = [] }) => {
   const select = db.prepare('SELECT rejected FROM spotify_matches WHERE song_id = ?');
   const update = db.prepare(
     `UPDATE spotify_matches SET status = 'rejected', track_id = NULL, rejected = ?, reviewed_at = NULL
@@ -757,8 +829,13 @@ const rejectReview = async ({ db, config, items }) => {
   const written = [];
   items.forEach(item => {
     if (item.linked) {
+      const restore =
+        !inAlbum(layouts, item.path) && coverState(embeddedCover(item.file), config) === 'spotify'
+          ? defaultCoverFrame(config)
+          : null;
       const result = rewriteTags(item.file, raw => ({
         ...raw,
+        ...(restore ? { APIC: restore } : {}),
         TXXX: _.reject([].concat(raw.TXXX || []), ({ description }) => /^sp_/.test(description))
       }));
       if (result instanceof Error) {

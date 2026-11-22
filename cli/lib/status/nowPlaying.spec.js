@@ -105,6 +105,30 @@ describe('Now playing', () => {
     });
   });
 
+  it('should show the Spotify album of a single played from MPD', async () => {
+    const fs = require('fs');
+    const os = require('os');
+    const path = require('path');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-now-'));
+    try {
+      fs.writeFileSync(path.join(dir, 'beets.yaml'), 'paths:\n  default: Rated/$title\n');
+      const mpd = player('mpd', {
+        state: 'playing',
+        track: { file: '/music/Rated/a.mp3', title: 'A', artist: 'X', album: 'Handpicked Y' }
+      });
+      const status = await nowPlaying({
+        config: { ...config, sync: { beetsConfig: path.join(dir, 'beets.yaml') } },
+        players: [mpd],
+        db,
+        readSong: async () => ({ ...meta, sp_album: 'Real Album' })
+      });
+      expect(status.track.album).to.equal('Real Album');
+      expect(status.song).to.not.have.property('album');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('should link a Spotify track to its library song and ask for its context', async () => {
     const spotify = player('spotify', {
       state: 'paused',

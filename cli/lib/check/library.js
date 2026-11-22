@@ -1,6 +1,9 @@
 const _ = require('lodash');
+const path = require('path');
 
 const { nameKey } = require('../db/tags.js');
+const { beetsLayouts, isSingle } = require('../beets/layout.js');
+const { coverState, defaultCover, embeddedCover } = require('../metadata/cover.js');
 
 /**
  * Checks on the library database (song_tags holds every populated frame of every file, custom TXXX
@@ -410,28 +413,55 @@ const duplicates = ({ db, songs }) => {
 };
 
 /**
- * Songs without an embedded cover (no APIC frame), each with the Spotify album image check --fix embeds
- * (sp_album_image) when the song was matched on Spotify.
+ * Songs whose embedded cover check --fix can improve: songs without one (no APIC frame), each with the
+ * Spotify album image it embeds (sp_album_image) when the song was matched on Spotify, else for a
+ * single (sync.beetsConfig's path rules) the default image (library.defaultCover, cover: 'default');
+ * and singles matched on Spotify that still carry the default image, read from their files.
  */
-const artwork = ({ db }) =>
-  _.map(
-    db
-      .prepare(
-        `SELECT songs.path,
-           (SELECT value FROM song_tags i WHERE i.song_id = songs.id
-             AND i.frame_id = 'TXXX.sp_album_image' LIMIT 1) AS image,
-           (SELECT value FROM song_tags a WHERE a.song_id = songs.id
-             AND a.frame_id = 'TXXX.sp_album' LIMIT 1) AS album
-         FROM check_scope s JOIN songs ON songs.id = s.id
-         WHERE NOT EXISTS (SELECT 1 FROM song_tags t WHERE t.song_id = songs.id AND t.frame_id = 'APIC')
-         ORDER BY songs.path`
-      )
-      .all(),
-    ({ path: file, image, album }) =>
-      image
-        ? { file, detail: `no cover, Spotify has the ${album ? `"${album}" ` : ''}cover`, image }
-        : { file, detail: 'no cover, and no Spotify album image (not matched on Spotify)' }
+const artwork = ({ db, config }) => {
+  const layouts = beetsLayouts(config);
+  const baseDirectory = path.resolve(_.get(config, 'mpd.baseDirectory', '/'));
+  const withDefault = Boolean(defaultCover(config));
+  const spotifyCover = album => `Spotify has the ${album ? `"${album}" ` : ''}cover`;
+  const rows = db
+    .prepare(
+      `SELECT songs.path,
+         (SELECT value FROM song_tags i WHERE i.song_id = songs.id
+           AND i.frame_id = 'TXXX.sp_album_image' LIMIT 1) AS image,
+         (SELECT value FROM song_tags a WHERE a.song_id = songs.id
+           AND a.frame_id = 'TXXX.sp_album' LIMIT 1) AS album,
+         EXISTS (SELECT 1 FROM song_tags t WHERE t.song_id = songs.id AND t.frame_id = 'APIC') AS covered
+       FROM check_scope s JOIN songs ON songs.id = s.id
+       ORDER BY songs.path`
+    )
+    .all();
+  return _.compact(
+    _.map(rows, ({ path: file, image, album, covered }) => {
+      const single = isSingle(layouts, file);
+      if (!covered) {
+        if (image) {
+          return { file, detail: `no cover, ${spotifyCover(album)}`, image };
+        }
+        return single && withDefault
+          ? {
+              file,
+              detail: 'no cover, gets the default image (not matched on Spotify)',
+              cover: 'default'
+            }
+          : { file, detail: 'no cover, and no Spotify album image (not matched on Spotify)' };
+      }
+      if (
+        single &&
+        image &&
+        withDefault &&
+        coverState(embeddedCover(path.join(baseDirectory, file)), config) === 'default'
+      ) {
+        return { file, detail: `the default image, ${spotifyCover(album)}`, image };
+      }
+      return null;
+    })
   );
+};
 
 module.exports = {
   artwork,

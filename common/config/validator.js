@@ -203,6 +203,7 @@ const configSchema = {
     type: 'object',
     properties: {
       basePath: { type: 'string', required: false },
+      defaultCover: { type: 'string', required: false },
       tags: { type: 'array', required: false }
     }
   },

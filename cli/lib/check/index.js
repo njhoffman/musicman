@@ -85,7 +85,7 @@ const checks = [
     name: 'artwork',
     source: 'db',
     unit: 'file',
-    description: 'songs without an embedded cover',
+    description: 'songs without an embedded cover, singles still on the default image',
     run: library.artwork
   },
   {

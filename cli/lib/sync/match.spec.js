@@ -529,6 +529,148 @@ describe('Spotify Id Matching', () => {
         expect(custom('testFile01.mp3')).to.include({ sp_album: 'Spotify Album' });
         expect(custom('testFile01.mp3')).to.not.have.any.keys('sp_label', 'sp_total_tracks');
       });
+
+      describe('covers', () => {
+        const { spotifyCoverDescription } = require('../metadata/cover.js');
+        const placeholder = Buffer.from('the default image of singles');
+        const spotifyImage = Buffer.from('the Spotify album cover');
+        const withImage = { ...album, images: [{ url: 'https://i.scdn.co/image/album-1' }] };
+        const client = () => fakeClient({}, { 'beets-id': fullTrack, 'album-1': withImage });
+        const fetched = [];
+        const imageFetch = async url => {
+          fetched.push(url);
+          return {
+            ok: true,
+            headers: { get: () => 'image/jpeg' },
+            arrayBuffer: async () => spotifyImage
+          };
+        };
+        const embed = (buffer, description = '') =>
+          NodeId3.update(
+            {
+              image: { mime: 'image/jpeg', type: { id: 3 }, description, imageBuffer: buffer }
+            },
+            file('testFile01.mp3')
+          );
+        const cover = () => NodeId3.read(file('testFile01.mp3')).image;
+        const match = layouts =>
+          matchSongs({
+            db,
+            config,
+            client: client(),
+            songs: songs(['testFile01.mp3']),
+            layouts,
+            refresh: true,
+            now,
+            imageFetch
+          });
+
+        beforeEach(() => {
+          fetched.length = 0;
+          const defaultFile = path.join(library, 'default-cover.jpg');
+          fs.writeFileSync(defaultFile, placeholder);
+          config.library.defaultCover = defaultFile;
+          config.spotify.fields.push({ path: 'album.images[0].url', name: 'sp_album_image' });
+        });
+
+        it('should replace the default image of a single with its Spotify album cover', async () => {
+          embed(placeholder);
+          await match(singles);
+          expect(cover().imageBuffer.equals(spotifyImage)).to.equal(true);
+          expect(cover().description).to.equal(spotifyCoverDescription);
+          expect(fetched).to.deep.equal(['https://i.scdn.co/image/album-1']);
+        });
+
+        it('should give a single without a cover its Spotify album cover', async () => {
+          expect(cover()).to.equal(undefined);
+          await match(singles);
+          expect(cover().imageBuffer.equals(spotifyImage)).to.equal(true);
+        });
+
+        it('should keep artwork a single came with, and the cover of a song in an album', async () => {
+          const own = Buffer.from('artwork the file came with');
+          embed(own);
+          await match(singles);
+          expect(cover().imageBuffer.equals(own)).to.equal(true);
+          embed(placeholder);
+          await match(albums);
+          expect(cover().imageBuffer.equals(placeholder)).to.equal(true);
+          expect(fetched).to.be.empty;
+        });
+
+        it('should write no cover in a dry run, and the fields when the cover fails', async () => {
+          embed(placeholder);
+          await matchSongs({
+            db,
+            config,
+            client: client(),
+            songs: songs(['testFile01.mp3']),
+            layouts: singles,
+            refresh: true,
+            dryRun: true,
+            now,
+            imageFetch
+          });
+          expect(fetched).to.be.empty;
+          const summary = await matchSongs({
+            db,
+            config,
+            client: client(),
+            songs: songs(['testFile01.mp3']),
+            layouts: singles,
+            refresh: true,
+            now,
+            imageFetch: async () => ({ ok: false, status: 404 })
+          });
+          expect(summary).to.include({ refresh: 1, failed: 0 });
+          expect(cover().imageBuffer.equals(placeholder)).to.equal(true);
+        });
+
+        it('should embed the cover when a review match of a single is accepted', async () => {
+          embed(placeholder);
+          const { failed } = await acceptReview({
+            db,
+            config,
+            client: client(),
+            items: [
+              {
+                songId: db.prepare('SELECT id FROM songs WHERE path = ?').get('testFile01.mp3').id,
+                file: file('testFile01.mp3'),
+                path: 'testFile01.mp3',
+                song: { title: 'Song' },
+                candidate: { id: 'beets-id', name: 'Spotify Title' },
+                linked: false
+              }
+            ],
+            layouts: singles,
+            imageFetch
+          });
+          expect(failed).to.be.empty;
+          expect(cover().imageBuffer.equals(spotifyImage)).to.equal(true);
+        });
+
+        it('should put the default image back when a linked single is rejected', async () => {
+          embed(spotifyImage, spotifyCoverDescription);
+          const item = {
+            songId: db.prepare('SELECT id FROM songs WHERE path = ?').get('testFile01.mp3').id,
+            file: file('testFile01.mp3'),
+            path: 'testFile01.mp3',
+            candidate: { id: 'beets-id', name: 'Spotify Title' },
+            linked: true
+          };
+          db.prepare(
+            `INSERT INTO spotify_matches (song_id, status, track_id, checked_at)
+             VALUES (?, 'review', 'beets-id', datetime('now'))`
+          ).run(item.songId);
+          // in an album, or with artwork of its own, the cover stays
+          await rejectReview({ db, config, items: [item], layouts: albums });
+          expect(cover().imageBuffer.equals(spotifyImage)).to.equal(true);
+          const { rejected } = await rejectReview({ db, config, items: [item], layouts: singles });
+          expect(rejected).to.have.length(1);
+          expect(cover().imageBuffer.equals(placeholder)).to.equal(true);
+          expect(custom('testFile01.mp3')).to.not.have.any.keys('sp_track_id');
+        });
+      });
     });
 
     it('should write the id alone when the track details cannot be fetched', async () => {

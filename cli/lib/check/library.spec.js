@@ -241,5 +241,73 @@ describe('Library checks', () => {
         }
       ]);
     });
+
+    it('should list singles on the default image or without a cover, read from their files', () => {
+      const fs = require('fs');
+      const os = require('os');
+      const path = require('path');
+      const NodeId3 = require('node-id3');
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-artwork-'));
+      try {
+        const placeholder = Buffer.from('the default image');
+        fs.writeFileSync(path.join(dir, 'default.jpg'), placeholder);
+        fs.writeFileSync(
+          path.join(dir, 'beets.yaml'),
+          "paths:\n  'singleton:true': Singles/$artist - $title\n  default: $albumartist/$album/$track - $title\n"
+        );
+        fs.mkdirSync(path.join(dir, 'Singles'));
+        fs.mkdirSync(path.join(dir, 'A', 'B'), { recursive: true });
+        const song = (file, image) => {
+          fs.writeFileSync(path.join(dir, file), Buffer.from('audio'));
+          if (image) {
+            NodeId3.write(
+              { image: { mime: 'image/jpeg', type: { id: 3 }, imageBuffer: image } },
+              path.join(dir, file)
+            );
+          }
+        };
+        const spotify = {
+          APIC: '1',
+          'TXXX.sp_album_image': 'https://i/s',
+          'TXXX.sp_album': 'Real'
+        };
+        song('Singles/X - placeholder.mp3', placeholder);
+        addSong('Singles/X - placeholder.mp3', spotify);
+        song('Singles/X - own.mp3', Buffer.from('own artwork'));
+        addSong('Singles/X - own.mp3', spotify);
+        song('A/B/01 - album.mp3', placeholder);
+        addSong('A/B/01 - album.mp3', spotify);
+        addSong('Singles/X - unmatched.mp3', { TIT2: 'x' });
+        addSong('A/B/02 - unmatched.mp3', { TIT2: 'x' });
+        const own = {
+          ...config,
+          mpd: { baseDirectory: dir },
+          sync: { beetsConfig: path.join(dir, 'beets.yaml') },
+          library: { ...config.library, defaultCover: path.join(dir, 'default.jpg') }
+        };
+        const scope = db.prepare(`SELECT id, path FROM songs WHERE path LIKE '%.mp3'`).all();
+        const findings = library.withScope(db, scope, () =>
+          library.artwork({ db, config: own, songs: scope })
+        );
+        expect(findings.filter(({ file }) => /^(Singles|A)\//.test(file))).to.deep.equal([
+          {
+            file: 'A/B/02 - unmatched.mp3',
+            detail: 'no cover, and no Spotify album image (not matched on Spotify)'
+          },
+          {
+            file: 'Singles/X - placeholder.mp3',
+            detail: 'the default image, Spotify has the "Real" cover',
+            image: 'https://i/s'
+          },
+          {
+            file: 'Singles/X - unmatched.mp3',
+            detail: 'no cover, gets the default image (not matched on Spotify)',
+            cover: 'default'
+          }
+        ]);
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
   });
 });

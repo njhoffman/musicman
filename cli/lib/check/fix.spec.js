@@ -435,6 +435,54 @@ describe('check --fix', () => {
       db.close();
     });
 
+    it('should embed the default image in the files planned for it', async () => {
+      const fs = require('fs');
+      const os = require('os');
+      const path = require('path');
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-fix-cover-'));
+      try {
+        const placeholder = Buffer.from('the default image');
+        fs.writeFileSync(path.join(dir, 'default.jpg'), placeholder);
+        const config = {
+          mpd: { baseDirectory: '/music' },
+          library: { defaultCover: path.join(dir, 'default.jpg') }
+        };
+        const db = openDatabase(':memory:');
+        const plan = await planFixes({
+          db,
+          config,
+          results: [
+            {
+              name: 'artwork',
+              findings: [{ file: 'a.mp3', detail: 'x', cover: 'default' }]
+            }
+          ],
+          songs: [],
+          readRaw: () => ({})
+        });
+        db.close();
+        expect(plan.files).to.deep.equal([
+          { file: 'a.mp3', changes: [{ check: 'artwork', text: 'embed the default image' }] }
+        ]);
+        const tags = {};
+        const { written } = await applyFixes({
+          config,
+          plan: { ...plan, context: context() },
+          fetchImpl: async () => {
+            throw new Error('nothing is downloaded');
+          },
+          write: (file, change) => {
+            tags[file] = change({ TIT2: 'x' });
+            return true;
+          }
+        });
+        expect(written).to.deep.equal(['/music/a.mp3']);
+        expect(tags['/music/a.mp3'].APIC.imageBuffer.equals(placeholder)).to.equal(true);
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
     it('should embed each cover, downloading an album cover once', async () => {
       const calls = [];
       const tags = {};

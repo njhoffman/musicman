@@ -1,6 +1,7 @@
 const _ = require('lodash');
 
 const { choosePlayer } = require('../player/players.js');
+const { shownAlbum } = require('./album.js');
 const {
   cachedLocalPlaylists,
   cachedPlaylists,
@@ -46,6 +47,7 @@ const librarySong = async ({ config, db, readSong, player, track }) => {
       )
     : {};
   return {
+    album: shownAlbum(config, { source: player.source, file, meta, album: track.album }),
     file: file || null,
     inLibrary: Boolean(meta),
     trackId: trackId || null,
@@ -83,7 +85,7 @@ const nowPlaying = async ({ config, players, db = null, readSong, contextOf = nu
   }
   const { player, status } = active;
   const { track } = status;
-  const song = await librarySong({ config, db, readSong, player, track });
+  const { album, ...song } = await librarySong({ config, db, readSong, player, track });
   let from = null;
   if (player.source === 'mpd' && status.queue && status.queue.position) {
     from = { type: 'queue', position: status.queue.position, length: status.queue.length };
@@ -96,7 +98,10 @@ const nowPlaying = async ({ config, players, db = null, readSong, contextOf = nu
     volume: _.isNil(status.volume) ? null : status.volume,
     shuffle: _.isBoolean(status.shuffle) ? status.shuffle : null,
     repeat: status.repeat || null,
-    track: _.pick(track, ['title', 'artist', 'album', 'position', 'duration', 'trackId']),
+    track: {
+      ..._.pick(track, ['title', 'artist', 'album', 'position', 'duration', 'trackId']),
+      album
+    },
     song,
     from,
     others

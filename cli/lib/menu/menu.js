@@ -210,7 +210,8 @@ class Menu {
       `<span font_size="large"><b>${escapeMarkup(track.title)}</b></span>`,
       _.compact([
         track.artist && `<b>${escapeMarkup(track.artist)}</b>`,
-        track.album && `<span alpha="65%">${escapeMarkup(track.album)}</span>`
+        (song.album || track.album) &&
+          `<span alpha="65%">${escapeMarkup(song.album || track.album)}</span>`
       ]).join('  ·  '),
       progress,
       ...(song.details || [])

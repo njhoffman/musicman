@@ -6,8 +6,12 @@ const { leftoverSpotifyFrame, nameKey, nameTarget, standardFrames } = require('.
 const { multiDescriptions } = require('./files.js');
 const { readTagBuffer } = require('./frames.js');
 const { rewriteTags } = require('../metadata/write.js');
+const { defaultCoverFrame, downloadCover } = require('../metadata/cover.js');
 
 // checks check --fix repairs; the others need a decision per song and stay reports
+// an artwork finding check --fix embeds a cover for: a Spotify album image, or the default image
+const fixableCover = finding => Boolean(finding.image || finding.cover === 'default');
+
 const fixableChecks = ['drift', 'names', 'standard', 'spotify-id', 'multi', 'case', 'artwork'];
 
 const leftoverDescription = leftoverSpotifyFrame.slice(5);
@@ -236,11 +240,14 @@ const planFixes = async ({
       _.compact(_.map(select.all(frame), ({ song_id: id }) => checked.get(id)))
     ),
     ..._.map(_.get(_.find(results, { name: 'multi' }), 'findings', []), 'file'),
-    ..._.map(_.filter(artworkFindings, 'image'), 'file')
+    ..._.map(_.filter(artworkFindings, fixableCover), 'file')
   ]).sort();
-  // the Spotify cover each song without one gets, by file
+  // the cover each song gets, by file: the Spotify album image URL, or 'default' (library.defaultCover)
   const covers = _.fromPairs(
-    _.map(_.filter(artworkFindings, 'image'), ({ file, image }) => [file, image])
+    _.map(_.filter(artworkFindings, fixableCover), ({ file, image, cover }) => [
+      file,
+      image || cover
+    ])
   );
 
   const files = [];
@@ -249,7 +256,11 @@ const planFixes = async ({
     const file = candidates[i];
     const planned = fixRaw(readRaw(path.join(baseDirectory, file)), context);
     if (covers[file]) {
-      planned.changes.push({ check: 'artwork', text: 'embed the Spotify album cover' });
+      planned.changes.push({
+        check: 'artwork',
+        text:
+          covers[file] === 'default' ? 'embed the default image' : 'embed the Spotify album cover'
+      });
     }
     if (planned.changes.length > 0) {
       files.push({ file, changes: planned.changes });
@@ -260,7 +271,7 @@ const planFixes = async ({
       await new Promise(resolve => setImmediate(resolve));
     }
   }
-  _.each(_.reject(artworkFindings, 'image'), ({ file }) =>
+  _.each(_.reject(artworkFindings, fixableCover), ({ file }) =>
     skipped.push({
       check: 'artwork',
       file,
@@ -270,25 +281,11 @@ const planFixes = async ({
   return { context, files, skipped, covers };
 };
 
-// an APIC front cover frame (node-id3 raw) from an image URL
-const downloadCover = async (url, fetchImpl) => {
-  const response = await fetchImpl(url);
-  if (!response.ok) {
-    throw new Error(`cover ${url}: HTTP ${response.status}`);
-  }
-  return {
-    mime: `${response.headers.get('content-type') || 'image/jpeg'}`.split(';')[0],
-    type: { id: 3, name: 'front cover' },
-    description: '',
-    imageBuffer: Buffer.from(await response.arrayBuffer())
-  };
-};
-
 /**
  * Writes a plan (planFixes): each file's tag is rewritten once with fixRaw applied to its tag as it is
- * now, keeping frames node-id3 does not understand, plus the Spotify cover of the files in plan.covers
- * (downloaded once per URL with fetchImpl). Resolves to { written, failed } with absolute paths
- * written and [{ file, error }].
+ * now, keeping frames node-id3 does not understand, plus the cover of the files in plan.covers: the
+ * Spotify image (downloaded once per URL with fetchImpl), or the default image for 'default'.
+ * Resolves to { written, failed } with absolute paths written and [{ file, error }].
  */
 const applyFixes = async ({
   config,
@@ -312,7 +309,7 @@ const applyFixes = async ({
     const file = path.join(baseDirectory, plan.files[i].file);
     try {
       const url = _.get(plan, ['covers', plan.files[i].file]);
-      const apic = url ? await cover(url) : null;
+      const apic = url === 'default' ? defaultCoverFrame(config) : url ? await cover(url) : null;
       const result = write(file, raw => {
         const fixed = fixRaw(raw, plan.context).raw;
         return apic ? { ...fixed, APIC: apic } : fixed;

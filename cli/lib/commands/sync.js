@@ -58,11 +58,7 @@ const {
   stopReviewPlayback
 } = require('../output/review.js');
 const { unsortedFolder } = require('../beets/sort.js');
-const { pathLayouts } = require('../beets/layout.js');
-
-// the beets path rules, which tell songs organized in albums from singles (none without a beets config)
-const beetsLayouts = config =>
-  pathLayouts(_.get(readBeetsConfig(config.sync.beetsConfig), 'paths'));
+const { beetsLayouts } = require('../beets/layout.js');
 const { formatClock, formatWait, progressBar } = require('../output/progress.js');
 const {
   backupColors,
@@ -1307,7 +1303,7 @@ const decideReview = async ({ db, config, items, accept, credentials, fetchImpl,
         items: picked,
         layouts: beetsLayouts(config)
       })
-    : await rejectReview({ db, config, items: picked });
+    : await rejectReview({ db, config, items: picked, layouts: beetsLayouts(config) });
   const done = accept ? result.accepted : result.rejected;
   done.forEach(({ path: songPath, candidate, linked }) =>
     logger.info(

@@ -361,6 +361,10 @@ tags:
 library:
   # Base path for music library scanning
   basePath: "/home/nicholas/Music"
+  # The cover singles carry until they are matched on Spotify: sync --match replaces it (or no cover)
+  # with the Spotify album cover, taking a match back puts it back, and check --fix embeds it in
+  # unmatched singles without a cover. Unset or missing, singles keep what they have.
+  defaultCover: ~/.config/musicman/default-cover.jpg
   # Tags that are read, edited, filtered, and displayed - essential for playlists and basic info
   # Only text (T***) and custom (TXXX.*) frames are supported, rating is configured separately
   tags:

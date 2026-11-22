@@ -26,7 +26,7 @@ something. The command exits 1 when any did, so it can run from cron or a hook.
 | `encoding`   | database | text that looks garbled by a wrong encoding                                                    |
 | `duplicates` | database | the same song in more than one file (below)                                                    |
 | `rare`       | database | context, mood, and picks values at most `check.rareCount` (3) songs use, with a close spelling |
-| `artwork`    | database | songs without an embedded cover, with the Spotify album image when matched                     |
+| `artwork`    | database | songs without an embedded cover, with the Spotify album image when matched; singles still on the default image (`library.defaultCover`) |
 | `exclusive`  | database | songs and Spotify tracks in more than one rating or grouping playlist (below)                  |
 
 Database checks query `song_tags`, which holds every populated frame of every file, so they are as current
@@ -75,14 +75,16 @@ understand, and the database is updated after. The run is archived like other ch
 | `spotify-id` | removes `TXXX.spotify_track_id` from files that have `sp_track_id`                                |
 | `multi`      | writes the field without empty or padded items, each item once                                    |
 | `case`       | writes each value in its most used casing                                                         |
-| `artwork`    | embeds the Spotify album cover (`sp_album_image`, downloaded once per album) as the front cover   |
+| `artwork`    | embeds the Spotify album cover (`sp_album_image`, downloaded once per album) as the front cover, also over the default image of a matched single; an unmatched single without a cover gets the default image |
 | `drift`      | updates the database for the target (`db --update`)                                               |
 
 What a repair cannot decide is listed as left for you and not changed: two spellings of a name with
 different values, a custom field whose text differs from its standard frame, a custom grouping when TIT1
 is empty (grouping decides the Spotify playlists, so it is never set on its own), and a date that is not a
-year for TYER, and a song without a cover that was not matched on Spotify (beets fetchart only finds album
-covers, not singleton ones). Run `sync --match --recheck` before the artwork repair, so songs matched to a
+year for TYER, and a song in an album without a cover that was not matched on Spotify (beets fetchart only
+finds album covers, not singleton ones). Singles are told from songs in albums by the beets path rules
+(`sync.beetsConfig`): a rule without `$album` files singles. The default image is recognized by its
+content, so artwork a file came with is never replaced. Run `sync --match --recheck` before the artwork repair, so songs matched to a
 compilation get their original album's cover. `rating`, `encoding`, `rare`, and `exclusive` need a
 decision per song and stay reports; `--fix` names them when they found something.
 

@@ -204,7 +204,7 @@ const reviewActions = ({ db, config, getClient, beet }) => {
     reject: (songId, trackId) => {
       const item = itemFor(songId, trackId);
       return recorded(['reject', item.path, trackId], () =>
-        rejectReview({ db, config, items: [item] })
+        rejectReview({ db, config, items: [item], layouts: layouts() })
       );
     }
   };

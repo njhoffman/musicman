@@ -3,6 +3,7 @@ const fs = require('fs');
 
 const { chipColors, clock, defaultChip, icons, stars, tones } = require('./menu.js');
 const { escapeMarkup } = require('./rofi.js');
+const { shownAlbum } = require('../status/album.js');
 const parseFilters = require('../parser/options/filters.js');
 const {
   cachedLocalLiked,
@@ -388,6 +389,7 @@ const songActions = ({
     return {
       file,
       meta: meta || {},
+      album: shownAlbum(config, { source: player.source, file, meta, album: track.album }),
       details: songDetails(meta || {}, fieldNames),
       status: player.source === 'spotify' ? ['in library'] : []
     };

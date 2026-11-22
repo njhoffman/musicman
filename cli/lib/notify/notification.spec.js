@@ -143,6 +143,28 @@ describe('Notify Daemon', () => {
       });
     });
 
+    it('should name the Spotify album of a single played from MPD', async () => {
+      const fs = require('fs');
+      const os = require('os');
+      const path = require('path');
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'musicman-notice-'));
+      try {
+        fs.writeFileSync(path.join(dir, 'beets.yaml'), 'paths:\n  default: $title\n');
+        tags['/music/a.mp3'].sp_album = 'Real Album';
+        const result = await songNotice(
+          {
+            player: { source: 'mpd', name: 'MPD' },
+            track: { file: '/music/a.mp3', title: 'A', artist: 'X', album: 'Handpicked Y' }
+          },
+          { ...deps(), config: { ...config, sync: { beetsConfig: path.join(dir, 'beets.yaml') } } }
+        );
+        expect(result.album).to.equal('Real Album');
+      } finally {
+        delete tags['/music/a.mp3'].sp_album;
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
     it('should find the library song of a Spotify track, else use its own cover', async () => {
       const spotify = { source: 'spotify', name: 'Spotify' };
       const linked = await songNotice(

@@ -119,6 +119,17 @@ Reviewed: 2026-11-15
 - [x] **Fetch missing artwork for singles.** (p2) [feature] `check` `artwork`: `check --fix` embeds the Spotify album
       cover (every song without one, not only singles). beets fetchart cannot cover singletons, so songs not on
       Spotify stay left for you.
+- [x] **Covers of identified singles.** (p2) [feature] singles kept the default image (`library.defaultCover`,
+      1326 files, 914 of them matched) after being matched on Spotify. Done 2026-11-22: `sync --match` and
+      review accept embed the Spotify album cover over the default image (or none), marked as from Spotify,
+      artwork a file came with is kept; rejecting a linked single puts the default image back; `check --fix`
+      does the backlog and gives unmatched singles without a cover the default image; status, notifications
+      and the menu show `sp_album` for singles played from MPD. The album tag stays the genre group.
+- [ ] **Name the singles albums `<Genre> Singles`.** (p3) [chore] the album tag of singles groups them by genre
+      but is named inconsistently: "Handpicked Indie-Rock", "Handpicked Indie Rock", "Indietronica &
+      Trip-Hop" (69 files), "Unsorted Singles". Rename to one scheme, e.g. "Pop-Rock Singles", from the
+      grouping (`grouping:PopRock.Singles`), with a `check` that reports singles off the scheme and a fix
+      that writes it; keep `album:Unsorted Singles` working in the beets path rules or rename it too.
 - [ ] **Generate artwork when none can be found.** (p3) [feature] for singles still without a cover, generate one
       (e.g. artist and title over a color derived from the grouping), clearly marked as generated so a real cover
       can replace it later.

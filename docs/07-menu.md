@@ -171,5 +171,7 @@ MPD is watched over its idle connection, reconnecting when MPD restarts; Spotify
 
 `cli/share/rofi/musicman-panel.rasi`; replace it with `menu.theme`, or add rofi arguments with
 `menu.rofiArgs`. Covers come from the local file (embedded picture, else `cover.jpg`/`folder.jpg` in its
-folder), else Spotify's cover, cached in `$XDG_CACHE_HOME/musicman/covers`. Errors are shown as
+folder), else Spotify's cover, cached in `$XDG_CACHE_HOME/musicman/covers`. A single played from MPD shows
+the album of its Spotify match (`sp_album`) rather than its album tag, which groups singles by genre; so do
+the notifications and `musicman status`. Errors are shown as
 notifications, since there is no terminal when it is opened from a keybinding.
