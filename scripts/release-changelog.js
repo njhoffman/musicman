@@ -1,6 +1,9 @@
 #!/usr/bin/env node
-// commit-and-tag-version postbump script: moves the [Unreleased] entries of CHANGELOG.md into a section for
-// the new version and stages the file, so the release commit carries the hand-written notes.
+// commit-and-tag-version postbump script: moves the committed [Unreleased] entries of CHANGELOG.md (HEAD's)
+// into a section for the new version and stages that file, so the release commit carries the hand-written
+// notes and nothing another session is still writing. Entries not committed yet stay under [Unreleased] in
+// the working copy. The prerelease check (--check) refuses a release while anything is staged, since
+// commitAll commits the whole index.
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
@@ -53,6 +56,60 @@ const releaseChangelog = (text, version, date) => {
   return released.join('\n');
 };
 
+// the [Unreleased] entries of a changelog: [{ heading, text }], heading the ### line above it (or null),
+// text an entry's lines (its "- " line and the lines continuing it)
+const unreleasedEntries = text => {
+  const lines = text.split('\n');
+  const start = lines.findIndex(line => /^## \[Unreleased\]/.test(line));
+  if (start === -1) {
+    return [];
+  }
+  const entries = [];
+  let heading = null;
+  let current = null;
+  for (const line of lines.slice(start + 1)) {
+    if (/^## \[/.test(line) || /^\[[^\]]+\]: /.test(line)) {
+      break;
+    }
+    if (/^### /.test(line)) {
+      heading = line;
+      current = null;
+    } else if (/^- /.test(line)) {
+      current = { heading, lines: [line] };
+      entries.push(current);
+    } else if (current && /^\s+\S/.test(line)) {
+      current.lines.push(line);
+    } else {
+      current = null;
+    }
+  }
+  return entries.map(entry => ({ heading: entry.heading, text: entry.lines.join('\n') }));
+};
+
+/**
+ * The released changelog with the entries of the working copy that the committed changelog does not hold
+ * put back under [Unreleased], under their ### headings.
+ */
+const keepPending = (released, working, committed) => {
+  const done = new Set(unreleasedEntries(committed).map(entry => entry.text));
+  const pending = unreleasedEntries(working).filter(entry => !done.has(entry.text));
+  if (pending.length === 0) {
+    return released;
+  }
+  const headings = [...new Set(pending.map(entry => entry.heading))];
+  const block = headings.flatMap(heading => [
+    ...(heading ? [heading, ''] : []),
+    ...pending.filter(entry => entry.heading === heading).map(entry => entry.text),
+    ''
+  ]);
+  const lines = released.split('\n');
+  const start = lines.findIndex(line => /^## \[Unreleased\]/.test(line));
+  return [...lines.slice(0, start + 1), '', ...block, ...lines.slice(start + 2)].join('\n');
+};
+
+const git = (root, args, input) =>
+  execFileSync('git', args, { cwd: root, input, encoding: 'utf8' }).trim();
+
 if (require.main === module) {
   const root = path.join(__dirname, '..');
   const file = path.join(root, 'CHANGELOG.md');
@@ -61,14 +118,18 @@ if (require.main === module) {
   // --check (the prerelease script) only validates, so a release without notes stops before the bump
   const check = process.argv.includes('--check');
   try {
-    const released = releaseChangelog(
-      fs.readFileSync(file, 'utf8'),
-      check ? 'unreleased' : version,
-      date
-    );
+    const staged = git(root, ['diff', '--cached', '--name-only']);
+    if (check && staged) {
+      throw new Error(
+        `staged files would go into the release commit, commit or unstage them first:\n${staged}`
+      );
+    }
+    const committed = git(root, ['show', 'HEAD:CHANGELOG.md']);
+    const released = releaseChangelog(`${committed}\n`, check ? 'unreleased' : version, date);
     if (!check) {
-      fs.writeFileSync(file, released);
-      execFileSync('git', ['add', file], { cwd: root });
+      const blob = git(root, ['hash-object', '-w', '--stdin'], released);
+      git(root, ['update-index', '--cacheinfo', `100644,${blob},CHANGELOG.md`]);
+      fs.writeFileSync(file, keepPending(released, fs.readFileSync(file, 'utf8'), committed));
     }
   } catch (err) {
     process.stderr.write(`${err.message}\n`);
@@ -76,4 +137,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { releaseChangelog };
+module.exports = { keepPending, releaseChangelog, unreleasedEntries };

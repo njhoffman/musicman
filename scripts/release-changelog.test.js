@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
-const { releaseChangelog } = require('./release-changelog');
+const { keepPending, releaseChangelog, unreleasedEntries } = require('./release-changelog');
 
 const repo = 'https://github.com/njhoffman/musicman';
 const changelog = [
@@ -74,5 +74,32 @@ describe('releaseChangelog', () => {
       () => releaseChangelog(changelog, '1.2.0', '2026-10-24'),
       /already has a section/
     );
+  });
+
+  it('should read the unreleased entries with their headings and continuation lines', () => {
+    const text = changelog.replace(
+      '- A new command\n',
+      '- A new command\n  that wraps\n- Another\n\n### Fixed\n\n- A fix\n'
+    );
+    assert.deepEqual(unreleasedEntries(text), [
+      { heading: '### Added', text: '- A new command\n  that wraps' },
+      { heading: '### Added', text: '- Another' },
+      { heading: '### Fixed', text: '- A fix' }
+    ]);
+    assert.deepEqual(unreleasedEntries('# Changelog\n'), []);
+  });
+
+  it('should put the entries not committed yet back under [Unreleased]', () => {
+    const working = changelog.replace(
+      '- A new command\n',
+      '- A new command\n- Uncommitted work\n  of another session\n\n### Fixed\n\n- Its fix\n'
+    );
+    const released = releaseChangelog(changelog, '1.3.0', '2026-10-24');
+    const text = keepPending(released, working, changelog);
+    assert.match(
+      text,
+      /## \[Unreleased\]\n\n### Added\n\n- Uncommitted work\n {2}of another session\n\n### Fixed\n\n- Its fix\n\n## \[1\.3\.0\] - 2026-10-24\n\n### Added\n\n- A new command\n\n## \[1\.2\.0\]/
+    );
+    assert.equal(keepPending(released, changelog, changelog), released);
   });
 });

@@ -1,8 +1,8 @@
 # Host sync
 
 Status: written 2026-11-14; being built (TODO.md section 15). Built so far (2026-11-15): the audio hash
-(`songs.audio_hash`, step 1) and the change log (the `changes` table, step 2). Not yet: S3, push, pull,
-apply, imports through S3.
+(`songs.audio_hash`, step 1) and the change log (the `changes` table, step 2); the bucket and its
+credentials exist (2026-11-21). Not yet: push, pull, apply, imports through S3.
 
 Two computers keep a full copy of the library and both play, rate, tag, review matches, and import:
 **charon** (laptop, leaves the house) and **minerva** (desktop, stays home). Host sync keeps them the same.
@@ -95,6 +95,13 @@ tier is 5 GB.
 
 Credentials: one IAM role or user scoped to this bucket only (`s3:GetObject`, `s3:PutObject`,
 `s3:ListBucket`), profile name in config (`hostSync.profile`), so musicman never sees other credentials.
+
+As created (2026-11-21, paid plan): bucket `musicman-sync` in us-east-2 with Block Public Access, versioning,
+SSE-S3 (bucket key), and a lifecycle rule that expires noncurrent versions after 30 days (the rewritten
+`hosts/<host>.json` files) and aborts multipart uploads left after 7 days. The IAM user `musicman-sync` has
+one inline policy, `musicman-sync-bucket`, with exactly the three actions above; its access key is the
+profile `musicman-sync` (region us-east-2) in `~/.aws/credentials`. It cannot delete objects: a bad entry
+is fixed by a later one, and an old version is restored with the owner's credentials.
 
 ## Pull, apply, push
 

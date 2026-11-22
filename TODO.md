@@ -418,11 +418,13 @@ Reviewed: 2026-11-15
 
 ## 12. Tooling
 
-- [ ] **`pnpm release` commits every change in the work tree.** (p2) [chore] `.versionrc.json` has
+- [x] **`pnpm release` commits every change in the work tree.** (p2) [chore] `.versionrc.json` has
       `"commitAll": true`, so a release takes in what another session is still editing (on 2026-11-15 the
       Soloist work, its CHANGELOG entry included; 1.88.0 and 1.89.0 were released by hand to keep it out).
-      Set `commitAll` to false and have `scripts/release-changelog.js` (postbump) `git add CHANGELOG.md`, so a
-      release commits package.json, CHANGELOG.md, and what was staged.
+      Done 2026-11-21, not as first planned: `commitAll` commits the index only (`git commit` without paths),
+      and turning it off would drop CHANGELOG.md from the commit. The leaks were the shared [Unreleased]
+      section and staged files: the release now takes HEAD's [Unreleased] entries, keeps uncommitted ones
+      under [Unreleased] in the working copy, and refuses to run while anything is staged.
 - [ ] **Test the systemd units `just install` writes.** (p3) [test] the `musicman-notify` service and the
       `musicman-analyze` service and timer are printf lines in the Justfile with no test; a typo shows only
       when systemd refuses them. Run `systemd-analyze --user verify` on them in `install-check`, or write them
@@ -445,9 +447,11 @@ Charon and minerva both keep the full library; a change log in S3 keeps them the
       that restore old values. Useful with one host too: a full history of every tag change.
       Done 2026-11-15 for tag edits (by library field) and match decisions; imports and removed
       duplicates are logged with "Imports travel through S3".
-- [ ] **S3 bucket and credentials.** (p2) [chore] check the AWS plan (`aws freetier get-account-plan-state`;
+- [x] **S3 bucket and credentials.** (p2) [chore] check the AWS plan (`aws freetier get-account-plan-state`;
       the free plan's S3 tier is 5 GB), a private versioned bucket in the selected Region, an IAM policy
       scoped to it, a `musicman-sync` profile on both hosts.
+      Done 2026-11-21 on charon (paid plan): bucket `musicman-sync` in us-east-2, IAM user `musicman-sync`;
+      minerva's profile is copied with "Set up minerva".
 - [ ] **`sync --hosts`: pull, apply, push.** (p2) [feature] the `log/<host>/` batches and `hosts/<host>.json`
       position (doc "S3 layout"), applying entries through the edit path as a `sync --hosts` run, conflicts as
       in the doc (newest wins per field, multi value adds and removes merge, pending entries for unknown
@@ -463,7 +467,8 @@ Charon and minerva both keep the full library; a change log in S3 keeps them the
       background analyze alone adds about 10 entries per song (some 70,000 for the library). Once push and
       pull exist, entries every host has applied (by `hosts/<host>.json` positions) can be dropped or folded
       into the latest value per song and field, keeping a recent window for history.
-- [ ] **Set up minerva.** (p2) [chore] rsync the library over the LAN, copy charon's database once on the same
+- [ ] **Set up minerva.** (p2) [chore] copy the `musicman-sync` profile (`~/.aws/credentials` and
+      `~/.aws/config`) from charon, rsync the library over the LAN, copy charon's database once on the same
       build (matches and history come along), `sync --hosts --init` on both; then rate a song on each and
       check both hosts end up with both ratings.
 

@@ -11,7 +11,8 @@ From the repo root (a pnpm workspace: `cli`, `common`):
 - `pnpm lint`, `pnpm format` / `pnpm format:check` (prettier); the pre-commit hook refuses staged `.js` files
   that are not formatted
 - `pnpm release --release-as patch|minor|major`: commit-and-tag-version; bumps `package.json`, moves the
-  `CHANGELOG.md` [Unreleased] entries under the new version (`scripts/release-changelog.js`), commits, tags
+  committed `CHANGELOG.md` [Unreleased] entries under the new version (`scripts/release-changelog.js`;
+  uncommitted ones stay under [Unreleased]), commits, tags. Refuses while anything is staged
 - The post-commit hook runs `scripts/publish-local.sh`: every commit is built into
   `~/.local/share/musicman/builds/` and `current` points at it; the `musicman` alias runs that build, and
   the `musicman-notify` daemon is restarted on it when it runs

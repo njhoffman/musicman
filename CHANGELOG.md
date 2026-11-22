@@ -6,6 +6,18 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- `pnpm release` no longer releases another session's work: it releases the [Unreleased] entries
+  already committed, leaves uncommitted ones under [Unreleased] in the working copy, and refuses to run
+  while files are staged (the release commit holds package.json and CHANGELOG.md only).
+
+### Added
+
+- The host sync bucket: `musicman-sync` in us-east-2 (private, versioned, old versions kept 30 days),
+  reached through the AWS profile `musicman-sync`, which can list the bucket and read and write its
+  objects only (docs/10-host-sync.md).
+
 ## [1.90.0] - 2026-11-15
 
 ### Added
