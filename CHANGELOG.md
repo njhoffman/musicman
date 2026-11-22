@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.91.0] - 2026-11-22
+
 ### Added
 
 - Singles get their real cover once they are identified: `sync --match` and accepting a review match
@@ -1675,7 +1677,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.90.1...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.91.0...HEAD
+[1.91.0]: https://github.com/njhoffman/musicman/compare/v1.90.1...v1.91.0
 [1.90.1]: https://github.com/njhoffman/musicman/compare/v1.90.0...v1.90.1
 [1.90.0]: https://github.com/njhoffman/musicman/compare/v1.89.1...v1.90.0
 [1.89.1]: https://github.com/njhoffman/musicman/compare/v1.89.0...v1.89.1
