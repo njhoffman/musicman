@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.90.1] - 2026-11-21
+
 ### Fixed
 
 - `pnpm release` no longer releases another session's work: it releases the [Unreleased] entries
@@ -1663,7 +1665,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.90.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.90.1...HEAD
+[1.90.1]: https://github.com/njhoffman/musicman/compare/v1.90.0...v1.90.1
 [1.90.0]: https://github.com/njhoffman/musicman/compare/v1.89.1...v1.90.0
 [1.89.1]: https://github.com/njhoffman/musicman/compare/v1.89.0...v1.89.1
 [1.89.0]: https://github.com/njhoffman/musicman/compare/v1.88.0...v1.89.0
