@@ -94,28 +94,29 @@ decision per song and stay reports; `--fix` names them when they found something
 
 ### Duplicates
 
-After the tag repairs, `--fix` plans each duplicate group (groups that share a file are joined). One copy
-is kept, by rules in order:
+After the tag repairs, `--fix` plans each duplicate group (groups that share a file are joined). Copies
+outside a `Singles` or `_Singles` folder are there deliberately and are never removed: an album, EP,
+`single` release, or compilation copy under `Artists`, an `Unrated/` album import, and their numbered
+copies. Only Singles copies can lose, by rules in order:
 
 1. Another recording is a wrong Spotify match, not a duplicate: a copy on a `live` or `remix` release, or
    with a version in its title (`(radio edit)`, `(acoustic)`, `(Arsenal mix)`, `(new vocal version)`),
    stays in the library and is matched again: its studio Spotify id and fields are removed and that
    track is rejected for it, so `sync --match` finds its own track and push adds it to the playlists.
    One linked to no track (its match rejected before, no live track found yet) is left out of the group.
-2. A Rated copy is kept over `Unrated/` imports.
-3. Of numbered copies (`Song.1.mp3` next to `Song.mp3`) with the same audio (compared without the ID3
-   tags), the file without the number is kept. Numbered copies with other audio are picked.
-4. An album copy is kept over an EP, an EP over a single (a `single` release or a `Singles` folder), a
-   single over a compilation or soundtrack.
+2. With a copy under `Artists`, every Singles copy goes to the trash; the best `Artists` copy (an album,
+   then an EP, a `single` release, a compilation) takes its tags.
+3. Else, among the Singles copies (an `Unrated/` album import beside them is left alone): a Rated copy
+   is kept over `Unrated/_Singles` imports; of numbered copies (`Song.1.mp3` next to `Song.mp3`) with the
+   same audio (compared without the ID3 tags), the file without the number is kept; of copies with the
+   same audio, the one named closest to its title. Other ties are picked.
 
 What happens to a copy that is not kept:
 
 | Copy | Database and Spotify | File |
 | ---- | -------------------- | ---- |
-| a single in a `Singles` or `_Singles` folder, when an album copy under `Artists` is kept | out | to the trash |
-| a single in `Unrated/_Singles`, when any Rated copy is kept | out | to the trash |
-| a numbered copy with the same audio | out | to the trash |
-| any other (compilation, EP, `single` release, the copies not picked) | out | stays where it is |
+| a Singles copy that lost by rule 2 or 3 | out | to the trash |
+| a copy not picked (`--pick`) | out | stays where it is |
 
 Copies out of the library are listed in the `excluded_songs` table: `db --update`, the commands reading
 the library, and the drift check skip them, and `sync --push` removes their Spotify tracks from the

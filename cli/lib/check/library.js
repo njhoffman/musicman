@@ -4,7 +4,7 @@ const path = require('path');
 const { nameKey } = require('../db/tags.js');
 const { beetsLayouts, isSingle } = require('../beets/layout.js');
 const { coverState, defaultCover, embeddedCover } = require('../metadata/cover.js');
-const { otherRecording } = require('./duplicates.js');
+const { inSinglesFolder, otherRecording } = require('./duplicates.js');
 
 /**
  * Checks on the library database (song_tags holds every populated frame of every file, custom TXXX
@@ -405,8 +405,13 @@ const duplicates = ({ db, songs }) => {
   // copies of one recording differ by mastering, gaps and fades, so the tolerance is wide; it splits
   // off an extended mix or a wrong ISRC
   const isrc = _.flatMap(_.groupBy(isrcRows, 'value'), (rows, value) =>
-    _.map(lengthClusters(_.uniq(_.map(rows, 'id')), isrcDurationTolerance), ids =>
-      groupFinding(`ISRC ${value}`, ids)
+    _.map(
+      // only Singles copies of a song are duplicates by ISRC: copies under Artists (an album and a
+      // compilation) are there deliberately
+      _.filter(lengthClusters(_.uniq(_.map(rows, 'id')), isrcDurationTolerance), ids =>
+        _.some(ids, id => inSinglesFolder(byId[id].path))
+      ),
+      ids => groupFinding(`ISRC ${value}`, ids)
     )
   );
   // artist and title per song, then songs of one key grouped where their lengths are close

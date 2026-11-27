@@ -249,11 +249,11 @@ describe('Library checks', () => {
     });
 
     it('should meet a file ISRC and a Spotify ISRC written in another case or with hyphens', () => {
-      addSong('x.mp3', { TSRC: 'gb-aye-02-00771' });
-      addSong('y.mp3', { 'TXXX.sp_isrc': 'GBAYE0200771' });
-      addSong('z.mp3', { TSRC: 'GBAYE0200999' });
+      addSong('Singles/x.mp3', { TSRC: 'gb-aye-02-00771' });
+      addSong('Singles/y.mp3', { 'TXXX.sp_isrc': 'GBAYE0200771' });
+      addSong('Singles/z.mp3', { TSRC: 'GBAYE0200999' });
       const findings = check(library.duplicates);
-      expect(_.map(findings, 'files')).to.deep.equal([['x.mp3', 'y.mp3']]);
+      expect(_.map(findings, 'files')).to.deep.equal([['Singles/x.mp3', 'Singles/y.mp3']]);
       expect(findings[0].detail).to.match(/^ISRC GBAYE0200771:/);
     });
 
@@ -273,46 +273,53 @@ describe('Library checks', () => {
 
     it('should split off an ISRC copy more than 15 seconds from the others', () => {
       // an album and single copy 11 seconds apart, and an extended mix 52 seconds longer
-      addSong('album.mp3', { TSRC: 'I1' }, { duration: 200 });
-      addSong('single.mp3', { TSRC: 'I1' }, { duration: 211 });
-      addSong('extended.mp3', { TSRC: 'I1' }, { duration: 263 });
+      addSong('Singles/album.mp3', { TSRC: 'I1' }, { duration: 200 });
+      addSong('Singles/single.mp3', { TSRC: 'I1' }, { duration: 211 });
+      addSong('Singles/extended.mp3', { TSRC: 'I1' }, { duration: 263 });
       expect(_.map(check(library.duplicates), 'files')).to.deep.equal([
-        ['album.mp3', 'single.mp3']
+        ['Singles/album.mp3', 'Singles/single.mp3']
       ]);
     });
 
     it('should chain ISRC copies by their nearest lengths, and not group a pair far apart', () => {
-      addSong('a.mp3', { TSRC: 'I1' }, { duration: 200 });
-      addSong('b.mp3', { TSRC: 'I1' }, { duration: 214 });
-      addSong('c.mp3', { TSRC: 'I1' }, { duration: 228 });
-      addSong('x.mp3', { TSRC: 'I2' }, { duration: 200 });
-      addSong('y.mp3', { TSRC: 'I2' }, { duration: 215.5 });
+      addSong('Singles/a.mp3', { TSRC: 'I1' }, { duration: 200 });
+      addSong('Singles/b.mp3', { TSRC: 'I1' }, { duration: 214 });
+      addSong('Singles/c.mp3', { TSRC: 'I1' }, { duration: 228 });
+      addSong('Singles/x.mp3', { TSRC: 'I2' }, { duration: 200 });
+      addSong('Singles/y.mp3', { TSRC: 'I2' }, { duration: 215.5 });
       expect(_.map(check(library.duplicates), 'files')).to.deep.equal([
-        ['a.mp3', 'b.mp3', 'c.mp3']
+        ['Singles/a.mp3', 'Singles/b.mp3', 'Singles/c.mp3']
       ]);
     });
 
+    it('should not list copies outside the Singles folders by ISRC: they are there deliberately', () => {
+      addSong('Rated/R/I/Artists/A/album/2000 - Album/01 - Song.mp3', { TSRC: 'I1' });
+      addSong('Rated/R/I/Artists/A/compilation/2010 - Hits/05 - Song.mp3', { TSRC: 'I1' });
+      addSong('Unrated/A/2000 - Album/01 - Song.mp3', { TSRC: 'I1' });
+      expect(check(library.duplicates)).to.deep.equal([]);
+    });
+
     it('should count a song with both frames once', () => {
-      addSong('x.mp3', { TSRC: 'GBAYE0200771', 'TXXX.sp_isrc': 'GBAYE0200771' });
+      addSong('Singles/x.mp3', { TSRC: 'GBAYE0200771', 'TXXX.sp_isrc': 'GBAYE0200771' });
       expect(check(library.duplicates)).to.deep.equal([]);
     });
 
     it('should not list a group found by Spotify id again by ISRC or by name', () => {
       const frames = { TPE1: 'A', TIT2: 'B', TSRC: 'I1', 'TXXX.sp_track_id': 't1' };
-      addSong('x.mp3', frames);
-      addSong('y.mp3', frames);
+      addSong('Singles/x.mp3', frames);
+      addSong('Singles/y.mp3', frames);
       expect(check(library.duplicates).map(({ detail }) => detail.split(':')[0])).to.deep.equal([
         'Spotify track t1'
       ]);
     });
 
     it('should list an ISRC group wider than the Spotify group', () => {
-      addSong('x.mp3', { TSRC: 'I1', 'TXXX.sp_track_id': 't1' });
-      addSong('y.mp3', { TSRC: 'I1', 'TXXX.sp_track_id': 't1' });
-      addSong('z.mp3', { TSRC: 'I1', 'TXXX.sp_track_id': 't2' });
+      addSong('Singles/x.mp3', { TSRC: 'I1', 'TXXX.sp_track_id': 't1' });
+      addSong('Singles/y.mp3', { TSRC: 'I1', 'TXXX.sp_track_id': 't1' });
+      addSong('Singles/z.mp3', { TSRC: 'I1', 'TXXX.sp_track_id': 't2' });
       expect(_.map(check(library.duplicates), 'files')).to.deep.equal([
-        ['x.mp3', 'y.mp3'],
-        ['x.mp3', 'y.mp3', 'z.mp3']
+        ['Singles/x.mp3', 'Singles/y.mp3'],
+        ['Singles/x.mp3', 'Singles/y.mp3', 'Singles/z.mp3']
       ]);
     });
   });

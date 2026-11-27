@@ -475,7 +475,7 @@ const notes = {
   toSpotify:
     'Songs that belong in a Spotify playlist but have no Spotify id, so only a local file can bring them there.',
   duplicates:
-    'The same song in more than one file, with what check --fix does: an album copy is kept over EPs, singles, and compilations, a Rated copy over Unrated imports, and a file over its numbered copies. Only a Singles copy of an album song, or a numbered copy with the same audio, goes to the trash; other copies leave the library and Spotify but their files stay. A live or remix copy is matched again to its own track. musicman undo takes it all back.',
+    'The same song in more than one file, with what check --fix does: copies under Artists and Unrated album imports are always kept, and only Singles copies go to the trash: every one beside a copy under Artists, else Unrated imports of a Rated single, numbered copies with the same audio, and copies with the same audio named farther from their titles. Copies not picked leave the library and Spotify but their files stay. A live or remix copy is matched again to its own track. musicman undo takes it all back.',
   history:
     'Accepts, rejects, removed duplicates, and undos of this page, newest first. Undoing one puts back the tags, the Spotify match, and the moved files, as musicman undo does.'
 };

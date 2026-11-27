@@ -62,22 +62,36 @@ describe('Duplicates repair', () => {
     const comp = 'Rated/R/I/Artists/A/compilation/2010 - Hits/05 - Song.mp3';
     const live = 'Rated/R/I/Artists/A/live/2005 - Live/03 - Song.mp3';
 
-    it('should keep the album copy, trash only the Singles copy, and drop the other releases', () => {
-      const plan = planGroup([song(comp), song(singles), song(album), song(ep), song(single)]);
-      expect(plan.keep).to.equal(album);
-      expect(plan.trash).to.deep.equal([singles]);
-      expect(plan.exclude).to.have.members([comp, ep, single]);
-      expect(plan.reasons[singles]).to.equal('single copy, the album copy is kept');
+    const unratedAlbum = 'Unrated/A/2000 - Album/01 - Song.mp3';
+
+    it('should keep every copy under Artists, and trash the Singles copies', () => {
+      const unrated = 'Unrated/_Singles/A - Song.mp3';
+      const plan = planGroup([
+        song(comp),
+        song(singles),
+        song(album),
+        song(ep),
+        song(single),
+        song(unrated)
+      ]);
+      expect(plan).to.deep.include({ keep: album, trash: [singles, unrated], exclude: [] });
+      expect(plan.reasons[singles]).to.equal('Singles copy, the album copy under Artists is kept');
       expect(plan.candidates).to.be.empty;
     });
 
-    it('should drop a Singles copy, not trash it, when the copy kept is not an album under Artists', () => {
-      expect(planGroup([song(single), song(ep)])).to.deep.include({ keep: ep, exclude: [single] });
-      const plan = planGroup([song(comp), song(singles)]);
-      expect(plan).to.deep.include({ keep: singles, exclude: [comp], trash: [] });
-      const unratedAlbum = 'Unrated/A/2000 - Album/01 - Song.mp3';
-      expect(planGroup([song('Unrated/_Singles/A - Song.mp3'), song(unratedAlbum)]).trash).to.be
-        .empty;
+    it('should trash a Singles copy for any copy under Artists, the best one taking its tags', () => {
+      expect(planGroup([song(comp), song(singles)])).to.deep.include({
+        keep: comp,
+        trash: [singles],
+        exclude: []
+      });
+      expect(planGroup([song(comp), song(ep), song(singles)]).keep).to.equal(ep);
+    });
+
+    it('should leave groups without a Singles copy alone', () => {
+      expect(planDuplicates([{ files: [song(single), song(ep)] }])).to.be.empty;
+      expect(planDuplicates([{ files: [song(album), song(comp)] }])).to.be.empty;
+      expect(planDuplicates([{ files: [song(unratedAlbum), song(album)] }])).to.be.empty;
     });
 
     it('should trash an Unrated single of any Rated copy', () => {
@@ -95,12 +109,13 @@ describe('Duplicates repair', () => {
       });
     });
 
-    it('should drop an Unrated album track of a Rated song but keep its file', () => {
-      const unratedAlbum = 'Unrated/A/2000 - Album/01 - Song.mp3';
-      expect(planGroup([song(unratedAlbum), song(album)])).to.deep.include({
-        keep: album,
-        exclude: [unratedAlbum],
-        trash: []
+    it('should leave an Unrated album import alone, and decide the Singles copies beside it', () => {
+      const unrated = 'Unrated/_Singles/A - Song.mp3';
+      expect(planDuplicates([{ files: [song(unrated), song(unratedAlbum)] }])).to.be.empty;
+      expect(planGroup([song(unrated), song(singles), song(unratedAlbum)])).to.deep.include({
+        keep: singles,
+        trash: [unrated],
+        exclude: []
       });
     });
 
@@ -131,7 +146,7 @@ describe('Duplicates repair', () => {
       expect(plan.clear).to.deep.equal([live]);
     });
 
-    it('should match a remix or a named version again, and drop an album version', () => {
+    it('should match a remix or a named version again, and keep an album version', () => {
       const remix = 'Rated/R/I/Artists/A/remix/2002 - Remixes/01 - Song (Arsenal mix).mp3';
       const edit = 'Rated/R/I/Artists/A/album/2000 - Album/13 - Song (radio edit).mp3';
       const albumVersion = 'Rated/R/I/Artists/A/single/1999 - Song/01 - Song (album version).mp3';
@@ -140,7 +155,7 @@ describe('Duplicates repair', () => {
       expect(plan.clear).to.deep.equal([remix, edit]);
       expect(plan.reasons[remix]).to.equal('remix matched to the original track');
       expect(plan.reasons[edit]).to.equal('(radio edit) version matched to the original track');
-      expect(plan.exclude).to.deep.equal([albumVersion]);
+      expect(plan).to.deep.include({ exclude: [], trash: [] });
     });
 
     it('should leave copies that tie to a pick, and drop the ones not picked', () => {
@@ -189,14 +204,20 @@ describe('Duplicates repair', () => {
       expect(planGroup([copy(ft, null), copy(amp, null)]).candidates).to.have.length(2);
     });
 
-    it('should drop, not trash, an identical tie outside the Singles folders', () => {
+    it('should leave an identical tie outside the Singles folders alone', () => {
       const a = 'Rated/R/I/Artists/A/album/2000 - Album/01 - Song.mp3';
       const b = 'Rated/R/I/Artists/A/album/2000 - Album/14 - Song (bonus).mp3';
       const plan = planGroup([
         { ...song(a, 1, 'aa'), title: 'Song' },
         { ...song(b, 1, 'aa'), title: 'Song' }
       ]);
-      expect(plan).to.deep.include({ keep: a, exclude: [b], trash: [] });
+      expect(plan).to.deep.include({ exclude: [], trash: [], candidates: [] });
+    });
+
+    it('should never trash a numbered copy outside the Singles folders', () => {
+      const numbered = 'Rated/R/I/Artists/A/album/2000 - Album/01 - Song.1.mp3';
+      expect(planDuplicates([{ files: [song(album, 1, 'aa'), song(numbered, 9, 'aa')] }])).to.be
+        .empty;
     });
 
     it('should read audio hashes only where a rule needs them, and keep them on the files', () => {
@@ -209,7 +230,7 @@ describe('Duplicates repair', () => {
       const [tied, decided] = planDuplicates(
         [
           { files: [{ path: singles }, { path: other }] },
-          { files: [{ path: album }, { path: comp }] }
+          { files: [{ path: album }, { path: 'Rated/R/I/Singles/A - Song (2).mp3' }] }
         ],
         { baseDirectory: '/music', hash }
       );
@@ -218,11 +239,10 @@ describe('Duplicates repair', () => {
       expect(decided.files.map(item => item.audio)).to.deep.equal([null, null]);
     });
 
-    it('should treat two live copies as a tie, with nothing to clear', () => {
+    it('should leave two live copies under Artists alone, with nothing to clear', () => {
       const other = 'Rated/R/I/Artists/A/live/2008 - Unplugged/02 - Song.mp3';
       const plan = planGroup([song(live), song(other)]);
-      expect(plan.clear).to.be.empty;
-      expect(plan.candidates).to.have.members([live, other]);
+      expect(plan).to.deep.include({ clear: [], candidates: [], trash: [], exclude: [] });
     });
 
     it('should join groups that share a file, so no file is kept by one and removed by another', () => {
@@ -234,7 +254,11 @@ describe('Duplicates repair', () => {
       expect(groups.map(({ files }) => _.map(files, 'path'))).to.deep.equal([
         [album, comp, singles].sort()
       ]);
-      expect(planDuplicates(groups)[0]).to.include({ keep: album });
+      expect(planDuplicates(groups)[0]).to.deep.include({
+        keep: album,
+        trash: [singles],
+        exclude: []
+      });
       db.close();
     });
 
@@ -440,14 +464,17 @@ describe('Duplicates repair', () => {
       expect([...excludedTracks(db)]).to.deep.equal([['track1', copy]]);
     });
 
-    it('should drop a compilation copy from the library and keep its file, until undone', async () => {
-      const album = 'Rated/G/Artists/A/album/2000 - Album/01 - Song.mp3';
-      const comp = 'Rated/G/Artists/A/compilation/2010 - Hits/05 - Song.mp3';
+    it('should drop a copy not picked from the library and keep its file, until undone', async () => {
+      // the same song in two genres' Singles folders, named alike: picked by hand
+      const album = 'Rated/G/Singles/A - Song.mp3';
+      const comp = 'Rated/H/Singles/A - Song.mp3';
       [album, comp].forEach(file => fs.mkdirSync(path.dirname(abs(file)), { recursive: true }));
       fs.renameSync(abs(kept), abs(album));
       fs.renameSync(abs(copy), abs(comp));
       await updateDatabase(db, { config, target: library });
-      const groups = planOf([album, comp]);
+      const [tied] = planOf([album, comp]);
+      expect(tied.candidates).to.have.members([album, comp]);
+      const groups = [resolveGroup(tied, album)];
       expect(groups.map(({ keep, exclude }) => [keep, exclude])).to.deep.equal([[album, [comp]]]);
       beginJournal({
         run: { id: 'r1', command: 'check', args: ['check'], startedAt: new Date() },

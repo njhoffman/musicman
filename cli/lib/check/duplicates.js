@@ -41,12 +41,8 @@ const isNumbered = songPath => numberedKey(songPath) !== songPath;
 
 const unsorted = songPath => `${songPath}`.startsWith('Unrated/');
 
-// a copy in a Singles folder (or the unsorted _Singles), the only copies whose files are deleted
+// a copy in a Singles folder (or the unsorted _Singles), the only copies a duplicate rule removes
 const inSinglesFolder = songPath => /(^|\/)_?Singles\//.test(`${songPath}`);
-
-// an album copy filed under an artist (Rated/<genre>/<grouping>/Artists/<artist>/album/...)
-const artistAlbum = songPath =>
-  releaseType(songPath) === 'album' && /(^|\/)Artists\//.test(`${songPath}`);
 
 // version words in a file name that mark another recording of a song: Song (Arsenal mix).mp3
 const versionWords =
@@ -75,59 +71,67 @@ const otherRecording = songPath => {
 };
 
 /**
- * What to do with one group of duplicates ({ path, mtime, rating, audio }), by rules in order:
+ * What to do with one group of duplicates ({ path, mtime, rating, audio }). Copies outside Singles
+ * folders (an album, EP, single release or compilation under Artists, an Unrated album import) are
+ * there deliberately and never removed; only copies in a Singles or _Singles folder can lose:
  *   another recording (a live or remix release, or a version like a radio edit in the title) next to
  *   the song is a wrong match, not a duplicate: its match is cleared so sync --match finds its own
  *   track (clear), the file and the song stay; one linked to no track is left out of the group
- *   a Rated copy wins over Unrated imports
- *   of numbered copies (Song.1.mp3 and Song.mp3) the one without the number wins when their audio is
- *   the same; numbered copies with other audio are left to pick
- *   an album copy wins over an EP, an EP over a single, a single over a compilation (releaseRank)
- * A losing copy's file goes to the trash only when it is a single in a Singles folder and an album copy
- * under Artists is kept, an Unrated singleton (Unrated/_Singles) of a Rated song, or a numbered copy
- * with the same audio (trash); any other losing copy leaves
- * the library and Spotify but its file stays (exclude). Returns { keep, trash, exclude, clear,
- * candidates, reasons }: keep is null when copies tie, and candidates lists the copies to pick from
- * (the others are excluded, resolveGroup). Tied copies with the same audio are decided too: the one
- * whose file name is closest to its title (TIT2), then to its Spotify artist and title, is kept, and
- * the others go to the trash from a Singles
- * folder or are excluded elsewhere. audio(item) gives a copy's audioHash (null when unknown).
+ *   with a copy under Artists, every Singles copy goes to the trash and the best Artists copy (album,
+ *   then EP, single release, compilation: releaseRank) takes its tags
+ *   else among the Singles copies (an Unrated album import beside them is left alone):
+ *     a Rated copy wins over Unrated imports
+ *     of numbered copies (Song.1.mp3 and Song.mp3) the one without the number wins when their audio
+ *     is the same; numbered copies with other audio are left to pick
+ *     tied copies with the same audio: the one whose file name is closest to its title (TIT2), then
+ *     to its Spotify artist and title, wins; other ties are left to pick
+ * Losing copies go to the trash (trash); exclude (out of the library and Spotify, file kept) is left
+ * for the copies not picked (resolveGroup). Returns { keep, trash, exclude, clear, candidates,
+ * reasons }: keep is null when copies tie, and candidates lists the copies to pick from. audio(item)
+ * gives a copy's audioHash (null when unknown).
  */
 // the Spotify track a copy is linked to: its Spotify id tag, else its match (a review candidate too)
 const linkedTrack = item => item.trackId || item.matchedTrack || null;
 
+const underArtists = songPath => /(^|\/)Artists\//.test(`${songPath}`);
+
 const planGroup = (files, { audio = item => item.audio || null } = {}) => {
   const reasons = {};
   const trash = [];
-  const exclude = [];
-  const losers = [];
-  let members = files;
-  const [others, originals] = _.partition(members, item => otherRecording(item.path));
+  const plan = keep => ({ keep, trash, exclude: [], clear, candidates: [], reasons });
+  const [others, originals] = _.partition(files, item => otherRecording(item.path));
   // another recording linked to no track (its match rejected before) is no duplicate, nothing to clear
   const clear =
     others.length > 0 && originals.length > 0 ? _.map(_.filter(others, linkedTrack), 'path') : [];
   _.each(clear, file => {
     reasons[file] = otherRecording(file);
   });
-  if (others.length > 0 && originals.length > 0) {
-    members = originals;
+  const members = others.length > 0 && originals.length > 0 ? originals : files;
+  const [singles, deliberate] = _.partition(members, item => inSinglesFolder(item.path));
+  const artists = _.filter(deliberate, item => underArtists(item.path));
+  if (artists.length > 0) {
+    const kept = _.minBy(artists, item => releaseRank[releaseType(item.path)]);
+    _.each(singles, item => {
+      trash.push(item.path);
+      reasons[item.path] = `Singles copy, the ${releaseType(kept.path)} copy under Artists is kept`;
+    });
+    return plan(kept.path);
   }
-  const [imports, rated] = _.partition(members, item => unsorted(item.path));
+  if (singles.length < 2) {
+    return plan(_.get(singles, [0, 'path'], null));
+  }
+  let top = singles;
+  const [imports, rated] = _.partition(top, item => unsorted(item.path));
   if (imports.length > 0 && rated.length > 0) {
-    // a singleton import (Unrated/_Singles) of a Rated song is trashed whatever copy is kept; an
-    // Unrated album track may complete an album folder, so it only leaves the library
-    losers.push(
-      ..._.map(imports, item => ({
-        item,
-        reason: 'Unrated import of a Rated song',
-        trash: inSinglesFolder(item.path)
-      }))
-    );
-    members = rated;
+    _.each(imports, item => {
+      trash.push(item.path);
+      reasons[item.path] = 'Unrated import of a Rated song';
+    });
+    top = rated;
   }
   _.each(
     _.filter(
-      _.groupBy(members, item => numberedKey(item.path)),
+      _.groupBy(top, item => numberedKey(item.path)),
       group => group.length > 1
     ),
     group => {
@@ -144,49 +148,35 @@ const planGroup = (files, { audio = item => item.audio || null } = {}) => {
         trash.push(item.path);
         reasons[item.path] = 'numbered copy with the same audio';
       });
-      members = _.difference(members, same);
+      top = _.difference(top, same);
     }
   );
-  const rank = item => releaseRank[releaseType(item.path)];
-  const best = _.min(_.map(members, rank));
-  const [top, lower] = _.partition(members, item => rank(item) === best);
-  losers.push(
-    ..._.map(lower, item => ({
-      item,
-      reason: `${releaseType(item.path)} copy, the ${releaseType(top[0].path)} copy is kept`
-    }))
-  );
-  const albumKept = top.length > 0 && _.every(top, item => artistAlbum(item.path));
-  _.each(losers, ({ item, reason, trash: always = false }) => {
-    (always || (inSinglesFolder(item.path) && albumKept) ? trash : exclude).push(item.path);
-    reasons[item.path] = reason;
-  });
-  let keep = top.length === 1 ? top[0].path : null;
-  if (!keep && top.length > 1) {
-    const sounds = _.map(top, audio);
-    // closest to its own title, then (when those tie) to the Spotify artist and title
-    const named = _.orderBy(
-      _.map(top, item => ({
-        item,
-        score: titleCloseness(item.path, item.title),
-        spotify: item.spotifyTitle ? titleCloseness(item.path, item.spotifyTitle) : 0
-      })),
-      ['score', 'spotify'],
-      ['desc', 'desc']
-    );
-    const closer =
-      named[0].score > named[1].score ||
-      (named[0].score === named[1].score && named[0].spotify > named[1].spotify);
-    // identical audio, and one name closest to its title: no pick needed
-    if (sounds[0] && _.uniq(sounds).length === 1 && closer) {
-      keep = named[0].item.path;
-      _.each(_.tail(named), ({ item }) => {
-        (inSinglesFolder(item.path) ? trash : exclude).push(item.path);
-        reasons[item.path] = 'same audio, the copy named closest to its title is kept';
-      });
-    }
+  if (top.length === 1) {
+    return plan(top[0].path);
   }
-  return { keep, trash, exclude, clear, candidates: keep ? [] : _.map(top, 'path'), reasons };
+  // closest to its own title, then (when those tie) to the Spotify artist and title
+  const named = _.orderBy(
+    _.map(top, item => ({
+      item,
+      score: titleCloseness(item.path, item.title),
+      spotify: item.spotifyTitle ? titleCloseness(item.path, item.spotifyTitle) : 0
+    })),
+    ['score', 'spotify'],
+    ['desc', 'desc']
+  );
+  const closer =
+    named[0].score > named[1].score ||
+    (named[0].score === named[1].score && named[0].spotify > named[1].spotify);
+  const sounds = _.map(top, audio);
+  // identical audio, and one name closest to its title: no pick needed
+  if (sounds[0] && _.uniq(sounds).length === 1 && closer) {
+    _.each(_.tail(named), ({ item }) => {
+      trash.push(item.path);
+      reasons[item.path] = 'same audio, the copy named closest to its title is kept';
+    });
+    return plan(named[0].item.path);
+  }
+  return { ...plan(null), candidates: _.map(top, 'path') };
 };
 
 // letter pairs of a text, for titleCloseness
@@ -570,6 +560,7 @@ module.exports = {
   applyDuplicates,
   audioHash,
   duplicateGroups,
+  inSinglesFolder,
   isNumbered,
   mergedTags,
   otherRecording,

@@ -6,6 +6,15 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- `check --fix` never removes a copy outside a `Singles` or `_Singles` folder: album, EP, single
+  release, and compilation copies under `Artists`, and `Unrated/` album imports, stay in the database
+  (before, compilation, EP, and single release copies of an album song were excluded, and numbered
+  copies with the same audio trashed wherever they were). A Singles copy goes to the trash beside any
+  copy under `Artists`, not only an album copy.
+- ISRC duplicates are only reported for groups with a Singles copy.
+
 ## [1.93.1] - 2026-11-27
 
 ### Fixed

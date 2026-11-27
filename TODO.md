@@ -44,12 +44,16 @@ Reviewed: 2026-11-26
       copy now go to the trash.
 - [ ] **Other recordings named only by their release.** (p3) [bug] `otherRecording` reads version words
       from the file name only, so Coldplay `single/2008 - Lost!/03 - Lost@.mp3` (live) and Boards of Canada
-      `single/1999 - Peel Session/02 - Happy Cycling.mp3` join their album track's ISRC group and
-      `check --fix` would exclude them (files kept). Folder names are no safe signal (`Live Through This`);
-      maybe the beets `albumtype`/MusicBrainz secondary types, or Spotify's own ISRC differing from TSRC.
-      Length does not tell them apart either (Lost@ is 0 s from Lost!, the Peel Session 4.6 s; 1.93.1's
-      15 s ISRC guard leaves both). Also `Little Creatures/11 - And She Was (early version).mp3`: `early`
-      is not in `versionWords`.
+      `single/1999 - Peel Session/02 - Happy Cycling.mp3` were taken for copies of their album tracks.
+      Since 1.94.0 copies under Artists are never removed, so what is left: a Singles copy of such a
+      recording is trashed beside the studio album copy, and the match clearing (rule 1) misses them.
+      Folder names are no safe signal (`Live Through This`); maybe the beets `albumtype`/MusicBrainz
+      secondary types, or Spotify's own ISRC differing from TSRC. Length does not tell them apart (Lost@
+      is 0 s from Lost!). Also `And She Was (early version).mp3`: `early` is not in `versionWords`.
+- [ ] **Review the 105 Artists copies let back in.** (p2) [chore] 1.94.0 stopped excluding copies under
+      Artists; the 91 earlier `check --fix` excluded (70 compilation, 15 single release, 6 EP) are
+      readmitted, and 14 numbered copies with the same audio are still in the trash (`.musicman/trash/`).
+      Review the list for real duplicates to remove by hand.
 - [x] **`check --fix`.** (p2) [feature] `musicman check --fix` (docs/08-check.md): names, standard,
       spotify-id, multi, case, and drift, after one confirmation, recorded for `musicman undo`.
 - [x] **Clean up duplicate TXXX fields.** (p2) [chore] `check --fix` renames each name to its most used
