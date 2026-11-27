@@ -74,9 +74,54 @@ describe('Duplicates repair', () => {
         song(single),
         song(unrated)
       ]);
-      expect(plan).to.deep.include({ keep: album, trash: [singles, unrated], exclude: [] });
+      expect(plan).to.deep.include({
+        keep: album,
+        trash: [unrated, singles],
+        exclude: [],
+        unrate: []
+      });
       expect(plan.reasons[singles]).to.equal('Singles copy, the album copy under Artists is kept');
       expect(plan.candidates).to.be.empty;
+    });
+
+    it('should unrate the rated copies under Artists that lose, and leave unrated ones alone', () => {
+      const rated = (file, rating = 4) => ({ ...song(file), rating });
+      const plan = planGroup([rated(comp), song(ep), rated(single, 3), rated(album)]);
+      expect(plan).to.deep.include({ keep: album, unrate: [comp, single], exclude: [], trash: [] });
+      expect(plan.reasons[comp]).to.equal('compilation copy, the album copy is kept');
+      // only unrated copies beside the kept one: nothing to do
+      expect(planDuplicates([{ files: [song(comp), rated(album)] }])).to.be.empty;
+    });
+
+    it('should unrate a rated Unrated album import of a Rated song, and leave an unrated one', () => {
+      expect(planGroup([{ ...song(unratedAlbum), rating: 4 }, song(album)])).to.deep.include({
+        keep: album,
+        unrate: [unratedAlbum]
+      });
+      expect(planDuplicates([{ files: [song(unratedAlbum), song(album)] }])).to.be.empty;
+    });
+
+    it('should keep the only rated copy of tied copies under Artists, and pick between rated ones', () => {
+      const other = 'Rated/R/I/Artists/A/album/2004 - Other/03 - Song.mp3';
+      expect(planGroup([song(album), { ...song(other), rating: 4 }])).to.deep.include({
+        keep: other,
+        candidates: [],
+        unrate: []
+      });
+      const tied = planGroup([
+        { ...song(album), rating: 4 },
+        { ...song(other), rating: 5 }
+      ]);
+      expect(tied.candidates).to.have.members([album, other]);
+      const files = [
+        { ...song(album), rating: 4 },
+        { ...song(other), rating: 5 }
+      ];
+      expect(resolveGroup({ ...tied, files }, other)).to.deep.include({
+        keep: other,
+        unrate: [album],
+        exclude: []
+      });
     });
 
     it('should trash a Singles copy for any copy under Artists, the best one taking its tags', () => {
@@ -214,9 +259,14 @@ describe('Duplicates repair', () => {
       expect(plan).to.deep.include({ exclude: [], trash: [], candidates: [] });
     });
 
-    it('should never trash a numbered copy outside the Singles folders', () => {
+    it('should trash a numbered copy with the same audio under Artists too', () => {
       const numbered = 'Rated/R/I/Artists/A/album/2000 - Album/01 - Song.1.mp3';
-      expect(planDuplicates([{ files: [song(album, 1, 'aa'), song(numbered, 9, 'aa')] }])).to.be
+      expect(planGroup([song(album, 1, 'aa'), song(numbered, 9, 'aa')])).to.deep.include({
+        keep: album,
+        trash: [numbered]
+      });
+      // other audio: two files of the album, nothing rated, left alone
+      expect(planDuplicates([{ files: [song(album, 1, 'aa'), song(numbered, 9, 'bb')] }])).to.be
         .empty;
     });
 
@@ -513,6 +563,47 @@ describe('Duplicates repair', () => {
       expect(undoPlan('r2').moves.map(({ action, status }) => [action, status])).to.deep.equal([
         ['include', 'restore']
       ]);
+    });
+
+    it('should unrate a copy under Artists: its rating moves to the kept copy, it stays, until undone', async () => {
+      const album = 'Rated/G/Artists/A/album/2000 - Album/01 - Song.mp3';
+      const comp = 'Rated/G/Artists/A/compilation/2010 - Hits/05 - Song.mp3';
+      [album, comp].forEach(file => fs.mkdirSync(path.dirname(abs(file)), { recursive: true }));
+      fs.renameSync(abs(kept), abs(album));
+      fs.renameSync(abs(copy), abs(comp));
+      await updateDatabase(db, { config, target: library });
+      const ratingOf = file =>
+        _.get(db.prepare('SELECT rating FROM songs WHERE path = ?').get(file), 'rating', 'gone');
+      const compRating = ratingOf(comp);
+      const groups = planOf([album, comp]);
+      expect(groups.map(({ keep, unrate }) => [keep, unrate])).to.deep.equal([[album, [comp]]]);
+      beginJournal({
+        run: { id: 'r1', command: 'check', args: ['check'], startedAt: new Date() },
+        config,
+        db
+      });
+      const result = await applyDuplicates({ db, config, groups, runId: 'r1', beet });
+      endJournal();
+      expect(result.failed).to.be.empty;
+      expect(result.unrated).to.deep.equal([{ file: comp, reason: groups[0].reasons[comp] }]);
+      expect(result.excluded).to.be.empty;
+      // the newer rating (255, the compilation copy) is the album copy's now; the compilation copy
+      // stays in the library and its file, without a rating
+      expect(NodeId3.read(abs(album)).raw.POPM.rating).to.equal(255);
+      expect(NodeId3.read(abs(comp)).raw.POPM).to.be.undefined;
+      expect(ratingOf(album)).to.equal(compRating);
+      expect(ratingOf(comp)).to.be.null;
+      expect([...excludedPaths(db)]).to.be.empty;
+      expect(beetCalls).to.be.empty;
+      beginJournal({
+        run: { id: 'r2', command: 'undo', args: ['undo'], startedAt: new Date(Date.now() + 1000) },
+        config,
+        db
+      });
+      await applyUndo({ db, config, plan: undoPlan('r1'), beet });
+      endJournal();
+      expect(NodeId3.read(abs(comp)).raw.POPM.rating).to.equal(255);
+      expect(ratingOf(comp)).to.equal(compRating);
     });
 
     it('should not remove a copy when the merge into the kept copy fails', async () => {

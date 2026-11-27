@@ -44,8 +44,8 @@ audio) once; the whole library takes about 40 seconds.
   within 15 seconds of the next longer or shorter copy: an extended mix or a wrong ISRC splits off. A group found by a track id is
   not listed again by ISRC, nor one found by an id by name. Other recordings (a `live` or `remix` release,
   or a version in the title, rule 1 below) are left out of ISRC groups: beets writes the studio ISRC on
-  live files, and versions can share one on Spotify. The same recording on an album and a compilation is reported too; it may be
-  intended.
+  live files, and versions can share one on Spotify. Groups with nothing to do (copies under `Artists` with at most one rated) are
+  not reported.
 
 - `rare` counts each value of `stats.multiFields` (context, mood, picks) over the whole library and lists the
   checked songs using it. A rare value may be new; one a single edit from a common value (two from eight
@@ -94,29 +94,39 @@ decision per song and stay reports; `--fix` names them when they found something
 
 ### Duplicates
 
-After the tag repairs, `--fix` plans each duplicate group (groups that share a file are joined). Copies
-outside a `Singles` or `_Singles` folder are there deliberately and are never removed: an album, EP,
-`single` release, or compilation copy under `Artists`, an `Unrated/` album import, and their numbered
-copies. Only Singles copies can lose, by rules in order:
+After the tag repairs, `--fix` plans each duplicate group (groups that share a file are joined). One copy
+of a song is kept and holds its rating; a rated song has no rated duplicate. Copies outside a `Singles`
+or `_Singles` folder (an album, EP, `single` release, or compilation copy under `Artists`, an `Unrated/`
+album import) stay in the library and on disk for a complete discography: one that loses is unrated, its
+rating moved to the kept copy, so `sync.scope` keeps it off Spotify. Rules in order:
 
 1. Another recording is a wrong Spotify match, not a duplicate: a copy on a `live` or `remix` release, or
    with a version in its title (`(radio edit)`, `(acoustic)`, `(Arsenal mix)`, `(new vocal version)`),
    stays in the library and is matched again: its studio Spotify id and fields are removed and that
    track is rejected for it, so `sync --match` finds its own track and push adds it to the playlists.
    One linked to no track (its match rejected before, no live track found yet) is left out of the group.
-2. With a copy under `Artists`, every Singles copy goes to the trash; the best `Artists` copy (an album,
-   then an EP, a `single` release, a compilation) takes its tags.
-3. Else, among the Singles copies (an `Unrated/` album import beside them is left alone): a Rated copy
-   is kept over `Unrated/_Singles` imports; of numbered copies (`Song.1.mp3` next to `Song.mp3`) with the
-   same audio (compared without the ID3 tags), the file without the number is kept; of copies with the
-   same audio, the one named closest to its title. Other ties are picked.
+2. A Rated copy is kept over `Unrated/` imports: a `_Singles` import goes to the trash, an album import
+   is unrated.
+3. Of numbered copies (`Song.1.mp3` next to `Song.mp3`) with the same audio (compared without the ID3
+   tags), the file without the number is kept, in any folder, and the numbered one goes to the trash.
+   Numbered copies with other audio are picked.
+4. With a Rated copy under `Artists`, every Singles copy goes to the trash, and an album copy is kept over
+   an EP, an EP over a `single` release, a `single` release over a compilation; the others are unrated.
+   Of copies tied under `Artists`, the only rated one is kept; two rated ones are picked.
+5. Else the Singles copies are decided among themselves: of copies with the same audio, the one named
+   closest to its title is kept; other ties are picked.
 
 What happens to a copy that is not kept:
 
 | Copy | Database and Spotify | File |
 | ---- | -------------------- | ---- |
-| a Singles copy that lost by rule 2 or 3 | out | to the trash |
-| a copy not picked (`--pick`) | out | stays where it is |
+| a Singles copy, or a numbered copy with the same audio | out | to the trash |
+| a rated copy outside the Singles folders | stays, unrated (off Spotify) | stays, its rating moved to the copy kept |
+| an unrated copy outside the Singles folders | stays | stays (nothing to do, not reported) |
+| a Singles copy not picked (`--pick`) | out | stays where it is |
+
+Only groups `--fix` acts on are reported: an album copy beside its unrated compilation copy is no
+finding. Playlists filtered on grouping alone (`grouping:IndieRock.Artists`) include unrated copies.
 
 Copies out of the library are listed in the `excluded_songs` table: `db --update`, the commands reading
 the library, and the drift check skip them, and `sync --push` removes their Spotify tracks from the

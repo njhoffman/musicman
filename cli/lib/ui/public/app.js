@@ -212,13 +212,19 @@ const when = iso => (iso ? new Date(iso).toLocaleString() : '');
 const keptCopy = group => group.keep || state.keeps[group.key] || null;
 
 // what repairing a group does, in a few words
+// a copy in a Singles folder: the only copies taken out of the library; the others are unrated
+const inSingles = file => /(^|\/)_?Singles\//.test(file);
+
 const duplicatePlan = group => {
   const count = action => group.copies.filter(copy => copy.action === action).length;
   const picked = keptCopy(group);
-  const dropped = count('exclude') + (group.keep ? 0 : picked ? group.candidates.length - 1 : 0);
+  const notPicked = group.keep || !picked ? [] : group.candidates.filter(file => file !== picked);
+  const dropped = count('exclude') + notPicked.filter(inSingles).length;
+  const unrated = count('unrate') + notPicked.filter(file => !inSingles(file)).length;
   return [
     count('trash') > 0 ? `trash ${count('trash')}` : null,
     dropped > 0 ? `drop ${dropped} (file kept)` : null,
+    unrated > 0 ? `unrate ${unrated}` : null,
     count('clear') > 0 ? `re-match ${count('clear')}` : null,
     !group.keep && !picked ? 'pick the copy to keep' : null
   ]
@@ -1269,14 +1275,17 @@ const duplicateDetails = group => {
     if (copy.action === 'pick') {
       return picked === copy.song.path
         ? 'Kept (picked)'
-        : picked
-          ? 'Out of the library, file kept'
-          : 'Pick to keep';
+        : !picked
+          ? 'Pick to keep'
+          : inSingles(copy.song.path)
+            ? 'Out of the library, file kept'
+            : 'Kept in the library, its rating moved to the copy kept';
     }
     return {
       keep: 'Kept',
       trash: 'File moved to the trash',
       exclude: 'Out of the library, file kept',
+      unrate: 'Kept in the library, its rating moved to the copy kept',
       clear: 'Matched again to its own Spotify track',
       none: 'Left alone'
     }[copy.action];
@@ -1299,7 +1308,7 @@ const duplicateDetails = group => {
         { className: 'duplicate' },
         h(
           'p',
-          { className: ['trash', 'exclude'].includes(copy.action) ? 'differs' : 'dim' },
+          { className: ['trash', 'exclude', 'unrate'].includes(copy.action) ? 'differs' : 'dim' },
           label(copy),
           copy.reason ? `: ${copy.reason}` : ''
         ),
@@ -1360,14 +1369,16 @@ const repairDuplicates = async groups => {
       (total, group) => total + group.copies.filter(copy => copy.action === action).length,
       0
     );
-  const dropped =
-    count('exclude') +
-    groups.reduce((total, group) => total + (group.keep ? 0 : group.candidates.length - 1), 0);
+  const notPicked = groups.flatMap(group =>
+    group.keep ? [] : group.candidates.filter(file => file !== keptCopy(group))
+  );
+  const dropped = count('exclude') + notPicked.filter(inSingles).length;
+  const unrated = count('unrate') + notPicked.filter(file => !inSingles(file)).length;
   if (
     !window.confirm(
       `Repair ${groups.length} duplicate group${groups.length > 1 ? 's' : ''}: trash ${count(
         'trash'
-      )} files, drop ${dropped} copies from the library (files kept), re-match ${count('clear')}?`
+      )} files, drop ${dropped} copies from the library (files kept), unrate ${unrated}, re-match ${count('clear')}?`
     )
   ) {
     return;
@@ -1385,6 +1396,7 @@ const repairDuplicates = async groups => {
     });
     showMessage(
       `Moved ${result.removed} files to the trash, dropped ${result.excluded} copies from the library` +
+        (result.unrated ? `, unrated ${result.unrated}` : '') +
         (result.merged ? `, merged tags into ${result.merged}` : '') +
         (result.cleared ? `, cleared ${result.cleared} wrong matches` : '') +
         (result.failed.length

@@ -78,8 +78,13 @@ const checks = [
     name: 'duplicates',
     source: 'db',
     unit: 'group',
-    description: 'the same song in more than one file',
-    run: library.duplicates
+    description: 'the same song in more than one file that check --fix acts on',
+    run: ({ db, config, songs }) =>
+      library.actionableDuplicates({
+        db,
+        config,
+        findings: library.duplicates({ db, config, songs })
+      })
   },
   {
     name: 'artwork',

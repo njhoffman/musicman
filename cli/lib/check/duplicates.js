@@ -5,6 +5,7 @@ const path = require('path');
 const NodeId3 = require('node-id3');
 
 const { execBeet } = require('../beets/sort.js');
+const { updateDatabase } = require('../db/update.js');
 const { excludeSong } = require('../db/exclusions.js');
 const { journaledMatch, recordFileMove } = require('../history/journal.js');
 const { rewriteTags } = require('../metadata/write.js');
@@ -71,34 +72,58 @@ const otherRecording = songPath => {
 };
 
 /**
- * What to do with one group of duplicates ({ path, mtime, rating, audio }). Copies outside Singles
- * folders (an album, EP, single release or compilation under Artists, an Unrated album import) are
- * there deliberately and never removed; only copies in a Singles or _Singles folder can lose:
+ * What to do with one group of duplicates ({ path, mtime, rating, audio }). One copy of a song is kept
+ * and holds its rating. Copies outside Singles folders (under Artists, an Unrated album import) stay in
+ * the library for a complete discography: when one loses and is rated, its rating moves to the kept
+ * copy and is removed from it (unrate), so it is in no rating playlist and not on Spotify. Rules:
  *   another recording (a live or remix release, or a version like a radio edit in the title) next to
  *   the song is a wrong match, not a duplicate: its match is cleared so sync --match finds its own
  *   track (clear), the file and the song stay; one linked to no track is left out of the group
- *   with a copy under Artists, every Singles copy goes to the trash and the best Artists copy (album,
- *   then EP, single release, compilation: releaseRank) takes its tags
- *   else among the Singles copies (an Unrated album import beside them is left alone):
- *     a Rated copy wins over Unrated imports
- *     of numbered copies (Song.1.mp3 and Song.mp3) the one without the number wins when their audio
- *     is the same; numbered copies with other audio are left to pick
- *     tied copies with the same audio: the one whose file name is closest to its title (TIT2), then
- *     to its Spotify artist and title, wins; other ties are left to pick
- * Losing copies go to the trash (trash); exclude (out of the library and Spotify, file kept) is left
- * for the copies not picked (resolveGroup). Returns { keep, trash, exclude, clear, candidates,
- * reasons }: keep is null when copies tie, and candidates lists the copies to pick from. audio(item)
- * gives a copy's audioHash (null when unknown).
+ *   a Rated copy wins over Unrated imports: a singleton import (Unrated/_Singles) goes to the trash,
+ *   an Unrated album track is unrated
+ *   of numbered copies (Song.1.mp3 and Song.mp3) the one without the number wins when their audio is
+ *   the same, in any folder, and the numbered one goes to the trash; numbered copies with other audio
+ *   are left to pick
+ *   with a Rated copy outside the Singles folders (under Artists), every Singles copy goes to the
+ *   trash, and of those copies an album wins over an EP, an EP over a single release, a single release
+ *   over a compilation (releaseRank); the others are unrated
+ *   else the Singles copies are decided among themselves (an Unrated album import beside them, with no
+ *   Rated copy, is left alone)
+ *   tied copies: outside the Singles folders the only rated one wins (nothing to do without two rated
+ *   copies); else with the same audio, the one whose file name is closest to its title (TIT2), then to
+ *   its Spotify artist and title, wins; other ties are left to pick (resolveGroup)
+ * Returns { keep, trash, exclude, unrate, clear, candidates, reasons }: keep is null when copies tie,
+ * and candidates lists the copies to pick from. audio(item) gives a copy's audioHash (null when
+ * unknown).
  */
 // the Spotify track a copy is linked to: its Spotify id tag, else its match (a review candidate too)
 const linkedTrack = item => item.trackId || item.matchedTrack || null;
 
-const underArtists = songPath => /(^|\/)Artists\//.test(`${songPath}`);
+// a copy with a rating in the database
+const isRated = item => Number(item.rating) > 0;
+
+/**
+ * What happens to a copy that loses: a Singles copy (or one forced to, toTrash) goes to the trash, a
+ * rated copy elsewhere is unrated, an unrated one is left as it is.
+ */
+const loseCopy = ({ trash, unrate, reasons }, item, reason, toTrash = false) => {
+  if (toTrash || inSinglesFolder(item.path)) {
+    trash.push(item.path);
+  } else if (isRated(item)) {
+    unrate.push(item.path);
+  } else {
+    return;
+  }
+  reasons[item.path] = reason;
+};
 
 const planGroup = (files, { audio = item => item.audio || null } = {}) => {
   const reasons = {};
   const trash = [];
-  const plan = keep => ({ keep, trash, exclude: [], clear, candidates: [], reasons });
+  const exclude = [];
+  const unrate = [];
+  const lose = (item, reason, toTrash) =>
+    loseCopy({ trash, unrate, reasons }, item, reason, toTrash);
   const [others, originals] = _.partition(files, item => otherRecording(item.path));
   // another recording linked to no track (its match rejected before) is no duplicate, nothing to clear
   const clear =
@@ -106,32 +131,24 @@ const planGroup = (files, { audio = item => item.audio || null } = {}) => {
   _.each(clear, file => {
     reasons[file] = otherRecording(file);
   });
-  const members = others.length > 0 && originals.length > 0 ? originals : files;
-  const [singles, deliberate] = _.partition(members, item => inSinglesFolder(item.path));
-  const artists = _.filter(deliberate, item => underArtists(item.path));
-  if (artists.length > 0) {
-    const kept = _.minBy(artists, item => releaseRank[releaseType(item.path)]);
-    _.each(singles, item => {
-      trash.push(item.path);
-      reasons[item.path] = `Singles copy, the ${releaseType(kept.path)} copy under Artists is kept`;
-    });
-    return plan(kept.path);
-  }
-  if (singles.length < 2) {
-    return plan(_.get(singles, [0, 'path'], null));
-  }
-  let top = singles;
-  const [imports, rated] = _.partition(top, item => unsorted(item.path));
+  let members = others.length > 0 && originals.length > 0 ? originals : files;
+  const plan = (keep, candidates = []) => ({
+    keep,
+    trash,
+    exclude,
+    unrate,
+    clear,
+    candidates,
+    reasons
+  });
+  const [imports, rated] = _.partition(members, item => unsorted(item.path));
   if (imports.length > 0 && rated.length > 0) {
-    _.each(imports, item => {
-      trash.push(item.path);
-      reasons[item.path] = 'Unrated import of a Rated song';
-    });
-    top = rated;
+    _.each(imports, item => lose(item, 'Unrated import of a Rated song'));
+    members = rated;
   }
   _.each(
     _.filter(
-      _.groupBy(top, item => numberedKey(item.path)),
+      _.groupBy(members, item => numberedKey(item.path)),
       group => group.length > 1
     ),
     group => {
@@ -144,15 +161,28 @@ const planGroup = (files, { audio = item => item.audio || null } = {}) => {
         _.without(group, original),
         item => audio(item) && audio(item) === audio(original)
       );
-      _.each(same, item => {
-        trash.push(item.path);
-        reasons[item.path] = 'numbered copy with the same audio';
-      });
-      top = _.difference(top, same);
+      _.each(same, item => lose(item, 'numbered copy with the same audio', true));
+      members = _.difference(members, same);
     }
   );
-  if (top.length === 1) {
-    return plan(top[0].path);
+  const [singles, deliberate] = _.partition(members, item => inSinglesFolder(item.path));
+  let top = singles;
+  if (_.some(deliberate, item => !unsorted(item.path))) {
+    const rank = item => releaseRank[releaseType(item.path)];
+    const best = _.min(_.map(deliberate, rank));
+    const [kept, lower] = _.partition(deliberate, item => rank(item) === best);
+    const type = releaseType(kept[0].path);
+    _.each(singles, item => lose(item, `Singles copy, the ${type} copy under Artists is kept`));
+    _.each(lower, item => lose(item, `${releaseType(item.path)} copy, the ${type} copy is kept`));
+    // copies kept outside the Singles folders hold no rating but one: only rated ties are decided
+    const rated = _.filter(kept, isRated);
+    if (rated.length < 2) {
+      return plan((rated[0] || kept[0]).path);
+    }
+    top = rated;
+  }
+  if (top.length < 2) {
+    return plan(_.get(top, [0, 'path'], null));
   }
   // closest to its own title, then (when those tie) to the Spotify artist and title
   const named = _.orderBy(
@@ -170,13 +200,12 @@ const planGroup = (files, { audio = item => item.audio || null } = {}) => {
   const sounds = _.map(top, audio);
   // identical audio, and one name closest to its title: no pick needed
   if (sounds[0] && _.uniq(sounds).length === 1 && closer) {
-    _.each(_.tail(named), ({ item }) => {
-      trash.push(item.path);
-      reasons[item.path] = 'same audio, the copy named closest to its title is kept';
-    });
+    _.each(_.tail(named), ({ item }) =>
+      lose(item, 'same audio, the copy named closest to its title is kept')
+    );
     return plan(named[0].item.path);
   }
-  return { ...plan(null), candidates: _.map(top, 'path') };
+  return plan(null, _.map(top, 'path'));
 };
 
 // letter pairs of a text, for titleCloseness
@@ -317,13 +346,16 @@ const planDuplicates = (groups, { baseDirectory, hash = audioHash } = {}) => {
       }));
       return { ...group, files, ...plan };
     }),
-    ({ trash, exclude, clear, candidates }) =>
-      trash.length + exclude.length + clear.length + candidates.length > 0
+    ({ trash, exclude, unrate, clear, candidates }) =>
+      trash.length + exclude.length + unrate.length + clear.length + candidates.length > 0
   );
 };
 
 // the copies a group takes out of the library: trashed and excluded
 const removedCopies = group => [...group.trash, ...group.exclude];
+
+// the copies whose tags reach the kept copy: the ones taken out, and the ones unrated
+const mergedCopies = group => [...removedCopies(group), ...(group.unrate || [])];
 
 // a group after the copy to keep was picked among its candidates: the others leave the library, their
 // files stay (excluded)
@@ -332,14 +364,19 @@ const resolveGroup = (group, keep) => {
     return group;
   }
   const others = _.without(group.candidates, keep);
+  const byPath = _.keyBy(group.files, 'path');
+  // a Singles copy not picked leaves the library (file kept); one elsewhere stays, unrated
+  const [singles, deliberate] = _.partition(others, inSinglesFolder);
+  const unrate = _.filter(deliberate, file => isRated(byPath[file] || {}));
   return {
     ...group,
     keep,
     candidates: [],
-    exclude: [...group.exclude, ...others],
+    exclude: [...group.exclude, ...singles],
+    unrate: [...(group.unrate || []), ...unrate],
     reasons: {
       ...group.reasons,
-      ..._.fromPairs(_.map(others, file => [file, 'not the copy picked']))
+      ..._.fromPairs(_.map([...singles, ...unrate], file => [file, 'not the copy picked']))
     }
   };
 };
@@ -428,9 +465,11 @@ const moveFile = (from, to) => {
  * rating of the copies taken out into the kept copy, clears the Spotify match of other recordings
  * (their id is rejected for them, so sync --match finds their own track), moves trashed copies to the
  * trash (trashPath) after taking them out of beets, and excludes the others (out of the database and
- * Spotify, files kept). Trashed and excluded songs are listed in excluded_songs with their Spotify
- * track, which sync removes from the playlists. Everything is recorded for musicman undo. Resolves to
- * { merged, cleared, removed, excluded, failed } (failed: [{ file, error }]).
+ * Spotify, files kept), and removes the rating of the copies unrated (they stay in the library). Trashed
+ * and excluded songs are listed in excluded_songs with their Spotify track, which sync removes from the
+ * playlists. The kept and unrated copies are read into the database again (update). Everything is
+ * recorded for musicman undo. Resolves to { merged, cleared, removed, excluded, unrated, failed }
+ * (unrated: [{ file, reason }]; failed: [{ file, error }]).
  */
 const applyDuplicates = async ({
   db,
@@ -441,18 +480,19 @@ const applyDuplicates = async ({
   read = readRaw,
   write = rewriteTags,
   move = moveFile,
+  update = updateDatabase,
   onProgress = _.noop
 }) => {
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
   const absolute = songPath => path.join(baseDirectory, songPath);
   const descriptions = multiDescriptions(config);
-  const result = { merged: [], cleared: [], removed: [], excluded: [], failed: [] };
+  const result = { merged: [], cleared: [], removed: [], excluded: [], unrated: [], failed: [] };
   for (let i = 0; i < groups.length; i += 1) {
     const group = groups[i];
     const byPath = _.keyBy(group.files, 'path');
-    if (group.keep && removedCopies(group).length > 0) {
+    if (group.keep && mergedCopies(group).length > 0) {
       try {
-        const others = _.map(removedCopies(group), file => ({
+        const others = _.map(mergedCopies(group), file => ({
           raw: read(absolute(file)),
           mtime: byPath[file].mtime,
           ratedAt: byPath[file].rated_at || null
@@ -524,6 +564,21 @@ const applyDuplicates = async ({
         result.failed.push({ file, error: err.message });
       }
     }
+    // one copy of a song holds its rating (mergedTags gave it the newest): the others keep their
+    // place in the library, unrated, so no rating playlist and no Spotify sync takes them
+    for (const file of group.unrate || []) {
+      try {
+        if (!_.isEmpty(read(absolute(file)).POPM)) {
+          const written = write(absolute(file), raw => _.omit(raw, 'POPM'));
+          if (written instanceof Error) {
+            throw written;
+          }
+        }
+        result.unrated.push({ file, reason: group.reasons[file] });
+      } catch (err) {
+        result.failed.push({ file, error: err.message });
+      }
+    }
     for (const file of group.trash) {
       try {
         const from = absolute(file);
@@ -552,6 +607,11 @@ const applyDuplicates = async ({
       }
     }
     onProgress(i + 1, groups.length);
+  }
+  // the database reads the kept copies' merged tags and the unrated copies again
+  const changed = _.uniq([..._.map(result.merged, 'file'), ..._.map(result.unrated, 'file')]);
+  if (changed.length > 0) {
+    await update(db, { config, files: _.map(changed, absolute), record: false });
   }
   return result;
 };

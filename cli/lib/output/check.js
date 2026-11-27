@@ -106,6 +106,11 @@ const duplicateGroupLines = group => {
       `    ${chalk.hex(colors.move).bold('drop  ')}  ${paint('muted', file)}  ${paint('dim', `${group.reasons[file] || ''} (file kept)`)}`
     )
   );
+  _.each(group.unrate || [], file =>
+    lines.push(
+      `    ${chalk.hex(colors.move).bold('unrate')}  ${paint('muted', file)}  ${paint('dim', `${group.reasons[file] || ''} (stays, rating moved to the copy kept)`)}`
+    )
+  );
   _.each(group.clear, file =>
     lines.push(
       `    ${chalk.hex(colors.rename).bold('clear ')}  ${paint('muted', file)}  ${paint('dim', group.reasons[file] || '')}`
@@ -126,11 +131,13 @@ const renderDuplicatePlan = groups => {
   }
   const trashed = _.sumBy(groups, ({ trash }) => trash.length);
   const dropped = _.sumBy(groups, ({ exclude }) => exclude.length);
+  const unrated = _.sumBy(groups, ({ unrate }) => (unrate || []).length);
   const cleared = _.sumBy(groups, ({ clear }) => clear.length);
   const picks = _.filter(groups, ({ candidates }) => candidates.length > 0).length;
   const counts = _.compact([
     trashed && `trash ${plural(trashed, 'file')}`,
     dropped && `drop ${plural(dropped, 'copy', 'copies')} from the library (files kept)`,
+    unrated && `unrate ${plural(unrated, 'copy', 'copies')} kept in the library`,
     cleared && `re-match ${plural(cleared, 'other recording')}`,
     picks && paint('left', `${plural(picks, 'group')} to pick`)
   ]).join(', ');

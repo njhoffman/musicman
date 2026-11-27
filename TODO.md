@@ -50,10 +50,16 @@ Reviewed: 2026-11-26
       Folder names are no safe signal (`Live Through This`); maybe the beets `albumtype`/MusicBrainz
       secondary types, or Spotify's own ISRC differing from TSRC. Length does not tell them apart (Lost@
       is 0 s from Lost!). Also `And She Was (early version).mp3`: `early` is not in `versionWords`.
-- [ ] **Review the 105 Artists copies let back in.** (p2) [chore] 1.94.0 stopped excluding copies under
-      Artists; the 91 earlier `check --fix` excluded (70 compilation, 15 single release, 6 EP) are
-      readmitted, and 14 numbered copies with the same audio are still in the trash (`.musicman/trash/`).
-      Review the list for real duplicates to remove by hand.
+- [ ] **Review the 105 Artists copies let back in.** (p2) [chore] 1.94.0 readmitted the 91 Artists copies
+      earlier `check --fix` runs excluded (70 compilation, 15 single release, 6 EP); 1.95.0's
+      `check --fix` unrates them (rating moved to the kept copy). The 14 numbered copies with the same
+      audio (`Mickey Mouse Operation/*.1.mp3`) stay in the trash. List and plan:
+      `~/.cache/musicman-review/`. 26 rated ties under Artists are left to `check --pick`; some are other
+      recordings to skip (`Right Where It Belongs V.2`, `Lost@`, the `Acoustic` EP).
+- [ ] **Grouping-only playlists include unrated duplicate copies.** (p3) [bug] Copies unrated by
+      `check --fix` stay in the library, so local playlists filtered on grouping alone
+      (`grouping:IndieRock.Artists`) list a compilation copy beside its album copy. Spotify sync is safe
+      (`sync.scope: rating:4`). Add a rating term to those filters, or a scope for local playlists.
 - [x] **`check --fix`.** (p2) [feature] `musicman check --fix` (docs/08-check.md): names, standard,
       spotify-id, multi, case, and drift, after one confirmation, recorded for `musicman undo`.
 - [x] **Clean up duplicate TXXX fields.** (p2) [chore] `check --fix` renames each name to its most used

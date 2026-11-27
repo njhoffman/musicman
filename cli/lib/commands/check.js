@@ -96,7 +96,14 @@ const runTagFix = async ({ db, config, target, results, switches, confirm, quiet
   return { plan, written, failed };
 };
 
-const nothingDone = { removed: [], excluded: [], cleared: [], merged: [], failed: [] };
+const nothingDone = {
+  removed: [],
+  excluded: [],
+  unrated: [],
+  cleared: [],
+  merged: [],
+  failed: []
+};
 
 // the duplicate groups of the check results, planned (audio hashes read where a rule needs them)
 const plannedDuplicates = (db, config, results) =>
@@ -119,6 +126,8 @@ const duplicatesSummary = result =>
       result.removed.length && `moved ${plural(result.removed.length, 'file')} to the trash`,
       result.excluded.length &&
         `dropped ${plural(result.excluded.length, 'copy', 'copies')} from the library (files kept)`,
+      _.get(result, 'unrated.length') &&
+        `unrated ${plural(result.unrated.length, 'copy', 'copies')} kept in the library (their rating moved to the copy kept)`,
       result.cleared.length &&
         `cleared ${plural(result.cleared.length, 'wrong match', 'wrong matches')} (sync --match finds their own tracks)`,
       result.merged.length &&
@@ -161,6 +170,8 @@ const runDuplicateFix = async ({ db, config, results, switches, confirm }) => {
     count('trash') && `move ${plural(count('trash'), 'file')} to the trash`,
     count('exclude') &&
       `drop ${plural(count('exclude'), 'copy', 'copies')} from the library (files kept)`,
+    count('unrate') &&
+      `unrate ${plural(count('unrate'), 'copy', 'copies')} kept in the library (rating moved to the copy kept)`,
     count('clear') && `re-match ${plural(count('clear'), 'other recording')}`
   ]).join(', ');
   if (!(await confirm(`Repair ${plural(decided.length, 'duplicate group')}: ${question}?`))) {
@@ -233,7 +244,7 @@ const runDuplicatePick = async ({ db, config, results, pick }) => {
     return { picked: 0, skipped: toPick.length, ...nothingDone };
   }
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
-  const total = { picked: 0, skipped: 0, ...nothingDone, failed: [] };
+  const total = { picked: 0, skipped: 0, ..._.cloneDeep(nothingDone) };
   const runId = runIdNow();
   for (let i = 0; i < toPick.length; i += 1) {
     const group = toPick[i];
@@ -267,7 +278,7 @@ const runDuplicatePick = async ({ db, config, results, pick }) => {
       runId
     });
     _.each(result.failed, ({ file, error }) => logger.warn(`FAILED  ${file}: ${error}`));
-    _.each(['removed', 'excluded', 'cleared', 'merged', 'failed'], key =>
+    _.each(['removed', 'excluded', 'unrated', 'cleared', 'merged', 'failed'], key =>
       total[key].push(...result[key])
     );
     total.picked += 1;

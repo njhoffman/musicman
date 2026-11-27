@@ -6,6 +6,22 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- A rated song has no rated duplicate: `check --fix` keeps one copy with the rating and unrates the
+  copies outside the Singles folders that lose (compilation, EP, and single release copies beside the
+  album copy, Unrated album imports). They stay in the library and on disk for a complete discography,
+  and `sync.scope` keeps them off Spotify. Copies under `Artists` tied with two ratings are picked; the
+  one not picked is unrated.
+- Numbered copies with the same audio (`Song.1.mp3` next to `Song.mp3`) go to the trash in any folder
+  again, `Artists` folders too.
+- The `duplicates` check only reports groups `--fix` acts on.
+
+### Fixed
+
+- Picking duplicates in one `check --pick` run no longer adds its counts to a later run in the same
+  process (the totals shared the empty result's lists).
+
 ## [1.94.0] - 2026-11-27
 
 ### Changed

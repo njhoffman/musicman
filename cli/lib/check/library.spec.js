@@ -220,6 +220,42 @@ describe('Library checks', () => {
     ]);
   });
 
+  describe('actionableDuplicates', () => {
+    const album = 'Rated/R/I/Artists/A/album/2000 - Album/01 - Song.mp3';
+    const comp = 'Rated/R/I/Artists/A/compilation/2010 - Hits/05 - Song.mp3';
+    const report = () => {
+      const findings = check(library.duplicates);
+      return library.actionableDuplicates({ db, config, findings });
+    };
+    const rate = (file, rating) =>
+      db.prepare('UPDATE songs SET rating = ? WHERE path = ?').run(rating, file);
+
+    beforeEach(() => {
+      db.prepare('DELETE FROM songs').run();
+      addSong(album, { 'TXXX.sp_track_id': 't1' });
+      addSong(comp, { 'TXXX.sp_track_id': 't1' });
+    });
+
+    it('should not report an album copy beside its unrated compilation copy', () => {
+      rate(album, 4);
+      expect(check(library.duplicates)).to.have.length(1);
+      expect(report()).to.deep.equal([]);
+    });
+
+    it('should report copies under Artists once more than one is rated', () => {
+      rate(album, 4);
+      rate(comp, 5);
+      expect(_.map(report(), 'files')).to.deep.equal([[album, comp]]);
+    });
+
+    it('should report a Singles copy beside an album copy', () => {
+      addSong('Rated/R/I/Singles/A - Song.mp3', { 'TXXX.sp_track_id': 't1' });
+      expect(_.map(report(), 'files')).to.deep.equal([
+        [album, comp, 'Rated/R/I/Singles/A - Song.mp3']
+      ]);
+    });
+  });
+
   describe('duplicates by ISRC', () => {
     beforeEach(() => {
       db.prepare('DELETE FROM songs').run();

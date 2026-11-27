@@ -4,7 +4,12 @@ const path = require('path');
 const { nameKey } = require('../db/tags.js');
 const { beetsLayouts, isSingle } = require('../beets/layout.js');
 const { coverState, defaultCover, embeddedCover } = require('../metadata/cover.js');
-const { inSinglesFolder, otherRecording } = require('./duplicates.js');
+const {
+  duplicateGroups,
+  inSinglesFolder,
+  otherRecording,
+  planDuplicates
+} = require('./duplicates.js');
 
 /**
  * Checks on the library database (song_tags holds every populated frame of every file, custom TXXX
@@ -447,6 +452,21 @@ const duplicates = ({ db, songs }) => {
 };
 
 /**
+ * The duplicates findings check --fix acts on: one whose files are in a group planDuplicates has
+ * something to do for (judged on the groups joined, as --fix plans them). Copies kept on purpose (an
+ * album and its unrated compilation copy) are no finding. Audio is read from mpd.baseDirectory where
+ * a rule needs it (numbered and tied copies).
+ */
+const actionableDuplicates = ({ db, config, findings }) => {
+  const baseDirectory = _.get(config, 'mpd.baseDirectory');
+  const planned = planDuplicates(duplicateGroups(db, findings), {
+    baseDirectory: baseDirectory ? path.resolve(baseDirectory) : undefined
+  });
+  const acting = new Set(_.flatMap(planned, group => _.map(group.files, 'path')));
+  return _.filter(findings, ({ files }) => _.some(files, file => acting.has(file)));
+};
+
+/**
  * Songs whose embedded cover check --fix can improve: songs without one (no APIC frame), each with the
  * Spotify album image it embeds (sp_album_image) when the song was matched on Spotify, else for a
  * single (sync.beetsConfig's path rules) the default image (library.defaultCover, cover: 'default');
@@ -503,6 +523,7 @@ module.exports = {
   caseVariants,
   editDistance,
   rare,
+  actionableDuplicates,
   duplicates,
   encoding,
   leftoverSpotifyFrame,

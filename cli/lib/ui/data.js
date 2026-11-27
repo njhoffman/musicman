@@ -326,6 +326,9 @@ const duplicatesList = async (db, config) => {
       if (group.exclude.includes(file)) {
         return 'exclude';
       }
+      if ((group.unrate || []).includes(file)) {
+        return 'unrate';
+      }
       if (group.clear.includes(file)) {
         return 'clear';
       }
