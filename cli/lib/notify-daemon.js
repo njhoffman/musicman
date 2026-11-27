@@ -5,6 +5,7 @@ const logger = require('./utils/logger.js');
 const { getFilteredFiles } = require('./commands/common.js');
 const { openLibrary } = require('./db/index.js');
 const { startBar } = require('./notify/barPublisher.js');
+const { likedOnSpotify, localLikes, sharedAnswers } = require('./notify/liked.js');
 const { libraryDb, watchSongs } = require('./notify/notification.js');
 const { mpdPlayer, spotifyConnectPlayer, spotifyPlayer } = require('./player/players.js');
 const { pollHandoff, shuffleHandoff } = require('./notify/shuffleHandoff.js');
@@ -56,20 +57,22 @@ const handoff = openDb => {
 // the bar publisher, stopped on the way out so bars do not keep showing a song
 let bar = null;
 
-// notifies about each new track in MPD or the Spotify desktop app, and keeps the bar file current, until stopped
+// notifies about each new track in MPD or the Spotify desktop app, and keeps the bar file current, until
+// stopped; both ask Spotify about Liked Songs through one shared lookup, so a new track costs one request
 const run = () => {
   const openDb = libraryDb(config, openLibrary);
   const players = { mpd: mpdPlayer(config), spotify: spotifyPlayer() };
-  bar = startBar(config, {
-    players,
-    openDb,
-    readSong,
-    client: lazyUserClient(config, process.env)
-  });
+  const client = lazyUserClient(config, process.env);
+  const likedPlaylistId = config.sync && config.sync.likedPlaylistId;
+  const liked = sharedAnswers(likedOnSpotify(client));
+  const likes = likedPlaylistId ? localLikes(client, likedPlaylistId) : null;
+  bar = startBar(config, { players, openDb, readSong, liked, likes });
   return watchSongs(config, {
     players,
     openDb,
     readSong,
+    liked,
+    likes,
     onTrack: handoff(openDb),
     onEvent: () => bar && bar.refresh()
   });

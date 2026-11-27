@@ -2,10 +2,11 @@ const { expect } = require('chai');
 const { EventEmitter } = require('events');
 
 const { openDatabase } = require('../db/database.js');
+const { barDefaults, glyphs } = require('../status/bar.js');
 const {
   buildNotification,
   createNotifier,
-  ratingPrefix,
+  titleEnd,
   sendNotification,
   songNotice,
   trackKey,
@@ -24,46 +25,69 @@ const daemon = {
 
 const notice = {
   source: 'Spotify',
+  player: 'spotify',
   title: 'Fade Into You',
   artist: 'Mazzy Star',
   album: 'So Tonight',
   rating: '4.5',
   inLibrary: true,
   meta: { rating: '4.5', context: 'Study,Drive,', mood: 'Mellow', picks: 'Nick' },
-  cover: '/covers/a.jpg'
+  cover: '/covers/a.jpg',
+  liked: false
 };
+
+const { colors } = barDefaults;
+const paint = (color, glyph) => `<span foreground="${color}">${glyph}</span>`;
 
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
 describe('Notify Daemon', () => {
   describe('buildNotification', () => {
-    it('should show stars and title, artist and album, colored tags, the player and the cover', () => {
+    it('should show the title, artist and album, colored tags, musicman with the player and the cover', () => {
       const { bin, args } = buildNotification(notice, daemon);
       expect(bin).to.equal('/usr/bin/notify-send');
-      expect(args.slice(0, 5)).to.deep.equal([
+      expect(args.slice(0, 7)).to.deep.equal([
         '--urgency=low',
         '--expire-time=5000',
-        '--app-name=Spotify',
+        '--app-name=musicman',
         '--print-id',
+        '--hint=string:x-musicman-player:spotify',
+        `--hint=string:x-notifyd-title-end:${paint(colors.star, glyphs.starFilled)} 4.5`,
         '--hint=string:image-path:file:///covers/a.jpg'
       ]);
-      expect(args[5]).to.equal('★ 4.5  Fade Into You');
-      const [artist, tags] = args[6].split('\n');
+      expect(args[7]).to.equal('Fade Into You');
+      const [artist, tags] = args[8].split('\n');
       expect(artist).to.equal('<b>Mazzy Star</b>  ·  So Tonight');
       expect(tags.match(/> (\w+) </g)).to.deep.equal(['> Study <', '> Drive <', '> Mellow <']);
       // picks is not in daemon.fields
       expect(tags).to.not.include('Nick');
     });
 
+    it('should leave the display time to the notification server without daemon.duration', () => {
+      const { args } = buildNotification(notice, { ...daemon, duration: undefined });
+      expect(args.some(arg => arg.startsWith('--expire-time'))).to.equal(false);
+    });
+
+    it('should color the heart and star with the given bar colors', () => {
+      const custom = { ...colors, heart: '#f00', star: '#0f0' };
+      const { args } = buildNotification({ ...notice, liked: true }, daemon, null, custom);
+      expect(args).to.include(
+        `--hint=string:x-notifyd-title-end:${paint('#f00', glyphs.heart)} ${paint(
+          '#0f0',
+          glyphs.starFilled
+        )} 4.5`
+      );
+    });
+
     it('should replace the last notification and leave out the cover when icon is off', () => {
       const { args } = buildNotification(notice, { ...daemon, icon: false }, '42');
       expect(args).to.include('--replace-id=42');
-      expect(args.some(arg => /^--(icon|hint)/.test(arg))).to.equal(false);
+      expect(args.some(arg => /^--icon|^--hint=string:image-path/.test(arg))).to.equal(false);
     });
 
     it('should leave out the cover when there is none', () => {
       const { args } = buildNotification({ ...notice, cover: null }, daemon);
-      expect(args.some(arg => /^--(icon|hint)/.test(arg))).to.equal(false);
+      expect(args.some(arg => /^--icon|^--hint=string:image-path/.test(arg))).to.equal(false);
     });
 
     it('should mark unrated songs and songs not in the library, escaping markup', () => {
@@ -88,18 +112,34 @@ describe('Notify Daemon', () => {
     });
   });
 
-  describe('ratingPrefix', () => {
-    it("should mirror the bar's star: filled from 4.5, outline below, with the number", () => {
-      expect(ratingPrefix('5.0')).to.equal('★ 5.0  ');
-      expect(ratingPrefix('4.5')).to.equal('★ 4.5  ');
-      expect(ratingPrefix('4')).to.equal('☆ 4.0  ');
-      expect(ratingPrefix(3.5)).to.equal('☆ 3.5  ');
+  describe('titleEnd', () => {
+    const star = (color, glyph) => paint(colors[color], glyphs[glyph]);
+
+    it("should draw the bar's star with the number: gold at 5, filled from 4.5, outlines below", () => {
+      const song = rating => titleEnd({ inLibrary: true, rating });
+      expect(song('5.0')).to.equal(`${star('gold', 'starFilled')} 5.0`);
+      expect(song('4.5')).to.equal(`${star('star', 'starFilled')} 4.5`);
+      expect(song('4')).to.equal(`${star('star', 'starOutline')} 4.0`);
+      expect(song(3.5)).to.equal(`${star('low', 'starOutline')} 3.5`);
     });
 
-    it('should show nothing for unrated songs or ratings that are not numbers', () => {
-      expect(ratingPrefix(null)).to.equal('');
-      expect(ratingPrefix('0')).to.equal('');
-      expect(ratingPrefix('abc')).to.equal('');
+    it('should show a gray star without a number for unrated songs, nothing outside the library', () => {
+      expect(titleEnd({ inLibrary: true, rating: null })).to.equal(star('unrated', 'starFilled'));
+      expect(titleEnd({ inLibrary: true, rating: 'abc' })).to.equal(star('unrated', 'starFilled'));
+      expect(titleEnd({ inLibrary: false, rating: null })).to.equal('');
+    });
+
+    it('should put the heart first for a liked song, in or out of the library', () => {
+      const heart = paint(colors.heart, glyphs.heart);
+      expect(titleEnd({ inLibrary: true, rating: '4.5', liked: true })).to.equal(
+        `${heart} ${star('star', 'starFilled')} 4.5`
+      );
+      expect(titleEnd({ inLibrary: false, liked: true })).to.equal(heart);
+    });
+
+    it('should leave the title-end hint out when there is nothing to show', () => {
+      const { args } = buildNotification({ ...notice, inLibrary: false, meta: null }, daemon);
+      expect(args.some(arg => arg.includes('x-notifyd-title-end'))).to.equal(false);
     });
   });
 
@@ -203,6 +243,77 @@ describe('Notify Daemon', () => {
         deps()
       );
       expect(stray.inLibrary).to.equal(false);
+    });
+
+    describe('the heart', () => {
+      const mpdSong = {
+        player: { source: 'mpd', name: 'MPD' },
+        track: { file: '/music/a.mp3', title: 'A', artist: 'X' }
+      };
+      const cacheLiked = () => {
+        db.prepare(
+          "INSERT INTO spotify_playlists (id, name) VALUES ('liked', 'Liked Songs')"
+        ).run();
+        db.prepare(
+          "INSERT INTO spotify_playlist_tracks (playlist_id, track_id) VALUES ('liked', 'ta')"
+        ).run();
+      };
+
+      it('should go by the cached Liked Songs, by the id tagged on an MPD file', async () => {
+        expect((await songNotice(mpdSong, deps())).liked).to.equal(false);
+        cacheLiked();
+        expect((await songNotice(mpdSong, deps())).liked).to.equal(true);
+      });
+
+      it("should take Spotify's answer for the file's id over the cache", async () => {
+        cacheLiked();
+        const asked = [];
+        const liked = async id => {
+          asked.push(id);
+          return false;
+        };
+        expect((await songNotice(mpdSong, { ...deps(), liked })).liked).to.equal(false);
+        expect(asked).to.deep.equal(['ta']);
+        const spotify = {
+          player: { source: 'spotify', name: 'Spotify' },
+          track: { trackId: 'tz' }
+        };
+        const yes = await songNotice(spotify, { ...deps(), liked: async () => true });
+        expect(yes).to.deep.include({ liked: true, inLibrary: false });
+      });
+
+      it('should keep the cached heart when Spotify fails, answers nothing usable, or is slow', async () => {
+        cacheLiked();
+        const failing = async () => {
+          throw new Error('offline');
+        };
+        expect((await songNotice(mpdSong, { ...deps(), liked: failing })).liked).to.equal(true);
+        expect((await songNotice(mpdSong, { ...deps(), liked: async () => null })).liked).to.equal(
+          true
+        );
+        const slow = () => new Promise(resolve => setTimeout(() => resolve(false), 200));
+        const started = Date.now();
+        const late = await songNotice(mpdSong, { ...deps(), liked: slow, likedWait: 20 });
+        expect(late.liked).to.equal(true);
+        expect(Date.now() - started).to.be.below(150);
+      });
+
+      it('should not ask Spotify about a track without an id, using the local likes', async () => {
+        const local = {
+          player: { source: 'spotify', name: 'Spotify' },
+          track: { trackId: null, local: true, title: 'Q', artist: 'R', duration: 100 }
+        };
+        const liked = async () => {
+          throw new Error('not to be asked');
+        };
+        const likes = { has: tags => tags.title === 'Q' };
+        expect((await songNotice(local, { ...deps(), liked, likes })).liked).to.equal(true);
+        const unknown = { has: () => null };
+        const confirmedLiked = () => true;
+        expect(
+          (await songNotice(local, { ...deps(), liked, likes: unknown, confirmedLiked })).liked
+        ).to.equal(false);
+      });
     });
   });
 

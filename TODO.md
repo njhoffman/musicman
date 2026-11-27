@@ -6,7 +6,7 @@ open/done counts and pick items. Every item has a priority, `(p1)` high, `(p2)` 
 category: bug, feature, refactor, docs, test, chore, or perf. `(due YYYY-MM-DD)` adds a date and an OVERDUE
 flag. Feature specs live in `docs/`.
 
-Reviewed: 2026-11-15
+Reviewed: 2026-11-26
 
 ## 3. Library data
 
@@ -130,6 +130,15 @@ Reviewed: 2026-11-15
       Trip-Hop" (69 files), "Unsorted Singles". Rename to one scheme, e.g. "Pop-Rock Singles", from the
       grouping (`grouping:PopRock.Singles`), with a `check` that reports singles off the scheme and a fix
       that writes it; keep `album:Unsorted Singles` working in the beets path rules or rename it too.
+- [ ] **Cover checks read whole mp3 files.** (p2) [perf] `embeddedCover` reads the file in full on each call.
+      `embeddedCover` (`cli/lib/metadata/cover.js:60`) gives node-id3 the path, which `readFileSync`s the
+      whole mp3 (the problem `readTagBuffer` solved for `readMetadata`, see the Completed "Read only the
+      tag" item). The `artwork` check (`cli/lib/check/library.js:457`) calls it, synchronously, for every
+      matched single that has a cover. That is every one of the ~914 matched singles, on every `musicman
+      check` run, even after the backlog fix, because a Spotify cover still has to be read to tell it from
+      the default image. `spotifyCovers` and `rejectReview` (`cli/lib/sync/match.js:201`, `:833`) do the
+      same per match. Fix: `NodeId3.read(readTagBuffer(file), { include: ['APIC'] })`, with null for a file
+      without a tag.
 - [ ] **Generate artwork when none can be found.** (p3) [feature] for singles still without a cover, generate one
       (e.g. artist and title over a color derived from the grouping), clearly marked as generated so a real cover
       can replace it later.
@@ -384,7 +393,7 @@ Reviewed: 2026-11-15
       (a `·` or `|` between values) or style them through a deadd `class-name` rule; colors still work in dunst.
       notifyd (`~/ghq/github.com/njhoffman/notifyd`, the planned replacement for deadd) renders the spans as they are,
       and also takes `<span class="tag">`, colored by its active preset.
-- [ ] **Song notifications use the player as app-name.** (p2) [bug] `buildNotification`
+- [x] **Song notifications use the player as app-name.** (p2) [bug] `buildNotification`
       (`cli/lib/notify/notification.js`) sends `--app-name=${notice.source}`, the player name (`MPD` or
       `Spotify`, `cli/lib/player/players.js`), so the deadd rule for `musicman` never matches and deadd's
       `Spotify` rule (timeout 3000) shortens song notifications. Send `--app-name=musicman` and put the
@@ -444,6 +453,46 @@ Reviewed: 2026-11-15
       installed; `node --cpu-prof lib/cli.js` (or `--prof`) does the same without it.
 - [ ] **Remove `common/config/musicrater.service`.** (p3) [chore] a leftover systemd template from the old
       name (`ExecStart=/var/www/myapp/app.js`, user nobody); nothing uses it, the units come from `just install`.
+- [ ] **cli dev scripts run repo code on the live database.** (p2) [chore] `pnpm dev`, `start`, `start:stats`.
+      `cli/package.json` lines 6-8 (`nodemon ... lib/cli.js`, `node lib/cli.js`, `node lib/cli.js stats`)
+      load `~/.musicmanrc.yml` (`loadConfig` has no other path), so `db.path` is opened from the working tree.
+      On a branch with a new migration that migrates the live database and breaks the installed build.
+      `cli/CLAUDE.md` lists `pnpm start` as a command right above its rule against exactly this. Nothing
+      in `openDatabase` (`cli/lib/db/database.js:78`) guards it. Fix: drop the three scripts, plus `nodemon`
+      and `cli/nodemon.json` (whose `ignore: src` names a folder that does not exist). Or point them at a
+      sandbox config, which needs a config path override (e.g. `MUSICMAN_CONFIG`) in
+      `common/config/index.js`.
+- [ ] **Two installers write `musicman-notify.service`.** (p3) [refactor] `just install` and `pnpm
+      daemon:install` each have their own copy of the unit text. `just install` writes the unit with
+      `printf` and `command -v node`, then restarts the service. `cli/scripts/install-daemon.js` writes the
+      same unit through `unitText`, picks the node with `stableNode` (which skips pnpm store paths), and is
+      the only one that writes `~/.config/musicman/spotify.env`. `docs/07-menu.md` and the README describe
+      only `daemon:install`. Each run of `just install` overwrites the unit without the store check, and
+      new credentials need the other command. Fix: have the Justfile call the script, or move all three
+      units into the script; the latter also covers "Test the systemd units" above, since `unitText` has a
+      spec (`cli/lib/notify/installDaemon.spec.js`).
+- [ ] **Stale `cli/CHANGELOG.md` and `common`'s test script.** (p3) [chore] leftovers from before the
+      workspace setup. `cli/CHANGELOG.md` is a tracked standard-version stub (1.1.1 and 1.2.0, 2025-07-27);
+      `pnpm release` only writes the root one. `cli/CLAUDE.md` line 4 ("history in `CHANGELOG.md`"), read
+      from `cli/`, points at the stub. `common/package.json`'s `test` is the npm placeholder (`echo "Error:
+      no test specified" && exit 1`), so `pnpm -r test` fails even though the root `test` only runs the
+      cli filter (common's specs live in `cli/lib/config/` and `cli/test/unit/config.js`). Delete the
+      stub, and drop the script or point it at those specs.
+- [ ] **`defaultConfig.yml`: split comment and unused `library.basePath`.** (p3) [chore] two config defects.
+      The `hostSync` block (added in 239a1a0) went in between the two halves of the `analyze` comment
+      (`common/config/defaultConfig.yml:194-201`). The `analyze` text now stops at "Each worker is a
+      process of its own", and the `hostSync` block starts with an orphaned "keeping the library the same
+      on several computers". Separately, `library.basePath: "/home/nicholas/Music"` (line 363, schema in
+      `validator.js:205`) is read nowhere; `mpd.baseDirectory` is the library root. Fix the comments and
+      drop `basePath` (a warning for user configs that still set it).
+- [ ] **Docs index, outline, and database schema lag the code.** (p3) [docs] three docs are out of date.
+      The README Documentation table stops at `docs/09-contract.md` and leaves out
+      `docs/10-host-sync.md`. The `docs/01-outline.md` layout has no `lib/analyze/`, `lib/smart/`,
+      `lib/config/` (the config specs) or `scripts/essentia-analyze.py`, and gives `share/` as only the
+      rofi theme (`share/beets/keeplrc.py` is there too). `docs/02-database.md` "Schema" lists 5 of the 15
+      tables (none of `spotify_matches`, `spotify_playlists`, `tag_changes`, `history_runs`,
+      `excluded_songs`, ...), and its "Prerequisites" and "Database initialization" sections are planning
+      notes from 2026-10-20 ("any other tables that make sense adding?").
 
 ## 15. Host sync (`docs/10-host-sync.md`)
 

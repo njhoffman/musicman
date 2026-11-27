@@ -7,13 +7,23 @@ const { connectMpd } = require('../clients/mpd.js');
 const { coverFor } = require('../menu/cover.js');
 const { chipColors, defaultChip, tones } = require('../menu/menu.js');
 const { escapeMarkup } = require('../menu/rofi.js');
-const { libraryFileForPlaying } = require('../player/library.js');
 const { shownAlbum } = require('../status/album.js');
+const { barSettings, glyphs, starLook } = require('../status/bar.js');
 const { spotifyMprisNames } = require('../player/players.js');
 const logger = require('../utils/logger.js');
+const { isHearted, likeFacts } = require('./liked.js');
 
 // fields shown as tags when daemon.fields is not set
 const defaultFields = ['context', 'mood', 'picks'];
+
+// the app name notification daemons see (rules match on it); the player goes in the x-musicman-player hint
+const appName = 'musicman';
+
+// the hint notifyd draws at the right end of the title line
+const titleEndHint = 'x-notifyd-title-end';
+
+// how long a notification waits for Spotify's word on Liked Songs before it goes with the cached one
+const likedWaitMs = 1000;
 
 // time for Spotify to report the whole new track after the first metadata change
 const spotifySettleMs = 300;
@@ -33,25 +43,42 @@ const valuesOf = value => _.compact(_.map(`${_.isNil(value) ? '' : value}`.split
 const trackKey = (source, track) =>
   track ? `${source}:${track.trackId || track.file || `${track.artist}-${track.title}`}` : null;
 
+// Pango markup of a glyph in a color
+const colored = (color, text) => `<span foreground="${escapeMarkup(color)}">${text}</span>`;
+
 /**
- * The rating before the title, as the bar's star (status/bar.js starOf) in plain Unicode, since the
- * summary takes no markup and notification daemons may lack Nerd Font glyphs: a filled star from 4.5, an
- * outline below, then the number. Unrated songs get none (the body says so).
+ * What goes right of the title (Pango markup, for notifyd's x-notifyd-title-end hint), drawn as the bar
+ * draws it (status/bar.js, with its colors): the heart when the song is in Liked Songs, then the library
+ * star and the rating. Songs outside the library have no star and unrated ones no number (the body says
+ * so); '' when there is nothing to show.
  */
-const ratingPrefix = rating => {
-  const value = Number(rating);
-  return value ? `${value >= 4.5 ? '★' : '☆'} ${value.toFixed(1)}  ` : '';
+const titleEnd = (notice, colors = barSettings({}).colors) => {
+  const star = starLook(notice, colors);
+  const value = Number(notice.rating);
+  return _.compact([
+    notice.liked ? colored(colors.heart, glyphs.heart) : null,
+    star ? colored(...star) : null,
+    star && value ? value.toFixed(1) : null
+  ]).join(' ');
 };
 
 /**
- * The command and arguments that show a song notification: the rating (ratingPrefix) and the title as
- * the summary, the artist and album, then each of daemon.fields as colored tags, as the body (Pango
- * markup). The app name is the player; the cover, when daemon.icon is on, goes in the image-path hint,
- * which daemons show as the notification's image (--icon is only the small app icon). replaceId replaces
- * the last notification, and --print-id reports the id of this one.
+ * The command and arguments that show a song notification: the title as the summary, with the heart,
+ * star and rating right of it (titleEnd, in notifyd's x-notifyd-title-end hint, which other daemons
+ * leave out), and as the body (Pango markup) the artist and album, then each of daemon.fields as colored
+ * tags. The app name is musicman and the player (mpd, spotify) goes in the x-musicman-player hint, so
+ * daemon rules can match songs; daemon.duration, when set, asks for a display time (else the daemon
+ * decides). The cover, when daemon.icon is on, goes in the image-path hint, which daemons show as the
+ * notification's image (--icon is only the small app icon). replaceId replaces the last notification,
+ * and --print-id reports the id of this one. colors are the bar's (barSettings).
  */
-const buildNotification = (notice, { bin, icon = true, duration, urgency, fields }, replaceId) => {
-  const rating = ratingPrefix(notice.rating);
+const buildNotification = (
+  notice,
+  { bin, icon = true, duration, urgency, fields },
+  replaceId,
+  colors = undefined
+) => {
+  const end = titleEnd(notice, colors);
   const shown = fields || defaultFields;
   const tags = _.flatMap(shown, field =>
     _.map(valuesOf(notice.meta && notice.meta[field]), value => {
@@ -75,44 +102,83 @@ const buildNotification = (notice, { bin, icon = true, duration, urgency, fields
   ]).join('\n');
   const args = [
     `--urgency=${_.toLower(urgency || 'low')}`,
-    `--expire-time=${duration}`,
-    `--app-name=${notice.source}`,
+    ...(_.isNil(duration) ? [] : [`--expire-time=${duration}`]),
+    `--app-name=${appName}`,
     '--print-id',
     ...(replaceId ? [`--replace-id=${replaceId}`] : []),
+    ...(notice.player ? [`--hint=string:x-musicman-player:${notice.player}`] : []),
+    ...(end ? [`--hint=string:${titleEndHint}:${end}`] : []),
     ...(icon && notice.cover ? [`--hint=string:image-path:file://${notice.cover}`] : []),
-    `${rating}${notice.title || ''}`,
+    notice.title || '',
     body
   ];
   return { bin, args };
 };
 
+// ask(trackId)'s answer when it comes within ms, else null (no usable answer, a failure, too slow)
+const answerWithin = (ask, trackId, ms) =>
+  new Promise(resolve => {
+    const timer = setTimeout(() => resolve(null), ms);
+    Promise.resolve()
+      .then(() => ask(trackId))
+      .then(
+        answer => resolve(_.isBoolean(answer) ? answer : null),
+        () => resolve(null)
+      )
+      .finally(() => clearTimeout(timer));
+  });
+
 /**
  * What a notification shows for a player's track: the track, and for a song in the library (MPD's file,
- * the one linked to the Spotify track, or the one a Spotify local file was made from) its tags and rating; the cover of either.
- * Dependencies: openDb() the library database or null without one, readSong(file) its parsed tags.
+ * the one linked to the Spotify track, or the one a Spotify local file was made from) its tags and
+ * rating; the cover of either; and whether it is in Liked Songs, decided as the bar decides it
+ * (notify/liked.js), from Spotify's answer when it comes within likedWait ms, else the cached Liked Songs.
+ * Dependencies: openDb() the library database or null without one, readSong(file) its parsed tags,
+ * liked(trackId) Spotify's answer (optional; the daemon shares it with the bar), likes the local likes
+ * (optional), and for tests confirmedLiked(file).
  */
-const songNotice = async ({ player, track }, { config, openDb, readSong, cover = coverFor }) => {
-  let file = player.source === 'mpd' ? track.file : null;
-  if (!file && (track.trackId || track.local)) {
-    const db = openDb();
-    if (db) {
-      try {
-        file = libraryFileForPlaying(db, config, player, track);
-      } finally {
-        db.close();
-      }
+const songNotice = async (
+  { player, track },
+  {
+    config,
+    openDb,
+    readSong,
+    cover = coverFor,
+    liked = null,
+    likes = null,
+    confirmedLiked = undefined,
+    likedWait = likedWaitMs
+  }
+) => {
+  const context = { player, track };
+  let facts = likeFacts(null, config, context, { confirmedLiked });
+  const db = openDb();
+  if (db) {
+    try {
+      facts = likeFacts(db, config, context, { confirmedLiked });
+    } finally {
+      db.close();
     }
   }
-  const meta = file ? (await readSong(file)) || null : null;
+  const { file } = facts;
+  const [meta, answer, art] = await Promise.all([
+    file ? Promise.resolve(readSong(file)).then(read => read || null) : null,
+    liked && facts.trackId ? answerWithin(liked, facts.trackId, likedWait) : null,
+    Promise.resolve()
+      .then(() => cover(track, { file }))
+      .catch(() => null)
+  ]);
   return {
     source: player.name,
+    player: player.source,
     title: track.title,
     artist: track.artist,
     album: shownAlbum(config, { source: player.source, file, meta, album: track.album }),
     rating: meta && meta.rating ? meta.rating : null,
     inLibrary: Boolean(meta),
+    liked: isHearted(_.isBoolean(answer) ? { ...facts, catalogLiked: answer } : facts, likes),
     meta,
-    cover: await cover(track, { file }).catch(() => null)
+    cover: art
   };
 };
 
@@ -163,8 +229,13 @@ const createNotifier = ({ describe, send, onTrack = null }) => {
  * Arguments go to the binary directly, so song metadata is never interpreted by a shell; a failure is
  * logged, not thrown.
  */
-const sendNotification = (notice, daemonConfig, replaceId, { execFile = nodeExecFile } = {}) => {
-  const { bin, args } = buildNotification(notice, daemonConfig, replaceId);
+const sendNotification = (
+  notice,
+  daemonConfig,
+  replaceId,
+  { execFile = nodeExecFile, colors = undefined } = {}
+) => {
+  const { bin, args } = buildNotification(notice, daemonConfig, replaceId, colors);
   logger.debug(['Sending notification:', ...args].join('\n\t'));
   return new Promise(resolve =>
     execFile(bin, args, (err, stdout) => {
@@ -290,8 +361,9 @@ const watchSpotify = (
 
 /**
  * Notifies about each new track MPD or the Spotify desktop app plays, starting with the ones playing now.
- * Dependencies: players { mpd, spotify } (player objects with state()), openDb, readSong, and the
- * watchers, notify-send runner and cover lookup for tests. onEvent (optional) is told of each player event.
+ * Dependencies: players { mpd, spotify } (player objects with state()), openDb, readSong, liked and likes
+ * for the heart (songNotice), and the watchers, notify-send runner and cover lookup for tests. onEvent
+ * (optional) is told of each player event.
  */
 const watchSongs = async (
   config,
@@ -299,8 +371,11 @@ const watchSongs = async (
     players,
     openDb,
     readSong,
-    send = (notice, replaceId) => sendNotification(notice, config.daemon, replaceId),
+    send = (notice, replaceId) =>
+      sendNotification(notice, config.daemon, replaceId, { colors: barSettings(config).colors }),
     cover,
+    liked = null,
+    likes = null,
     onTrack = null,
     onEvent = _.noop,
     mpdWatcher = watchMpd,
@@ -308,7 +383,7 @@ const watchSongs = async (
   }
 ) => {
   const notifier = createNotifier({
-    describe: context => songNotice(context, { config, openDb, readSong, cover }),
+    describe: context => songNotice(context, { config, openDb, readSong, cover, liked, likes }),
     send,
     onTrack
   });
@@ -334,7 +409,7 @@ const libraryDb = (config, openLibrary) => () =>
 module.exports = {
   buildNotification,
   createNotifier,
-  ratingPrefix,
+  titleEnd,
   defaultFields,
   libraryDb,
   sendNotification,

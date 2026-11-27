@@ -33,24 +33,31 @@ const barSettings = config => _.merge({}, barDefaults, _.get(config, 'bar'));
 const paint = (color, text) => `%{F${color}}${text}%{F-}`;
 
 /**
- * The one star of a song: nothing outside the library; in it, a gray filled star when unrated, a dim
- * outline below 4.0, a bright outline from 4.0, a bright filled star from 4.5, and a gold one at 5.0.
+ * The one star of a song as [color, glyph]: none (null) outside the library; in it, a gray filled star
+ * when unrated, a dim outline below 4.0, a bright outline from 4.0, a bright filled star from 4.5, and a
+ * gold one at 5.0. The song notification draws the same star.
  */
-const starOf = ({ inLibrary, rating }, colors) => {
+const starLook = ({ inLibrary, rating }, colors) => {
   if (!inLibrary) {
-    return '';
+    return null;
   }
   const value = Number(rating);
   if (!value) {
-    return paint(colors.unrated, glyphs.starFilled);
+    return [colors.unrated, glyphs.starFilled];
   }
   if (value >= 5) {
-    return paint(colors.gold, glyphs.starFilled);
+    return [colors.gold, glyphs.starFilled];
   }
   if (value >= 4.5) {
-    return paint(colors.star, glyphs.starFilled);
+    return [colors.star, glyphs.starFilled];
   }
-  return paint(value >= 4 ? colors.star : colors.low, glyphs.starOutline);
+  return [value >= 4 ? colors.star : colors.low, glyphs.starOutline];
+};
+
+// the star of a song in polybar's color tags, or '' outside the library
+const starOf = (song, colors) => {
+  const look = starLook(song, colors);
+  return look ? paint(...look) : '';
 };
 
 // seconds left as -m:ss (-h:mm:ss from an hour), or '' for a track of unknown length
@@ -99,4 +106,13 @@ const renderBar = (view, config) => {
   ]).join(' ');
 };
 
-module.exports = { barDefaults, barSettings, barText, formatRemaining, glyphs, renderBar, starOf };
+module.exports = {
+  barDefaults,
+  barSettings,
+  barText,
+  formatRemaining,
+  glyphs,
+  renderBar,
+  starLook,
+  starOf
+};

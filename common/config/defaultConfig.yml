@@ -271,8 +271,9 @@ menu:
 
 # Song change notifications for MPD and the Spotify desktop app (musicman-notify service)
 daemon:
-  # Display duration for notifications in milliseconds
-  duration: 5000
+  # Display duration for notifications in milliseconds; unset, the notification server's rules decide
+  # (musicman sends app name musicman)
+  # duration: 5000
   # Path to notification binary (notify-send on Linux)
   bin: "/usr/bin/notify-send"
   # Notification urgency level (LOW, NORMAL, CRITICAL)

@@ -6,6 +6,22 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- Song notifications show the heart when the song is in Liked Songs, as polybar does: the bar's answer
+  from Spotify (one request shared by the bar and the notification, waited for up to a second), else
+  the Liked Songs cached at the last sync and the local likes.
+
+### Changed
+
+- The rating moved from the start of the notification title to the right end of its line, after the
+  heart, in a quieter font, with the bar's Nerd Font star and colors (a gray star for unrated songs). It
+  is sent as the `x-notifyd-title-end` hint, which needs notifyd 0.32.0; other notification servers
+  leave it out.
+- Song notifications are sent as app `musicman`, with the player (`mpd`, `spotify`) in the
+  `x-musicman-player` hint, so notification server rules can match songs. `daemon.duration` is unset
+  by default, leaving the display time to the server's rules.
+
 ## [1.91.0] - 2026-11-22
 
 ### Added

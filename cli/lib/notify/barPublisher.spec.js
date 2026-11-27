@@ -6,13 +6,8 @@ const path = require('path');
 const { openDatabase } = require('../db/database.js');
 const { glyphs } = require('../status/bar.js');
 const { spotifyIdFrame } = require('../sync/match.js');
-const {
-  barFile,
-  barWriter,
-  createBarPublisher,
-  likedOnSpotify,
-  localLikes
-} = require('./barPublisher.js');
+const { barFile, barWriter, createBarPublisher } = require('./barPublisher.js');
+const { likedOnSpotify, localLikes } = require('./liked.js');
 
 const base = path.resolve('/music');
 const config = { mpd: { baseDirectory: base } };
