@@ -280,6 +280,9 @@ daemon:
   urgency: LOW
   # Whether to show the song's cover as the notification image (the file's, else Spotify's)
   icon: true
+  # Font of the heart and star right of the title (Nerd Font glyphs; other fonts draw their own symbols
+  # in their place); '' leaves it to the notification server
+  glyphFont: FiraCode Nerd Font Mono
   # Tags shown under the artist and album, colored per field
   fields:
   - context

@@ -37,7 +37,8 @@ const notice = {
 };
 
 const { colors } = barDefaults;
-const paint = (color, glyph) => `<span foreground="${color}">${glyph}</span>`;
+const paint = (color, glyph) =>
+  `<span font_family="FiraCode Nerd Font Mono" foreground="${color}">${glyph}</span>`;
 
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
@@ -135,6 +136,17 @@ describe('Notify Daemon', () => {
         `${heart} ${star('star', 'starFilled')} 4.5`
       );
       expect(titleEnd({ inLibrary: false, liked: true })).to.equal(heart);
+    });
+
+    it('should draw the glyphs in daemon.glyphFont, or the daemon font when it is empty', () => {
+      const song = { ...notice, liked: true };
+      const end = daemonConfig =>
+        buildNotification(song, daemonConfig).args.find(arg => arg.includes('x-notifyd-title-end'));
+      expect(end({ ...daemon, glyphFont: 'Symbols Nerd Font' })).to.include(
+        '<span font_family="Symbols Nerd Font" foreground="#ff8fc7">'
+      );
+      expect(end({ ...daemon, glyphFont: '' })).to.include('<span foreground="#ff8fc7">');
+      expect(end({ ...daemon, glyphFont: '' })).to.not.include('font_family');
     });
 
     it('should leave the title-end hint out when there is nothing to show', () => {

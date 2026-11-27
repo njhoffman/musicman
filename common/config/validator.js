@@ -164,6 +164,7 @@ const configSchema = {
       bin: { type: 'string', required: false },
       urgency: { type: 'string', enum: ['LOW', 'NORMAL', 'CRITICAL'], required: false },
       icon: { type: 'boolean', required: false },
+      glyphFont: { type: 'string', required: false },
       fields: { type: 'array', required: false }
     }
   },

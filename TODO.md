@@ -387,12 +387,6 @@ Reviewed: 2026-11-26
       library is highlighted from the cached Liked Songs, refreshed by sync runs; a song liked in the app since shows
       as not liked until then, and undo of a second press would remove it. One `GET /me/library/contains` (or
       `/me/tracks/contains`) request per drawn song would make it current.
-- [ ] **Notification tags show no color in deadd.** (p3) [bug] deadd-notification-center (this desktop's
-      notification server) only keeps `<b> <i> <u> <a>` markup, so the `daemon.fields` chips in
-      `cli/lib/notify/notification.js` render as plain words with spaces. Either separate them some other way
-      (a `·` or `|` between values) or style them through a deadd `class-name` rule; colors still work in dunst.
-      notifyd (`~/ghq/github.com/njhoffman/notifyd`, the planned replacement for deadd) renders the spans as they are,
-      and also takes `<span class="tag">`, colored by its active preset.
 - [x] **Song notifications use the player as app-name.** (p2) [bug] `buildNotification`
       (`cli/lib/notify/notification.js`) sends `--app-name=${notice.source}`, the player name (`MPD` or
       `Spotify`, `cli/lib/player/players.js`), so the deadd rule for `musicman` never matches and deadd's

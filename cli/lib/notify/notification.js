@@ -22,6 +22,10 @@ const appName = 'musicman';
 // the hint notifyd draws at the right end of the title line
 const titleEndHint = 'x-notifyd-title-end';
 
+// the font of the heart and star: Nerd Font glyphs sit in the Private Use Area, where common fonts
+// (Arial, Georgia) have symbols of their own that font fallback would pick; polybar's font by default
+const defaultGlyphFont = 'FiraCode Nerd Font Mono';
+
 // how long a notification waits for Spotify's word on Liked Songs before it goes with the cached one
 const likedWaitMs = 1000;
 
@@ -43,21 +47,25 @@ const valuesOf = value => _.compact(_.map(`${_.isNil(value) ? '' : value}`.split
 const trackKey = (source, track) =>
   track ? `${source}:${track.trackId || track.file || `${track.artist}-${track.title}`}` : null;
 
-// Pango markup of a glyph in a color
-const colored = (color, text) => `<span foreground="${escapeMarkup(color)}">${text}</span>`;
+// Pango markup of a glyph in a color, in font when one is given
+const colored = (color, text, font) =>
+  `<span ${font ? `font_family="${escapeMarkup(font)}" ` : ''}foreground="${escapeMarkup(
+    color
+  )}">${text}</span>`;
 
 /**
  * What goes right of the title (Pango markup, for notifyd's x-notifyd-title-end hint), drawn as the bar
  * draws it (status/bar.js, with its colors): the heart when the song is in Liked Songs, then the library
  * star and the rating. Songs outside the library have no star and unrated ones no number (the body says
- * so); '' when there is nothing to show.
+ * so); '' when there is nothing to show. The glyphs are drawn in font (a Nerd Font; '' for the
+ * daemon's own).
  */
-const titleEnd = (notice, colors = barSettings({}).colors) => {
+const titleEnd = (notice, colors = barSettings({}).colors, font = defaultGlyphFont) => {
   const star = starLook(notice, colors);
   const value = Number(notice.rating);
   return _.compact([
-    notice.liked ? colored(colors.heart, glyphs.heart) : null,
-    star ? colored(...star) : null,
+    notice.liked ? colored(colors.heart, glyphs.heart, font) : null,
+    star ? colored(star[0], star[1], font) : null,
     star && value ? value.toFixed(1) : null
   ]).join(' ');
 };
@@ -70,15 +78,16 @@ const titleEnd = (notice, colors = barSettings({}).colors) => {
  * daemon rules can match songs; daemon.duration, when set, asks for a display time (else the daemon
  * decides). The cover, when daemon.icon is on, goes in the image-path hint, which daemons show as the
  * notification's image (--icon is only the small app icon). replaceId replaces the last notification,
- * and --print-id reports the id of this one. colors are the bar's (barSettings).
+ * and --print-id reports the id of this one. colors are the bar's (barSettings), and the glyphs are
+ * drawn in daemon.glyphFont.
  */
 const buildNotification = (
   notice,
-  { bin, icon = true, duration, urgency, fields },
+  { bin, icon = true, duration, urgency, fields, glyphFont = defaultGlyphFont },
   replaceId,
   colors = undefined
 ) => {
-  const end = titleEnd(notice, colors);
+  const end = titleEnd(notice, colors, glyphFont);
   const shown = fields || defaultFields;
   const tags = _.flatMap(shown, field =>
     _.map(valuesOf(notice.meta && notice.meta[field]), value => {
@@ -409,6 +418,7 @@ const libraryDb = (config, openLibrary) => () =>
 module.exports = {
   buildNotification,
   createNotifier,
+  defaultGlyphFont,
   titleEnd,
   defaultFields,
   libraryDb,

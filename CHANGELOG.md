@@ -6,6 +6,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- The heart and star next to a notification's rating showed as other symbols (a comma, a superscript):
+  they are now drawn in `daemon.glyphFont`, a Nerd Font (FiraCode Nerd Font Mono by default, as
+  polybar), instead of whichever font fallback found first. Cards in the notifyd center show the rating
+  too, with notifyd 0.32.1.
+
 ## [1.92.0] - 2026-11-27
 
 ### Added
