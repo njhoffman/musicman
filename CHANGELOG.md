@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- `check` no longer groups copies of one ISRC whose lengths are more than 15 seconds apart (an
+  extended mix, or two tracks sharing a wrong ISRC like NIN's `Ghosts II` tracks).
+
 ## [1.93.0] - 2026-11-27
 
 ### Added

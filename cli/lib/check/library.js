@@ -40,6 +40,8 @@ const leftoverSpotifyFrame = 'TXXX.spotify_track_id';
 
 // lengths within this many seconds count as the same song when artist and title match
 const durationTolerance = 2;
+// lengths within this many seconds count as one recording when the ISRC matches
+const isrcDurationTolerance = 15;
 
 const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
 
@@ -380,12 +382,32 @@ const duplicates = ({ db, songs }) => {
     ),
     ({ id, value }) => value && byId[id] && !otherRecording(byId[id].path)
   );
-  const isrc = _.map(
-    _.pickBy(
-      _.mapValues(_.groupBy(isrcRows, 'value'), rows => _.uniq(_.map(rows, 'id'))),
-      ids => ids.length > 1
-    ),
-    (ids, value) => groupFinding(`ISRC ${value}`, ids)
+  // songs sorted by length, split wherever the next one is more than tolerance seconds longer
+  const lengthClusters = (ids, tolerance) => {
+    const clusters = [];
+    _.each(
+      _.sortBy(_.map(ids, Number), id => byId[id].duration || 0),
+      id => {
+        const last = _.last(clusters);
+        const previous = last && byId[_.last(last)];
+        if (
+          previous &&
+          Math.abs((byId[id].duration || 0) - (previous.duration || 0)) <= tolerance
+        ) {
+          last.push(id);
+        } else {
+          clusters.push([id]);
+        }
+      }
+    );
+    return _.filter(clusters, cluster => cluster.length > 1);
+  };
+  // copies of one recording differ by mastering, gaps and fades, so the tolerance is wide; it splits
+  // off an extended mix or a wrong ISRC
+  const isrc = _.flatMap(_.groupBy(isrcRows, 'value'), (rows, value) =>
+    _.map(lengthClusters(_.uniq(_.map(rows, 'id')), isrcDurationTolerance), ids =>
+      groupFinding(`ISRC ${value}`, ids)
+    )
   );
   // artist and title per song, then songs of one key grouped where their lengths are close
   const tags = db
@@ -401,30 +423,11 @@ const duplicates = ({ db, songs }) => {
     _.filter(_.keys(perSong), id => perSong[id].TPE1 && perSong[id].TIT2),
     id => `${songKey(perSong[id].TPE1)}\u0000${songKey(perSong[id].TIT2)}`
   );
-  const named = _.flatMap(keyed, ids => {
-    if (ids.length < 2) {
-      return [];
-    }
-    const sorted = _.sortBy(_.map(ids, Number), id => byId[id].duration || 0);
-    const clusters = [];
-    _.each(sorted, id => {
-      const last = _.last(clusters);
-      const previous = last && byId[_.last(last)];
-      if (
-        previous &&
-        Math.abs((byId[id].duration || 0) - (previous.duration || 0)) <= durationTolerance
-      ) {
-        last.push(id);
-      } else {
-        clusters.push([id]);
-      }
-    });
-    return _.map(
-      _.filter(clusters, cluster => cluster.length > 1),
-      cluster =>
-        groupFinding(`Same song ${perSong[cluster[0]].TPE1} - ${perSong[cluster[0]].TIT2}`, cluster)
-    );
-  });
+  const named = _.flatMap(keyed, ids =>
+    _.map(lengthClusters(ids, durationTolerance), cluster =>
+      groupFinding(`Same song ${perSong[cluster[0]].TPE1} - ${perSong[cluster[0]].TIT2}`, cluster)
+    )
+  );
   // a group found by a track id is not listed again by ISRC, nor one found by an id by name
   const key = ({ files }) => _.sortBy(files).join('\n');
   const seen = new Set(_.map([...spotify, ...musicbrainz], key));

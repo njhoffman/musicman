@@ -40,7 +40,8 @@ audio) once; the whole library takes about 40 seconds.
   characters, and halfwidth or fullwidth forms in text without Japanese, Chinese, or Korean characters.
 - `duplicates` groups files with one Spotify track id, one MusicBrainz release track id, one ISRC (the
   file's `TSRC` or its Spotify track's `sp_isrc`, ignoring case and hyphens), or the same artist and title
-  (ignoring case, punctuation, and accents) with lengths within 2 seconds. A group found by a track id is
+  (ignoring case, punctuation, and accents) with lengths within 2 seconds. Copies of one ISRC must be
+  within 15 seconds of the next longer or shorter copy: an extended mix or a wrong ISRC splits off. A group found by a track id is
   not listed again by ISRC, nor one found by an id by name. Other recordings (a `live` or `remix` release,
   or a version in the title, rule 1 below) are left out of ISRC groups: beets writes the studio ISRC on
   live files, and versions can share one on Spotify. The same recording on an album and a compilation is reported too; it may be

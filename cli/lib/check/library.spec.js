@@ -271,6 +271,27 @@ describe('Library checks', () => {
       ]);
     });
 
+    it('should split off an ISRC copy more than 15 seconds from the others', () => {
+      // an album and single copy 11 seconds apart, and an extended mix 52 seconds longer
+      addSong('album.mp3', { TSRC: 'I1' }, { duration: 200 });
+      addSong('single.mp3', { TSRC: 'I1' }, { duration: 211 });
+      addSong('extended.mp3', { TSRC: 'I1' }, { duration: 263 });
+      expect(_.map(check(library.duplicates), 'files')).to.deep.equal([
+        ['album.mp3', 'single.mp3']
+      ]);
+    });
+
+    it('should chain ISRC copies by their nearest lengths, and not group a pair far apart', () => {
+      addSong('a.mp3', { TSRC: 'I1' }, { duration: 200 });
+      addSong('b.mp3', { TSRC: 'I1' }, { duration: 214 });
+      addSong('c.mp3', { TSRC: 'I1' }, { duration: 228 });
+      addSong('x.mp3', { TSRC: 'I2' }, { duration: 200 });
+      addSong('y.mp3', { TSRC: 'I2' }, { duration: 215.5 });
+      expect(_.map(check(library.duplicates), 'files')).to.deep.equal([
+        ['a.mp3', 'b.mp3', 'c.mp3']
+      ]);
+    });
+
     it('should count a song with both frames once', () => {
       addSong('x.mp3', { TSRC: 'GBAYE0200771', 'TXXX.sp_isrc': 'GBAYE0200771' });
       expect(check(library.duplicates)).to.deep.equal([]);

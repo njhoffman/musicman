@@ -47,6 +47,9 @@ Reviewed: 2026-11-26
       `single/1999 - Peel Session/02 - Happy Cycling.mp3` join their album track's ISRC group and
       `check --fix` would exclude them (files kept). Folder names are no safe signal (`Live Through This`);
       maybe the beets `albumtype`/MusicBrainz secondary types, or Spotify's own ISRC differing from TSRC.
+      Length does not tell them apart either (Lost@ is 0 s from Lost!, the Peel Session 4.6 s; 1.93.1's
+      15 s ISRC guard leaves both). Also `Little Creatures/11 - And She Was (early version).mp3`: `early`
+      is not in `versionWords`.
 - [x] **`check --fix`.** (p2) [feature] `musicman check --fix` (docs/08-check.md): names, standard,
       spotify-id, multi, case, and drift, after one confirmation, recorded for `musicman undo`.
 - [x] **Clean up duplicate TXXX fields.** (p2) [chore] `check --fix` renames each name to its most used
