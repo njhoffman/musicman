@@ -1,4 +1,5 @@
 const { expect } = require('chai');
+const _ = require('lodash');
 
 const { openDatabase } = require('../db/database.js');
 const library = require('./library.js');
@@ -217,6 +218,82 @@ describe('Library checks', () => {
       'Spotify track t1',
       'MusicBrainz track m1'
     ]);
+  });
+
+  describe('duplicates by ISRC', () => {
+    beforeEach(() => {
+      db.prepare('DELETE FROM songs').run();
+    });
+
+    it('should group copies on other releases that share only an ISRC', () => {
+      // an album copy matched to the single release's track, and a singleton without a MusicBrainz id
+      // 2.13 seconds longer: no track id or name rule meets them
+      addSong(
+        'Rated/Artists/Coldplay/album/2002 - A Rush/05 - Clocks.mp3',
+        { TPE1: 'Coldplay', TIT2: 'Clocks', TSRC: 'GBAYE0200771', 'TXXX.sp_track_id': 't-single' },
+        { duration: 307.57, mbTrackId: 'm-album' }
+      );
+      addSong(
+        'Unrated/_Singles/Coldplay - Clocks.mp3',
+        { TPE1: 'Coldplay', TIT2: 'Clocks', TSRC: 'GBAYE0200771', 'TXXX.sp_track_id': 't-album' },
+        { duration: 309.7 }
+      );
+      const findings = check(library.duplicates);
+      expect(findings.map(({ detail }) => detail.split(':')[0])).to.deep.equal([
+        'ISRC GBAYE0200771'
+      ]);
+      expect(findings[0].files).to.deep.equal([
+        'Rated/Artists/Coldplay/album/2002 - A Rush/05 - Clocks.mp3',
+        'Unrated/_Singles/Coldplay - Clocks.mp3'
+      ]);
+    });
+
+    it('should meet a file ISRC and a Spotify ISRC written in another case or with hyphens', () => {
+      addSong('x.mp3', { TSRC: 'gb-aye-02-00771' });
+      addSong('y.mp3', { 'TXXX.sp_isrc': 'GBAYE0200771' });
+      addSong('z.mp3', { TSRC: 'GBAYE0200999' });
+      const findings = check(library.duplicates);
+      expect(_.map(findings, 'files')).to.deep.equal([['x.mp3', 'y.mp3']]);
+      expect(findings[0].detail).to.match(/^ISRC GBAYE0200771:/);
+    });
+
+    it('should leave live, remix and named versions out of ISRC groups', () => {
+      // beets writes the studio ISRC on live files, and versions can share one on Spotify
+      addSong('Rated/R/I/Artists/A/album/2000 - Album/01 - Song.mp3', { TSRC: 'I1' });
+      addSong('Rated/R/I/Artists/A/live/2001 - Live/01 - Song.mp3', { TSRC: 'I1' });
+      addSong('Rated/R/I/Artists/A/album/2000 - Album/12 - Song (new vocal version).mp3', {
+        'TXXX.sp_isrc': 'I1'
+      });
+      expect(check(library.duplicates)).to.deep.equal([]);
+      addSong('Unrated/_Singles/A - Song.mp3', { TSRC: 'I1' });
+      expect(_.map(check(library.duplicates), 'files')).to.deep.equal([
+        ['Rated/R/I/Artists/A/album/2000 - Album/01 - Song.mp3', 'Unrated/_Singles/A - Song.mp3']
+      ]);
+    });
+
+    it('should count a song with both frames once', () => {
+      addSong('x.mp3', { TSRC: 'GBAYE0200771', 'TXXX.sp_isrc': 'GBAYE0200771' });
+      expect(check(library.duplicates)).to.deep.equal([]);
+    });
+
+    it('should not list a group found by Spotify id again by ISRC or by name', () => {
+      const frames = { TPE1: 'A', TIT2: 'B', TSRC: 'I1', 'TXXX.sp_track_id': 't1' };
+      addSong('x.mp3', frames);
+      addSong('y.mp3', frames);
+      expect(check(library.duplicates).map(({ detail }) => detail.split(':')[0])).to.deep.equal([
+        'Spotify track t1'
+      ]);
+    });
+
+    it('should list an ISRC group wider than the Spotify group', () => {
+      addSong('x.mp3', { TSRC: 'I1', 'TXXX.sp_track_id': 't1' });
+      addSong('y.mp3', { TSRC: 'I1', 'TXXX.sp_track_id': 't1' });
+      addSong('z.mp3', { TSRC: 'I1', 'TXXX.sp_track_id': 't2' });
+      expect(_.map(check(library.duplicates), 'files')).to.deep.equal([
+        ['x.mp3', 'y.mp3'],
+        ['x.mp3', 'y.mp3', 'z.mp3']
+      ]);
+    });
   });
 
   describe('artwork', () => {

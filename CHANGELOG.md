@@ -6,6 +6,19 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `check` finds duplicates by ISRC (the file's `TSRC` or its Spotify track's `sp_isrc`), so the same
+  recording on two releases is found even when the copies matched other Spotify tracks, have no
+  MusicBrainz id, or differ in length by more than 2 seconds. Live, remix, and version copies are left
+  out of these groups.
+
+### Changed
+
+- `check --fix` moves an `Unrated/_Singles` copy of a Rated song to the trash whatever Rated copy is
+  kept; before, it only left the library and kept its file unless an album copy was kept. Unrated
+  album tracks still only leave the library.
+
 ## [1.92.2] - 2026-11-27
 
 ### Changed

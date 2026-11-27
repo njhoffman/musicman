@@ -38,6 +38,15 @@ Reviewed: 2026-11-26
       whether `sync --pull` right after a push can act on that, e.g. take a tag off for a stale `-Spotify`.
 - [ ] **Rare values found by `check`.** (p3) [chore] mood:Bluesy (2), Dark, Folksy, Groovy (3 each), and
       picks:Jeremy (1) on 2026-11-01; keep, merge, or rename each.
+- [x] **`check` duplicates miss copies that share only an ISRC.** (p2) [bug] `Unrated/_Singles/Coldplay -
+      Clocks.mp3` and its album copy shared only an ISRC. An ISRC rule (TSRC and `sp_isrc` pooled, other
+      recordings left out) finds 65 new groups on the 2026-11-27 library; `_Singles` losers to any Rated
+      copy now go to the trash.
+- [ ] **Other recordings named only by their release.** (p3) [bug] `otherRecording` reads version words
+      from the file name only, so Coldplay `single/2008 - Lost!/03 - Lost@.mp3` (live) and Boards of Canada
+      `single/1999 - Peel Session/02 - Happy Cycling.mp3` join their album track's ISRC group and
+      `check --fix` would exclude them (files kept). Folder names are no safe signal (`Live Through This`);
+      maybe the beets `albumtype`/MusicBrainz secondary types, or Spotify's own ISRC differing from TSRC.
 - [x] **`check --fix`.** (p2) [feature] `musicman check --fix` (docs/08-check.md): names, standard,
       spotify-id, multi, case, and drift, after one confirmation, recorded for `musicman undo`.
 - [x] **Clean up duplicate TXXX fields.** (p2) [chore] `check --fix` renames each name to its most used

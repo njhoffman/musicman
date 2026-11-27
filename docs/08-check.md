@@ -38,9 +38,12 @@ audio) once; the whole library takes about 40 seconds.
   be lost. Other files are fine and not listed.
 - `encoding` looks for the replacement character, UTF-8 read as Latin-1 (`Ã©`, `â€™`), control
   characters, and halfwidth or fullwidth forms in text without Japanese, Chinese, or Korean characters.
-- `duplicates` groups files with one Spotify track id, one MusicBrainz release track id, or the same artist
-  and title (ignoring case, punctuation, and accents) with lengths within 2 seconds. A group found by an id
-  is not listed again by name. The same recording on an album and a compilation is reported too; it may be
+- `duplicates` groups files with one Spotify track id, one MusicBrainz release track id, one ISRC (the
+  file's `TSRC` or its Spotify track's `sp_isrc`, ignoring case and hyphens), or the same artist and title
+  (ignoring case, punctuation, and accents) with lengths within 2 seconds. A group found by a track id is
+  not listed again by ISRC, nor one found by an id by name. Other recordings (a `live` or `remix` release,
+  or a version in the title, rule 1 below) are left out of ISRC groups: beets writes the studio ISRC on
+  live files, and versions can share one on Spotify. The same recording on an album and a compilation is reported too; it may be
   intended.
 
 - `rare` counts each value of `stats.multiFields` (context, mood, picks) over the whole library and lists the
@@ -109,6 +112,7 @@ What happens to a copy that is not kept:
 | Copy | Database and Spotify | File |
 | ---- | -------------------- | ---- |
 | a single in a `Singles` or `_Singles` folder, when an album copy under `Artists` is kept | out | to the trash |
+| a single in `Unrated/_Singles`, when any Rated copy is kept | out | to the trash |
 | a numbered copy with the same audio | out | to the trash |
 | any other (compilation, EP, `single` release, the copies not picked) | out | stays where it is |
 

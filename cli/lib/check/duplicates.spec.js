@@ -80,15 +80,28 @@ describe('Duplicates repair', () => {
         .empty;
     });
 
-    it('should trash an Unrated single of a Rated album song, and drop one of a Rated single', () => {
+    it('should trash an Unrated single of any Rated copy', () => {
       const unrated = 'Unrated/_Singles/A - Song.mp3';
       expect(planGroup([song(unrated), song(album)])).to.deep.include({
         keep: album,
         trash: [unrated]
       });
       const plan = planGroup([song(unrated), song(singles)]);
-      expect(plan).to.deep.include({ keep: singles, exclude: [unrated], trash: [] });
+      expect(plan).to.deep.include({ keep: singles, exclude: [], trash: [unrated] });
       expect(plan.reasons[unrated]).to.equal('Unrated import of a Rated song');
+      expect(planGroup([song(unrated), song(comp)])).to.deep.include({
+        keep: comp,
+        trash: [unrated]
+      });
+    });
+
+    it('should drop an Unrated album track of a Rated song but keep its file', () => {
+      const unratedAlbum = 'Unrated/A/2000 - Album/01 - Song.mp3';
+      expect(planGroup([song(unratedAlbum), song(album)])).to.deep.include({
+        keep: album,
+        exclude: [unratedAlbum],
+        trash: []
+      });
     });
 
     it('should trash a numbered copy with the same audio, and leave one with other audio to pick', () => {

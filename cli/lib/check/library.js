@@ -4,6 +4,7 @@ const path = require('path');
 const { nameKey } = require('../db/tags.js');
 const { beetsLayouts, isSingle } = require('../beets/layout.js');
 const { coverState, defaultCover, embeddedCover } = require('../metadata/cover.js');
+const { otherRecording } = require('./duplicates.js');
 
 /**
  * Checks on the library database (song_tags holds every populated frame of every file, custom TXXX
@@ -332,8 +333,8 @@ const songKey = text =>
     .replace(/[^a-z0-9]/g, '');
 
 /**
- * The same song in more than one file: one Spotify track id, one MusicBrainz track id, or the same
- * artist and title with lengths within two seconds. One finding per group.
+ * The same song in more than one file: one Spotify track id, one MusicBrainz track id, one ISRC (TSRC
+ * or sp_isrc), or the same artist and title with lengths within two seconds. One finding per group.
  */
 const duplicates = ({ db, songs }) => {
   const byId = _.keyBy(songs, 'id');
@@ -362,6 +363,29 @@ const duplicates = ({ db, songs }) => {
   const musicbrainz = _.map(
     _.pickBy(_.groupBy(_.filter(songs, 'mb_track_id'), 'mb_track_id'), group => group.length > 1),
     (group, value) => groupFinding(`MusicBrainz track ${value}`, _.map(group, 'id'))
+  );
+  // one recording on several releases: the file's ISRC (TSRC) or its Spotify track's (sp_isrc), in
+  // any case and without hyphens, so copies matched to other releases' tracks still meet. Other
+  // recordings (live, remix, a named version) are left out: beets writes the studio ISRC on live
+  // files, and versions can share one on Spotify, so an ISRC alone does not make them copies
+  const isrcRows = _.filter(
+    _.map(
+      db
+        .prepare(
+          `SELECT t.song_id, t.value FROM song_tags t JOIN check_scope s ON s.id = t.song_id
+           WHERE t.frame_id IN ('TSRC', 'TXXX.sp_isrc')`
+        )
+        .all(),
+      row => ({ id: row.song_id, value: _.toUpper(row.value).replace(/[^A-Z0-9]/g, '') })
+    ),
+    ({ id, value }) => value && byId[id] && !otherRecording(byId[id].path)
+  );
+  const isrc = _.map(
+    _.pickBy(
+      _.mapValues(_.groupBy(isrcRows, 'value'), rows => _.uniq(_.map(rows, 'id'))),
+      ids => ids.length > 1
+    ),
+    (ids, value) => groupFinding(`ISRC ${value}`, ids)
   );
   // artist and title per song, then songs of one key grouped where their lengths are close
   const tags = db
@@ -401,14 +425,16 @@ const duplicates = ({ db, songs }) => {
         groupFinding(`Same song ${perSong[cluster[0]].TPE1} - ${perSong[cluster[0]].TIT2}`, cluster)
     );
   });
-  // a group found by an id is not listed again by name
-  const seen = new Set(
-    _.map([...spotify, ...musicbrainz], ({ files }) => _.sortBy(files).join('\n'))
-  );
+  // a group found by a track id is not listed again by ISRC, nor one found by an id by name
+  const key = ({ files }) => _.sortBy(files).join('\n');
+  const seen = new Set(_.map([...spotify, ...musicbrainz], key));
+  const recordings = _.reject(isrc, group => seen.has(key(group)));
+  _.each(recordings, group => seen.add(key(group)));
   return [
     ...spotify,
     ...musicbrainz,
-    ..._.reject(named, ({ files }) => seen.has(_.sortBy(files).join('\n')))
+    ...recordings,
+    ..._.reject(named, group => seen.has(key(group)))
   ];
 };
 

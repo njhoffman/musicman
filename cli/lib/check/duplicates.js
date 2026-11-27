@@ -84,7 +84,8 @@ const otherRecording = songPath => {
  *   the same; numbered copies with other audio are left to pick
  *   an album copy wins over an EP, an EP over a single, a single over a compilation (releaseRank)
  * A losing copy's file goes to the trash only when it is a single in a Singles folder and an album copy
- * under Artists is kept, or a numbered copy with the same audio (trash); any other losing copy leaves
+ * under Artists is kept, an Unrated singleton (Unrated/_Singles) of a Rated song, or a numbered copy
+ * with the same audio (trash); any other losing copy leaves
  * the library and Spotify but its file stays (exclude). Returns { keep, trash, exclude, clear,
  * candidates, reasons }: keep is null when copies tie, and candidates lists the copies to pick from
  * (the others are excluded, resolveGroup). Tied copies with the same audio are decided too: the one
@@ -113,7 +114,15 @@ const planGroup = (files, { audio = item => item.audio || null } = {}) => {
   }
   const [imports, rated] = _.partition(members, item => unsorted(item.path));
   if (imports.length > 0 && rated.length > 0) {
-    losers.push(..._.map(imports, item => ({ item, reason: 'Unrated import of a Rated song' })));
+    // a singleton import (Unrated/_Singles) of a Rated song is trashed whatever copy is kept; an
+    // Unrated album track may complete an album folder, so it only leaves the library
+    losers.push(
+      ..._.map(imports, item => ({
+        item,
+        reason: 'Unrated import of a Rated song',
+        trash: inSinglesFolder(item.path)
+      }))
+    );
     members = rated;
   }
   _.each(
@@ -148,8 +157,8 @@ const planGroup = (files, { audio = item => item.audio || null } = {}) => {
     }))
   );
   const albumKept = top.length > 0 && _.every(top, item => artistAlbum(item.path));
-  _.each(losers, ({ item, reason }) => {
-    (inSinglesFolder(item.path) && albumKept ? trash : exclude).push(item.path);
+  _.each(losers, ({ item, reason, trash: always = false }) => {
+    (always || (inSinglesFolder(item.path) && albumKept) ? trash : exclude).push(item.path);
     reasons[item.path] = reason;
   });
   let keep = top.length === 1 ? top[0].path : null;
@@ -563,6 +572,7 @@ module.exports = {
   duplicateGroups,
   isNumbered,
   mergedTags,
+  otherRecording,
   planDuplicates,
   planGroup,
   releaseType,
