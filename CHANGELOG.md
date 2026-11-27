@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.92.1] - 2026-11-27
+
 ### Fixed
 
 - The heart and star next to a notification's rating showed as other symbols (a comma, a superscript):
@@ -1702,7 +1704,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.92.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.92.1...HEAD
+[1.92.1]: https://github.com/njhoffman/musicman/compare/v1.92.0...v1.92.1
 [1.92.0]: https://github.com/njhoffman/musicman/compare/v1.91.0...v1.92.0
 [1.91.0]: https://github.com/njhoffman/musicman/compare/v1.90.1...v1.91.0
 [1.90.1]: https://github.com/njhoffman/musicman/compare/v1.90.0...v1.90.1
