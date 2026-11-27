@@ -8,7 +8,7 @@ const { coverFor } = require('../menu/cover.js');
 const { chipColors, defaultChip, tones } = require('../menu/menu.js');
 const { escapeMarkup } = require('../menu/rofi.js');
 const { shownAlbum } = require('../status/album.js');
-const { barSettings, glyphs, starLook } = require('../status/bar.js');
+const { barSettings, glyphs } = require('../status/bar.js');
 const { spotifyMprisNames } = require('../player/players.js');
 const logger = require('../utils/logger.js');
 const { isHearted, likeFacts } = require('./liked.js');
@@ -22,7 +22,7 @@ const appName = 'musicman';
 // the hint notifyd draws at the right end of the title line
 const titleEndHint = 'x-notifyd-title-end';
 
-// the font of the heart and star: Nerd Font glyphs sit in the Private Use Area, where common fonts
+// the font of the heart: a Nerd Font glyphs sit in the Private Use Area, where common fonts
 // (Arial, Georgia) have symbols of their own that font fallback would pick; polybar's font by default
 const defaultGlyphFont = 'FiraCode Nerd Font Mono';
 
@@ -54,31 +54,28 @@ const colored = (color, text, font) =>
   )}">${text}</span>`;
 
 /**
- * What goes right of the title (Pango markup, for notifyd's x-notifyd-title-end hint), drawn as the bar
- * draws it (status/bar.js, with its colors): the heart when the song is in Liked Songs, then the library
- * star and the rating. Songs outside the library have no star and unrated ones no number (the body says
- * so); '' when there is nothing to show. The glyphs are drawn in font (a Nerd Font; '' for the
- * daemon's own).
+ * What goes right of the title (Pango markup, for notifyd's x-notifyd-title-end hint): the bar's heart
+ * (status/bar.js glyph and color) when the song is in Liked Songs, then the rating of a rated library
+ * song as a number (unrated ones have none: the body says so); '' when there is nothing to show. The
+ * heart is drawn in font (a Nerd Font; '' for the daemon's own).
  */
 const titleEnd = (notice, colors = barSettings({}).colors, font = defaultGlyphFont) => {
-  const star = starLook(notice, colors);
   const value = Number(notice.rating);
   return _.compact([
     notice.liked ? colored(colors.heart, glyphs.heart, font) : null,
-    star ? colored(star[0], star[1], font) : null,
-    star && value ? value.toFixed(1) : null
+    notice.inLibrary && value ? value.toFixed(1) : null
   ]).join(' ');
 };
 
 /**
- * The command and arguments that show a song notification: the title as the summary, with the heart,
- * star and rating right of it (titleEnd, in notifyd's x-notifyd-title-end hint, which other daemons
+ * The command and arguments that show a song notification: the title as the summary, with the heart
+ * and rating right of it (titleEnd, in notifyd's x-notifyd-title-end hint, which other daemons
  * leave out), and as the body (Pango markup) the artist and album, then each of daemon.fields as colored
  * tags. The app name is musicman and the player (mpd, spotify) goes in the x-musicman-player hint, so
  * daemon rules can match songs; daemon.duration, when set, asks for a display time (else the daemon
  * decides). The cover, when daemon.icon is on, goes in the image-path hint, which daemons show as the
  * notification's image (--icon is only the small app icon). replaceId replaces the last notification,
- * and --print-id reports the id of this one. colors are the bar's (barSettings), and the glyphs are
+ * and --print-id reports the id of this one. colors are the bar's (barSettings), and the heart is
  * drawn in daemon.glyphFont.
  */
 const buildNotification = (

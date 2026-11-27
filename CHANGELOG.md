@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- Song notifications show the rating right of the title as just the number, after the Liked Songs
+  heart; the star is gone (unrated songs show none, the body says `unrated`).
+
 ## [1.92.1] - 2026-11-27
 
 ### Fixed

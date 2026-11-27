@@ -35,7 +35,7 @@ const paint = (color, text) => `%{F${color}}${text}%{F-}`;
 /**
  * The one star of a song as [color, glyph]: none (null) outside the library; in it, a gray filled star
  * when unrated, a dim outline below 4.0, a bright outline from 4.0, a bright filled star from 4.5, and a
- * gold one at 5.0. The song notification draws the same star.
+ * gold one at 5.0.
  */
 const starLook = ({ inLibrary, rating }, colors) => {
   if (!inLibrary) {
@@ -113,6 +113,5 @@ module.exports = {
   formatRemaining,
   glyphs,
   renderBar,
-  starLook,
   starOf
 };

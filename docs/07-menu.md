@@ -157,10 +157,10 @@ when it runs, so it follows each commit.
 service loads, for continuing a `musicman shuffle` past the tracks it started. It shows a notification when a new track starts in MPD or
 the Spotify desktop app; pausing, seeking, or the volume never notify, and each notification replaces the
 last. The summary is the title; right of it, on the same line, the heart when the song is in Liked Songs
-and the library star and rating, drawn as the bar draws them (the same Nerd Font glyphs and `bar.colors`;
-no number for an unrated song, no star outside the library). The glyphs are drawn in `daemon.glyphFont`
-(polybar's FiraCode Nerd Font Mono by default), since fonts such as Arial have symbols of their own at
-those code points that font fallback would otherwise pick. That part goes in the `x-notifyd-title-end`
+(the bar's Nerd Font glyph and `bar.colors.heart`) and the rating as a number (none for an unrated song or
+one outside the library). The heart is drawn in `daemon.glyphFont` (polybar's FiraCode Nerd Font Mono by
+default), since fonts such as Arial have symbols of their own at that code point that font fallback would
+otherwise pick. That part goes in the `x-notifyd-title-end`
 hint, which [notifyd](https://github.com/njhoffman/notifyd) draws right-aligned and quieter than the title
 (its `title-end` style key); other notification servers leave it out. The heart is decided as the bar's:
 Spotify is asked (one request shared with the bar) and the notification waits up to a second for the answer,

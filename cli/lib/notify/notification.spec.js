@@ -53,7 +53,7 @@ describe('Notify Daemon', () => {
         '--app-name=musicman',
         '--print-id',
         '--hint=string:x-musicman-player:spotify',
-        `--hint=string:x-notifyd-title-end:${paint(colors.star, glyphs.starFilled)} 4.5`,
+        '--hint=string:x-notifyd-title-end:4.5',
         '--hint=string:image-path:file:///covers/a.jpg'
       ]);
       expect(args[7]).to.equal('Fade Into You');
@@ -69,14 +69,11 @@ describe('Notify Daemon', () => {
       expect(args.some(arg => arg.startsWith('--expire-time'))).to.equal(false);
     });
 
-    it('should color the heart and star with the given bar colors', () => {
-      const custom = { ...colors, heart: '#f00', star: '#0f0' };
+    it('should color the heart with the given bar colors', () => {
+      const custom = { ...colors, heart: '#f00' };
       const { args } = buildNotification({ ...notice, liked: true }, daemon, null, custom);
       expect(args).to.include(
-        `--hint=string:x-notifyd-title-end:${paint('#f00', glyphs.heart)} ${paint(
-          '#0f0',
-          glyphs.starFilled
-        )} 4.5`
+        `--hint=string:x-notifyd-title-end:${paint('#f00', glyphs.heart)} 4.5`
       );
     });
 
@@ -114,31 +111,26 @@ describe('Notify Daemon', () => {
   });
 
   describe('titleEnd', () => {
-    const star = (color, glyph) => paint(colors[color], glyphs[glyph]);
+    const heart = paint(colors.heart, glyphs.heart);
 
-    it("should draw the bar's star with the number: gold at 5, filled from 4.5, outlines below", () => {
-      const song = rating => titleEnd({ inLibrary: true, rating });
-      expect(song('5.0')).to.equal(`${star('gold', 'starFilled')} 5.0`);
-      expect(song('4.5')).to.equal(`${star('star', 'starFilled')} 4.5`);
-      expect(song('4')).to.equal(`${star('star', 'starOutline')} 4.0`);
-      expect(song(3.5)).to.equal(`${star('low', 'starOutline')} 3.5`);
+    it('should show the rating of a rated library song as a number, without a star', () => {
+      expect(titleEnd({ inLibrary: true, rating: '5.0' })).to.equal('5.0');
+      expect(titleEnd({ inLibrary: true, rating: '4' })).to.equal('4.0');
+      expect(titleEnd({ inLibrary: true, rating: 3.5 })).to.equal('3.5');
     });
 
-    it('should show a gray star without a number for unrated songs, nothing outside the library', () => {
-      expect(titleEnd({ inLibrary: true, rating: null })).to.equal(star('unrated', 'starFilled'));
-      expect(titleEnd({ inLibrary: true, rating: 'abc' })).to.equal(star('unrated', 'starFilled'));
+    it('should show nothing for unrated songs and songs outside the library', () => {
+      expect(titleEnd({ inLibrary: true, rating: null })).to.equal('');
+      expect(titleEnd({ inLibrary: true, rating: 'abc' })).to.equal('');
       expect(titleEnd({ inLibrary: false, rating: null })).to.equal('');
     });
 
     it('should put the heart first for a liked song, in or out of the library', () => {
-      const heart = paint(colors.heart, glyphs.heart);
-      expect(titleEnd({ inLibrary: true, rating: '4.5', liked: true })).to.equal(
-        `${heart} ${star('star', 'starFilled')} 4.5`
-      );
+      expect(titleEnd({ inLibrary: true, rating: '4.5', liked: true })).to.equal(`${heart} 4.5`);
       expect(titleEnd({ inLibrary: false, liked: true })).to.equal(heart);
     });
 
-    it('should draw the glyphs in daemon.glyphFont, or the daemon font when it is empty', () => {
+    it('should draw the heart in daemon.glyphFont, or the daemon font when it is empty', () => {
       const song = { ...notice, liked: true };
       const end = daemonConfig =>
         buildNotification(song, daemonConfig).args.find(arg => arg.includes('x-notifyd-title-end'));
