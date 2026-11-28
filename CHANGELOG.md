@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- Tag chips (song notifications and the menu) have darker backgrounds and brighter text, so their labels read better.
+
 ## [1.95.0] - 2026-11-27
 
 ### Changed

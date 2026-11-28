@@ -49,11 +49,11 @@ const tones = {
 
 // colors of the song's tags in the details: a foreground and a dark background per field
 const chipColors = {
-  context: ['#61afef', '#1f3347'],
-  mood: ['#c678dd', '#33264a'],
-  picks: ['#e06c75', '#45262b']
+  context: ['#8cc8ff', '#132130'],
+  mood: ['#dda0f0', '#221932'],
+  picks: ['#ff9aa2', '#2f191d']
 };
-const defaultChip = ['#98c379', '#28351f'];
+const defaultChip = ['#b8e09a', '#1b2415'];
 
 // the key the main menu answers besides its buttons': q closes it (submenus filter as you type, so
 // Escape goes back there)
