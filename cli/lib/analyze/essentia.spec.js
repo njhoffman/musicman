@@ -495,7 +495,9 @@ describe('Essentia analysis', () => {
         run: fakeRun({ fail: 'b.mp3' })
       });
       expect(res.analyze.written).to.equal(1);
-      expect(res.analyze.failed).to.deep.equal([{ file: 'b.mp3', error: 'cannot decode' }]);
+      expect(res.analyze.failed).to.deep.equal([
+        { file: 'b.mp3', error: 'cannot decode', count: 1 }
+      ]);
       const next = await analyze({
         options: { switches: { dryRun: true } },
         config,
@@ -507,5 +509,174 @@ describe('Essentia analysis', () => {
         err => expect(err.message).to.match(/--limit needs a positive number/)
       );
     });
+
+    it('should leave out a song after 3 failures until its file changes, --refresh, or it works', async () => {
+      const failing = () =>
+        analyze({ options: { switches: { yes: true } }, config, run: fakeRun({ fail: 'b.mp3' }) });
+      const dryRun = (switches = {}) =>
+        analyze({ options: { switches: { dryRun: true, ...switches } }, config, run: fakeRun() });
+      expect((await failing()).analyze.failed[0].count).to.equal(1);
+      expect((await failing()).analyze.failed[0].count).to.equal(2);
+      expect((await failing()).analyze.failed[0]).to.include({ count: 3, error: 'cannot decode' });
+      // the fourth run leaves it out and says so
+      expect((await dryRun()).analyze).to.include({ songs: 0, skipped: 1 });
+      expect((await dryRun({ refresh: true })).analyze).to.include({ songs: 2, skipped: 0 });
+      const db = openDatabase(config.db.path);
+      const failures = () => db.prepare('SELECT count, error FROM analysis_failures').all();
+      expect(failures()).to.deep.equal([{ count: 3, error: 'cannot decode' }]);
+      // a changed file (db --update stores its new mtime) is tried again, its count starting over
+      db.prepare("UPDATE songs SET mtime = mtime + 1 WHERE path = 'b.mp3'").run();
+      expect((await dryRun()).analyze).to.include({ songs: 1, skipped: 0 });
+      expect((await failing()).analyze.failed[0].count).to.equal(1);
+      // an analysis that works forgets the failures
+      expect(
+        (await analyze({ options: { switches: { yes: true } }, config, run: fakeRun() })).analyze
+      ).to.include({ written: 1 });
+      expect(failures()).to.deep.equal([]);
+      // the table follows the songs
+      db.prepare("DELETE FROM songs WHERE path = 'b.mp3'").run();
+      db.close();
+    });
+  });
+});
+
+describe('Essentia analysis workers', () => {
+  // a worker that says it is ready (or not), answers each file, and dies on the ones named crash, with
+  // code 139 and SIGSEGV as Essentia's decoder does
+  const workerSpawn = ({ crash = [], ready = true, dieAtStart = false } = {}) => {
+    const spawned = [];
+    const spawnProcess = () => {
+      const child = new EventEmitter();
+      child.stdin = new PassThrough();
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      let dead = false;
+      const die = (code, signal) => {
+        if (!dead) {
+          dead = true;
+          child.stdout.end();
+          child.stderr.end();
+          setImmediate(() => child.emit('close', code, signal));
+        }
+      };
+      child.kill = signal => die(null, signal);
+      if (ready) {
+        child.stdout.write(`${JSON.stringify({ ready: true })}\n`);
+      }
+      if (dieAtStart) {
+        setImmediate(() => die(1, null));
+      }
+      let buffer = '';
+      child.stdin.on('data', chunk => {
+        buffer += chunk;
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        lines.forEach(line => {
+          const file = line.split('\t')[0];
+          if (crash.includes(file)) {
+            die(null, 'SIGSEGV');
+          } else if (!dead && !dieAtStart) {
+            child.stdout.write(`${JSON.stringify(result(file))}\n`);
+          }
+        });
+      });
+      child.stdin.on('finish', () => die(0, null));
+      spawned.push(child);
+      return child;
+    };
+    return { spawnProcess, spawned };
+  };
+
+  it('should report the file a worker crashes on, replace the worker, and analyse the rest', async () => {
+    const { spawnProcess, spawned } = workerSpawn({ crash: ['2.mp3'] });
+    const results = [];
+    const logs = [];
+    await runAnalysis({
+      files: ['1.mp3', '2.mp3', '3.mp3', '4.mp3'],
+      workers: 1,
+      spawnProcess,
+      onResult: r => results.push(r),
+      onLog: line => logs.push(line)
+    }).done;
+    expect(_.map(results, 'file')).to.deep.equal(['1.mp3', '2.mp3', '3.mp3', '4.mp3']);
+    expect(results[1]).to.deep.equal({
+      file: '2.mp3',
+      error: 'the analysis worker crashed on it (SIGSEGV)',
+      crashed: true
+    });
+    expect(spawned).to.have.length(2);
+    expect(logs.join('\n')).to.include('crashed on it (SIGSEGV): 2.mp3');
+    // a crash on the last file reports it and starts nothing more
+    const last = workerSpawn({ crash: ['y.mp3'] });
+    const lastResults = [];
+    await runAnalysis({
+      files: ['x.mp3', { file: 'y.mp3', parts: ['styles'] }],
+      workers: 1,
+      spawnProcess: last.spawnProcess,
+      onResult: r => lastResults.push(r)
+    }).done;
+    expect(_.map(lastResults, 'file')).to.deep.equal(['x.mp3', 'y.mp3']);
+    expect(last.spawned).to.have.length(1);
+  });
+
+  it('should name the signal behind the exit code of uv, and give a plain exit code as it is', async () => {
+    const exiting = code => {
+      const { spawnProcess } = workerSpawn();
+      return () => {
+        const child = spawnProcess();
+        child.stdin.removeAllListeners('data');
+        child.stdin.once('data', () => {
+          child.stdout.end();
+          setImmediate(() => child.emit('close', code, null));
+        });
+        return child;
+      };
+    };
+    const errorOf = async code => {
+      const results = [];
+      await runAnalysis({
+        files: ['1.mp3'],
+        workers: 1,
+        spawnProcess: exiting(code),
+        onResult: r => results.push(r)
+      }).done;
+      return results[0].error;
+    };
+    expect(await errorOf(139)).to.equal(
+      'the analysis worker crashed on it (SIGSEGV, exit code 139)'
+    );
+    expect(await errorOf(134)).to.equal(
+      'the analysis worker crashed on it (SIGABRT, exit code 134)'
+    );
+    expect(await errorOf(2)).to.equal('the analysis worker exited with code 2 on it');
+  });
+
+  it('should blame no file for a worker that dies before it is ready, or that is stopped', async () => {
+    const early = workerSpawn({ ready: false, dieAtStart: true });
+    const results = [];
+    await runAnalysis({
+      files: ['1.mp3', '2.mp3'],
+      workers: 1,
+      spawnProcess: early.spawnProcess,
+      onResult: r => results.push(r)
+    }).done;
+    expect(results).to.deep.equal([]);
+    expect(early.spawned).to.have.length(1);
+    // stop: the files in progress are left for next time
+    const slow = workerSpawn();
+    const stopped = [];
+    const run = runAnalysis({
+      files: ['1.mp3', '2.mp3'],
+      workers: 2,
+      spawnProcess: () => {
+        const child = slow.spawnProcess();
+        child.stdin.removeAllListeners('data');
+        return child;
+      },
+      onResult: r => stopped.push(r)
+    });
+    run.stop();
+    await run.done;
+    expect(stopped).to.deep.equal([]);
   });
 });

@@ -12,6 +12,12 @@ const {
   styleSettings
 } = require('../analyze/essentia.js');
 const {
+  clearFailure,
+  failureLimit,
+  recordFailure,
+  skippedSongs
+} = require('../analyze/failures.js');
+const {
   idleReady,
   idleSettings,
   loadAverages,
@@ -183,6 +189,14 @@ const analyzeSongs = async ({
     const left = limit ? limit - full.length : null;
     const styles = left === 0 ? [] : stylesOnly(config, db, { refresh, limit: left });
     const songs = full.concat(styles);
+    // songs that failed failureLimit times are not tried again until their file changes or --refresh
+    const skipped = refresh ? [] : skippedSongs(db);
+    if (skipped.length > 0) {
+      logger.info(
+        `${skipped.length} songs left out after ${failureLimit} failed analyses (analyze --refresh tries ` +
+          `them again): ${_.map(_.take(skipped, 3), 'path').join(', ')}${skipped.length > 3 ? ', ...' : ''}`
+      );
+    }
     const estimate = hours(
       (full.length * secondsPerFile + styles.length * secondsPerStylesFile) / Math.max(1, workers)
     );
@@ -190,7 +204,14 @@ const analyzeSongs = async ({
       `${songs.length} songs to analyse with Essentia${styles.length ? ` (${styles.length} for their styles only)` : ''}, about ${estimate} with ${workers} workers`
     );
     if (songs.length === 0 || switches.dryRun) {
-      return { analyze: { songs: songs.length, written: 0, dryRun: Boolean(switches.dryRun) } };
+      return {
+        analyze: {
+          songs: songs.length,
+          written: 0,
+          dryRun: Boolean(switches.dryRun),
+          skipped: skipped.length
+        }
+      };
     }
     const question = `Analyse ${songs.length} songs (about ${estimate}) and write ${fields.join(', ')}?`;
     if (!idle && !switches.yes && !(await confirm(question))) {
@@ -209,6 +230,11 @@ const analyzeSongs = async ({
       }
       return updates;
     };
+    // a failure is recorded against the file as the database knows it, so a changed file starts again
+    const fail = (relative, error) => {
+      const count = recordFailure(db, relative, error);
+      failed.push({ file: relative, error, ...(count ? { count } : {}) });
+    };
     const startedAt = new Date();
     let done = 0;
     let stoppedBy = null;
@@ -226,7 +252,7 @@ const analyzeSongs = async ({
         done += 1;
         const relative = path.relative(baseDirectory, result.file);
         if (result.error || !fs.existsSync(result.file)) {
-          failed.push({ file: relative, error: result.error || 'file is gone' });
+          fail(relative, result.error || 'file is gone');
         } else {
           const { custom, standard } = analysisWrites(result, {
             fields,
@@ -241,8 +267,9 @@ const analyzeSongs = async ({
             result.file
           );
           if (write instanceof Error) {
-            failed.push({ file: relative, error: write.message });
+            fail(relative, write.message);
           } else {
+            clearFailure(db, relative);
             written.push(relative);
             pending.push(result.file);
             if (pending.length >= updateEvery) {
@@ -268,7 +295,17 @@ const analyzeSongs = async ({
     unwatch();
     await flush();
     logger.progressDone();
-    failed.forEach(({ file, error }) => logger.warn(`FAILED  ${file}: ${error}`));
+    failed.forEach(({ file, error, count }) =>
+      logger.warn(
+        `FAILED  ${file}: ${error}${
+          count >= failureLimit
+            ? ` (failed ${count} times: left out until the file changes or analyze --refresh)`
+            : count > 1
+              ? ` (failed ${count} times)`
+              : ''
+        }`
+      )
+    );
     logger.info(
       `Analysed ${written.length} songs${failed.length ? `, ${failed.length} failed` : ''}` +
         `${written.length + failed.length < songs.length ? `; ${songs.length - written.length - failed.length} left for the next run` : ''}` +
@@ -279,6 +316,7 @@ const analyzeSongs = async ({
         songs: songs.length,
         written: written.length,
         failed,
+        skipped: skipped.length,
         ...(stoppedBy ? { stopped: stoppedBy } : {})
       }
     };

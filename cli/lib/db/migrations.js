@@ -15,6 +15,8 @@
 //     across moves, tag writes, and computers (docs/10-host-sync.md); filled by db --update
 // 13: changes, the change log of library fields and match decisions (lib/history/changes.js), kept apart
 //     from the undo history so pruning it never loses what another computer has not pulled yet
+// 14: analysis_failures, songs musicman analyze failed on (lib/analyze/failures.js): skipped after a few
+//     failures until the file changes or analyze --refresh
 module.exports = [
   `
   CREATE TABLE songs (
@@ -194,5 +196,16 @@ module.exports = [
   );
   CREATE INDEX changes_song_hash ON changes (song_hash);
   CREATE INDEX changes_unpushed ON changes (pushed_at) WHERE origin IS NULL;
+  `,
+  // mtime and size are the song's when it last failed: a changed file is tried again
+  `
+  CREATE TABLE analysis_failures (
+    song_id INTEGER PRIMARY KEY REFERENCES songs (id) ON DELETE CASCADE,
+    mtime INTEGER NOT NULL,
+    size INTEGER NOT NULL,
+    count INTEGER NOT NULL,
+    error TEXT,
+    failed_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
   `
 ];

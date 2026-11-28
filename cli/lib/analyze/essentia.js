@@ -1,7 +1,10 @@
 const _ = require('lodash');
+const os = require('os');
 const path = require('path');
 const readline = require('readline');
 const { spawn } = require('child_process');
+
+const { skippedSql } = require('./failures.js');
 
 /**
  * Audio analysis of the library's own files with Essentia (cli/scripts/essentia-analyze.py, run through
@@ -103,10 +106,25 @@ const analysisWrites = (
 /**
  * Analyses files with workers processes of the script, each taking files from a shared queue as it
  * finishes one, and calls onResult(result) for each JSON line ({ file, ... } or { file, error }).
- * Resolves when every worker exits; stop() ends them (their files in progress are left for next time),
- * finish() lets each worker finish the file it has and then exit, and active() counts the workers left.
- * Dependencies: spawnProcess, command (uv run --script <script>).
+ * A worker that dies holding a file (Essentia's decoder segfaults on some broken mp3s, so the script
+ * cannot report it) reports that file as { file, error, crashed: true } and is replaced while files are
+ * left. Only once the worker said it is ready (its models loaded): one that dies before, e.g. without
+ * uv or its models, blames no file and is not replaced, so a broken setup cannot fail every song.
+ * Resolves when every worker exits; stop() ends them (their files in progress are left for next time,
+ * not failed), finish() lets each worker finish the file it has and then exit, and active() counts the
+ * workers left. Dependencies: spawnProcess, command (uv run --script <script>).
  */
+// uv exits 128 + N when the python under it dies of signal N (139: SIGSEGV)
+const signalOfCode = code =>
+  code > 128 ? _.findKey(os.constants.signals, number => number === code - 128) : null;
+const crashText = (code, signal) => {
+  const name = signal || signalOfCode(code);
+  if (name) {
+    return `the analysis worker crashed on it (${name}${signal ? '' : `, exit code ${code}`})`;
+  }
+  return `the analysis worker exited with code ${code} on it`;
+};
+
 const runAnalysis = ({
   files,
   workers = 4,
@@ -118,19 +136,25 @@ const runAnalysis = ({
   const queue = [...files];
   const children = [];
   let running = 0;
-  const done = _.times(Math.min(workers, queue.length), () => {
+  let stopping = false;
+  const startWorker = () => {
     const child = spawnProcess(command[0], command[1], { stdio: ['pipe', 'pipe', 'pipe'] });
     children.push(child);
     running += 1;
+    let ready = false;
+    // the file the worker has now, until its result arrives
+    let current = null;
     // one file at a time, the next once its result arrives, so a fast worker takes more of them
     // a file is a path (every part) or { file, parts }, sent as path<TAB>part,part
     const feed = () => {
       const file = queue.shift();
       if (file) {
+        current = file;
         child.stdin.write(
           _.isString(file) ? `${file}\n` : `${file.file}\t${file.parts.join(',')}\n`
         );
       } else {
+        current = null;
         child.stdin.end();
       }
     };
@@ -141,6 +165,11 @@ const runAnalysis = ({
       } catch {
         return;
       }
+      if (result.ready) {
+        ready = true;
+        return;
+      }
+      current = null;
       onResult(result);
       feed();
     });
@@ -160,15 +189,28 @@ const runAnalysis = ({
         end();
         resolve();
       });
-      child.on('close', () => {
+      child.on('close', (code, signal) => {
         end();
+        const held = current;
+        current = null;
+        if (held && ready && !stopping) {
+          const file = _.isString(held) ? held : held.file;
+          onLog(`analysis worker: ${crashText(code, signal)}: ${file}`);
+          onResult({ file, error: crashText(code, signal), crashed: true });
+          if (queue.length > 0) {
+            startWorker().then(resolve);
+            return;
+          }
+        }
         resolve();
       });
     });
-  });
+  };
+  const done = _.times(Math.min(workers, queue.length), startWorker);
   return {
     done: Promise.all(done),
     stop: () => {
+      stopping = true;
       queue.length = 0;
       children.forEach(child => child.kill('SIGTERM'));
     },
@@ -181,14 +223,16 @@ const runAnalysis = ({
 
 /**
  * Library songs to analyse: those without es_analyzed_at, every song with refresh, as paths relative
- * to mpd.baseDirectory, the first limit of them when given.
+ * to mpd.baseDirectory, the first limit of them when given. Songs whose file failed too often
+ * (failures.js) are left out, except with refresh.
  */
 const songsToAnalyze = (db, { refresh = false, limit = null } = {}) => {
   const rows = db
     .prepare(
       `SELECT s.path FROM songs s
-       WHERE ? OR NOT EXISTS (
-         SELECT 1 FROM song_tags t WHERE t.song_id = s.id AND t.frame_id = ?
+       WHERE ? OR (
+         NOT EXISTS (SELECT 1 FROM song_tags t WHERE t.song_id = s.id AND t.frame_id = ?)
+         AND NOT ${skippedSql}
        )
        ORDER BY s.path`
     )
@@ -199,7 +243,7 @@ const songsToAnalyze = (db, { refresh = false, limit = null } = {}) => {
 /**
  * Songs analysed before styles were (es_analyzed_at without es_style_scores), for a styles only
  * analysis, which skips tempo, key, and danceability and takes about a third of the time. Paths as
- * songsToAnalyze gives them.
+ * songsToAnalyze gives them, without the songs whose file failed too often.
  */
 const songsWithoutStyles = (db, { limit = null } = {}) => {
   const rows = db
@@ -207,6 +251,7 @@ const songsWithoutStyles = (db, { limit = null } = {}) => {
       `SELECT s.path FROM songs s
        WHERE EXISTS (SELECT 1 FROM song_tags t WHERE t.song_id = s.id AND t.frame_id = ?)
          AND NOT EXISTS (SELECT 1 FROM song_tags t WHERE t.song_id = s.id AND t.frame_id = ?)
+         AND NOT ${skippedSql}
        ORDER BY s.path`
     )
     .all(`TXXX.${analyzedName}`, `TXXX.${styleScoresName}`);

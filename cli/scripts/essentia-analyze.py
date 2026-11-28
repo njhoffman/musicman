@@ -10,6 +10,9 @@ writes one JSON line per file to stdout, as each is done:
    "styles": [["Blues Rock", 0.41], ...]}
   or {"file", "error"}
 
+The first line out, {"ready": true}, says the models are loaded; a worker that dies after it died on the
+file it had (Essentia's decoder segfaults on some broken mp3s), one that dies before did not.
+
 A line is a path, for every part, or path<TAB>parts, a comma list of rhythm (bpm, key, danceability),
 moods, and styles, for only those; the result then has only their fields.
 
@@ -142,6 +145,7 @@ def main():
     essentia.log.infoActive = False
     essentia.log.warningActive = False
     embeddings, moods, styles = load_models()
+    print(json.dumps({"ready": True}), flush=True)
     for line in sys.stdin:
         path, parts = parse_line(line)
         if not path:

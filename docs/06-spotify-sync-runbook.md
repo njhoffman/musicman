@@ -162,6 +162,12 @@ environment on the first run; the models, about 23 MB, go to `~/.cache/musicman/
 - `analyze.workers` processes (4) share the files; each file's tags are written as soon as it is analysed and
   recorded for `musicman undo`. About 4 seconds a file with 4 workers (2026-11-03): 7 to 9 hours for the
   whole library.
+- A file that fails is listed as `FAILED` with the reason, also from the background run (in the journal):
+  an error the script reports, or a worker that dies on it (`crashed on it (SIGSEGV, exit code 139)`:
+  Essentia's decoder segfaults on some broken mp3s, e.g. one with a second stream appended). The dead
+  worker is replaced, so the rest of the run goes on. After 3 failures of the same file the song is left out
+  (`analyze` says how many and which) until the file changes (`db --update` sees a new size or time) or
+  `analyze --refresh`; the failures are kept in the database (`analysis_failures`), never in the file.
 - The moods are only probabilities: the `mood` tag stays yours.
 - Styles: Essentia's `genre_discogs400` classifier scores each of the 400 Discogs styles (Blues Rock, Trip
   Hop, Boom Bap, ...) from the same 90 seconds. `es_styles` gets at most 3 of them (`analyze.styles.max`),

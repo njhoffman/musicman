@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- `analyze` reports a file its Essentia worker crashes on as `FAILED` with the reason, instead of counting it as left and retrying it every run without a word, and starts a new worker so the rest of the run goes on. After 3 failures of the same file the song is left out, and listed, until the file changes or `analyze --refresh`.
+
 ## [1.96.0] - 2026-11-28
 
 ### Added
