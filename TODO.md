@@ -214,6 +214,12 @@ Reviewed: 2026-11-26
 - [ ] **Suggest `mood` values from the Essentia moods.** (p3) [feature] once `analyze` has run, offer `mood` values
       for songs whose `es_mood_*` probabilities are high (e.g. relaxed above 0.8 and no mood yet), to accept in
       the page or a picker, never written on their own.
+- [ ] **`--yes` does not answer the pull's and push's questions.** (p3) [feature] `sync --pull --yes` still asks
+      "Apply the playlist changes made on Spotify to the tags of N songs?" (`cli/lib/commands/sync.js:286`)
+      and cancels without a terminal, and the same goes for the push's "Add N tracks ..." (`sync.js:179`).
+      `switches.yes` only reaches `importConfirm` (`sync.js:865`) and `--features`. Pass the same
+      `switches.yes ? async () => true : confirm` to the tag and push steps, so a scripted or `musicman ui`
+      run can apply them; keep the dry run as the place to read the plan first.
 - [x] **Spotify credentials.** (p1) [feature] from the environment or `spotify.*`; `sync --login` saves OAuth tokens
       to `$XDG_STATE_HOME/musicman/spotify-token.json` (mode 0600).
 - [x] **Sync config.** (p1) [feature] `sync.likedRating`, `sync.playlists`, `sync.uploadDirectory`,
