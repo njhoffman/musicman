@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.96.1] - 2026-11-28
+
 ### Fixed
 
 - `analyze` reports a file its Essentia worker crashes on as `FAILED` with the reason, instead of counting it as left and retrying it every run without a word, and starts a new worker so the rest of the run goes on. After 3 failures of the same file the song is left out, and listed, until the file changes or `analyze --refresh`.
@@ -1790,7 +1792,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.96.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.96.1...HEAD
+[1.96.1]: https://github.com/njhoffman/musicman/compare/v1.96.0...v1.96.1
 [1.96.0]: https://github.com/njhoffman/musicman/compare/v1.95.3...v1.96.0
 [1.95.3]: https://github.com/njhoffman/musicman/compare/v1.95.2...v1.95.3
 [1.95.2]: https://github.com/njhoffman/musicman/compare/v1.95.1...v1.95.2
