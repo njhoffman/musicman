@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.95.3] - 2026-11-27
+
 ### Fixed
 
 - Every test now shows up in test-progress: the `edit` and `logs` paging specs no longer replace stdout, which had swallowed their own result lines.
@@ -1778,7 +1780,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.95.2...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.95.3...HEAD
+[1.95.3]: https://github.com/njhoffman/musicman/compare/v1.95.2...v1.95.3
 [1.95.2]: https://github.com/njhoffman/musicman/compare/v1.95.1...v1.95.2
 [1.95.1]: https://github.com/njhoffman/musicman/compare/v1.95.0...v1.95.1
 [1.95.0]: https://github.com/njhoffman/musicman/compare/v1.94.0...v1.95.0
