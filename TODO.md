@@ -509,6 +509,13 @@ Reviewed: 2026-11-26
       tables (none of `spotify_matches`, `spotify_playlists`, `tag_changes`, `history_runs`,
       `excluded_songs`, ...), and its "Prerequisites" and "Database initialization" sections are planning
       notes from 2026-10-20 ("any other tables that make sense adding?").
+- [ ] **Specs that stub stdout swallow their own TAP lines.** (p3) [test] 10 tests missing from
+      test-progress. `cli/lib/commands/edit.spec.js` (7 tests) and the paging tests in
+      `cli/lib/commands/logs.spec.js:105-112` (3) replace `process.stdout.write` in `beforeEach` and restore
+      it in `afterEach`. Mocha writes a test's result line before `afterEach` runs, so under
+      `--reporter tap` the stub captures it. test-progress then counts them as "not run" (1394 of 1404
+      on 2026-11-27). Fix: restore inside each test (try/finally, as `logs.spec.js:84-91` does), or stub
+      only around the call under test.
 
 ## 15. Host sync (`docs/10-host-sync.md`)
 

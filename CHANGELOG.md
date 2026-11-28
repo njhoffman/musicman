@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- `just test` runs the cli's mocha tests and the scripts' `node --test` tests through `~/.shell`'s test-progress when it is installed, so each run shows per-test results live and is kept in `~/.local/state/test-progress`; without it the recipe runs the same two steps directly.
+
 ## [1.95.1] - 2026-11-27
 
 ### Changed

@@ -77,6 +77,10 @@ install-check:
     systemctl --user is-enabled --quiet musicman-notify.service
     systemctl --user is-enabled --quiet musicman-analyze.timer
 
-# the test suite
+# ~/.shell's test-progress, when installed, runs each step, keeps the run and shows it live
+tp := if path_exists(home_directory() / ".shell/scripts/test-progress") == "true" { home_directory() / ".shell/scripts/test-progress run --" } else { "" }
+
+# the test suite: the cli's mocha tests, then the scripts' node --test tests
 test:
-    pnpm test
+    cd cli && {{ tp }} NODE_ENV=test node_modules/.bin/mocha
+    {{ tp }} node --test 'scripts/*.test.js'
