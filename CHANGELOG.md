@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.95.2] - 2026-11-27
+
 ### Changed
 
 - `just test` runs the cli's mocha tests and the scripts' `node --test` tests through `~/.shell`'s test-progress when it is installed, so each run shows per-test results live and is kept in `~/.local/state/test-progress`; without it the recipe runs the same two steps directly.
@@ -1772,7 +1774,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.95.1...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.95.2...HEAD
+[1.95.2]: https://github.com/njhoffman/musicman/compare/v1.95.1...v1.95.2
 [1.95.1]: https://github.com/njhoffman/musicman/compare/v1.95.0...v1.95.1
 [1.95.0]: https://github.com/njhoffman/musicman/compare/v1.94.0...v1.95.0
 [1.94.0]: https://github.com/njhoffman/musicman/compare/v1.93.1...v1.94.0
