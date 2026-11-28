@@ -83,3 +83,38 @@ describe('configured filters', () => {
     ]);
   });
 });
+
+describe('analysis styles', () => {
+  const { checkConfig, loadConfig } = require('musicman-common/config');
+
+  it('should register es_styles as a multi value field and es_style_scores beside it', () => {
+    const config = loadConfig({ userConfig: {} });
+    const byName = name => config.tags.find(tag => tag.name === name);
+    expect(byName('es_styles')).to.deep.equal({
+      id: 'TXXX.es_styles',
+      name: 'es_styles',
+      multi: true
+    });
+    expect(byName('es_style_scores')).to.deep.equal({
+      id: 'TXXX.es_style_scores',
+      name: 'es_style_scores'
+    });
+    expect(config.library.tags.map(tag => tag.name)).to.include.members([
+      'es_styles',
+      'es_style_scores'
+    ]);
+    expect(config.analyze.styles).to.deep.equal({ min: 0.12, relative: 0.5, max: 3 });
+    // without styles in analyze.fields neither is registered
+    const moods = loadConfig({ userConfig: { analyze: { fields: ['mood_happy'] } } });
+    expect(moods.tags.map(tag => tag.name)).to.not.include('es_styles');
+  });
+
+  it('should accept styles in analyze.fields and check analyze.styles', () => {
+    expect(checkConfig({ userConfig: { analyze: { fields: ['styles'] } } }).errors).to.be.empty;
+    const { errors } = checkConfig({
+      userConfig: { analyze: { styles: { min: 1.5, relative: -1, max: 0 } } }
+    });
+    expect(errors).to.have.length(3);
+    expect(errors.join('\n')).to.include('analyze.styles.min').and.include('analyze.styles.max');
+  });
+});

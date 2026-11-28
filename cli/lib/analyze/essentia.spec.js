@@ -1,3 +1,4 @@
+const _ = require('lodash');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -6,7 +7,15 @@ const NodeId3 = require('node-id3');
 const { expect } = require('chai');
 
 const { openDatabase } = require('../db/database.js');
-const { analysisWrites, keyName, runAnalysis, songsToAnalyze } = require('./essentia.js');
+const {
+  analysisWrites,
+  keyName,
+  pickStyles,
+  runAnalysis,
+  songsToAnalyze,
+  songsWithoutStyles,
+  styleSettings
+} = require('./essentia.js');
 
 const result = (file, extra = {}) => ({
   file,
@@ -17,6 +26,15 @@ const result = (file, extra = {}) => ({
   moods: { happy: 0.802, sad: 0.385, relaxed: 0.414, aggressive: 0.028, party: 0.279 },
   ...extra
 });
+
+// the script's styles: the best 5 [name, score] pairs
+const styles = [
+  ['Alternative Rock', 0.338],
+  ['Indie Rock', 0.258],
+  ['Brit Pop', 0.229],
+  ['Pop Rock', 0.2],
+  ['Soft Rock', 0.062]
+];
 
 describe('Essentia analysis', () => {
   it('should write keys with sharps, minor with m', () => {
@@ -43,6 +61,76 @@ describe('Essentia analysis', () => {
     expect(filled.standard).to.deep.equal({});
     const some = analysisWrites(result('a.mp3'), { fields: ['mood_party'] });
     expect(some.custom.map(({ name }) => name)).to.deep.equal(['es_mood_party', 'es_analyzed_at']);
+  });
+
+  it('should pick at most max styles, each over min and the relative share of the best', () => {
+    // the defaults: over 0.12 and half of 0.338, at most 3
+    expect(pickStyles(styles)).to.deep.equal(['Alternative Rock', 'Indie Rock', 'Brit Pop']);
+    expect(pickStyles(styles, { min: 0.12, relative: 0.7, max: 3 })).to.deep.equal([
+      'Alternative Rock',
+      'Indie Rock'
+    ]);
+    expect(pickStyles(styles, { min: 0.3, relative: 0, max: 5 })).to.deep.equal([
+      'Alternative Rock'
+    ]);
+    expect(pickStyles(styles, { min: 0.1, relative: 0, max: 5 })).to.have.length(4);
+    // no score is sure enough, or no scores
+    expect(pickStyles([['Grime', 0.08]])).to.deep.equal([]);
+    expect(pickStyles([])).to.deep.equal([]);
+    // analyze.styles overrides some of the defaults
+    expect(styleSettings({ analyze: { styles: { max: 2 } } })).to.deep.equal({
+      min: 0.12,
+      relative: 0.5,
+      max: 2
+    });
+    expect(styleSettings({})).to.deep.equal({ min: 0.12, relative: 0.5, max: 3 });
+  });
+
+  it('should write the chosen styles and their scores, and leave fields a styles only result lacks', () => {
+    const now = new Date('2026-11-28T10:00:00Z');
+    const full = analysisWrites(result('a.mp3', { styles }), { now });
+    expect(full.custom).to.deep.include({
+      name: 'es_styles',
+      value: 'Alternative Rock,Indie Rock,Brit Pop'
+    });
+    expect(full.custom).to.deep.include({
+      name: 'es_style_scores',
+      value: 'Alternative Rock=0.34; Indie Rock=0.26; Brit Pop=0.23; Pop Rock=0.20; Soft Rock=0.06'
+    });
+    // a styles only analysis: no tempo, key, danceability or moods to write
+    const only = analysisWrites({ file: 'a.mp3', styles }, { now });
+    expect(only.standard).to.deep.equal({});
+    expect(only.custom.map(({ name }) => name)).to.deep.equal([
+      'es_styles',
+      'es_style_scores',
+      'es_analyzed_at'
+    ]);
+    // none sure enough: es_styles is emptied, so a refresh clears the old ones
+    const none = analysisWrites({ file: 'a.mp3', styles: [['Grime', 0.08]] }, { now });
+    expect(none.custom[0]).to.deep.equal({ name: 'es_styles', value: '' });
+    // the settings reach the pick, and a result without styles writes neither field
+    const two = analysisWrites(
+      { file: 'a.mp3', styles },
+      { styles: { min: 0, relative: 0, max: 2 } }
+    );
+    expect(two.custom[0].value).to.equal('Alternative Rock,Indie Rock');
+    const without = analysisWrites(result('a.mp3'), { now });
+    expect(_.map(without.custom, 'name')).to.not.include('es_styles');
+  });
+
+  it('should pick the analysed songs without styles for a styles only analysis', () => {
+    const db = openDatabase(':memory:');
+    ['a.mp3', 'b.mp3', 'c.mp3', 'd.mp3'].forEach((p, i) =>
+      db.prepare('INSERT INTO songs (id, path, mtime, size) VALUES (?, ?, 0, 0)').run(i + 1, p)
+    );
+    const tag = db.prepare('INSERT INTO song_tags (song_id, frame_id, value) VALUES (?, ?, ?)');
+    // a: not analysed; b and d: analysed before styles; c: analysed with them
+    [2, 3, 4].forEach(id => tag.run(id, 'TXXX.es_analyzed_at', '2026-11-01'));
+    tag.run(3, 'TXXX.es_style_scores', 'Ambient=0.43');
+    expect(songsWithoutStyles(db)).to.deep.equal(['b.mp3', 'd.mp3']);
+    expect(songsWithoutStyles(db, { limit: 1 })).to.deep.equal(['b.mp3']);
+    expect(songsToAnalyze(db)).to.deep.equal(['a.mp3']);
+    db.close();
   });
 
   it('should pick the songs not analysed yet, all with refresh, the first N with a limit', () => {
@@ -85,6 +173,21 @@ describe('Essentia analysis', () => {
     };
     const results = [];
     const files = ['1.mp3', '2.mp3', '3.mp3', '4.mp3', '5.mp3'];
+    // a file with parts goes to the script as path<TAB>parts
+    const lines = [];
+    const recording = () => {
+      const child = spawnProcess();
+      child.stdin.on('data', chunk => lines.push(...String(chunk).split('\n').filter(Boolean)));
+      return child;
+    };
+    await runAnalysis({
+      files: ['x.mp3', { file: 'y.mp3', parts: ['styles'] }],
+      workers: 1,
+      spawnProcess: recording,
+      onResult: () => {}
+    }).done;
+    expect(lines).to.deep.equal(['x.mp3', 'y.mp3\tstyles']);
+    spawned.length = 0;
     const { done } = runAnalysis({
       files,
       workers: 2,
@@ -147,6 +250,8 @@ describe('Essentia analysis', () => {
             { name: 'bpm', id: 'TBPM' },
             { name: 'key', id: 'TKEY' },
             { name: 'es_mood_happy', id: 'TXXX.es_mood_happy' },
+            { name: 'es_styles', id: 'TXXX.es_styles', multi: true },
+            { name: 'es_style_scores', id: 'TXXX.es_style_scores' },
             { name: 'es_analyzed_at', id: 'TXXX.es_analyzed_at' }
           ]
         },
@@ -162,13 +267,24 @@ describe('Essentia analysis', () => {
       fs.rmSync(root, { recursive: true, force: true });
     });
 
-    // the analysis without Essentia: each file's result, b.mp3 failing when told to
+    // the analysis without Essentia: each file's result (only the styles for a styles only file), b.mp3
+    // failing when told to; sent lists what each run was given
+    let sent = [];
     const fakeRun =
-      ({ fail = null } = {}) =>
+      ({ fail = null, withStyles = true } = {}) =>
       ({ files, onResult }) => {
-        files.forEach(file =>
-          onResult(file.endsWith(fail) ? { file, error: 'cannot decode' } : result(file))
-        );
+        sent = files;
+        files.forEach(entry => {
+          const file = _.isString(entry) ? entry : entry.file;
+          const only = !_.isString(entry);
+          if (file.endsWith(fail)) {
+            onResult({ file, error: 'cannot decode' });
+          } else if (only) {
+            onResult({ file, styles });
+          } else {
+            onResult(result(file, withStyles ? { styles } : {}));
+          }
+        });
         return { done: Promise.resolve() };
       };
 
@@ -202,6 +318,59 @@ describe('Essentia analysis', () => {
       ).to.include({
         songs: 0
       });
+    });
+
+    it('should give songs analysed before styles their styles alone, and count them in --limit', async () => {
+      // analysed before styles were a field: no es_style_scores
+      await analyze({
+        options: { switches: { yes: true } },
+        config,
+        run: fakeRun({ withStyles: false })
+      });
+      const dry = await analyze({
+        options: { switches: { dryRun: true } },
+        config,
+        run: fakeRun()
+      });
+      expect(dry.analyze).to.include({ songs: 2, written: 0 });
+      // --limit 1 takes one of them
+      const one = await analyze({
+        options: { switches: { yes: true, limit: '1' } },
+        config,
+        run: fakeRun()
+      });
+      expect(one.analyze).to.include({ songs: 1, written: 1 });
+      expect(sent).to.deep.equal([
+        { file: path.join(config.mpd.baseDirectory, 'a.mp3'), parts: ['styles'] }
+      ]);
+      const custom = name =>
+        Object.fromEntries(
+          []
+            .concat(NodeId3.read(path.join(config.mpd.baseDirectory, name)).raw.TXXX)
+            .map(t => [t.description, t.value])
+        );
+      expect(custom('a.mp3')).to.include({
+        es_styles: 'Alternative Rock,Indie Rock,Brit Pop',
+        es_mood_happy: '0.80'
+      });
+      // the rest, then nothing; without styles in analyze.fields they are not asked for
+      await analyze({ options: { switches: { yes: true } }, config, run: fakeRun() });
+      expect(
+        (await analyze({ options: { switches: { dryRun: true } }, config, run: fakeRun() })).analyze
+      ).to.include({ songs: 0 });
+      const db = openDatabase(config.db.path);
+      db.prepare("DELETE FROM song_tags WHERE frame_id = 'TXXX.es_style_scores'").run();
+      db.close();
+      const moodsOnly = { ...config, analyze: { workers: 2, fields: ['mood_happy'] } };
+      expect(
+        (
+          await analyze({
+            options: { switches: { dryRun: true } },
+            config: moodsOnly,
+            run: fakeRun()
+          })
+        ).analyze
+      ).to.include({ songs: 0 });
     });
 
     describe('--idle', () => {

@@ -80,15 +80,25 @@ const registerFeatureTags = config => {
 };
 
 // the analysis fields musicman analyze writes (cli/lib/analyze/essentia.js): tempo to TBPM (bpm) and key
-// to TKEY (key) when empty, the others to TXXX.es_<field>, and es_analyzed_at; all library tags
+// to TKEY (key) when empty, the others to TXXX.es_<field>, and es_analyzed_at; all library tags. styles
+// writes two: es_styles (multi value) and es_style_scores
+const analysisTagNames = { styles: ['styles', 'style_scores'] };
+const multiAnalysisTags = ['styles'];
 const registerAnalysisTags = config => {
   const fields = _.get(config, 'analyze.fields') || [];
   if (fields.length === 0) {
     return;
   }
   const custom = _.map(
-    _.reject(fields, field => featureTagNames[field]).concat('analyzed_at'),
-    field => ({ id: `TXXX.es_${field}`, name: `es_${field}` })
+    _.flatMap(
+      _.reject(fields, field => featureTagNames[field]).concat('analyzed_at'),
+      field => analysisTagNames[field] || [field]
+    ),
+    field => ({
+      id: `TXXX.es_${field}`,
+      name: `es_${field}`,
+      ...(multiAnalysisTags.includes(field) ? { multi: true } : {})
+    })
   );
   const defined = new Set(_.map(config.tags, 'name'));
   config.tags = (config.tags || []).concat(_.reject(custom, ({ name }) => defined.has(name)));

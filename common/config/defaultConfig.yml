@@ -219,6 +219,15 @@ analyze:
   - mood_relaxed
   - mood_aggressive
   - mood_party
+  - styles
+  # styles: the Discogs styles (400, e.g. Blues Rock, Trip Hop) Essentia hears in a song, as es_styles,
+  # a multi value field for smart playlists, with es_style_scores, the 5 best and their scores. A song
+  # gets at most max styles, each scoring at least min and at least relative times its best score.
+  # Songs analysed before styles were get them alone, in about a third of the time of a full analysis.
+  styles:
+    min: 0.12
+    relative: 0.5
+    max: 3
 
 # musicman status (and musicman alone while a song plays): the now playing screen
 status:

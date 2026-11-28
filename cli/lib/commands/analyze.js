@@ -7,7 +7,9 @@ const {
   analysisFields,
   analysisWrites,
   runAnalysis,
-  songsToAnalyze
+  songsToAnalyze,
+  songsWithoutStyles,
+  styleSettings
 } = require('../analyze/essentia.js');
 const {
   idleReady,
@@ -27,9 +29,10 @@ const { confirm: confirmPrompt } = require('../utils/confirm.js');
 const logger = require('../utils/logger.js');
 
 // worker processes, unless analyze.workers says otherwise; seconds a worker takes per file (measured
-// 2026-11-03: about 13 to 20), for the estimate
+// 2026-11-03: about 13 to 20; styles only, 2026-11-28: about 6), for the estimate
 const defaultWorkers = 4;
 const secondsPerFile = 16;
+const secondsPerStylesFile = 6;
 // files written between database updates
 const updateEvery = 25;
 
@@ -69,12 +72,19 @@ const idleCheck = (
         return 0;
       }
       try {
-        return songsToAnalyze(db).length;
+        return songsToAnalyze(db).length + stylesOnly(config, db).length;
       } finally {
         db.close();
       }
     }
   });
+
+// the analysed songs that still need their styles, when analyze.fields has styles (not with refresh,
+// which analyses every song in full anyway)
+const stylesOnly = (config, db, { refresh = false, limit = null } = {}) =>
+  !refresh && (_.get(config, 'analyze.fields') || analysisFields).includes('styles')
+    ? songsWithoutStyles(db, { limit })
+    : [];
 
 const hours = seconds =>
   seconds >= 3600 ? `${(seconds / 3600).toFixed(1)} hours` : `${Math.ceil(seconds / 60)} minutes`;
@@ -167,10 +177,17 @@ const analyzeSongs = async ({
   const baseDirectory = path.resolve(config.mpd.baseDirectory);
   const db = openDb();
   try {
-    const songs = songsToAnalyze(db, { refresh: Boolean(switches.refresh), limit });
-    const estimate = hours((songs.length * secondsPerFile) / Math.max(1, workers));
+    const refresh = Boolean(switches.refresh);
+    const full = songsToAnalyze(db, { refresh, limit });
+    // --limit counts both: the songs to analyse in full first, then those for their styles
+    const left = limit ? limit - full.length : null;
+    const styles = left === 0 ? [] : stylesOnly(config, db, { refresh, limit: left });
+    const songs = full.concat(styles);
+    const estimate = hours(
+      (full.length * secondsPerFile + styles.length * secondsPerStylesFile) / Math.max(1, workers)
+    );
     logger.info(
-      `${songs.length} songs to analyse with Essentia, about ${estimate} with ${workers} workers`
+      `${songs.length} songs to analyse with Essentia${styles.length ? ` (${styles.length} for their styles only)` : ''}, about ${estimate} with ${workers} workers`
     );
     if (songs.length === 0 || switches.dryRun) {
       return { analyze: { songs: songs.length, written: 0, dryRun: Boolean(switches.dryRun) } };
@@ -200,7 +217,9 @@ const analyzeSongs = async ({
       finish = _.noop,
       active = () => workers
     } = run({
-      files: _.map(songs, songPath => path.join(baseDirectory, songPath)),
+      files: _.map(full, songPath => path.join(baseDirectory, songPath)).concat(
+        _.map(styles, songPath => ({ file: path.join(baseDirectory, songPath), parts: ['styles'] }))
+      ),
       workers,
       onLog: line => logger.logToFile('debug', `essentia: ${line}`),
       onResult: result => {
@@ -211,7 +230,8 @@ const analyzeSongs = async ({
         } else {
           const { custom, standard } = analysisWrites(result, {
             fields,
-            current: currentTags(result.file)
+            current: currentTags(result.file),
+            styles: styleSettings(config)
           });
           const write = updateTags(
             {
@@ -272,7 +292,7 @@ const defaultTarget = baseDirectory => baseDirectory;
 module.exports = {
   name: 'analyze',
   description:
-    'Analyse the library files with Essentia: tempo and key where missing, danceability, and mood probabilities',
+    'Analyse the library files with Essentia: tempo and key where missing, danceability, mood probabilities, and Discogs styles',
   usage: 'musicman analyze [--refresh] [--limit N] [--dry-run] [--yes] | --idle',
   switches: ['refresh', 'limit', 'dry-run', 'yes', 'idle'],
   switchHelp: {

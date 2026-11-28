@@ -211,6 +211,16 @@ Reviewed: 2026-11-26
       `busyLoad` for `busyMinutes`; with `busyLoad` at or below `load` (raising only `load`, as on charon
       2026-11-15) a run can stop itself two minutes after it starts, every 15 minutes. `validateConfig`
       (`common/config/validator.js`) should warn, or `idleSettings` raise `busyLoad` to `load + 1`.
+- [ ] **A file the analysis worker dies on is retried forever, silently.** (p2) [bug] `analyze` counts a
+      file as left, not failed, when its worker exits without a result line (`cli/lib/analyze/essentia.js`
+      `runAnalysis`: the file it was given is never reported), and the worker's stderr goes only to the
+      debug log (`onLog` in `cli/lib/commands/analyze.js`). So `musicman-analyze.timer` retried "Ball and
+      Biscuit" every 15 minutes from 2026-11-26 with "Analysed 0 songs; 1 left" and no reason. The file has
+      3.8 MB of a second stream appended after its ID3v1 tag. Report the file in progress as failed when its
+      worker closes, log worker stderr at warn, and skip a file that failed N times until --refresh.
+- [ ] **Re-pick styles from their scores.** (p3) [feature] changing `analyze.styles` (min, relative, max)
+      only affects songs analysed afterwards. `es_style_scores` keeps the 5 best, so `analyze --restyle` (or
+      part of `check --fix`) could rewrite `es_styles` from it in seconds instead of rerunning Essentia.
 - [ ] **Suggest `mood` values from the Essentia moods.** (p3) [feature] once `analyze` has run, offer `mood` values
       for songs whose `es_mood_*` probabilities are high (e.g. relaxed above 0.8 and no mood yet), to accept in
       the page or a picker, never written on their own.
@@ -452,9 +462,10 @@ Reviewed: 2026-11-26
 - [ ] **Lyrics analysis and sources.** (p3) [feature] lyric based tags (themes, explicitness, language). Fetching
       lyrics belongs to sleeve, which has LRCLIB and NetEase; build on its lyrics (`sleeve lyrics --json`) rather
       than evaluating sources again here.
-- [ ] **Genre analysis services.** (p3) [feature] evaluate Every Noise at Once, Chosic music genre finder, PitchPlus,
-      and SubmitHub "What's my genre" for finer genres than Spotify's artist genres, to help guess groupings.
-      Several are websites without an API, so check what can be automated.
+- [x] **Genre analysis services.** (p3) [feature] finer genres than Spotify's artist genres, per song: the
+      websites considered (Every Noise at Once, Chosic, PitchPlus, SubmitHub) have no usable API, so
+      `analyze` writes Essentia's Discogs-400 styles instead (`es_styles`, `es_style_scores`; 2026-11-28).
+      Discogs release styles share its vocabulary, if a second opinion is wanted later.
 - [ ] **Other music services.** (p3) [feature] support services besides Spotify (e.g. YouTube Music, SoundCloud) for
       matching, playlist sync, and playback, starting with which ones have a usable API.
 

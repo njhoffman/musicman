@@ -148,6 +148,15 @@ const configSchema = {
           busyMinutes: { type: 'number', min: 0, required: false },
           workers: { type: 'number', min: 1, required: false }
         }
+      },
+      styles: {
+        type: 'object',
+        required: false,
+        properties: {
+          min: { type: 'number', min: 0, max: 1, required: false },
+          relative: { type: 'number', min: 0, max: 1, required: false },
+          max: { type: 'number', min: 1, required: false }
+        }
       }
     }
   },
@@ -510,7 +519,8 @@ function validateConfig(config) {
     'mood_sad',
     'mood_relaxed',
     'mood_aggressive',
-    'mood_party'
+    'mood_party',
+    'styles'
   ];
   _.each(_.get(config, 'analyze.fields', []), (field, i) => {
     if (!analyzeFields.includes(field)) {

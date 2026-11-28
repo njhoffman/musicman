@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- `analyze` writes the Discogs styles Essentia hears in each song: `es_styles`, a multi value field (at most 3 of the 400 Discogs styles, such as Blues Rock, Trip Hop or Shoegaze) for views and smart playlists, and `es_style_scores`, the 5 best with their scores. `analyze.styles` sets how sure a style has to be (`min`, `relative`) and how many a song gets (`max`). Songs analysed before get their styles on their own, in about a third of the time of a full analysis; `grouping` stays the primary genre.
+
 ## [1.95.3] - 2026-11-27
 
 ### Fixed

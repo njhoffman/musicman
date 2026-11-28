@@ -151,9 +151,9 @@ or undo, only a line in the journal (`journalctl --user -u musicman-analyze`). A
 background one never run at once: the second refuses (`systemctl --user stop musicman-analyze` stops the
 background one), and the timer skips while a manual one runs.
 
-For the songs ReccoBeats does not know (or that have no Spotify id), and for moods, `analyze` analyses the
+For the songs ReccoBeats does not know (or that have no Spotify id), and for moods and styles, `analyze` analyses the
 library's own files with Essentia (`cli/scripts/essentia-analyze.py`, run through `uv`, which builds its
-environment on the first run; the models, about 21 MB, go to `~/.cache/musicman/essentia-models`).
+environment on the first run; the models, about 23 MB, go to `~/.cache/musicman/essentia-models`).
 
 - Tempo and key fill `TBPM` and `TKEY` only where they are empty, so ReccoBeats' values stay.
 - Danceability (Essentia's scale, 0 to about 3) and the probabilities of five moods (happy, sad, relaxed,
@@ -163,6 +163,16 @@ environment on the first run; the models, about 21 MB, go to `~/.cache/musicman/
   recorded for `musicman undo`. About 4 seconds a file with 4 workers (2026-11-03): 7 to 9 hours for the
   whole library.
 - The moods are only probabilities: the `mood` tag stays yours.
+- Styles: Essentia's `genre_discogs400` classifier scores each of the 400 Discogs styles (Blues Rock, Trip
+  Hop, Boom Bap, ...) from the same 90 seconds. `es_styles` gets at most 3 of them (`analyze.styles.max`),
+  each scoring at least 0.12 (`min`) and at least half (`relative`) of the song's best score; it is a multi
+  value field, so `view es_styles:Shoegaze` and smart playlists can use it, and it is empty when no style is
+  sure enough. `es_style_scores` keeps the 5 best with their scores (`Ambient=0.43; Downtempo=0.36; ...`).
+  The scores are low (on a 44 song sample on 2026-11-28 the best was often under 0.3) and neighbouring
+  styles get confused, so treat them as hints next to `grouping`, which stays the primary genre.
+- Songs analysed before styles were a field get them on their own (`analyze` says how many): only the
+  embeddings and the classifier, about 6 seconds a file against 13 to 20 for a full analysis, so about 6
+  hours for the whole library with 2 workers in the background.
 
 ## Spotify to local
 

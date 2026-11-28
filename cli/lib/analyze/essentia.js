@@ -5,8 +5,9 @@ const { spawn } = require('child_process');
 
 /**
  * Audio analysis of the library's own files with Essentia (cli/scripts/essentia-analyze.py, run through
- * uv): tempo and key for the songs ReccoBeats left without them, danceability, and mood probabilities.
- * Essentia's numbers are on scales of their own, so they go to es_<field> tags, never to rb_* ones.
+ * uv): tempo and key for the songs ReccoBeats left without them, danceability, mood probabilities, and
+ * Discogs styles. Essentia's numbers are on scales of their own, so they go to es_<field> tags, never to
+ * rb_* ones.
  */
 const analyzeScript = path.join(__dirname, '..', '..', 'scripts', 'essentia-analyze.py');
 
@@ -19,12 +20,39 @@ const analysisFields = [
   'mood_sad',
   'mood_relaxed',
   'mood_aggressive',
-  'mood_party'
+  'mood_party',
+  'styles'
 ];
 
 const analysisPrefix = 'es_';
 const analyzedName = `${analysisPrefix}analyzed_at`;
 const analysisName = field => `${analysisPrefix}${field}`;
+// the styles field writes the chosen styles (multi value) and the scores they were chosen from
+const stylesName = analysisName('styles');
+const styleScoresName = analysisName('style_scores');
+
+/**
+ * Which Discogs styles a song gets from its scores (the script's [name, score] pairs, best first):
+ * at most max of them, each scoring at least min and at least relative times the best score. The
+ * defaults come from a sample of 44 songs (2026-11-28): the scores are low (the best is often under
+ * 0.3), so a fixed high threshold leaves most songs without a style.
+ */
+const defaultStyleSettings = { min: 0.12, relative: 0.5, max: 3 };
+const styleSettings = config => ({
+  ...defaultStyleSettings,
+  ..._.pick(_.get(config, 'analyze.styles') || {}, ['min', 'relative', 'max'])
+});
+const pickStyles = (scores, { min, relative, max } = defaultStyleSettings) => {
+  const best = _.get(scores, [0, 1], 0);
+  const cut = Math.max(min, relative * best);
+  return _.take(
+    _.filter(scores, ([, score]) => score >= cut).map(([name]) => name),
+    max
+  );
+};
+// the scores as written to es_style_scores: Name=0.43; Other=0.36 (';', since styles are a comma list)
+const styleScoresText = scores =>
+  _.map(scores, ([name, score]) => `${name}=${score.toFixed(2)}`).join('; ');
 
 // Essentia names some keys with flats; TKEY gets the sharps ReccoBeats' keys are written with
 const sharps = { Db: 'C#', Eb: 'D#', Gb: 'F#', Ab: 'G#', Bb: 'A#' };
@@ -34,16 +62,23 @@ const keyName = (key, scale) =>
 /**
  * The tag writes for one analysis: { custom: [{ name, value }], standard: { TBPM, TKEY } }. Tempo and
  * key go only into empty frames (current: the file's TBPM and TKEY), the rest into es_<field> with
- * es_analyzed_at stamped at now.
+ * es_analyzed_at stamped at now. Styles write es_styles (pickStyles with styles settings, empty when
+ * none is sure enough) and es_style_scores. A field the result lacks (a styles only analysis has no
+ * tempo or moods) is left as it is.
  */
 const analysisWrites = (
   result,
-  { fields = analysisFields, current = {}, now = new Date() } = {}
+  { fields = analysisFields, current = {}, now = new Date(), styles = defaultStyleSettings } = {}
 ) => {
   const custom = [];
   const standard = {};
   _.each(fields, field => {
-    if (field === 'tempo') {
+    if (field === 'styles') {
+      if (_.isArray(result.styles)) {
+        custom.push({ name: stylesName, value: pickStyles(result.styles, styles).join(',') });
+        custom.push({ name: styleScoresName, value: styleScoresText(result.styles) });
+      }
+    } else if (field === 'tempo') {
       if (!current.TBPM && _.isNumber(result.bpm) && result.bpm > 0) {
         standard.TBPM = `${Math.round(result.bpm)}`;
       }
@@ -88,10 +123,13 @@ const runAnalysis = ({
     children.push(child);
     running += 1;
     // one file at a time, the next once its result arrives, so a fast worker takes more of them
+    // a file is a path (every part) or { file, parts }, sent as path<TAB>part,part
     const feed = () => {
       const file = queue.shift();
       if (file) {
-        child.stdin.write(`${file}\n`);
+        child.stdin.write(
+          _.isString(file) ? `${file}\n` : `${file.file}\t${file.parts.join(',')}\n`
+        );
       } else {
         child.stdin.end();
       }
@@ -158,13 +196,34 @@ const songsToAnalyze = (db, { refresh = false, limit = null } = {}) => {
   return _.map(limit ? _.take(rows, limit) : rows, 'path');
 };
 
+/**
+ * Songs analysed before styles were (es_analyzed_at without es_style_scores), for a styles only
+ * analysis, which skips tempo, key, and danceability and takes about a third of the time. Paths as
+ * songsToAnalyze gives them.
+ */
+const songsWithoutStyles = (db, { limit = null } = {}) => {
+  const rows = db
+    .prepare(
+      `SELECT s.path FROM songs s
+       WHERE EXISTS (SELECT 1 FROM song_tags t WHERE t.song_id = s.id AND t.frame_id = ?)
+         AND NOT EXISTS (SELECT 1 FROM song_tags t WHERE t.song_id = s.id AND t.frame_id = ?)
+       ORDER BY s.path`
+    )
+    .all(`TXXX.${analyzedName}`, `TXXX.${styleScoresName}`);
+  return _.map(limit ? _.take(rows, limit) : rows, 'path');
+};
+
 module.exports = {
   analysisFields,
   analysisName,
   analysisWrites,
   analyzeScript,
   analyzedName,
+  defaultStyleSettings,
   keyName,
+  pickStyles,
   runAnalysis,
-  songsToAnalyze
+  songsToAnalyze,
+  songsWithoutStyles,
+  styleSettings
 };
