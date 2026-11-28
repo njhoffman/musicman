@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- Every test now shows up in test-progress: the `edit` and `logs` paging specs no longer replace stdout, which had swallowed their own result lines.
+
 ## [1.95.2] - 2026-11-27
 
 ### Changed

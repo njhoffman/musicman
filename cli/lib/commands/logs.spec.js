@@ -99,21 +99,17 @@ describe('Logs Command', () => {
     expect(db.summary).to.equal('2 added');
   });
   describe('page', () => {
+    // page writes through its write option, so the reporter's own stdout stays untouched
     let written;
-    let original;
+    let write;
 
     beforeEach(() => {
       written = [];
-      original = process.stdout.write;
-      process.stdout.write = text => written.push(text);
-    });
-
-    afterEach(() => {
-      process.stdout.write = original;
+      write = text => written.push(text);
     });
 
     it('should write straight to stdout when it is not a terminal', () => {
-      logsCommand.page('text', { isTTY: false });
+      logsCommand.page('text', { isTTY: false, write });
       expect(written).to.deep.equal(['text\n']);
     });
 
@@ -127,14 +123,15 @@ describe('Logs Command', () => {
       logsCommand.page('text', {
         isTTY: true,
         env: { PAGER: 'more' },
-        spawn: spawn({ status: 0, error: epipe })
+        spawn: spawn({ status: 0, error: epipe }),
+        write
       });
       expect(spawned).to.deep.equal([['more', 'text\n']]);
       expect(written).to.be.empty;
     });
 
     it('should fall back to stdout when the pager cannot be found', () => {
-      logsCommand.page('text', { isTTY: true, env: {}, spawn: () => ({ status: 127 }) });
+      logsCommand.page('text', { isTTY: true, env: {}, spawn: () => ({ status: 127 }), write });
       expect(written).to.deep.equal(['text\n']);
     });
   });

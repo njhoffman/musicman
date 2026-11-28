@@ -29,11 +29,10 @@ describe('Edit Command', () => {
       '../output/index.js': {
         outputDifferences: outputStub
       },
-      '../utils/confirm.js': { confirm: confirmStub }
+      '../utils/confirm.js': { confirm: confirmStub },
+      // the command's progress lines go to a stub, not stdout, which mocha's reporter writes to
+      '../utils/logger.js': { info: sinon.stub() }
     });
-
-    // Suppress console output during tests
-    sinon.stub(process.stdout, 'write');
   });
 
   afterEach(() => {

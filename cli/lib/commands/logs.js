@@ -12,10 +12,15 @@ const logger = require('../utils/logger.js');
 // long output goes through $PAGER (less -R) on a terminal, straight to stdout otherwise
 const page = (
   text,
-  { isTTY = process.stdout.isTTY, env = process.env, spawn = spawnSync } = {}
+  {
+    isTTY = process.stdout.isTTY,
+    env = process.env,
+    spawn = spawnSync,
+    write = output => process.stdout.write(output)
+  } = {}
 ) => {
   if (!isTTY) {
-    process.stdout.write(`${text}\n`);
+    write(`${text}\n`);
     return;
   }
   const result = spawn(env.PAGER || 'less -R', {
@@ -25,7 +30,7 @@ const page = (
   });
   // the shell exits 127 for a pager it cannot find; a pager quit before the end (EPIPE) is fine
   if (result.status === 127 || (result.error && result.error.code !== 'EPIPE')) {
-    process.stdout.write(`${text}\n`);
+    write(`${text}\n`);
   }
 };
 
