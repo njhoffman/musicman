@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.95.1] - 2026-11-27
+
 ### Changed
 
 - Tag chips (song notifications and the menu) have darker backgrounds and brighter text, so their labels read better.
@@ -1766,7 +1768,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.95.0...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.95.1...HEAD
+[1.95.1]: https://github.com/njhoffman/musicman/compare/v1.95.0...v1.95.1
 [1.95.0]: https://github.com/njhoffman/musicman/compare/v1.94.0...v1.95.0
 [1.94.0]: https://github.com/njhoffman/musicman/compare/v1.93.1...v1.94.0
 [1.93.1]: https://github.com/njhoffman/musicman/compare/v1.93.0...v1.93.1
