@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.96.0] - 2026-11-28
+
 ### Added
 
 - `analyze` writes the Discogs styles Essentia hears in each song: `es_styles`, a multi value field (at most 3 of the 400 Discogs styles, such as Blues Rock, Trip Hop or Shoegaze) for views and smart playlists, and `es_style_scores`, the 5 best with their scores. `analyze.styles` sets how sure a style has to be (`min`, `relative`) and how many a song gets (`max`). Songs analysed before get their styles on their own, in about a third of the time of a full analysis; `grouping` stays the primary genre.
@@ -1784,7 +1786,8 @@ Maintenance release with no user-facing changes.
 - Initial server with music-metadata handlers and the first routes
 - React client scaffold
 
-[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.95.3...HEAD
+[Unreleased]: https://github.com/njhoffman/musicman/compare/v1.96.0...HEAD
+[1.96.0]: https://github.com/njhoffman/musicman/compare/v1.95.3...v1.96.0
 [1.95.3]: https://github.com/njhoffman/musicman/compare/v1.95.2...v1.95.3
 [1.95.2]: https://github.com/njhoffman/musicman/compare/v1.95.1...v1.95.2
 [1.95.1]: https://github.com/njhoffman/musicman/compare/v1.95.0...v1.95.1
